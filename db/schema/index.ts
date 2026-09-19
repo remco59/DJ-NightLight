@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -79,6 +80,37 @@ export const gigs = pgTable('gigs', {
   ...timestamps,
 })
 
+export const gigContacts = pgTable('gig_contacts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 200 }).notNull(),
+  role: varchar('role', { length: 160 }),
+  email: varchar('email', { length: 320 }),
+  phone: varchar('phone', { length: 64 }),
+  notes: text('notes'),
+  ...timestamps,
+})
+
+export const gigTimelineItems = pgTable('gig_timeline_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  time: varchar('time', { length: 16 }),
+  title: varchar('title', { length: 240 }).notNull(),
+  description: text('description'),
+  ordering: integer('ordering').default(0).notNull(),
+  ...timestamps,
+})
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  entityType: varchar('entity_type', { length: 80 }).notNull(),
+  entityId: uuid('entity_id').notNull(),
+  action: varchar('action', { length: 80 }).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Client = typeof clients.$inferSelect
@@ -87,3 +119,5 @@ export type Venue = typeof venues.$inferSelect
 export type NewVenue = typeof venues.$inferInsert
 export type Gig = typeof gigs.$inferSelect
 export type NewGig = typeof gigs.$inferInsert
+export type GigContact = typeof gigContacts.$inferSelect
+export type GigTimelineItem = typeof gigTimelineItems.$inferSelect
