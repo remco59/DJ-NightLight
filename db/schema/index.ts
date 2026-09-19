@@ -147,6 +147,27 @@ export const siteContent = pgTable('site_content', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const landingPages = pgTable('landing_pages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: varchar('slug', { length: 160 }).notNull().unique(),
+  navLabel: varchar('nav_label', { length: 120 }).notNull(),
+  eyebrow: varchar('eyebrow', { length: 160 }).notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  intro: text('intro').notNull(),
+  body: text('body').notNull(),
+  heroImageUrl: text('hero_image_url'),
+  ctaLabel: varchar('cta_label', { length: 120 }).notNull(),
+  ctaHref: varchar('cta_href', { length: 500 }).default('/boeken').notNull(),
+  published: boolean('published').default(false).notNull(),
+  showInNavigation: boolean('show_in_navigation').default(false).notNull(),
+  indexable: boolean('indexable').default(true).notNull(),
+  seoTitle: varchar('seo_title', { length: 180 }).notNull(),
+  seoDescription: varchar('seo_description', { length: 320 }).notNull(),
+  seoImageUrl: text('seo_image_url'),
+  ordering: integer('ordering').default(0).notNull(),
+  ...timestamps,
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Client = typeof clients.$inferSelect
@@ -158,3 +179,4 @@ export type NewGig = typeof gigs.$inferInsert
 export type GigContact = typeof gigContacts.$inferSelect
 export type GigTimelineItem = typeof gigTimelineItems.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
+export type LandingPage = typeof landingPages.$inferSelect
