@@ -7,7 +7,7 @@
 
 * { box-sizing: border-box; }
 
-html { background: #08080b; }
+html { background: #08080b; scroll-behavior: smooth; }
 
 body {
   margin: 0;
@@ -22,6 +22,10 @@ a { color: inherit; }
 
 button, input, textarea, select { font: inherit; }
 
+button, a { -webkit-tap-highlight-color: transparent; }
+
+img { max-width: 100%; }
+
 .site-shell { min-height: 100vh; }
 
 .container {
@@ -34,4 +38,47 @@ button, input, textarea, select { font: inherit; }
   text-transform: uppercase;
   font-size: .75rem;
   color: #b9b6c6;
+}
+
+.public-container {
+  width: min(1180px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.public-page {
+  min-height: 75vh;
+  padding: 9rem 0 5rem;
+}
+
+.display-title {
+  margin: .25rem 0 1.25rem;
+  max-width: 15ch;
+  font-size: clamp(3rem, 8vw, 7.5rem);
+  line-height: .92;
+  letter-spacing: -.065em;
+}
+
+.lead-copy {
+  max-width: 44rem;
+  color: #aaa4af;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.65;
+}
+
+.public-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: .8rem 1.1rem;
+  background: #fff;
+  color: #09080b;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.public-button.secondary {
+  border: 1px solid #343038;
+  background: transparent;
+  color: #eeeaf2;
 }

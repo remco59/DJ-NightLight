@@ -111,6 +111,42 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export type SiteService = { title: string, body: string }
+export type SiteGalleryItem = { url: string, alt: string }
+
+export const siteContent = pgTable('site_content', {
+  key: varchar('key', { length: 40 }).primaryKey(),
+  brandName: varchar('brand_name', { length: 120 }).notNull(),
+  heroEyebrow: varchar('hero_eyebrow', { length: 160 }).notNull(),
+  heroTitle: varchar('hero_title', { length: 300 }).notNull(),
+  heroBody: text('hero_body').notNull(),
+  heroImageUrl: text('hero_image_url'),
+  heroCtaLabel: varchar('hero_cta_label', { length: 120 }).notNull(),
+  aboutEyebrow: varchar('about_eyebrow', { length: 160 }).notNull(),
+  aboutTitle: varchar('about_title', { length: 300 }).notNull(),
+  aboutBody: text('about_body').notNull(),
+  mediaEyebrow: varchar('media_eyebrow', { length: 160 }).notNull(),
+  mediaTitle: varchar('media_title', { length: 300 }).notNull(),
+  mediaBody: text('media_body').notNull(),
+  showreelUrl: text('showreel_url'),
+  agendaEyebrow: varchar('agenda_eyebrow', { length: 160 }).notNull(),
+  agendaTitle: varchar('agenda_title', { length: 300 }).notNull(),
+  agendaBody: text('agenda_body').notNull(),
+  bookingEyebrow: varchar('booking_eyebrow', { length: 160 }).notNull(),
+  bookingTitle: varchar('booking_title', { length: 300 }).notNull(),
+  bookingBody: text('booking_body').notNull(),
+  contactEmail: varchar('contact_email', { length: 320 }),
+  contactPhone: varchar('contact_phone', { length: 64 }),
+  instagramUrl: text('instagram_url'),
+  spotifyUrl: text('spotify_url'),
+  seoTitle: varchar('seo_title', { length: 180 }).notNull(),
+  seoDescription: varchar('seo_description', { length: 320 }).notNull(),
+  seoImageUrl: text('seo_image_url'),
+  services: jsonb('services').$type<SiteService[]>().default([]).notNull(),
+  gallery: jsonb('gallery').$type<SiteGalleryItem[]>().default([]).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Client = typeof clients.$inferSelect
@@ -121,3 +157,4 @@ export type Gig = typeof gigs.$inferSelect
 export type NewGig = typeof gigs.$inferInsert
 export type GigContact = typeof gigContacts.$inferSelect
 export type GigTimelineItem = typeof gigTimelineItems.$inferSelect
+export type SiteContent = typeof siteContent.$inferSelect
