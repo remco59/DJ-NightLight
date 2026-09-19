@@ -26,13 +26,14 @@ export default defineEventHandler(async (event) => {
     .where(eq(users.email, body.email))
     .limit(1)
 
-  if (!user?.active || !user.passwordHash || !verifyPassword(user.passwordHash, body.password)) {
+  if (!user?.active || !user.passwordHash || !(await verifyPassword(user.passwordHash, body.password))) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
   }
 
   clearLoginRateLimit(rateKey)
 
-  await setUserSession(event, {
+  const authEvent = event as unknown as Parameters<typeof setUserSession>[0]
+  await setUserSession(authEvent, {
     user: {
       id: user.id,
       email: user.email,
