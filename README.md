@@ -43,7 +43,19 @@ The full product, architecture and implementation plan is in:
 
 - [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)
 
-Implementation work is tracked as GitHub issues in this repository.
+## Implementation roadmap
+
+The work has been split into implementation issues:
+
+- **Phase 0 — Foundation:** [#1](https://github.com/remco59/DJ-NightLight/issues/1)–[#5](https://github.com/remco59/DJ-NightLight/issues/5)
+- **Phase 1 — Core back office:** [#6](https://github.com/remco59/DJ-NightLight/issues/6)–[#8](https://github.com/remco59/DJ-NightLight/issues/8)
+- **Phase 2 — Public website:** [#9](https://github.com/remco59/DJ-NightLight/issues/9)–[#10](https://github.com/remco59/DJ-NightLight/issues/10)
+- **Phase 3 — Client portal:** [#11](https://github.com/remco59/DJ-NightLight/issues/11)–[#12](https://github.com/remco59/DJ-NightLight/issues/12)
+- **Phase 4 — Invoicing & Stripe:** [#13](https://github.com/remco59/DJ-NightLight/issues/13)–[#14](https://github.com/remco59/DJ-NightLight/issues/14)
+- **Phase 5 — Calendar & email automation:** [#15](https://github.com/remco59/DJ-NightLight/issues/15)–[#16](https://github.com/remco59/DJ-NightLight/issues/16)
+- **Phase 6 — Media & post generator:** [#17](https://github.com/remco59/DJ-NightLight/issues/17)–[#18](https://github.com/remco59/DJ-NightLight/issues/18)
+- **Phase 7 — Hardening & launch:** [#19](https://github.com/remco59/DJ-NightLight/issues/19)–[#20](https://github.com/remco59/DJ-NightLight/issues/20)
+- **Future:** multi-user roles [#21](https://github.com/remco59/DJ-NightLight/issues/21), Remotion video generation [#22](https://github.com/remco59/DJ-NightLight/issues/22)
 
 ## Guiding principle
 
