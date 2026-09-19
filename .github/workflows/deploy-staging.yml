@@ -1,0 +1,43 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dj-nightlight-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy on Unraid
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          PORT: ${{ secrets.STAGING_PORT }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
+        run: |
+          ssh -p "$PORT" "$USER@$HOST"             "set -eu;
+             cd '$DEPLOY_PATH';
+             git fetch origin main;
+             git checkout main;
+             git reset --hard origin/main;
+             docker compose --env-file '$ENV_FILE' -f docker-compose.unraid.yml up -d --build;
+             docker compose --env-file '$ENV_FILE' -f docker-compose.unraid.yml ps"

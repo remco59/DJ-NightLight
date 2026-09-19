@@ -1,6 +1,6 @@
 import { sql } from '../utils/db'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   try {
     await sql`select 1`
     return {
