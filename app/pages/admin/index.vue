@@ -1,7 +1,29 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'admin' })
 
-const { data, status, refresh } = await useFetch('/api/admin/dashboard')
+type DashboardData = {
+  summary: {
+    upcoming: number
+    leads: number
+    unpaidInvoices: number | null
+    attention: number
+  }
+  upcoming: Array<{
+    id: string
+    title: string
+    eventType: string | null
+    startsAt: string | Date | null
+    venueName: string | null
+  }>
+  planned: {
+    clientPortal: boolean
+    finance: boolean
+    calendarSync: boolean
+    payments: boolean
+  }
+}
+
+const { data, status, refresh } = await useFetch<DashboardData>('/api/admin/dashboard')
 
 const stats = computed(() => [
   {
@@ -35,6 +57,16 @@ function formatDate(value: string | Date | null) {
   }).format(new Date(value))
 }
 
+function dayOfMonth(value: string | Date | null) {
+  return value ? new Date(value).getDate() : '—'
+}
+
+function shortMonth(value: string | Date | null) {
+  return value
+    ? new Date(value).toLocaleDateString('en', { month: 'short' })
+    : ''
+}
+
 useSeoMeta({
   title: 'Dashboard — DJ NightLight',
   robots: 'noindex, nofollow',
@@ -50,7 +82,7 @@ useSeoMeta({
         <p>What needs your attention, without the noise.</p>
       </div>
       <div class="actions">
-        <button type="button" class="secondary" @click="refresh">Refresh</button>
+        <button type="button" class="secondary" @click="() => refresh()">Refresh</button>
         <NuxtLink to="/admin/gigs?new=1" class="primary">New gig</NuxtLink>
       </div>
     </header>
@@ -81,15 +113,15 @@ useSeoMeta({
         </div>
 
         <NuxtLink
-          v-for="gig in data?.upcoming"
+          v-for="gig in data?.upcoming || []"
           v-else
           :key="gig.id"
           :to="`/admin/gigs/${gig.id}`"
           class="gig-row"
         >
           <div class="date-block">
-            <strong>{{ new Date(gig.startsAt!).getDate() }}</strong>
-            <span>{{ new Date(gig.startsAt!).toLocaleDateString('en', { month: 'short' }) }}</span>
+            <strong>{{ dayOfMonth(gig.startsAt) }}</strong>
+            <span>{{ shortMonth(gig.startsAt) }}</span>
           </div>
           <div class="gig-copy">
             <strong>{{ gig.title }}</strong>
