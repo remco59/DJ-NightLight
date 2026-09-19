@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '../../../../shared/errors'
+import { apiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({layout:'admin'});const route=useRoute();const id=String(route.params.id)
 type Venue={id:string;name:string;address:string|null;city:string|null;contactName:string|null;contactEmail:string|null;contactPhone:string|null;website:string|null;parkingNotes:string|null;technicalNotes:string|null;notes:string|null}
