@@ -10,7 +10,7 @@ const bootstrapSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig(event)
+  const config = useRuntimeConfig()
   const configuredToken = config.ownerBootstrapToken
 
   if (!configuredToken) {
@@ -22,13 +22,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Invalid bootstrap token' })
   }
 
-  const [{ value: userCount }] = await db.select({ value: count() }).from(users)
-  if (userCount > 0) {
+  const [countRow] = await db.select({ value: count() }).from(users)
+  if ((countRow?.value ?? 0) > 0) {
     throw createError({ statusCode: 409, statusMessage: 'An account already exists' })
   }
 
   const body = await readValidatedBody(event, bootstrapSchema.parse)
-  const passwordHash = hashPassword(body.password, 12)
+  const passwordHash = await hashPassword(body.password)
 
   const [user] = await db.insert(users).values({
     email: body.email,
