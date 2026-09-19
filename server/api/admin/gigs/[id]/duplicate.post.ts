@@ -34,6 +34,10 @@ export default defineEventHandler(async (event) => {
       source: source.source,
     }).returning()
 
+    if (!gig) {
+      throw createError({ statusCode: 500, statusMessage: 'Could not duplicate gig' })
+    }
+
     if (contacts.length) {
       await tx.insert(gigContacts).values(contacts.map(contact => ({
         gigId: gig.id,
