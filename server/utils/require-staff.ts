@@ -4,8 +4,11 @@ import type { StaffRole } from '../../shared/auth'
 import { roleAllowed } from '../../shared/auth'
 import { db } from './db'
 
-export async function requireStaff(event: Parameters<typeof requireUserSession>[0], allowed?: readonly StaffRole[]) {
-  const session = await requireUserSession(event)
+type AuthEvent = Parameters<typeof requireUserSession>[0]
+
+export async function requireStaff(event: unknown, allowed?: readonly StaffRole[]) {
+  const authEvent = event as AuthEvent
+  const session = await requireUserSession(authEvent)
   const sessionUser = session.user
 
   if (!sessionUser?.id) {
@@ -19,7 +22,7 @@ export async function requireStaff(event: Parameters<typeof requireUserSession>[
     .limit(1)
 
   if (!user || !user.active || user.sessionVersion !== sessionUser.sessionVersion) {
-    await clearUserSession(event)
+    await clearUserSession(authEvent)
     throw createError({ statusCode: 401, statusMessage: 'Session is no longer valid' })
   }
 
