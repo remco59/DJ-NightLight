@@ -23,6 +23,10 @@ export default defineEventHandler(async (event) => {
       .where(eq(gigs.id, id))
       .returning()
 
+    if (!updated) {
+      throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+    }
+
     await tx.delete(gigContacts).where(eq(gigContacts.gigId, id))
     await tx.delete(gigTimelineItems).where(eq(gigTimelineItems.gigId, id))
 
