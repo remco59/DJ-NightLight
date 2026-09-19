@@ -1,5 +1,6 @@
 import {
   boolean,
+  integer,
   numeric,
   pgEnum,
   pgTable,
@@ -25,6 +26,7 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash'),
   role: userRole('role').default('owner').notNull(),
   active: boolean('active').default(true).notNull(),
+  sessionVersion: integer('session_version').default(1).notNull(),
   ...timestamps,
 })
 

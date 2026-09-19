@@ -1,10 +1,11 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-19',
   devtools: { enabled: true },
-  modules: ['@nuxt/eslint'],
+  modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     appVersion: process.env.NUXT_APP_VERSION || 'development',
+    ownerBootstrapToken: process.env.OWNER_BOOTSTRAP_TOKEN || '',
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     },
