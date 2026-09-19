@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
       timestamp: new Date().toISOString(),
     }
   } catch {
-    setResponseStatus(event, 503)
+    event.node.res.statusCode = 503
     return {
       status: 'not-ready',
       database: 'unavailable',
