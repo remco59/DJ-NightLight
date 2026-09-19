@@ -10,17 +10,25 @@
     "prepare": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "drizzle-orm": "^0.44.0",
     "nuxt": "^4.0.0",
+    "postgres": "^3.4.7",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.0.0",
     "@vue/test-utils": "^2.4.6",
+    "drizzle-kit": "^0.31.0",
     "eslint": "^9.0.0",
     "happy-dom": "^18.0.0",
+    "tsx": "^4.20.0",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0",
     "vue-tsc": "^3.0.0"
