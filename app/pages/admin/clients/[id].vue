@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '../../../../shared/errors'
+import { apiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
