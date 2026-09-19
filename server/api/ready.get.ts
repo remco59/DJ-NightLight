@@ -1,6 +1,6 @@
 import { sql } from '../utils/db'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   try {
     await sql`select 1`
     return {
@@ -9,7 +9,7 @@ export default defineEventHandler(async () => {
       timestamp: new Date().toISOString(),
     }
   } catch {
-    setResponseStatus(event, 503)
+    event.node.res.statusCode = 503
     return {
       status: 'not-ready',
       database: 'unavailable',
