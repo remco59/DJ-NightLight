@@ -8,6 +8,10 @@ declare module '#auth-utils' {
     role: StaffRole
     sessionVersion: number
   }
+
+  interface UserSession {
+    loggedInAt?: number
+  }
 }
 
 export {}
