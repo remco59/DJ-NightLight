@@ -1,0 +1,11 @@
+node_modules
+.nuxt
+.output
+.git
+.github
+.env
+.env.*
+coverage
+*.log
+compose*.yml
+docs
