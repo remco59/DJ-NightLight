@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '../../../../shared/errors'
+
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
 const id = String(route.params.id)
@@ -30,7 +32,7 @@ async function save(){
   try{
     await $fetch(`/api/admin/clients/${id}`,{method:'PUT',body:form})
     await refresh(); message.value='Saved.'
-  }catch(error:any){message.value=error?.data?.statusMessage||'Could not save.'}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not save.')}
   finally{saving.value=false}
 }
 async function remove(){
@@ -38,7 +40,7 @@ async function remove(){
   try{
     await $fetch(`/api/admin/clients/${id}`,{method:'DELETE'})
     await navigateTo('/admin/clients')
-  }catch(error:any){message.value=error?.data?.statusMessage||'Could not delete client.'}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not delete client.')}
 }
 function dateLabel(value:string|Date|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(value)):'No date'}
 

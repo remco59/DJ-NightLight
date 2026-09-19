@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '../../../../shared/errors'
+
 definePageMeta({ layout: 'admin' })
 
 type VenueListItem = { id:string; name:string; city:string|null; address:string|null; contactName:string|null; contactEmail:string|null; gigCount:number }
@@ -8,7 +10,7 @@ const {data,status,refresh}=await useFetch<{venues:VenueListItem[]}>('/api/admin
 async function createVenue(){
   saving.value=true;formError.value=''
   try{const result=await $fetch<{venue:VenueListItem}>('/api/admin/venues',{method:'POST',body:form});await refresh();showCreate.value=false;await navigateTo(`/admin/venues/${result.venue.id}`)}
-  catch(error:any){formError.value=error?.data?.statusMessage||'Could not create venue.'}finally{saving.value=false}
+  catch(error:unknown){formError.value=apiErrorMessage(error,'Could not create venue.')}finally{saving.value=false}
 }
 useSeoMeta({title:'Venues — DJ NightLight',robots:'noindex, nofollow'})
 </script>

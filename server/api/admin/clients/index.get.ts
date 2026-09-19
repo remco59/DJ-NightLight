@@ -1,4 +1,4 @@
-import { asc, count, eq, ilike, isNull, or } from 'drizzle-orm'
+import { asc, count, ilike, isNull, or } from 'drizzle-orm'
 import { clients, gigs } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'

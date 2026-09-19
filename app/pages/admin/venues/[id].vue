@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '../../../../shared/errors'
+
 definePageMeta({layout:'admin'});const route=useRoute();const id=String(route.params.id)
 type Venue={id:string;name:string;address:string|null;city:string|null;contactName:string|null;contactEmail:string|null;contactPhone:string|null;website:string|null;parkingNotes:string|null;technicalNotes:string|null;notes:string|null}
 type History={id:string;title:string;status:string;startsAt:string|Date|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null}
 const {data,refresh}=await useFetch<{venue:Venue,history:History[]}>(`/api/admin/venues/${id}`);if(!data.value)throw createError({statusCode:404,statusMessage:'Venue not found'})
 const v=data.value.venue;const form=reactive({name:v.name,address:v.address||'',city:v.city||'',contactName:v.contactName||'',contactEmail:v.contactEmail||'',contactPhone:v.contactPhone||'',website:v.website||'',parkingNotes:v.parkingNotes||'',technicalNotes:v.technicalNotes||'',notes:v.notes||''})
 const saving=ref(false);const message=ref('')
-async function save(){saving.value=true;message.value='';try{await $fetch(`/api/admin/venues/${id}`,{method:'PUT',body:form});await refresh();message.value='Saved.'}catch(e:any){message.value=e?.data?.statusMessage||'Could not save.'}finally{saving.value=false}}
-async function remove(){if(!confirm('Delete this venue permanently?'))return;try{await $fetch(`/api/admin/venues/${id}`,{method:'DELETE'});await navigateTo('/admin/venues')}catch(e:any){message.value=e?.data?.statusMessage||'Could not delete venue.'}}
+async function save(){saving.value=true;message.value='';try{await $fetch(`/api/admin/venues/${id}`,{method:'PUT',body:form});await refresh();message.value='Saved.'}catch(error:unknown){message.value=apiErrorMessage(error,'Could not save.')}finally{saving.value=false}}
+async function remove(){if(!confirm('Delete this venue permanently?'))return;try{await $fetch(`/api/admin/venues/${id}`,{method:'DELETE'});await navigateTo('/admin/venues')}catch(error:unknown){message.value=apiErrorMessage(error,'Could not delete venue.')}}
 function clientName(g:History){return g.clientCompanyName||[g.clientFirstName,g.clientLastName].filter(Boolean).join(' ')||'No client'}
 function dateLabel(x:string|Date|null){return x?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(x)):'No date'}
 useSeoMeta({title:'Venue — DJ NightLight',robots:'noindex, nofollow'})

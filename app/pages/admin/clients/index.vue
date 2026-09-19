@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '../../../../shared/errors'
+
 definePageMeta({ layout: 'admin' })
 
 type ClientListItem = {
@@ -46,8 +48,8 @@ async function createClient() {
     await refresh()
     showCreate.value = false
     await navigateTo(`/admin/clients/${result.client.id}`)
-  } catch (error: any) {
-    formError.value = error?.data?.statusMessage || 'Could not create client.'
+  } catch (error: unknown) {
+    formError.value = apiErrorMessage(error, 'Could not create client.')
   } finally {
     saving.value = false
   }
