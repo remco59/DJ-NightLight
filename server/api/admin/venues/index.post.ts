@@ -8,6 +8,6 @@ export default defineEventHandler(async (event) => {
   const input = await readValidatedBody(event, venueInputSchema.parse)
 
   const [venue] = await db.insert(venues).values(input).returning()
-  setResponseStatus(event, 201)
+  event.node.res.statusCode = 201
   return { venue }
 })
