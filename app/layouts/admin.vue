@@ -17,6 +17,7 @@ const groups = [
       { label: 'Invoices', to: '/admin/invoices' },
       { label: 'Calendar', to: '/admin/calendar' },
       { label: 'Email', to: '/admin/email' },
+      { label: 'Client portal', to: '/admin/questionnaire' },
     ],
   },
   {
