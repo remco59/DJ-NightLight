@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     const data = await getMediaStorage().read(key)
     setHeader(event, 'content-type', useThumbnail ? 'image/jpeg' : asset.mimeType)
     setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
-    setHeader(event, 'content-length', String(data.length))
+    setHeader(event, 'content-length', data.length)
     return data
   } catch {
     throw createError({ statusCode: 404, statusMessage: 'Stored media file is missing' })
