@@ -102,7 +102,7 @@ async function makePreview() {
   if (!selected.value) return
   busy.value = 'preview'
   try {
-    preview.value = await $fetch('/api/admin/email/preview', {
+    preview.value = await $fetch<{ subject: string, body: string }>('/api/admin/email/preview', {
       method: 'POST',
       body: { templateKey: selected.value.key, variables: sampleVariables },
     })
