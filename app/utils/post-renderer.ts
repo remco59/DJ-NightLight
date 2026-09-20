@@ -4,7 +4,7 @@ import {
   safeAreaInsets,
   type PostBrandPreset,
   type PostDesign,
-} from '../../shared/post-generator'
+} from '~~/shared/post-generator'
 
 type Palette = {
   text: string
