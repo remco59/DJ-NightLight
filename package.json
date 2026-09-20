@@ -19,7 +19,7 @@
     "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.0",
+    "drizzle-orm": "^0.45.2",
     "nuxt": "^4.0.0",
     "nuxt-auth-utils": "^0.5.30",
     "postgres": "^3.4.7",
