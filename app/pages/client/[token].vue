@@ -13,6 +13,7 @@ type PortalData = {
   expiresAt: string
   questionnaire: { version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
+  invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
 }
 const { data, error, refresh } = await useFetch<PortalData>(`/api/client/portal/${encodeURIComponent(token)}`)
 const answers = reactive<Record<string, Answer>>({ ...(data.value?.questionnaire.answers || {}) })
@@ -23,6 +24,7 @@ const acceptedName = ref(data.value?.questionnaire.acceptedName || '')
 const wishes = ref<Wish[]>((data.value?.wishes || []).map(wish => ({ ...wish })))
 const submitting = ref(false)
 const message = ref('')
+const paymentBusy = ref(false)
 const categoryLabels: Record<Wish['category'], string> = { must_play: 'Must play', nice_to_have: 'Nice to have', do_not_play: 'Do not play', special_moment: 'Special moment' }
 
 function formatDate(value: string | null) {
@@ -48,6 +50,13 @@ async function submit() {
     await refresh(); message.value = 'Thank you — your details and music wishes have been submitted.'
   } catch (submitError: unknown) { message.value = apiErrorMessage(submitError, 'Could not submit your information.') } finally { submitting.value = false }
 }
+async function payInvoice() {
+  paymentBusy.value = true; message.value = ''
+  try {
+    const result = await $fetch<{url:string}>(`/api/client/portal/${encodeURIComponent(token)}/checkout`, { method: 'POST' })
+    window.location.assign(result.url)
+  } catch (paymentError: unknown) { message.value = apiErrorMessage(paymentError, 'Could not start secure payment.') } finally { paymentBusy.value = false }
+}
 useSeoMeta({ title: 'Booking portal — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
@@ -60,6 +69,8 @@ useSeoMeta({ title: 'Booking portal — DJ NightLight', robots: 'noindex, nofoll
         <article class="portal-card"><p class="eyebrow">Date & time</p><strong>{{ formatDate(data.gig.startsAt) }}</strong><span v-if="data.gig.endsAt">Until {{ formatDate(data.gig.endsAt) }}</span></article>
         <article class="portal-card"><p class="eyebrow">Location</p><strong>{{ data.gig.venue?.name || 'To be confirmed' }}</strong><span v-if="data.gig.venue?.city">{{ data.gig.venue.city }}</span></article>
       </section>
+
+      <section v-if="data.invoice?.status==='finalized'" class="payment-card"><div><p class="eyebrow">Invoice {{data.invoice.invoiceNumber}}</p><h2>{{new Intl.NumberFormat('nl-NL',{style:'currency',currency:data.invoice.currency}).format(data.invoice.totalCents/100)}}</h2><span v-if="data.invoice.paymentStatus==='paid'">Paid{{data.invoice.paidAt?` on ${formatDate(data.invoice.paidAt)}`:''}}</span><span v-else>Due {{formatDate(data.invoice.dueDate)}}</span></div><strong v-if="data.invoice.paymentStatus==='paid'" class="paid">Payment received</strong><button v-else type="button" class="primary" :disabled="paymentBusy" @click="payInvoice">{{paymentBusy?'Opening Stripe…':'Pay securely'}}</button></section>
 
       <section v-if="data.questionnaire.status==='submitted'" class="submitted-banner"><strong>Submitted</strong><span>Your information was received on {{ formatDate(data.questionnaire.submittedAt) }}.</span></section>
 
@@ -93,5 +104,6 @@ useSeoMeta({ title: 'Booking portal — DJ NightLight', robots: 'noindex, nofoll
 </template>
 
 <style scoped>
+.payment-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding:1.2rem;border:1px solid #44334f;border-radius:1rem;background:linear-gradient(135deg,#181020,#100e14)}.payment-card h2{margin:.2rem 0}.payment-card span{color:#908899}.paid{color:#a9e1bb}@media(max-width:640px){.payment-card{align-items:stretch;flex-direction:column}}
 .portal-shell{width:min(920px,calc(100% - 2rem));margin:0 auto;padding:clamp(3rem,10vw,7rem) 0}.portal-hero{margin-bottom:2rem}.portal-hero h1,.error-card h1{max-width:760px;margin:.25rem 0 .6rem;font-size:clamp(2.5rem,8vw,5.5rem);line-height:.95;letter-spacing:-.06em}.portal-hero>p:last-child,.error-card>p:last-child{color:#96909f}.portal-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.portal-card,.form-section{padding:1.4rem;border:1px solid #2d2832;border-radius:1.1rem;background:#100e14}.portal-card{display:grid;gap:.4rem}.portal-card strong{font-size:1.15rem}.portal-card span,.section-heading span{color:#8e8797}.submitted-banner{display:flex;justify-content:space-between;gap:1rem;margin:1rem 0;padding:1rem;border:1px solid #314a3d;border-radius:.85rem;background:#102019;color:#b9e3c8}.form-section{margin-top:1rem}.section-heading{margin-bottom:1.2rem}.section-heading h2{margin:.2rem 0}.field-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.85rem}.wide{grid-column:1/-1}label{display:grid;gap:.35rem;color:#b0a9b7;font-size:.8rem}label>span:first-child{font-weight:700}label em{margin-left:.35rem;color:#9d83b2;font-size:.62rem;font-style:normal;text-transform:uppercase}label small{color:#756e7d}input,select,textarea{width:100%;border:1px solid #39323f;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}input:disabled,select:disabled,textarea:disabled{opacity:.7}.check-line,.option-list{display:flex;gap:.55rem;padding:.65rem;border:1px solid #332e39;border-radius:.65rem}.check-line input,.option-list input{width:auto}.option-list{align-items:start;flex-direction:column}.option-list label{display:flex;align-items:center;gap:.5rem}.signature{margin-top:1rem}.wish-card{margin-top:.7rem;padding:1rem;border:1px solid #29242f;border-radius:.85rem;background:#0d0b10}.wish-head{display:flex;justify-content:space-between;margin-bottom:.8rem}.wish-head button,.wish-buttons button{border:1px solid #332d3a;border-radius:.55rem;padding:.45rem .65rem;background:#19151f;color:#cfc8d5;cursor:pointer}.wish-head button{border:0;background:transparent;color:#dc9da7}.wish-buttons{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.8rem}.empty{color:#777080}.submit-bar{position:sticky;bottom:1rem;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding:1rem 1.15rem;border:1px solid #403748;border-radius:1rem;background:rgba(20,17,25,.96);backdrop-filter:blur(14px)}.submit-bar strong,.submit-bar span{display:block}.submit-bar span{color:#817a89;font-size:.78rem}.primary{border:0;border-radius:.7rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.message{color:#b6afbf}.expiry{margin-top:1rem;color:#6f6977;font-size:.78rem}.error-card{max-width:720px}@media(max-width:640px){.portal-grid,.field-grid{grid-template-columns:1fr}.wide{grid-column:auto}.submitted-banner,.submit-bar{align-items:stretch;flex-direction:column}.primary{width:100%}}
 </style>

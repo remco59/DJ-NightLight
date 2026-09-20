@@ -53,6 +53,15 @@ The local database is exposed only on localhost for development tools. On the fi
 
 The local Compose stack sets `NUXT_SESSION_COOKIE_SECURE=false` so authentication also works when the app is opened over plain HTTP from another LAN device, for example `http://tower.local:3000`. Only use this opt-out on a trusted development network. Staging and production keep secure cookies enabled and must be served over HTTPS.
 
+## Stripe payments
+
+Configure a separate Stripe restricted API key and webhook signing secret for each environment:
+
+- `STRIPE_RESTRICTED_KEY` — prefer an `rk_` key with only the Checkout Session permissions the app needs.
+- `STRIPE_WEBHOOK_SECRET` — the `whsec_` secret for the endpoint below.
+
+Register `https://<your-host>/api/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, and `payment_intent.payment_failed`. Test the complete flow in Stripe test mode before adding live credentials. Never commit either secret or expose it to client-side runtime configuration.
+
 ## Unraid directories
 
 Create these before the first deployment:

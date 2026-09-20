@@ -24,6 +24,7 @@ export const musicWishCategory = pgEnum('music_wish_category', ['must_play', 'ni
 export const invoiceStatus = pgEnum('invoice_status', ['draft', 'finalized', 'void'])
 export const invoicePaymentStatus = pgEnum('invoice_payment_status', ['unpaid', 'pending', 'paid', 'failed'])
 export const invoiceVatMode = pgEnum('invoice_vat_mode', ['exclusive', 'inclusive', 'exempt'])
+export const paymentRecordStatus = pgEnum('payment_record_status', ['pending', 'succeeded', 'failed', 'cancelled', 'expired'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -223,6 +224,41 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
   ...timestamps,
 })
 
+export const payments = pgTable('payments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  invoiceId: uuid('invoice_id').notNull().unique().references(() => invoices.id, { onDelete: 'restrict' }),
+  provider: varchar('provider', { length: 40 }).default('stripe').notNull(),
+  providerSessionId: varchar('provider_session_id', { length: 255 }).unique(),
+  providerPaymentIntentId: varchar('provider_payment_intent_id', { length: 255 }).unique(),
+  amountCents: integer('amount_cents').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  status: paymentRecordStatus('status').default('pending').notNull(),
+  attemptCount: integer('attempt_count').default(0).notNull(),
+  checkoutExpiresAt: timestamp('checkout_expires_at', { withTimezone: true }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  failureCode: varchar('failure_code', { length: 160 }),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  ...timestamps,
+})
+
+export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
+  eventId: varchar('event_id', { length: 255 }).primaryKey(),
+  eventType: varchar('event_type', { length: 160 }).notNull(),
+  livemode: boolean('livemode').notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const outboxEvents = pgTable('outbox_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: varchar('type', { length: 120 }).notNull(),
+  aggregateType: varchar('aggregate_type', { length: 80 }).notNull(),
+  aggregateId: uuid('aggregate_id').notNull(),
+  dedupeKey: varchar('dedupe_key', { length: 255 }).notNull().unique(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().default({}).notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+})
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -308,5 +344,7 @@ export type MusicWish = typeof musicWishes.$inferSelect
 export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
+export type Payment = typeof payments.$inferSelect
+export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect

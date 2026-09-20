@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm'
-import { clients, gigs, invoiceLineItems, invoices } from '../../db/schema'
+import { clients, gigs, invoiceLineItems, invoices, payments } from '../../db/schema'
 import { db } from './db'
 
 export async function getInvoiceDetail(id: string) {
@@ -42,7 +42,8 @@ export async function getInvoiceDetail(id: string) {
     .where(eq(invoices.id, id)).limit(1)
   if (!invoice) return null
   const lines = await db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id)).orderBy(asc(invoiceLineItems.ordering))
-  return { invoice, lines }
+  const [payment] = await db.select().from(payments).where(eq(payments.invoiceId, id)).limit(1)
+  return { invoice, lines, payment: payment ?? null }
 }
 
 export function invoiceClientName(invoice: { clientCompanyName: string | null, clientFirstName: string | null, clientLastName: string | null }) {
