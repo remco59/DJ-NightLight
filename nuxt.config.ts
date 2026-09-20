@@ -20,6 +20,7 @@ export default defineNuxtConfig({
     },
     storageUploads: process.env.NUXT_STORAGE_UPLOADS || '.data/uploads',
     storageGenerated: process.env.NUXT_STORAGE_GENERATED || '.data/generated',
+    storageBackups: process.env.NUXT_STORAGE_BACKUPS || '.data/backups',
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {

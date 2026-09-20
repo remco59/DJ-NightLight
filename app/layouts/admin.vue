@@ -32,6 +32,7 @@ const groups = [
   {
     label: 'System',
     items: [
+      { label: 'Production status', to: '/admin/system' },
       { label: 'Users', to: '/admin/users' },
       { label: 'Settings', to: '/admin/settings' },
     ],
