@@ -6,6 +6,13 @@ export default defineNuxtConfig({
   runtimeConfig: {
     appVersion: process.env.NUXT_APP_VERSION || 'development',
     ownerBootstrapToken: process.env.OWNER_BOOTSTRAP_TOKEN || '',
+    session: {
+      password: process.env.NUXT_SESSION_PASSWORD || '',
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      },
+    },
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     },
