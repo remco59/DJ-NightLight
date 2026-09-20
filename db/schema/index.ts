@@ -27,6 +27,8 @@ export const invoiceVatMode = pgEnum('invoice_vat_mode', ['exclusive', 'inclusiv
 export const paymentRecordStatus = pgEnum('payment_record_status', ['pending', 'succeeded', 'failed', 'cancelled', 'expired'])
 export const calendarSyncStatus = pgEnum('calendar_sync_status', ['pending', 'syncing', 'synced', 'failed', 'skipped'])
 export const calendarCancellationBehavior = pgEnum('calendar_cancellation_behavior', ['delete', 'mark_cancelled', 'keep'])
+export const emailJobStatus = pgEnum('email_job_status', ['pending', 'processing', 'sent', 'failed', 'cancelled', 'suppressed'])
+export const emailDeliveryStatus = pgEnum('email_delivery_status', ['sent', 'failed'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -271,6 +273,49 @@ export const gigCalendarSync = pgTable('gig_calendar_sync', {
   ...timestamps,
 })
 
+export const emailTemplates = pgTable('email_templates', {
+  key: varchar('key', { length: 80 }).primaryKey(),
+  name: varchar('name', { length: 160 }).notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
+  subject: varchar('subject', { length: 300 }).notNull(),
+  body: text('body').notNull(),
+  scheduleAnchor: varchar('schedule_anchor', { length: 40 }).default('event').notNull(),
+  offsetMinutes: integer('offset_minutes').default(0).notNull(),
+  ...timestamps,
+})
+
+export const emailJobs = pgTable('email_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateKey: varchar('template_key', { length: 80 }).notNull().references(() => emailTemplates.key, { onDelete: 'restrict' }),
+  gigId: uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  recipient: varchar('recipient', { length: 320 }).notNull(),
+  variables: jsonb('variables').$type<Record<string, string | number | null>>().default({}).notNull(),
+  runAt: timestamp('run_at', { withTimezone: true }).notNull(),
+  status: emailJobStatus('status').default('pending').notNull(),
+  attemptCount: integer('attempt_count').default(0).notNull(),
+  dedupeKey: varchar('dedupe_key', { length: 255 }).notNull().unique(),
+  lastError: text('last_error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  ...timestamps,
+})
+
+export const emailDeliveryAttempts = pgTable('email_delivery_attempts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: uuid('job_id').notNull().references(() => emailJobs.id, { onDelete: 'cascade' }),
+  status: emailDeliveryStatus('status').notNull(),
+  providerMessageId: varchar('provider_message_id', { length: 255 }),
+  error: text('error'),
+  attemptedAt: timestamp('attempted_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const gigEmailSuppressions = pgTable('gig_email_suppressions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  templateKey: varchar('template_key', { length: 80 }).notNull().references(() => emailTemplates.key, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex('gig_email_suppression_unique').on(table.gigId, table.templateKey)])
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 120 }).notNull(),
@@ -370,6 +415,10 @@ export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
 export type Payment = typeof payments.$inferSelect
 export type CalendarSyncSettings = typeof calendarSyncSettings.$inferSelect
 export type GigCalendarSync = typeof gigCalendarSync.$inferSelect
+export type EmailTemplate = typeof emailTemplates.$inferSelect
+export type EmailJob = typeof emailJobs.$inferSelect
+export type EmailDeliveryAttempt = typeof emailDeliveryAttempts.$inferSelect
+export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
