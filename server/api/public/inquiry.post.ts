@@ -2,6 +2,7 @@ import { clients, gigs } from '../../../db/schema'
 import { inquiryInputSchema } from '../../../shared/schemas/inquiry'
 import { recordAudit } from '../../utils/audit'
 import { db } from '../../utils/db'
+import { queueGigEmail } from '../../utils/email-automation'
 import { assertPublicRateLimit } from '../../utils/public-rate-limit'
 
 export default defineEventHandler(async (event) => {
@@ -60,6 +61,8 @@ export default defineEventHandler(async (event) => {
     action: 'website_inquiry',
     metadata: { clientId: result.client.id },
   })
+
+  await queueGigEmail('lead_acknowledgement', result.gig.id, `lead-acknowledgement:${result.gig.id}`)
 
   event.node.res.statusCode = 201
   return { ok: true }

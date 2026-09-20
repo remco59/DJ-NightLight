@@ -3,6 +3,7 @@ import { gigContacts, gigs, gigTimelineItems } from '../../../../db/schema'
 import { gigInputSchema } from '../../../../shared/schemas/gig'
 import { recordAudit } from '../../../utils/audit'
 import { queueCalendarSync } from '../../../utils/calendar-sync'
+import { queueGigEmail } from '../../../utils/email-automation'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -52,6 +53,9 @@ export default defineEventHandler(async (event) => {
   })
 
   await queueCalendarSync(gig.id)
+  if (existing.status !== 'booked' && gig.status === 'booked') {
+    await queueGigEmail('booking_accepted', gig.id, `booking-accepted:${gig.id}:${gig.updatedAt.toISOString()}`)
+  }
 
   return { gig }
 })

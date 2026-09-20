@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { queuePortalEmails } from '../../../../../utils/email-automation'
 import { issuePortalLink } from '../../../../../utils/issue-portal-link'
 import { requireStaff } from '../../../../../utils/require-staff'
 
@@ -20,5 +21,7 @@ export default defineEventHandler(async (event) => {
   })
   const config = useRuntimeConfig()
   const baseUrl = String(config.public.siteUrl).replace(/\/$/, '')
-  return { id: link.id, expiresAt: link.expiresAt, url: `${baseUrl}/client/${token}` }
+  const url = `${baseUrl}/client/${token}`
+  await queuePortalEmails(gigId, url, link.id)
+  return { id: link.id, expiresAt: link.expiresAt, url }
 })

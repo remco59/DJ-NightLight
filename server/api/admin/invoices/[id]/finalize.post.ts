@@ -3,6 +3,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { auditLogs, businessSettings, invoices } from '../../../../../db/schema'
 import { calculateInvoiceTotals, calculateLineTotalCents, formatInvoiceNumber, type InvoiceSnapshot } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
+import { queueInvoiceEmail } from '../../../../utils/email-automation'
 import { getInvoiceDetail, invoiceClientName } from '../../../../utils/invoice-data'
 import { requireStaff } from '../../../../utils/require-staff'
 
@@ -41,5 +42,6 @@ export default defineEventHandler(async (event) => {
     await tx.insert(auditLogs).values({ userId: user.id, entityType: 'invoice', entityId: id, action: 'invoice_finalized', metadata: { invoiceNumber, documentHash } })
     return invoice
   })
+  await queueInvoiceEmail('invoice_sent', finalized.id, `invoice-sent:${finalized.id}`)
   return { invoice: finalized }
 })
