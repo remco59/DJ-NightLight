@@ -46,3 +46,65 @@ jobs:
 
       - name: Build production image
         run: docker build -t dj-nightlight:ci .
+
+
+  restore-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      source-db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: nightlight
+          POSTGRES_USER: nightlight
+          POSTGRES_PASSWORD: nightlight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nightlight -d nightlight"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      restore-db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: nightlight_restore
+          POSTGRES_USER: nightlight
+          POSTGRES_PASSWORD: nightlight
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U nightlight -d nightlight_restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Test backup and restore
+        env:
+          DATABASE_URL: postgresql://nightlight:nightlight@127.0.0.1:5432/nightlight
+          RESTORE_DATABASE_URL: postgresql://nightlight:nightlight@127.0.0.1:5433/nightlight_restore
+        run: sh scripts/backup-restore-smoke.sh
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Audit production dependencies
+        run: npm run security:audit
