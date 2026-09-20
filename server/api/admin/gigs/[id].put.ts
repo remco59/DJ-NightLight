@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { gigContacts, gigs, gigTimelineItems } from '../../../../db/schema'
 import { gigInputSchema } from '../../../../shared/schemas/gig'
 import { recordAudit } from '../../../utils/audit'
+import { queueCalendarSync } from '../../../utils/calendar-sync'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -49,6 +50,8 @@ export default defineEventHandler(async (event) => {
       ? { status: gig.status }
       : { from: existing.status, to: gig.status },
   })
+
+  await queueCalendarSync(gig.id)
 
   return { gig }
 })
