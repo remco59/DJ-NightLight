@@ -4,24 +4,23 @@ definePageMeta({ layout: 'public' })
 const { data } = await useSiteContent()
 const content = computed(() => data.value?.content)
 
-const fallbackVisuals = [
-  {
-    url: 'https://images.unsplash.com/photo-1763630055101-2f6d6305dc38?auto=format&fit=crop&w=2200&q=85',
-    alt: 'DJ achter de booth met dansend publiek',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1768054485751-bab2eda850b8?auto=format&fit=crop&w=1800&q=85',
-    alt: 'Publiek onder blauwe en paarse podiumlichten',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1769230383260-69026dbb3abf?auto=format&fit=crop&w=1600&q=85',
-    alt: 'Dansend bruidspaar tussen feestlichten en confetti',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1774301810239-99502e33180e?auto=format&fit=crop&w=1600&q=85',
-    alt: 'DJ voor een volle dansvloer',
-  },
-]
+const heroFallback = {
+  url: 'https://images.unsplash.com/photo-1763630055101-2f6d6305dc38?auto=format&fit=crop&w=2200&q=85',
+  alt: 'DJ achter de booth met dansend publiek',
+}
+const crowdFallback = {
+  url: 'https://images.unsplash.com/photo-1768054485751-bab2eda850b8?auto=format&fit=crop&w=1800&q=85',
+  alt: 'Publiek onder blauwe en paarse podiumlichten',
+}
+const weddingFallback = {
+  url: 'https://images.unsplash.com/photo-1769230383260-69026dbb3abf?auto=format&fit=crop&w=1600&q=85',
+  alt: 'Dansend bruidspaar tussen feestlichten en confetti',
+}
+const clubFallback = {
+  url: 'https://images.unsplash.com/photo-1774301810239-99502e33180e?auto=format&fit=crop&w=1600&q=85',
+  alt: 'DJ voor een volle dansvloer',
+}
+const fallbackVisuals = [crowdFallback, weddingFallback, clubFallback]
 
 const uploadedVisuals = computed(() => (content.value?.gallery ?? [])
   .filter(image => Boolean(image.url))
@@ -29,13 +28,13 @@ const uploadedVisuals = computed(() => (content.value?.gallery ?? [])
 
 const heroVisual = computed(() => content.value?.heroImageUrl
   ? { url: content.value.heroImageUrl, alt: 'DJ NightLight tijdens een optreden' }
-  : uploadedVisuals.value[0] || fallbackVisuals[0])
+  : uploadedVisuals.value[0] || heroFallback)
 
-const featureVisual = computed(() => uploadedVisuals.value[1] || uploadedVisuals.value[0] || fallbackVisuals[1])
+const featureVisual = computed(() => uploadedVisuals.value[1] || uploadedVisuals.value[0] || crowdFallback)
 
 const serviceVisuals = computed(() => {
   const sources = uploadedVisuals.value.length >= 3 ? uploadedVisuals.value : fallbackVisuals.slice(1)
-  return (content.value?.services ?? []).map((_, index) => sources[index % sources.length] || fallbackVisuals[index + 1] || fallbackVisuals[0])
+  return (content.value?.services ?? []).map((_, index) => sources[index % sources.length] || clubFallback)
 })
 
 const heroStyle = computed(() => ({
