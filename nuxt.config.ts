@@ -8,6 +8,11 @@ export default defineNuxtConfig({
     ownerBootstrapToken: process.env.OWNER_BOOTSTRAP_TOKEN || '',
     stripeSecretKey: process.env.STRIPE_RESTRICTED_KEY || '',
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    googleCalendar: {
+      clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET || '',
+      refreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN || '',
+    },
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
