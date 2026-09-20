@@ -1,5 +1,11 @@
 import { auditLogs } from '../../db/schema'
+import { sanitizeOperationalMetadata } from './ops-log'
 import { db } from './db'
+
+export function sanitizeAuditMetadata(metadata: Record<string, unknown> | undefined) {
+  if (!metadata) return undefined
+  return sanitizeOperationalMetadata(metadata) as Record<string, unknown>
+}
 
 export async function recordAudit(input: {
   userId: string | null
@@ -13,6 +19,6 @@ export async function recordAudit(input: {
     entityType: input.entityType,
     entityId: input.entityId,
     action: input.action,
-    metadata: input.metadata,
+    metadata: sanitizeAuditMetadata(input.metadata),
   })
 }
