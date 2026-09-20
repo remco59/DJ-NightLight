@@ -51,6 +51,8 @@ docker compose up --build
 
 The local database is exposed only on localhost for development tools. On the first start the migration service creates the application schema and seeds any migration-defined default records, including the initial website content.
 
+The local Compose stack sets `NUXT_SESSION_COOKIE_SECURE=false` so authentication also works when the app is opened over plain HTTP from another LAN device, for example `http://tower.local:3000`. Only use this opt-out on a trusted development network. Staging and production keep secure cookies enabled and must be served over HTTPS.
+
 ## Unraid directories
 
 Create these before the first deployment:
