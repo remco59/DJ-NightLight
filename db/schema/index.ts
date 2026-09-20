@@ -25,6 +25,8 @@ export const invoiceStatus = pgEnum('invoice_status', ['draft', 'finalized', 'vo
 export const invoicePaymentStatus = pgEnum('invoice_payment_status', ['unpaid', 'pending', 'paid', 'failed'])
 export const invoiceVatMode = pgEnum('invoice_vat_mode', ['exclusive', 'inclusive', 'exempt'])
 export const paymentRecordStatus = pgEnum('payment_record_status', ['pending', 'succeeded', 'failed', 'cancelled', 'expired'])
+export const calendarSyncStatus = pgEnum('calendar_sync_status', ['pending', 'syncing', 'synced', 'failed', 'skipped'])
+export const calendarCancellationBehavior = pgEnum('calendar_cancellation_behavior', ['delete', 'mark_cancelled', 'keep'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -248,6 +250,27 @@ export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
   processedAt: timestamp('processed_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const calendarSyncSettings = pgTable('calendar_sync_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  enabled: boolean('enabled').default(false).notNull(),
+  calendarId: varchar('calendar_id', { length: 255 }).default('primary').notNull(),
+  cancellationBehavior: calendarCancellationBehavior('cancellation_behavior').default('delete').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const gigCalendarSync = pgTable('gig_calendar_sync', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
+  providerEventId: varchar('provider_event_id', { length: 255 }).unique(),
+  status: calendarSyncStatus('status').default('pending').notNull(),
+  retryCount: integer('retry_count').default(0).notNull(),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }).defaultNow().notNull(),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  ...timestamps,
+})
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 120 }).notNull(),
@@ -345,6 +368,8 @@ export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
 export type Payment = typeof payments.$inferSelect
+export type CalendarSyncSettings = typeof calendarSyncSettings.$inferSelect
+export type GigCalendarSync = typeof gigCalendarSync.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
