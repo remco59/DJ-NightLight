@@ -24,5 +24,19 @@ describe('portal tokens', () => {
     expect(portalLinkState({ expiresAt: new Date('2026-01-11'), revokedAt: null }, now)).toBe('active')
     expect(portalLinkState({ expiresAt: new Date('2026-01-09'), revokedAt: null }, now)).toBe('expired')
     expect(portalLinkState({ expiresAt: new Date('2026-01-11'), revokedAt: now }, now)).toBe('revoked')
+  })  it('creates high-entropy opaque tokens and only persists a one-way hash', () => {
+    const first = createPortalToken()
+    const second = createPortalToken()
+    expect(first).not.toBe(second)
+    expect(first.length).toBeGreaterThanOrEqual(40)
+    expect(hashPortalToken(first)).toHaveLength(64)
+    expect(hashPortalToken(first)).not.toContain(first)
   })
+
+  it('clamps abusive expiry requests to the supported range', () => {
+    const now = new Date('2026-01-01T00:00:00.000Z')
+    expect(portalExpiry(-999, now)).toEqual(new Date('2026-01-02T00:00:00.000Z'))
+    expect(portalExpiry(99999, now)).toEqual(new Date('2027-01-01T00:00:00.000Z'))
+  })
+
 })
