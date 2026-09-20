@@ -240,6 +240,8 @@ V1 accepts the complete invoice amount. Deposits are deferred.
 
 Never store a usable magic-link token in plaintext after issuance.
 
+The implemented portal issues a one-time URL whose SHA-256 token hash is stored. Owners choose a 1–365 day expiry, can revoke a link, and can resend by rotating all active links. Successful portal access is rate-limited, updates the last-use timestamp, and creates an audit event scoped to that gig.
+
 ### ContractSubmission
 
 Stores the client-provided contractual/event information and acceptance state.
