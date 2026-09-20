@@ -2,6 +2,7 @@ import {
   consumeEmailOutbox,
   materializeScheduledEmailJobs,
   processDueEmailJobs,
+  recoverStuckEmailJobs,
 } from '../utils/email-automation'
 
 let running = false
@@ -10,6 +11,7 @@ async function tick() {
   if (running) return
   running = true
   try {
+    await recoverStuckEmailJobs()
     await consumeEmailOutbox()
     await materializeScheduledEmailJobs()
     await processDueEmailJobs(10)
