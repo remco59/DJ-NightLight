@@ -31,6 +31,39 @@ services:
     networks:
       - backend
 
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BACKUP_ROOT: /backups
+      UPLOADS_ROOT: /uploads
+      GENERATED_ROOT: /generated
+      CONFIG_ROOT: /config
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_SECONDARY_ROOT: /secondary
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          /scripts/backup.sh || echo "Backup run failed" >&2
+          sleep "${BACKUP_INTERVAL_SECONDS}"
+        done
+    volumes:
+      - ./scripts:/scripts:ro
+      - ${APP_DATA_ROOT}/backups:/backups
+      - ${APP_DATA_ROOT}/uploads:/uploads:ro
+      - ${APP_DATA_ROOT}/generated:/generated:ro
+      - ${APP_DATA_ROOT}/config:/config:ro
+      - ${BACKUP_SECONDARY_ROOT:-/mnt/user/backups/djnightlight}:/secondary
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
   web:
     build:
       context: .
