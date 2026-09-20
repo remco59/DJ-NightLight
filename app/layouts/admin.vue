@@ -33,6 +33,7 @@ const groups = [
     label: 'System',
     items: [
       { label: 'Users', to: '/admin/users' },
+      { label: 'Operations', to: '/admin/operations' },
       { label: 'Settings', to: '/admin/settings' },
     ],
   },
