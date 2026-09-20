@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createPortalToken, hashPortalToken, portalExpiry, portalLinkState } from '../server/utils/portal-token'
 
 describe('portal tokens', () => {
-  it('creates high-entropy URL-safe tokens and stores deterministic hashes', () => {
+  it('creates high-entropy URL-safe tokens and stores only deterministic one-way hashes', () => {
     const first = createPortalToken()
     const second = createPortalToken()
     expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/)
@@ -15,8 +15,8 @@ describe('portal tokens', () => {
   it('clamps configurable expiration to safe bounds', () => {
     const now = new Date('2026-01-01T00:00:00.000Z')
     expect(portalExpiry(7, now).toISOString()).toBe('2026-01-08T00:00:00.000Z')
-    expect(portalExpiry(0, now).toISOString()).toBe('2026-01-02T00:00:00.000Z')
-    expect(portalExpiry(999, now).toISOString()).toBe('2027-01-01T00:00:00.000Z')
+    expect(portalExpiry(-999, now).toISOString()).toBe('2026-01-02T00:00:00.000Z')
+    expect(portalExpiry(99999, now).toISOString()).toBe('2027-01-01T00:00:00.000Z')
   })
 
   it('rejects revoked and expired links', () => {
@@ -24,19 +24,5 @@ describe('portal tokens', () => {
     expect(portalLinkState({ expiresAt: new Date('2026-01-11'), revokedAt: null }, now)).toBe('active')
     expect(portalLinkState({ expiresAt: new Date('2026-01-09'), revokedAt: null }, now)).toBe('expired')
     expect(portalLinkState({ expiresAt: new Date('2026-01-11'), revokedAt: now }, now)).toBe('revoked')
-  })  it('creates high-entropy opaque tokens and only persists a one-way hash', () => {
-    const first = createPortalToken()
-    const second = createPortalToken()
-    expect(first).not.toBe(second)
-    expect(first.length).toBeGreaterThanOrEqual(40)
-    expect(hashPortalToken(first)).toHaveLength(64)
-    expect(hashPortalToken(first)).not.toContain(first)
   })
-
-  it('clamps abusive expiry requests to the supported range', () => {
-    const now = new Date('2026-01-01T00:00:00.000Z')
-    expect(portalExpiry(-999, now)).toEqual(new Date('2026-01-02T00:00:00.000Z'))
-    expect(portalExpiry(99999, now)).toEqual(new Date('2027-01-01T00:00:00.000Z'))
-  })
-
 })
