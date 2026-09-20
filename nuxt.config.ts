@@ -13,6 +13,11 @@ export default defineNuxtConfig({
       clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET || '',
       refreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN || '',
     },
+    email: {
+      apiKey: process.env.RESEND_API_KEY || '',
+      from: process.env.EMAIL_FROM || '',
+      reviewUrl: process.env.REVIEW_URL || '',
+    },
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
