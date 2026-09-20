@@ -87,11 +87,13 @@ services:
       REVIEW_URL: ${REVIEW_URL:-}
       NUXT_STORAGE_UPLOADS: /app/storage/uploads
       NUXT_STORAGE_GENERATED: /app/storage/generated
+      NUXT_STORAGE_BACKUPS: /app/storage/backups
     ports:
       - "127.0.0.1:${APP_PORT:-3080}:3000"
     volumes:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
+      - ${APP_DATA_ROOT}/backups:/app/storage/backups:ro
     depends_on:
       db:
         condition: service_healthy
