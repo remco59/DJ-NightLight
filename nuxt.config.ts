@@ -18,6 +18,8 @@ export default defineNuxtConfig({
       from: process.env.EMAIL_FROM || '',
       reviewUrl: process.env.REVIEW_URL || '',
     },
+    storageUploads: process.env.NUXT_STORAGE_UPLOADS || '.data/uploads',
+    storageGenerated: process.env.NUXT_STORAGE_GENERATED || '.data/generated',
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
