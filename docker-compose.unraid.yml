@@ -95,7 +95,7 @@ services:
       - ${APP_DATA_ROOT}/uploads:/source/uploads:ro
       - ${APP_DATA_ROOT}/generated:/source/generated:ro
       - ${APP_DATA_ROOT}/backups:/backups
-      - ${BACKUP_SECONDARY_ROOT:-${APP_DATA_ROOT}/backups-secondary}:/secondary
+      - ${BACKUP_SECONDARY_ROOT:-/mnt/user/appdata/djnightlight/backups-secondary}:/secondary
     depends_on:
       db:
         condition: service_healthy
