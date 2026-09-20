@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { renderPostCanvas } from '../../utils/post-renderer'
+import { renderPostCanvas } from '~/utils/post-renderer'
 import {
   POST_PRESETS,
   type PostDesign,
   type PostPreset,
-} from '../../../shared/post-generator'
+} from '~~/shared/post-generator'
 
 definePageMeta({ layout: 'admin' })
 
