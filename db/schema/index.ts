@@ -101,6 +101,19 @@ export const gigTimelineItems = pgTable('gig_timeline_items', {
   ...timestamps,
 })
 
+export const portalLinks = pgTable('portal_links', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  lastInvitedAt: timestamp('last_invited_at', { withTimezone: true }).defaultNow().notNull(),
+  invitationCount: integer('invitation_count').default(1).notNull(),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -178,5 +191,6 @@ export type Gig = typeof gigs.$inferSelect
 export type NewGig = typeof gigs.$inferInsert
 export type GigContact = typeof gigContacts.$inferSelect
 export type GigTimelineItem = typeof gigTimelineItems.$inferSelect
+export type PortalLink = typeof portalLinks.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
