@@ -4,6 +4,7 @@ import {
   processDueEmailJobs,
   recoverStuckEmailJobs,
 } from '../utils/email-automation'
+import { recordOperationalEvent, structuredLog } from '../utils/ops-log'
 
 let running = false
 
@@ -16,11 +17,9 @@ async function tick() {
     await materializeScheduledEmailJobs()
     await processDueEmailJobs(10)
   } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'email_worker_failed',
-      message: error instanceof Error ? error.message : String(error),
-    }))
+    const message = error instanceof Error ? error.message : String(error)
+    structuredLog('error', 'email_worker_failed', { message })
+    void recordOperationalEvent({ kind: 'email_worker', status: 'failed', message }).catch(() => {})
   } finally {
     running = false
   }
