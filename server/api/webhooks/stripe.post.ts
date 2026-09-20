@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   let stripeEvent: Stripe.Event
   try {
-    stripeEvent = getStripeClient().webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret())
+    stripeEvent = (await getStripeClient()).webhooks.constructEvent(rawBody, signature, await getStripeWebhookSecret())
   } catch {
     throw createError({ statusCode: 400, statusMessage: 'Invalid Stripe signature' })
   }

@@ -245,7 +245,19 @@ export const payments = pgTable('payments', {
   ...timestamps,
 })
 
-export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
+export const stripeSettings = pgTable('stripe_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  secretKeyEncrypted: text('secret_key_encrypted'),
+  webhookSecretEncrypted: text('webhook_secret_encrypted'),
+  webhookEndpointId: varchar('webhook_endpoint_id', { length: 255 }),
+  livemode: boolean('livemode'),
+  accountId: varchar('account_id', { length: 255 }),
+  accountName: varchar('account_name', { length: 255 }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  ...timestamps,
+})
+
+export const stripeWebhookEvents =pgTable('stripe_webhook_events', {
   eventId: varchar('event_id', { length: 255 }).primaryKey(),
   eventType: varchar('event_type', { length: 160 }).notNull(),
   livemode: boolean('livemode').notNull(),

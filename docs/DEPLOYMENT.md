@@ -55,7 +55,9 @@ The local Compose stack sets `NUXT_SESSION_COOKIE_SECURE=false` so authenticatio
 
 ## Stripe payments
 
-Configure a separate Stripe restricted API key and webhook signing secret for each environment:
+The owner sets Stripe up in **Admin → Settings → Online payments**, which walks through creating a restricted key, connecting the webhook (automatically on a public HTTPS site, or manually), and verifying the connection. Credentials entered there are stored AES-256-GCM encrypted, keyed from `NUXT_SESSION_PASSWORD` — rotating that password requires re-entering the Stripe credentials.
+
+Alternatively (or as a fallback), configure a separate Stripe restricted API key and webhook signing secret per environment. Credentials saved in Settings take precedence over these variables:
 
 - `STRIPE_RESTRICTED_KEY` — prefer an `rk_` key with only the Checkout Session permissions the app needs.
 - `STRIPE_WEBHOOK_SECRET` — the `whsec_` secret for the endpoint below.
