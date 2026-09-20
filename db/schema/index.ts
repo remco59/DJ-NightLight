@@ -369,6 +369,15 @@ export const outboxEvents = pgTable('outbox_events', {
   processedAt: timestamp('processed_at', { withTimezone: true }),
 })
 
+export const operationsEvents = pgTable('operations_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  kind: varchar('kind', { length: 80 }).notNull(),
+  status: varchar('status', { length: 40 }).notNull(),
+  message: text('message'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}).notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -464,5 +473,6 @@ export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
+export type OperationsEvent = typeof operationsEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
