@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { count, desc, eq, isNull, lt } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, lt } from 'drizzle-orm'
 import {
   emailJobs,
   gigCalendarSync,
@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
     failedEmailsRow,
     failedCalendarRow,
     failedPaymentsRow,
+    pendingOutboxRow,
     staleOutboxRow,
     lastStripeEvent,
     backup,
@@ -39,11 +40,8 @@ export default defineEventHandler(async (event) => {
     db.select({ value: count() }).from(emailJobs).where(eq(emailJobs.status, 'failed')).then(rows => rows[0]),
     db.select({ value: count() }).from(gigCalendarSync).where(eq(gigCalendarSync.status, 'failed')).then(rows => rows[0]),
     db.select({ value: count() }).from(payments).where(eq(payments.status, 'failed')).then(rows => rows[0]),
-    db.select({ value: count() }).from(outboxEvents).where(
-      isNull(outboxEvents.processedAt)
-        ? undefined
-        : undefined,
-    ).then(() => null).catch(() => null),
+    db.select({ value: count() }).from(outboxEvents).where(isNull(outboxEvents.processedAt)).then(rows => rows[0]),
+    db.select({ value: count() }).from(outboxEvents).where(and(isNull(outboxEvents.processedAt), lt(outboxEvents.occurredAt, staleOutboxBefore))).then(rows => rows[0]),
     db.select({
       eventId: stripeWebhookEvents.eventId,
       eventType: stripeWebhookEvents.eventType,
@@ -53,14 +51,7 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-  const [outbox] = await db.select({ value: count() }).from(outboxEvents)
-    .where(isNull(outboxEvents.processedAt))
-  const [staleOutbox] = await db.select({ value: count() }).from(outboxEvents)
-    .where(isNull(outboxEvents.processedAt))
-  const staleRows = await db.select({ occurredAt: outboxEvents.occurredAt }).from(outboxEvents)
-    .where(isNull(outboxEvents.processedAt))
-    .limit(100)
-  const staleCount = staleRows.filter(row => row.occurredAt < staleOutboxBefore).length
+
 
   const config = useRuntimeConfig()
   const calendar = config.googleCalendar as { clientId?: string, clientSecret?: string, refreshToken?: string }
@@ -72,8 +63,8 @@ export default defineEventHandler(async (event) => {
       failedEmails: Number(failedEmailsRow?.value || 0),
       failedCalendarSyncs: Number(failedCalendarRow?.value || 0),
       failedPayments: Number(failedPaymentsRow?.value || 0),
-      pendingOutbox: Number(outbox?.value || 0),
-      staleOutbox: staleCount,
+      pendingOutbox: Number(pendingOutboxRow?.value || 0),
+      staleOutbox: Number(staleOutboxRow?.value || 0),
     },
     integrations: {
       stripe: { lastEvent: lastStripeEvent },
