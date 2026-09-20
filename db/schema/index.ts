@@ -345,6 +345,19 @@ export const mediaAssets = pgTable('media_assets', {
   ...timestamps,
 })
 
+export const generatedPosts = pgTable('generated_posts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceMediaAssetId: uuid('source_media_asset_id').references(() => mediaAssets.id, { onDelete: 'set null' }),
+  templateKey: varchar('template_key', { length: 80 }).notNull(),
+  preset: varchar('preset', { length: 20 }).notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  design: jsonb('design').$type<Record<string, unknown>>().default({}).notNull(),
+  outputKey: varchar('output_key', { length: 500 }).notNull().unique(),
+  outputMimeType: varchar('output_mime_type', { length: 100 }).default('image/png').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 120 }).notNull(),
@@ -449,6 +462,7 @@ export type EmailJob = typeof emailJobs.$inferSelect
 export type EmailDeliveryAttempt = typeof emailDeliveryAttempts.$inferSelect
 export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
+export type GeneratedPost = typeof generatedPosts.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
