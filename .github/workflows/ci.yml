@@ -85,14 +85,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Test backup and restore
-        env:
-          DATABASE_URL: postgresql://nightlight:nightlight@127.0.0.1:5432/nightlight
-          RESTORE_DATABASE_URL: postgresql://nightlight:nightlight@127.0.0.1:5433/nightlight_restore
-        run: sh scripts/backup-restore-smoke.sh
+      - name: Test backup and restore with PostgreSQL 17 tools
+        run: |
+          docker run --rm --network host \
+            -v "$PWD:/work" -w /work \
+            -e DATABASE_URL=postgresql://nightlight:nightlight@127.0.0.1:5432/nightlight \
+            -e RESTORE_DATABASE_URL=postgresql://nightlight:nightlight@127.0.0.1:5433/nightlight_restore \
+            postgres:17-alpine sh scripts/backup-restore-smoke.sh
 
   security:
     runs-on: ubuntu-latest
