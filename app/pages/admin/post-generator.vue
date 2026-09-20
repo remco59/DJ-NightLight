@@ -66,6 +66,8 @@ const design = reactive<PostDesign>({
   showSafeArea: true,
 })
 
+const presetOptions = Object.entries(POST_PRESETS) as Array<[PostPreset, (typeof POST_PRESETS)[PostPreset]]>
+
 const templates = [
   { key: 'gradient' as const, label: 'Gradient', description: 'Atmospheric photo with cinematic fade.' },
   { key: 'poster' as const, label: 'Poster', description: 'Bold framed event poster.' },
@@ -279,11 +281,11 @@ function formatDate(value: string) {
           <p class="step">2 · Format & template</p>
           <div class="segmented">
             <button
-              v-for="(preset, key) in POST_PRESETS"
+              v-for="[key, preset] in presetOptions"
               :key="key"
               type="button"
               :class="{ active: design.preset === key }"
-              @click="setPreset(key as PostPreset)"
+              @click="setPreset(key)"
             >
               <strong>{{ preset.label }}</strong>
               <span>{{ preset.width }}×{{ preset.height }}</span>
