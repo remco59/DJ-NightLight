@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lte, or } from 'drizzle-orm'
+import { and, eq, inArray, isNull, lte } from 'drizzle-orm'
 import { calendarSyncSettings, gigCalendarSync, gigs, venues } from '../../db/schema'
 import {
   calendarRetryDelayMs,
