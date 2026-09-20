@@ -1,5 +1,5 @@
-import { and, asc, count, eq, gt, isNull } from 'drizzle-orm'
-import { gigs, venues } from '../../../db/schema'
+import { and, asc, count, eq, gt, isNull, ne } from 'drizzle-orm'
+import { gigs, invoices, venues } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { requireStaff } from '../../utils/require-staff'
 
@@ -43,19 +43,24 @@ export default defineEventHandler(async (event) => {
     .orderBy(asc(gigs.startsAt))
     .limit(5)
 
+  const [unpaidInvoiceRow] = await db.select({ value: count() }).from(invoices).where(and(
+    ne(invoices.status, 'void'),
+    ne(invoices.paymentStatus, 'paid'),
+  ))
+
   const leads = leadCountRow?.value ?? 0
 
   return {
     summary: {
       upcoming: upcomingCountRow?.value ?? 0,
       leads,
-      unpaidInvoices: null,
-      attention: leads,
+      unpaidInvoices: unpaidInvoiceRow?.value ?? 0,
+      attention: leads + (unpaidInvoiceRow?.value ?? 0),
     },
     upcoming,
     planned: {
-      clientPortal: false,
-      finance: false,
+      clientPortal: true,
+      finance: true,
       calendarSync: false,
       payments: false,
     },
