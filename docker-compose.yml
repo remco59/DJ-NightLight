@@ -36,7 +36,8 @@ services:
       NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-http://localhost:3000}
       NUXT_APP_VERSION: ${NUXT_APP_VERSION:-development}
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:-dev-only-change-me-at-least-32-characters}
-      OWNER_BOOTSTRAP_TOKEN: ${OWNER_BOOTSTRAP_TOKEN:-dev-bootstrap-change-me}
+      NUXT_SESSION_COOKIE_SECURE: ${NUXT_SESSION_COOKIE_SECURE:-false}
+      NUXT_OWNER_BOOTSTRAP_TOKEN: ${OWNER_BOOTSTRAP_TOKEN:-dev-bootstrap-change-me}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
