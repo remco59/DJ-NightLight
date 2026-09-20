@@ -328,6 +328,23 @@ export const gigEmailSuppressions = pgTable('gig_email_suppressions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, table => [uniqueIndex('gig_email_suppression_unique').on(table.gigId, table.templateKey)])
 
+export const mediaAssets = pgTable('media_assets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  storageKey: varchar('storage_key', { length: 500 }).notNull().unique(),
+  thumbnailKey: varchar('thumbnail_key', { length: 500 }),
+  originalFilename: varchar('original_filename', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }).notNull(),
+  byteSize: integer('byte_size').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  title: varchar('title', { length: 240 }).default('').notNull(),
+  altText: varchar('alt_text', { length: 500 }).default('').notNull(),
+  tags: jsonb('tags').$type<string[]>().default([]).notNull(),
+  gigId: uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
+  ...timestamps,
+})
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 120 }).notNull(),
@@ -431,6 +448,7 @@ export type EmailTemplate = typeof emailTemplates.$inferSelect
 export type EmailJob = typeof emailJobs.$inferSelect
 export type EmailDeliveryAttempt = typeof emailDeliveryAttempts.$inferSelect
 export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
+export type MediaAsset = typeof mediaAssets.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
