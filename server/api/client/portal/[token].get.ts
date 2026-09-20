@@ -1,5 +1,5 @@
-import { eq } from 'drizzle-orm'
-import { portalLinks } from '../../../../db/schema'
+import { and, desc, eq, ne } from 'drizzle-orm'
+import { invoices, payments, portalLinks } from '../../../../db/schema'
 import { recordAudit } from '../../../utils/audit'
 import { db } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
@@ -24,6 +24,13 @@ export default defineEventHandler(async (event) => {
     metadata: { linkId: access.linkId, requestFingerprint: hashPortalToken(ip).slice(0, 16) },
   })
   const form = await getPortalForm(access.gigId)
+  const [invoice] = await db.select({
+    id: invoices.id, invoiceNumber: invoices.invoiceNumber, totalCents: invoices.totalCents, currency: invoices.currency,
+    status: invoices.status, paymentStatus: invoices.paymentStatus, dueDate: invoices.dueDate,
+    paymentRecordStatus: payments.status, paidAt: payments.paidAt,
+  }).from(invoices).leftJoin(payments, eq(payments.invoiceId, invoices.id)).where(and(
+    eq(invoices.gigId, access.gigId), ne(invoices.status, 'void'),
+  )).orderBy(desc(invoices.finalizedAt), desc(invoices.createdAt)).limit(1)
 
   return {
     gig: {
@@ -55,5 +62,6 @@ export default defineEventHandler(async (event) => {
       note: wish.note,
       ordering: wish.ordering,
     })),
+    invoice: invoice || null,
   }
 })

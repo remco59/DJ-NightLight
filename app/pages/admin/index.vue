@@ -141,7 +141,7 @@ useSeoMeta({
         </div>
         <div>
           <strong>Payments</strong>
-          <span>Stripe follows after invoicing</span>
+          <span>Stripe Checkout active</span>
         </div>
       </section>
     </template>

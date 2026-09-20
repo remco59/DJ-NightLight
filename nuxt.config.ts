@@ -6,6 +6,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     appVersion: process.env.NUXT_APP_VERSION || 'development',
     ownerBootstrapToken: process.env.OWNER_BOOTSTRAP_TOKEN || '',
+    stripeSecretKey: process.env.STRIPE_RESTRICTED_KEY || '',
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
