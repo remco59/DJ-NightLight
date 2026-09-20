@@ -15,7 +15,7 @@ function safePath(root: string, key: string) {
   return target
 }
 
-class LocalMediaStorage implements MediaStorage {
+export class LocalMediaStorage implements MediaStorage {
   constructor(private root: string) {}
 
   async put(buffer: Uint8Array, extension: string, prefix = 'originals') {
@@ -47,4 +47,10 @@ class LocalMediaStorage implements MediaStorage {
 export function getMediaStorage() {
   const config = useRuntimeConfig()
   return new LocalMediaStorage(String(config.storageUploads))
+}
+
+
+export function getGeneratedStorage() {
+  const config = useRuntimeConfig()
+  return new LocalMediaStorage(String(config.storageGenerated))
 }
