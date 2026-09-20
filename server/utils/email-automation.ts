@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { and, eq, inArray, isNull, lt, ne } from 'drizzle-orm'
 import {
   clients,
   contractSubmissions,
@@ -235,7 +235,7 @@ export async function processEmailJob(jobId: string) {
   const subject = renderEmailTemplate(template.subject, job.variables)
   const text = renderEmailTemplate(template.body, job.variables)
   try {
-    const sent = await sendEmail({ to: job.recipient, subject, text })
+    const sent = await sendEmail({ to: job.recipient, subject, text, idempotencyKey: job.dedupeKey })
     const sentAt = new Date()
     await db.transaction(async (tx) => {
       await tx.insert(emailDeliveryAttempts).values({
@@ -270,11 +270,21 @@ export async function processEmailJob(jobId: string) {
   }
 }
 
+export async function recoverStuckEmailJobs() {
+  const cutoff = new Date(Date.now() - 15 * 60_000)
+  await db.update(emailJobs).set({
+    status: 'failed',
+    lastError: 'Recovered after an interrupted delivery attempt',
+    runAt: new Date(),
+    updatedAt: new Date(),
+  }).where(and(eq(emailJobs.status, 'processing'), lt(emailJobs.updatedAt, cutoff)))
+}
+
 export async function processDueEmailJobs(limit = 10) {
   const due = await db.select({ id: emailJobs.id }).from(emailJobs)
     .where(and(
       inArray(emailJobs.status, ['pending', 'failed']),
-      ne(emailJobs.attemptCount, 8),
+      lt(emailJobs.attemptCount, 8),
     ))
     .orderBy(emailJobs.runAt)
     .limit(limit)
