@@ -1,3 +1,5 @@
+const defaultStorageRoot = process.env.NODE_ENV === 'production' ? '/app/storage' : '.data'
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-19',
   devtools: { enabled: true },
@@ -18,9 +20,9 @@ export default defineNuxtConfig({
       from: process.env.EMAIL_FROM || '',
       reviewUrl: process.env.REVIEW_URL || '',
     },
-    storageUploads: process.env.NUXT_STORAGE_UPLOADS || '.data/uploads',
-    storageGenerated: process.env.NUXT_STORAGE_GENERATED || '.data/generated',
-    storageBackups: process.env.NUXT_STORAGE_BACKUPS || '.data/backups',
+    storageUploads: process.env.NUXT_STORAGE_UPLOADS || `${defaultStorageRoot}/uploads`,
+    storageGenerated: process.env.NUXT_STORAGE_GENERATED || `${defaultStorageRoot}/generated`,
+    storageBackups: process.env.NUXT_STORAGE_BACKUPS || `${defaultStorageRoot}/backups`,
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {

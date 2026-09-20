@@ -46,6 +46,13 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       REVIEW_URL: ${REVIEW_URL:-}
+      NUXT_STORAGE_UPLOADS: /app/storage/uploads
+      NUXT_STORAGE_GENERATED: /app/storage/generated
+      NUXT_STORAGE_BACKUPS: /app/storage/backups
+    volumes:
+      - nightlight-uploads:/app/storage/uploads
+      - nightlight-generated:/app/storage/generated
+      - nightlight-backups:/app/storage/backups
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
@@ -61,3 +68,6 @@ services:
 
 volumes:
   nightlight-db:
+  nightlight-uploads:
+  nightlight-generated:
+  nightlight-backups:
