@@ -14,7 +14,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "security:audit": "npm audit --omit=dev --audit-level=high",
+    "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",
