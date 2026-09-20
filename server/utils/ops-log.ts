@@ -18,7 +18,7 @@ export function structuredLog(level: 'info' | 'warn' | 'error', event: string, d
     level,
     event,
     timestamp: new Date().toISOString(),
-    ...sanitizeOperationalMetadata(data) as Record<string, unknown>,
+    ...(sanitizeOperationalMetadata(data) as Record<string, unknown>),
   }
   const line = JSON.stringify(payload)
   if (level === 'error') console.error(line)
