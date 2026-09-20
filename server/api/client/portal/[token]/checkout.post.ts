@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   if (!payment) throw createError({ statusCode: 500, statusMessage: 'Could not reserve payment' })
   if (payment.status === 'succeeded') throw createError({ statusCode: 409, statusMessage: 'This invoice is already paid' })
 
-  const stripe = getStripeClient()
+  const stripe = await getStripeClient()
   if (payment.providerSessionId && payment.checkoutExpiresAt && payment.checkoutExpiresAt > new Date() && payment.status === 'pending') {
     const existing = await stripe.checkout.sessions.retrieve(payment.providerSessionId)
     if (existing.status === 'open' && existing.url) return { url: existing.url }
