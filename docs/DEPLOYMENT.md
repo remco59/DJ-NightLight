@@ -12,6 +12,36 @@ DJ NightLight is designed to run on the existing Unraid server behind Nginx Prox
 
 Staging and production must use different databases, credentials, storage roots and session/auth secrets.
 
+## Database migrations
+
+Docker Compose applies committed Drizzle migrations automatically before the web application starts.
+
+The startup order is:
+
+```text
+PostgreSQL healthy
+      ↓
+one-shot migrate service
+      ↓
+Nuxt web service
+```
+
+The migration container runs `npm run db:migrate` and exits successfully. The web service uses `depends_on: condition: service_completed_successfully`, so a schema migration failure prevents the application from starting against an incompatible database.
+
+Migrations are designed to be re-run safely on every deployment. Do not remove the `migrate` service or manually edit the production schema.
+
+For troubleshooting:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.unraid.yml logs migrate
+```
+
+A successful run ends with:
+
+```text
+Database migrations completed.
+```
+
 ## Local stack
 
 ```bash
@@ -19,7 +49,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The local database is exposed only on localhost for development tools.
+The local database is exposed only on localhost for development tools. On the first start the migration service creates the application schema and seeds any migration-defined default records, including the initial website content.
 
 ## Unraid directories
 
@@ -74,6 +104,8 @@ Configure NPM for `djnightlight.nl` to the production `APP_PORT`.
 ## Networks
 
 The PostgreSQL container is only connected to the internal `backend` network and has no host port in Unraid deployment.
+
+The migration container only joins the private backend network.
 
 The web container joins both the internal backend network and the existing external NPM proxy network.
 
