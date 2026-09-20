@@ -1,5 +1,7 @@
 import {
+  type AnyPgColumn,
   boolean,
+  date,
   integer,
   jsonb,
   numeric,
@@ -11,6 +13,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import type { InvoiceSnapshot, VatMode } from '../../shared/invoice'
 import type { QuestionnaireField } from '../../shared/questionnaire'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
@@ -18,6 +21,9 @@ export const clientType = pgEnum('client_type', ['person', 'company'])
 export const gigStatus = pgEnum('gig_status', ['lead', 'booked', 'declined', 'cancelled'])
 export const submissionStatus = pgEnum('submission_status', ['draft', 'submitted'])
 export const musicWishCategory = pgEnum('music_wish_category', ['must_play', 'nice_to_have', 'do_not_play', 'special_moment'])
+export const invoiceStatus = pgEnum('invoice_status', ['draft', 'finalized', 'void'])
+export const invoicePaymentStatus = pgEnum('invoice_payment_status', ['unpaid', 'pending', 'paid', 'failed'])
+export const invoiceVatMode = pgEnum('invoice_vat_mode', ['exclusive', 'inclusive', 'exempt'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -159,6 +165,64 @@ export const musicWishes = pgTable('music_wishes', {
   ...timestamps,
 })
 
+export const businessSettings = pgTable('business_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  companyName: varchar('company_name', { length: 240 }).notNull(),
+  address: text('address').default('').notNull(),
+  postalCode: varchar('postal_code', { length: 32 }).default('').notNull(),
+  city: varchar('city', { length: 160 }).default('').notNull(),
+  country: varchar('country', { length: 120 }).default('Nederland').notNull(),
+  email: varchar('email', { length: 320 }).default('').notNull(),
+  phone: varchar('phone', { length: 64 }).default('').notNull(),
+  registrationNumber: varchar('registration_number', { length: 80 }).default('').notNull(),
+  vatNumber: varchar('vat_number', { length: 80 }).default('').notNull(),
+  iban: varchar('iban', { length: 64 }).default('').notNull(),
+  invoicePrefix: varchar('invoice_prefix', { length: 16 }).default('NL').notNull(),
+  nextInvoiceNumber: integer('next_invoice_number').default(1).notNull(),
+  defaultVatMode: invoiceVatMode('default_vat_mode').default('exclusive').notNull(),
+  defaultVatRateBasisPoints: integer('default_vat_rate_basis_points').default(2100).notNull(),
+  defaultPaymentTermDays: integer('default_payment_term_days').default(30).notNull(),
+  paymentTerms: text('payment_terms').default('Please pay the full amount before the due date.').notNull(),
+  legalText: text('legal_text').default('').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const invoices = pgTable('invoices', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'restrict' }),
+  clientId: uuid('client_id').references(() => clients.id, { onDelete: 'restrict' }),
+  invoiceNumber: varchar('invoice_number', { length: 80 }).unique(),
+  status: invoiceStatus('status').default('draft').notNull(),
+  paymentStatus: invoicePaymentStatus('payment_status').default('unpaid').notNull(),
+  issueDate: date('issue_date').notNull(),
+  dueDate: date('due_date').notNull(),
+  currency: varchar('currency', { length: 3 }).default('EUR').notNull(),
+  vatMode: invoiceVatMode('vat_mode').$type<VatMode>().default('exclusive').notNull(),
+  vatRateBasisPoints: integer('vat_rate_basis_points').default(2100).notNull(),
+  subtotalCents: integer('subtotal_cents').default(0).notNull(),
+  vatAmountCents: integer('vat_amount_cents').default(0).notNull(),
+  totalCents: integer('total_cents').default(0).notNull(),
+  paymentTerms: text('payment_terms').default('').notNull(),
+  legalText: text('legal_text').default('').notNull(),
+  notes: text('notes').default('').notNull(),
+  documentSnapshot: jsonb('document_snapshot').$type<InvoiceSnapshot>(),
+  documentHash: varchar('document_hash', { length: 64 }),
+  finalizedAt: timestamp('finalized_at', { withTimezone: true }),
+  voidedAt: timestamp('voided_at', { withTimezone: true }),
+  replacementForInvoiceId: uuid('replacement_for_invoice_id').references((): AnyPgColumn => invoices.id, { onDelete: 'set null' }),
+  ...timestamps,
+})
+
+export const invoiceLineItems = pgTable('invoice_line_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  invoiceId: uuid('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  description: varchar('description', { length: 500 }).notNull(),
+  quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
+  unitPriceCents: integer('unit_price_cents').notNull(),
+  ordering: integer('ordering').default(0).notNull(),
+  ...timestamps,
+})
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -241,5 +305,8 @@ export type QuestionnaireTemplate = typeof questionnaireTemplates.$inferSelect
 export type QuestionnaireTemplateVersion = typeof questionnaireTemplateVersions.$inferSelect
 export type ContractSubmission = typeof contractSubmissions.$inferSelect
 export type MusicWish = typeof musicWishes.$inferSelect
+export type BusinessSettings = typeof businessSettings.$inferSelect
+export type Invoice = typeof invoices.$inferSelect
+export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect

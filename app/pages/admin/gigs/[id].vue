@@ -51,6 +51,10 @@ async function duplicate(){
   try{const result=await $fetch<{gig:{id:string}}>(`/api/admin/gigs/${id}/duplicate`,{method:'POST'});await navigateTo(`/admin/gigs/${result.gig.id}`)}
   catch(error:unknown){message.value=apiErrorMessage(error,'Could not duplicate gig.')}
 }
+async function createInvoice(){
+  try{const result=await $fetch<{invoice:{id:string}}>(`/api/admin/gigs/${id}/invoice`,{method:'POST'});await navigateTo(`/admin/invoices/${result.invoice.id}`)}
+  catch(error:unknown){message.value=apiErrorMessage(error,'Could not create invoice.')}
+}
 async function remove(){
   if(!confirm('Permanently delete this declined gig?'))return
   try{await $fetch(`/api/admin/gigs/${id}`,{method:'DELETE'});await navigateTo('/admin/gigs')}
@@ -82,7 +86,7 @@ useSeoMeta({title:()=>`${data.value?.gig.title||'Gig'} — DJ NightLight`,robots
 
 <template><div v-if="data" class="detail">
 <NuxtLink to="/admin/gigs" class="back">← Gigs</NuxtLink>
-<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.title}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div class="hero-actions"><button class="secondary" @click="duplicate">Duplicate</button><button v-if="form.status==='declined'" class="danger" @click="remove">Delete</button></div></header>
+<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.title}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div class="hero-actions"><button class="secondary" type="button" @click="createInvoice">Create invoice</button><button class="secondary" type="button" @click="duplicate">Duplicate</button><button v-if="form.status==='declined'" class="danger" type="button" @click="remove">Delete</button></div></header>
 
 <form @submit.prevent="save">
 <section class="card"><p class="eyebrow">Overview</p><div class="grid"><label class="wide">Title<input v-model="form.title" required></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Booked</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select></label><label>Event type<input v-model="form.eventType"></label><label>Client<select v-model="form.clientId"><option value="">No client</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Venue<select v-model="form.venueId"><option value="">No venue</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Fee<input v-model="form.fee" inputmode="decimal"></label><label>Currency<input v-model="form.currency" maxlength="3"></label><label>Source<input v-model="form.source"></label></div></section>
@@ -98,7 +102,7 @@ useSeoMeta({title:()=>`${data.value?.gig.title||'Gig'} — DJ NightLight`,robots
 
 <section v-if="submissionData" class="card"><div class="section-title"><div><p class="eyebrow">Portal submission</p><h2>Contract & music wishes</h2></div><NuxtLink to="/admin/questionnaire" class="text-button">Edit template</NuxtLink></div><div class="submission-status"><strong>{{submissionData.status.replace('_',' ')}}</strong><span>Questionnaire version {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{portalDate(submissionData.submission.submittedAt)}}</template></span></div><div v-if="submissionData.submission" class="answer-grid"><div v-for="field in submissionData.fields" :key="field.id"><span>{{field.label}}</span><strong>{{answerValue(submissionData.submission.answers[field.id])}}</strong></div><div><span>Accepted by</span><strong>{{submissionData.submission.acceptedName||'—'}}</strong></div></div><div v-else class="subtle">The client has not submitted the questionnaire yet.</div><h3>Music wishes</h3><div v-if="!submissionData.wishes.length" class="subtle">No music wishes submitted.</div><div v-for="wish in submissionData.wishes" :key="wish.id" class="wish-row"><span>{{wish.category.replaceAll('_',' ')}}</span><div><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Untitled wish'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Open Spotify</a><small v-if="wish.note">{{wish.note}}</small></div></div></section>
 
-<div class="save-bar"><div><strong>{{message||'Changes are only stored after saving.'}}</strong><span>Calendar, finance and client portal integrations arrive in later phases.</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Save gig'}}</button></div>
+<div class="save-bar"><div><strong>{{message||'Changes are only stored after saving.'}}</strong><span>Calendar synchronization arrives in phase 5.</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Save gig'}}</button></div>
 </form>
 
 <section class="card activity"><p class="eyebrow">Activity</p><h2>Recent changes</h2><div v-if="!data.activity.length" class="subtle">No activity recorded yet.</div><div v-for="item in data.activity" :key="item.id" class="activity-row"><strong>{{item.action.replaceAll('_',' ')}}</strong><span>{{activityDate(item.createdAt)}}</span></div></section>

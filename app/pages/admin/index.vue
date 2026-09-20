@@ -39,8 +39,7 @@ const stats = computed(() => [
   {
     label: 'Open invoices',
     value: data.value?.summary.unpaidInvoices ?? '—',
-    detail: 'Available when finance ships',
-    muted: data.value?.summary.unpaidInvoices === null,
+    detail: 'Draft or awaiting payment',
   },
   {
     label: 'Needs attention',
@@ -134,7 +133,7 @@ useSeoMeta({
       <section class="system-strip">
         <div>
           <strong>Client portal</strong>
-          <span>Planned for phase 3</span>
+          <span>Active</span>
         </div>
         <div>
           <strong>Calendar sync</strong>
@@ -142,7 +141,7 @@ useSeoMeta({
         </div>
         <div>
           <strong>Payments</strong>
-          <span>Planned for phase 4</span>
+          <span>Stripe follows after invoicing</span>
         </div>
       </section>
     </template>
