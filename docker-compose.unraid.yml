@@ -130,6 +130,30 @@ services:
     networks:
       - backend
 
+
+  restore:
+    profiles: ["manual"]
+    image: postgres:17-alpine
+    restart: "no"
+    entrypoint: ["/bin/sh", "/ops/restore.sh"]
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      CONFIRM_RESTORE: ${CONFIRM_RESTORE:-}
+      RESTORE_MEDIA: ${RESTORE_MEDIA:-true}
+    volumes:
+      - ./ops:/ops:ro
+      - ${APP_DATA_ROOT}/backups:/backups:ro
+      - ${APP_DATA_ROOT}:/restore-target
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
 networks:
   backend:
     internal: true
