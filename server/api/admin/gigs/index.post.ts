@@ -2,6 +2,7 @@ import { gigContacts, gigs, gigTimelineItems } from '../../../../db/schema'
 import { gigInputSchema } from '../../../../shared/schemas/gig'
 import { recordAudit } from '../../../utils/audit'
 import { queueCalendarSync } from '../../../utils/calendar-sync'
+import { queueGigEmail } from '../../../utils/email-automation'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -43,6 +44,7 @@ export default defineEventHandler(async (event) => {
   })
 
   await queueCalendarSync(gig.id)
+  if (gig.status === 'lead') await queueGigEmail('lead_acknowledgement', gig.id, `lead-acknowledgement:${gig.id}`)
 
   event.node.res.statusCode = 201
   return { gig }
