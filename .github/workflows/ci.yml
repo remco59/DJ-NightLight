@@ -33,6 +33,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Shell safety checks
+        run: sh -n ops/*.sh
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=critical
+
       - name: Production build
         run: npm run build
 
