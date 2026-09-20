@@ -1,6 +1,7 @@
 import { gigContacts, gigs, gigTimelineItems } from '../../../../db/schema'
 import { gigInputSchema } from '../../../../shared/schemas/gig'
 import { recordAudit } from '../../../utils/audit'
+import { queueCalendarSync } from '../../../utils/calendar-sync'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -40,6 +41,8 @@ export default defineEventHandler(async (event) => {
     action: 'created',
     metadata: { status: gig.status },
   })
+
+  await queueCalendarSync(gig.id)
 
   event.node.res.statusCode = 201
   return { gig }
