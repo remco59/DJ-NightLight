@@ -15,6 +15,18 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      target: build
+    command: ["npm", "run", "db:migrate"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nightlight}:${POSTGRES_PASSWORD:-nightlight}@db:5432/${POSTGRES_DB:-nightlight}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   web:
     build:
       context: .
@@ -23,11 +35,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nightlight}:${POSTGRES_PASSWORD:-nightlight}@db:5432/${POSTGRES_DB:-nightlight}
       NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-http://localhost:3000}
       NUXT_APP_VERSION: ${NUXT_APP_VERSION:-development}
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:-dev-only-change-me-at-least-32-characters}
+      OWNER_BOOTSTRAP_TOKEN: ${OWNER_BOOTSTRAP_TOKEN:-dev-bootstrap-change-me}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 15s
