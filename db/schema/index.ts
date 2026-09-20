@@ -7,13 +7,17 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import type { QuestionnaireField } from '../../shared/questionnaire'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
 export const clientType = pgEnum('client_type', ['person', 'company'])
 export const gigStatus = pgEnum('gig_status', ['lead', 'booked', 'declined', 'cancelled'])
+export const submissionStatus = pgEnum('submission_status', ['draft', 'submitted'])
+export const musicWishCategory = pgEnum('music_wish_category', ['must_play', 'nice_to_have', 'do_not_play', 'special_moment'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -114,6 +118,47 @@ export const portalLinks = pgTable('portal_links', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const questionnaireTemplates = pgTable('questionnaire_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  active: boolean('active').default(true).notNull(),
+  ...timestamps,
+})
+
+export const questionnaireTemplateVersions = pgTable('questionnaire_template_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: uuid('template_id').notNull().references(() => questionnaireTemplates.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  fields: jsonb('fields').$type<QuestionnaireField[]>().default([]).notNull(),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex('questionnaire_template_version_unique').on(table.templateId, table.version)])
+
+export const contractSubmissions = pgTable('contract_submissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
+  templateVersionId: uuid('template_version_id').notNull().references(() => questionnaireTemplateVersions.id, { onDelete: 'restrict' }),
+  portalLinkId: uuid('portal_link_id').references(() => portalLinks.id, { onDelete: 'set null' }),
+  status: submissionStatus('status').default('draft').notNull(),
+  answers: jsonb('answers').$type<Record<string, unknown>>().default({}).notNull(),
+  acceptedName: varchar('accepted_name', { length: 200 }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  ...timestamps,
+})
+
+export const musicWishes = pgTable('music_wishes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  category: musicWishCategory('category').notNull(),
+  artist: varchar('artist', { length: 240 }),
+  title: varchar('title', { length: 240 }),
+  spotifyUrl: text('spotify_url'),
+  note: text('note'),
+  ordering: integer('ordering').default(0).notNull(),
+  ...timestamps,
+})
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -192,5 +237,9 @@ export type NewGig = typeof gigs.$inferInsert
 export type GigContact = typeof gigContacts.$inferSelect
 export type GigTimelineItem = typeof gigTimelineItems.$inferSelect
 export type PortalLink = typeof portalLinks.$inferSelect
+export type QuestionnaireTemplate = typeof questionnaireTemplates.$inferSelect
+export type QuestionnaireTemplateVersion = typeof questionnaireTemplateVersions.$inferSelect
+export type ContractSubmission = typeof contractSubmissions.$inferSelect
+export type MusicWish = typeof musicWishes.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
