@@ -1,4 +1,5 @@
 import { processDueCalendarSyncs } from '../utils/calendar-sync'
+import { recordOperationalEvent, structuredLog } from '../utils/ops-log'
 
 let running = false
 
@@ -8,11 +9,9 @@ async function tick() {
   try {
     await processDueCalendarSyncs(10)
   } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'calendar_worker_failed',
-      message: error instanceof Error ? error.message : String(error),
-    }))
+    const message = error instanceof Error ? error.message : String(error)
+    structuredLog('error', 'calendar_worker_failed', { message })
+    void recordOperationalEvent({ kind: 'calendar_worker', status: 'failed', message }).catch(() => {})
   } finally {
     running = false
   }
