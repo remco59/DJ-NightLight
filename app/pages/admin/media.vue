@@ -122,7 +122,7 @@ async function save() {
   busy.value = 'save'
   message.value = ''
   try {
-    const path = `/api/admin/media/${selected.value.id}` as any
+    const path = `/api/admin/media/${selected.value.id}` as `/api/admin/media/${string}`
     await $fetch(path, {
       method: 'PUT',
       body: {
@@ -152,8 +152,18 @@ async function remove() {
     selectedId.value = ''
     message.value = 'Media asset deleted.'
     await refresh()
-  } catch (error: any) {
-    const references = error?.data?.data?.references as string[] | undefined
+  } catch (error: unknown) {
+    let references: string[] | undefined
+    if (typeof error === 'object' && error !== null && 'data' in error) {
+      const outer = (error as { data?: unknown }).data
+      if (typeof outer === 'object' && outer !== null && 'data' in outer) {
+        const inner = (outer as { data?: unknown }).data
+        if (typeof inner === 'object' && inner !== null && 'references' in inner) {
+          const value = (inner as { references?: unknown }).references
+          if (Array.isArray(value) && value.every(item => typeof item === 'string')) references = value
+        }
+      }
+    }
     message.value = references?.length
       ? `Cannot delete: ${references.join(' · ')}`
       : error instanceof Error ? error.message : 'Delete failed.'
