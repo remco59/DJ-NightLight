@@ -40,8 +40,8 @@ describe('post generator', () => {
     })
     expect(rect.width).toBe(3240)
     expect(rect.height).toBe(3240)
-    expect(rect.x).toBe(1080 - 3240)
-    expect(rect.y).toBe(0)
+    expect(rect.x).toBe(0)
+    expect(rect.y).toBe(1080 - 3240)
   })
 
   it('reserves extra story space for social UI', () => {
