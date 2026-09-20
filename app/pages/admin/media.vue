@@ -147,7 +147,7 @@ async function remove() {
   busy.value = 'delete'
   message.value = ''
   try {
-    const path = `/api/admin/media/${selected.value.id}` as any
+    const path = `/api/admin/media/${selected.value.id}` as `/api/admin/media/${string}`
     await $fetch(path, { method: 'DELETE' })
     selectedId.value = ''
     message.value = 'Media asset deleted.'
