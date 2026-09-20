@@ -14,7 +14,9 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-RUN addgroup -S nightlight && adduser -S nightlight -G nightlight
+RUN addgroup -S nightlight && adduser -S nightlight -G nightlight \
+  && mkdir -p /app/storage/uploads /app/storage/generated /app/storage/backups \
+  && chown -R nightlight:nightlight /app/storage
 
 COPY --from=build --chown=nightlight:nightlight /app/.output ./.output
 
