@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
   const detail = await getInvoiceDetail(id)
   if (!detail) throw createError({ statusCode: 404, statusMessage: 'Invoice not found' })
   if (!detail.invoice.documentSnapshot || !detail.invoice.invoiceNumber) throw createError({ statusCode: 409, statusMessage: 'Finalize the invoice before generating its PDF' })
+
   const pdf = buildInvoicePdf(detail.invoice.documentSnapshot)
   setHeader(event, 'content-type', 'application/pdf')
   setHeader(event, 'content-disposition', `inline; filename="${detail.invoice.invoiceNumber}.pdf"`)

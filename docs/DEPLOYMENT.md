@@ -59,10 +59,12 @@ The owner sets Stripe up in **Admin → Settings → Online payments**, which wa
 
 Alternatively (or as a fallback), configure a separate Stripe restricted API key and webhook signing secret per environment. Credentials saved in Settings take precedence over these variables:
 
-- `STRIPE_RESTRICTED_KEY` — prefer an `rk_` key with only the Checkout Session permissions the app needs.
+- `STRIPE_RESTRICTED_KEY` — prefer an `rk_` key with **Checkout Sessions: Write** and **Customers: Write**. Customers permission is required to create/reuse the virtual bank account used by EUR bank transfers.
 - `STRIPE_WEBHOOK_SECRET` — the `whsec_` secret for the endpoint below.
 
-Register `https://<your-host>/api/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, and `payment_intent.payment_failed`. Test the complete flow in Stripe test mode before adding live credentials. Never commit either secret or expose it to client-side runtime configuration.
+Enable **Bank transfer** under Stripe Dashboard → Payment methods before testing EUR bank transfers. NightLight creates/reuses one Stripe Customer per client so Stripe can provide EU virtual-bank-account instructions and reconcile incoming transfers.
+
+Register `https://<your-host>/api/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, and `payment_intent.payment_failed`. Bank transfers are asynchronous: Checkout first becomes pending and the async success/failure event updates NightLight once Stripe resolves the transfer. Test the complete flow in Stripe test mode before adding live credentials. Never commit either secret or expose it to client-side runtime configuration.
 
 ## Unraid directories
 

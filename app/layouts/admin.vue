@@ -15,7 +15,6 @@ const groups: NavGroup[] = [
     {label:'Gigs',to:'/admin/gigs',roles:['owner','manager','dj']},
     {label:'Clients',to:'/admin/clients',roles:['owner','manager']},
     {label:'Venues',to:'/admin/venues',roles:['owner','manager']},
-    {label:'Invoices',to:'/admin/invoices',roles:['owner','manager']},
     {label:'Calendar',to:'/admin/calendar',roles:['owner','manager']},
     {label:'Email',to:'/admin/email',roles:['owner','manager']},
     {label:'Client portal',to:'/admin/questionnaire',roles:['owner','manager']},

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
-import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, users, venues } from '../../../../db/schema'
+import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -74,5 +74,28 @@ export default defineEventHandler(async (event) => {
     ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, 'dj'), eq(users.active, true))).orderBy(asc(users.name))
     : [{ id: user.id, name: user.name, email: user.email }]
 
-  return { gig, contacts, timeline, activity, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
+  const invoiceRows = canManage
+    ? await db.select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        status: invoices.status,
+        paymentStatus: invoices.paymentStatus,
+        issueDate: invoices.issueDate,
+        dueDate: invoices.dueDate,
+        currency: invoices.currency,
+        totalCents: invoices.totalCents,
+        finalizedAt: invoices.finalizedAt,
+        paymentProvider: payments.provider,
+        stripeSessionId: payments.providerSessionId,
+        stripePaymentIntentId: payments.providerPaymentIntentId,
+        stripeStatus: payments.status,
+        paidAt: payments.paidAt,
+        paymentFailureCode: payments.failureCode,
+      }).from(invoices)
+        .leftJoin(payments, eq(payments.invoiceId, invoices.id))
+        .where(eq(invoices.gigId, id))
+        .orderBy(desc(invoices.createdAt))
+    : []
+
+  return { gig, contacts, timeline, activity, invoices: invoiceRows, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
 })

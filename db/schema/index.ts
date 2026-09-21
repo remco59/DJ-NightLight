@@ -57,6 +57,7 @@ export const clients = pgTable('clients', {
   phone: varchar('phone', { length: 64 }),
   billingAddress: text('billing_address'),
   notes: text('notes'),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }).unique(),
   ...timestamps,
 })
 

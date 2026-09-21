@@ -8,6 +8,7 @@ export type InvoiceSnapshot = {
   invoiceNumber: string
   issueDate: string
   dueDate: string
+  serviceDate?: string
   currency: string
   vatMode: VatMode
   vatRateBasisPoints: number
