@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { gigCalendarSync, gigs } from '../../../../db/schema'
 import { getCalendarSyncSettings } from '../../../utils/calendar-sync'
 import { db } from '../../../utils/db'
@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(gigCalendarSync)
     .innerJoin(gigs, eq(gigCalendarSync.gigId, gigs.id))
+    .where(and(isNull(gigs.deletedAt)))
     .orderBy(desc(gigs.startsAt), desc(gigCalendarSync.updatedAt))
     .limit(100)
 
