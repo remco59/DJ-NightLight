@@ -98,7 +98,7 @@ function formatDate(value: string | null) {
       <div class="panel-heading">
         <div>
           <h2>Connection & behavior</h2>
-          <p>OAuth secrets stay in environment variables; only non-secret behavior is stored here.</p>
+          <p>Credentials and sync behavior are managed centrally in <NuxtLink to="/admin/settings#integrations">Settings → Integrations</NuxtLink>. You can still adjust sync behavior here.</p>
         </div>
         <span class="status" :class="{ ok: data?.credentialsConfigured }">
           {{ data?.credentialsConfigured ? 'Credentials configured' : 'Credentials missing' }}
@@ -167,6 +167,7 @@ function formatDate(value: string | null) {
 h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.05em; }
 h2 { margin: 0 0 .35rem; }
 .intro, .panel p, .row p, small { color: #938c9c; }
+.panel a { color: #c9b2df; }
 .panel { margin-top: 1rem; padding: 1.35rem; border: 1px solid #29242f; border-radius: 1rem; background: #121016; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.25rem 0; }
 label { display: grid; gap: .45rem; color: #bdb6c5; font-size: .85rem; }
