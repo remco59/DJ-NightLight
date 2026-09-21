@@ -1,13 +1,19 @@
 import type { InvoiceSnapshot } from '../../shared/invoice'
-import type { BankTransferInstructions } from './stripe-customer'
+type BankTransferInstructions = {
+  iban: string
+  bic: string
+  country: string
+  accountHolderName: string
+  reference: string
+}
 
 function safeText(value: string) {
   return value
     .replace(/\u00a0/g, ' ')
     .replace(/[–—]/g, '-')
+    .replace(/([\\()])/g, '\\$1')
     .replace(/€/g, '\\200')
     .replace(/[^\x20-\xFF\\]/g, '?')
-    .replace(/([\\()])/g, '\\$1')
 }
 
 function money(cents: number, currency: string) {
@@ -46,8 +52,8 @@ function shortText(value: string, max = 54) {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`
 }
 
-export function buildInvoicePdf(snapshot: InvoiceSnapshot, stripeBankTransfer?: BankTransferInstructions | null) {
-  const fallbackBankTransfer: BankTransferInstructions | null = !stripeBankTransfer && snapshot.business.iban
+export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
+  const bankTransfer: BankTransferInstructions | null = snapshot.business.iban
     ? {
         iban: snapshot.business.iban,
         bic: '',
@@ -56,11 +62,10 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot, stripeBankTransfer?: 
         reference: snapshot.invoiceNumber,
       }
     : null
-  const bankTransfer = stripeBankTransfer || fallbackBankTransfer
 
-  const firstPageItems = snapshot.lines.slice(0, 8)
+  const firstPageItems = snapshot.lines.slice(0, 5)
   const pages: typeof snapshot.lines[] = [firstPageItems]
-  for (let index = 8; index < snapshot.lines.length; index += 8) pages.push(snapshot.lines.slice(index, index + 8))
+  for (let index = 5; index < snapshot.lines.length; index += 8) pages.push(snapshot.lines.slice(index, index + 8))
 
   const objects: Buffer[] = []
   objects[0] = Buffer.from('<< /Type /Catalog /Pages 2 0 R >>', 'latin1')
@@ -163,7 +168,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot, stripeBankTransfer?: 
         commands.push(
           textCommand(`Betaal ${money(snapshot.totals.totalCents, snapshot.currency)} met een bankoverschrijving`, 36, bankY, 8, 'F2'),
           textCommand('Gebruik onderstaande bankgegevens. Bankoverschrijvingen kunnen enkele werkdagen duren.', 36, bankY - 15, 7),
-          textCommand('Vermeld de referentie zodat Stripe de betaling automatisch aan deze factuur kan koppelen.', 36, bankY - 27, 7),
+          textCommand('Vermeld de referentie bij het versturen van de bankoverschrijving.', 36, bankY - 27, 7),
         )
         const rows = [
           ['BIC', bankTransfer.bic || '-'],
