@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
-import { videoRenderJobs } from '../../../../../../db/schema'
-import { db } from '../../../../../utils/db'
-import { getGeneratedStorage } from '../../../../../utils/media-storage'
-import { requireStaff } from '../../../../../utils/require-staff'
+import { videoRenderJobs } from '../../../../../db/schema'
+import { db } from '../../../../utils/db'
+import { getGeneratedStorage } from '../../../../utils/media-storage'
+import { requireStaff } from '../../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'content_editor'])
