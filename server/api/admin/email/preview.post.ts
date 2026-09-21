@@ -1,7 +1,11 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { emailTemplates } from '../../../../db/schema'
-import { renderEmailTemplate } from '../../../../shared/email-automation'
+import {
+  normalizeEmailText,
+  renderBrandedEmailHtml,
+  renderEmailTemplate,
+} from '../../../../shared/email-automation'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -15,8 +19,12 @@ export default defineEventHandler(async (event) => {
   const input = await readValidatedBody(event, schema.parse)
   const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.key, input.templateKey)).limit(1)
   if (!template) throw createError({ statusCode: 404, statusMessage: 'Template not found' })
+
+  const subject = renderEmailTemplate(template.subject, input.variables)
+  const body = normalizeEmailText(renderEmailTemplate(template.body, input.variables))
   return {
-    subject: renderEmailTemplate(template.subject, input.variables),
-    body: renderEmailTemplate(template.body, input.variables),
+    subject,
+    body,
+    html: renderBrandedEmailHtml(template.key, body, input.variables),
   }
 })

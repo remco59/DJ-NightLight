@@ -14,6 +14,8 @@ import {
 import {
   emailRetryDelayMs,
   formatMoney,
+  normalizeEmailText,
+  renderBrandedEmailHtml,
   renderEmailTemplate,
   type EmailVariables,
 } from '../../shared/email-automation'
@@ -233,9 +235,10 @@ export async function processEmailJob(jobId: string) {
   await db.update(emailJobs).set({ status: 'processing', updatedAt: new Date() }).where(eq(emailJobs.id, job.id))
 
   const subject = renderEmailTemplate(template.subject, job.variables)
-  const text = renderEmailTemplate(template.body, job.variables)
+  const text = normalizeEmailText(renderEmailTemplate(template.body, job.variables))
+  const html = renderBrandedEmailHtml(template.key, text, job.variables)
   try {
-    const sent = await sendEmail({ to: job.recipient, subject, text, idempotencyKey: job.dedupeKey })
+    const sent = await sendEmail({ to: job.recipient, subject, text, html, idempotencyKey: job.dedupeKey })
     const sentAt = new Date()
     await db.transaction(async (tx) => {
       await tx.insert(emailDeliveryAttempts).values({

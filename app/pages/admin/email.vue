@@ -48,7 +48,7 @@ const form = reactive({
   scheduleAnchor: 'event' as Template['scheduleAnchor'],
   offsetMinutes: 0,
 })
-const preview = ref<{ subject: string, body: string } | null>(null)
+const preview = ref<{ subject: string, body: string, html: string } | null>(null)
 const testRecipient = ref('')
 const suppressionGigId = ref('')
 const suppressionTemplateKey = ref('')
@@ -102,7 +102,7 @@ async function makePreview() {
   if (!selected.value) return
   busy.value = 'preview'
   try {
-    preview.value = await $fetch<{ subject: string, body: string }>('/api/admin/email/preview', {
+    preview.value = await $fetch<{ subject: string, body: string, html: string }>('/api/admin/email/preview', {
       method: 'POST',
       body: { templateKey: selected.value.key, variables: sampleVariables },
     })
@@ -258,8 +258,16 @@ function offsetLabel(template: Template) {
         </div>
 
         <div v-if="preview" class="preview">
-          <strong>{{ preview.subject }}</strong>
-          <p>{{ preview.body }}</p>
+          <div class="preview-head">
+            <span>Email preview</span>
+            <strong>{{ preview.subject }}</strong>
+          </div>
+          <iframe
+            class="email-preview"
+            :srcdoc="preview.html"
+            title="Branded email preview"
+            sandbox=""
+          />
         </div>
 
         <div class="test-send">
@@ -355,8 +363,10 @@ label { display: grid; gap: .4rem; margin-top: 1rem; color: #bbb4c2; font-size: 
 .timing { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .row-actions { margin-top: 1rem; }
 .primary { background: #fff; color: #0e0c11; border-color: #fff; font-weight: 700; }
-.preview { margin-top: 1rem; padding: 1rem; border: 1px dashed #3a3342; border-radius: .8rem; white-space: pre-wrap; }
-.preview p { color: #d8d3dd; }
+.preview { margin-top: 1rem; padding: 1rem; border: 1px dashed #3a3342; border-radius: .8rem; }
+.preview-head { display: grid; gap: .3rem; margin-bottom: .8rem; }
+.preview-head span { color: #928a9a; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+.email-preview { display: block; width: 100%; min-height: 720px; border: 1px solid #2b2631; border-radius: .75rem; background: #09080b; }
 .test-send { margin-top: 1rem; }
 .suppression { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: .8rem; align-items: end; }
 .history { display: grid; }
