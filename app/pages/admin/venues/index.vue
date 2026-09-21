@@ -22,7 +22,10 @@ useSeoMeta({title:'Venues — DJ NightLight',robots:'noindex, nofollow'})
 <label>Contact name<input v-model="form.contactName"></label><label>Contact email<input v-model="form.contactEmail" type="email"></label><label>Contact phone<input v-model="form.contactPhone"></label><label>Website<input v-model="form.website" type="url"></label>
 <label class="wide">Parking / load-in<textarea v-model="form.parkingNotes" rows="2"/></label><label class="wide">Technical notes<textarea v-model="form.technicalNotes" rows="2"/></label><label class="wide">General notes<textarea v-model="form.notes" rows="2"/></label></div>
 <p v-if="formError" class="error">{{formError}}</p><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Create venue'}}</button></form>
-<div class="toolbar"><input v-model="search" type="search" placeholder="Search venue, city or contact…"><span>{{data?.venues.length??0}} venues</span></div>
+<AdminFilterBar :has-active-filters="Boolean(search)" :results-label="`${data?.venues.length??0} venues`" @clear-all="search=''">
+<template #primary><input v-model="search" type="search" placeholder="Search venue, city or contact…"></template>
+<template #chips><AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search=''" /></template>
+</AdminFilterBar>
 <div v-if="status==='pending'" class="empty">Loading venues…</div><div v-else-if="!data?.venues.length" class="empty">No venues found.</div>
 <div v-else class="list"><NuxtLink v-for="venue in data.venues" :key="venue.id" :to="`/admin/venues/${venue.id}`" class="row"><div class="marker">⌖</div><div class="copy"><strong>{{venue.name}}</strong><span>{{venue.city||venue.address||venue.contactName||'Details not set'}}</span></div><span class="count">{{venue.gigCount}} {{venue.gigCount===1?'gig':'gigs'}}</span></NuxtLink></div>
 </div></template>

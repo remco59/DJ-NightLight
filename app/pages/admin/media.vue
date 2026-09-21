@@ -186,8 +186,20 @@ function formatBytes(bytes: number) {
         <h1>Media library</h1>
         <p>Persistent originals and generated thumbnails stored outside the application container.</p>
       </div>
-      <input v-model="search" class="search" type="search" placeholder="Search title, tag, gig or venue">
     </header>
+
+    <AdminFilterBar
+      :has-active-filters="Boolean(search)"
+      :results-label="`${filteredAssets.length} images`"
+      @clear-all="search = ''"
+    >
+      <template #primary>
+        <input v-model="search" type="search" placeholder="Search title, tag, gig or venue">
+      </template>
+      <template #chips>
+        <AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search = ''" />
+      </template>
+    </AdminFilterBar>
 
     <p v-if="message" class="message">{{ message }}</p>
 

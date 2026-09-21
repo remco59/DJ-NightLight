@@ -51,6 +51,8 @@ export default defineEventHandler(async (event) => {
     if (!Number.isNaN(end.getTime())) conditions.push(lte(gigs.startsAt, end))
   }
 
+  const sortOrder = query.sort === 'date_asc' ? asc(gigs.startsAt) : desc(gigs.startsAt)
+
   const rows = await db
     .select({
       id: gigs.id,
@@ -75,7 +77,7 @@ export default defineEventHandler(async (event) => {
     .leftJoin(clients, eq(gigs.clientId, clients.id))
     .leftJoin(venues, eq(gigs.venueId, venues.id))
     .where(and(...conditions))
-    .orderBy(desc(gigs.startsAt), desc(gigs.createdAt))
+    .orderBy(sortOrder, desc(gigs.createdAt))
 
   const canManage = user.role === 'owner' || user.role === 'manager'
   const clientOptions = canManage
