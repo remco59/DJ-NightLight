@@ -41,6 +41,7 @@ export const gigInputSchema = z.object({
   eventType: optionalText(120),
   clientId: optionalId,
   venueId: optionalId,
+  assignedUserId: optionalId,
   status: z.enum(gigStatuses),
   startsAt: optionalDate,
   endsAt: optionalDate,
