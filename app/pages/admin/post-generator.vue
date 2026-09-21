@@ -233,8 +233,9 @@ function formatDate(value: string) {
 }
 </script>
 
-<template>\n<NuxtLink to="/admin/post-generator/video" class="video-link">Video generator →</NuxtLink>
+<template>
   <div class="page">
+    <NuxtLink to="/admin/post-generator/video" class="video-link">Video generator →</NuxtLink>
     <header class="header">
       <div>
         <p class="eyebrow">Content</p>
