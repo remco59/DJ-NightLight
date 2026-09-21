@@ -1,5 +1,6 @@
-import { and, asc, desc, eq } from 'drizzle-orm'
-import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, users, venues } from '../../../../db/schema'
+import { and, asc, desc, eq, isNull } from 'drizzle-orm'
+import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, users, venues } from '../../../../db/schema'
+import { gigRemovalMode } from '../../../../shared/gig-rules'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -9,8 +10,8 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
 
   const accessCondition = user.role === 'dj'
-    ? and(eq(gigs.id, id), eq(gigs.assignedUserId, user.id))
-    : eq(gigs.id, id)
+    ? and(eq(gigs.id, id), eq(gigs.assignedUserId, user.id), isNull(gigs.deletedAt))
+    : and(eq(gigs.id, id), isNull(gigs.deletedAt))
 
   const [gig] = await db
     .select({
@@ -74,5 +75,11 @@ export default defineEventHandler(async (event) => {
     ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, 'dj'), eq(users.active, true))).orderBy(asc(users.name))
     : [{ id: user.id, name: user.name, email: user.email }]
 
-  return { gig, contacts, timeline, activity, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
+  let removalMode = null
+  if (user.role === 'owner' && gig.status === 'declined') {
+    const [invoice] = await db.select({ id: invoices.id }).from(invoices).where(eq(invoices.gigId, id)).limit(1)
+    removalMode = gigRemovalMode(gig.status, Boolean(invoice))
+  }
+
+  return { gig, contacts, timeline, activity, removalMode, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
 })
