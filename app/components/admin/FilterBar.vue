@@ -73,9 +73,10 @@ const hasToolbar = computed(() => Boolean(slots.toolbar))
 .filter-card{overflow:hidden;border:1px solid #302a38;border-radius:1rem;background:#0e0c11}
 .primary-row{display:flex;gap:.65rem;align-items:stretch;padding:.75rem}
 .primary-controls{display:grid;grid-template-columns:minmax(16rem,2fr) repeat(2,minmax(10rem,1fr));gap:.6rem;min-width:0;flex:1}
+.primary-controls :deep(:only-child){grid-column:1/-1}
 .primary-controls :deep(input),.primary-controls :deep(select),.advanced-row :deep(input),.advanced-row :deep(select){width:100%;min-height:3rem;border:1px solid #393340;border-radius:.72rem;padding:.72rem .82rem;background:#0b0a0d;color:#f6f3fa;font:inherit}
 .primary-controls :deep(input:focus),.primary-controls :deep(select:focus),.advanced-row :deep(input:focus),.advanced-row :deep(select:focus),.more-filters:focus-visible,.clear-all:focus-visible{outline:2px solid #9c82d9;outline-offset:2px}
-.more-filters{display:flex;align-items:center;justify-content:center;gap:.5rem;min-width:10.8rem;border:1px solid #4a4056;border-radius:.72rem;padding:.72rem .9rem;background:#15121a;color:#f5f1f8;font:inherit;font-weight:700;cursor:pointer}
+.more-filters{display:flex;align-self:flex-start;align-items:center;justify-content:center;gap:.5rem;min-width:10.8rem;border:1px solid #4a4056;border-radius:.72rem;padding:.72rem .9rem;background:#15121a;color:#f5f1f8;font:inherit;font-weight:700;cursor:pointer}
 .more-filters:hover{background:#1c1722;border-color:#655577}
 .more-filters svg{width:1.1rem;height:1.1rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .count-badge{display:grid;min-width:1.45rem;height:1.45rem;place-items:center;border-radius:999px;background:#8770d4;color:#fff;font-size:.72rem;font-weight:900}
