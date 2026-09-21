@@ -195,6 +195,7 @@ function offsetLabel(template: Template) {
         <span class="provider" :class="{ ok: data?.providerConfigured }">
           {{ data?.providerConfigured ? 'Provider ready' : 'Provider missing' }}
         </span>
+        <NuxtLink class="settings-link" to="/admin/settings#integrations">Provider settings</NuxtLink>
         <button type="button" :disabled="busy === 'run'" @click="runAutomation">
           {{ busy === 'run' ? 'Running…' : 'Run automations' }}
         </button>
@@ -343,6 +344,7 @@ label { display: grid; gap: .4rem; margin-top: 1rem; color: #bbb4c2; font-size: 
 .toggle input { width: auto; }
 .provider, .pill { border: 1px solid #48404f; border-radius: 999px; padding: .3rem .55rem; color: #aaa2b2; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
 .provider.ok, .pill[data-status="sent"] { border-color: #315a45; color: #90c9a7; }
+.settings-link { color: #c9b2df; font-size: .78rem; }
 .pill[data-status="failed"] { border-color: #704048; color: #ef9aa7; }
 .workspace { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; margin-top: 1.5rem; }
 .template-list { display: grid; gap: .4rem; align-content: start; }
