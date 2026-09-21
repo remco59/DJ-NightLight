@@ -233,7 +233,7 @@ function formatDate(value: string) {
 }
 </script>
 
-<template>
+<template>\n<NuxtLink to="/admin/post-generator/video" class="video-link">Video generator →</NuxtLink>
   <div class="page">
     <header class="header">
       <div>
@@ -465,4 +465,4 @@ label { display: grid; gap: .35rem; margin-top: .75rem; color: #bbb3c2; font-siz
   .media-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-</style>
+.video-link{display:inline-block;margin-bottom:1rem;color:#c4b7d1;text-decoration:none}\n</style>
