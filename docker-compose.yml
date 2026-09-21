@@ -15,6 +15,26 @@ services:
       timeout: 5s
       retries: 10
 
+  storage-init:
+    image: alpine:3.22
+    restart: "no"
+    user: "0:0"
+    environment:
+      NIGHTLIGHT_UID: ${NIGHTLIGHT_UID:-10001}
+      NIGHTLIGHT_GID: ${NIGHTLIGHT_GID:-10001}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        for directory in /storage/uploads /storage/generated; do
+          mkdir -p "$$directory"
+          chown -R "$${NIGHTLIGHT_UID}:$${NIGHTLIGHT_GID}" "$$directory"
+          chmod -R u+rwX,g+rwX "$$directory"
+        done
+    volumes:
+      - nightlight-uploads:/storage/uploads
+      - nightlight-generated:/storage/generated
+
   migrate:
     build:
       context: .
@@ -31,8 +51,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.render-worker
+      args:
+        NIGHTLIGHT_UID: ${NIGHTLIGHT_UID:-10001}
+        NIGHTLIGHT_GID: ${NIGHTLIGHT_GID:-10001}
     restart: unless-stopped
-    user: "100:101"
     environment:
       HOME: /tmp
       DATABASE_URL: postgresql://${POSTGRES_USER:-nightlight}:${POSTGRES_PASSWORD:-nightlight}@db:5432/${POSTGRES_DB:-nightlight}
@@ -47,10 +69,15 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
 
   web:
     build:
       context: .
+      args:
+        NIGHTLIGHT_UID: ${NIGHTLIGHT_UID:-10001}
+        NIGHTLIGHT_GID: ${NIGHTLIGHT_GID:-10001}
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-nightlight}:${POSTGRES_PASSWORD:-nightlight}@db:5432/${POSTGRES_DB:-nightlight}
@@ -88,6 +115,8 @@ services:
       db:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
