@@ -266,7 +266,7 @@ function offsetLabel(template: Template) {
             class="email-preview"
             :srcdoc="preview.html"
             title="Branded email preview"
-            sandbox
+            sandbox=""
           />
         </div>
 
