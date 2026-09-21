@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { normalizeTags } from '../../../../shared/media'
-import { storeMediaImage } from '../../../utils/media-library'
+import { MediaValidationError, storeMediaImage } from '../../../utils/media-library'
 import { requireStaff } from '../../../utils/require-staff'
 
 const optionalUuid = z.string().uuid().or(z.literal('')).transform(value => value || null)
@@ -39,9 +39,17 @@ export default defineEventHandler(async (event) => {
       },
     }
   } catch (error) {
+    if (error instanceof MediaValidationError) {
+      throw createError({
+        statusCode: 422,
+        statusMessage: error.message,
+      })
+    }
+
+    console.error('Media upload failed', error)
     throw createError({
-      statusCode: 422,
-      statusMessage: error instanceof Error ? error.message : 'Image upload failed',
+      statusCode: 500,
+      statusMessage: 'Image upload failed because NightLight could not store the file.',
     })
   }
 })
