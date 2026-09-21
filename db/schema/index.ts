@@ -360,6 +360,33 @@ export const generatedPosts = pgTable('generated_posts', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const videoRenderJobs = pgTable('video_render_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceMediaAssetId: uuid('source_media_asset_id').notNull().references(() => mediaAssets.id, { onDelete: 'restrict' }),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  templateKey: varchar('template_key', { length: 80 }).notNull(),
+  motionPreset: varchar('motion_preset', { length: 40 }).notNull(),
+  brandPreset: varchar('brand_preset', { length: 40 }).notNull(),
+  design: jsonb('design').$type<Record<string, unknown>>().default({}).notNull(),
+  width: integer('width').default(1080).notNull(),
+  height: integer('height').default(1920).notNull(),
+  fps: integer('fps').default(30).notNull(),
+  durationSeconds: integer('duration_seconds').default(10).notNull(),
+  audioKey: varchar('audio_key', { length: 500 }),
+  audioMimeType: varchar('audio_mime_type', { length: 100 }),
+  outputKey: varchar('output_key', { length: 500 }).unique(),
+  outputMimeType: varchar('output_mime_type', { length: 100 }).default('video/mp4').notNull(),
+  status: varchar('status', { length: 30 }).default('queued').notNull(),
+  progress: integer('progress').default(0).notNull(),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  ...timestamps,
+}, table => [
+  index('video_render_jobs_queue_idx').on(table.status, table.createdAt),
+  index('video_render_jobs_source_idx').on(table.sourceMediaAssetId),
+])
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 120 }).notNull(),
@@ -465,6 +492,7 @@ export type EmailDeliveryAttempt = typeof emailDeliveryAttempts.$inferSelect
 export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
+export type VideoRenderJob = typeof videoRenderJobs.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect
