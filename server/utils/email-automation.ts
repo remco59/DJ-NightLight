@@ -19,6 +19,7 @@ import {
 } from '../../shared/email-automation'
 import { db } from './db'
 import { sendEmail } from './email-provider'
+import { loadEmailIntegration } from './integration-settings'
 
 function clientName(input: { firstName: string | null, lastName: string | null, companyName: string | null }) {
   return input.companyName || [input.firstName, input.lastName].filter(Boolean).join(' ') || 'daar'
@@ -48,8 +49,7 @@ export async function loadGigEmailContext(gigId: string) {
     .limit(1)
   if (!row?.clientEmail) return null
 
-  const config = useRuntimeConfig()
-  const emailConfig = config.email as { reviewUrl?: string }
+  const { config: emailConfig } = await loadEmailIntegration()
   return {
     recipient: row.clientEmail,
     status: row.gigStatus,
