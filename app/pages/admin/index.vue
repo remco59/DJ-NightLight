@@ -1,5 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'admin' })
+const {user}=useUserSession()
+const canManageGigs=computed(()=>user.value?.role==='owner'||user.value?.role==='manager')
 
 type DashboardData = {
   summary: {
@@ -82,7 +84,7 @@ useSeoMeta({
       </div>
       <div class="actions">
         <button type="button" class="secondary" @click="() => refresh()">Refresh</button>
-        <NuxtLink to="/admin/gigs?new=1" class="primary">New gig</NuxtLink>
+        <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="primary">New gig</NuxtLink>
       </div>
     </header>
 
