@@ -1,57 +1,50 @@
 <script setup lang="ts">
+import type { StaffRole } from '~~/shared/auth'
+
 const route = useRoute()
 const { user, clear } = useUserSession()
 const mobileOpen = ref(false)
 
-const groups = [
-  {
-    label: 'Overview',
-    items: [{ label: 'Dashboard', to: '/admin' }],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { label: 'Gigs', to: '/admin/gigs' },
-      { label: 'Clients', to: '/admin/clients' },
-      { label: 'Venues', to: '/admin/venues' },
-      { label: 'Invoices', to: '/admin/invoices' },
-      { label: 'Calendar', to: '/admin/calendar' },
-      { label: 'Email', to: '/admin/email' },
-      { label: 'Client portal', to: '/admin/questionnaire' },
-    ],
-  },
-  {
-    label: 'Content',
-    items: [
-      { label: 'Media', to: '/admin/media' },
-      { label: 'Website', to: '/admin/content' },
-      { label: 'Landing pages', to: '/admin/landing-pages' },
-      { label: 'Post generator', to: '/admin/post-generator' },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { label: 'Production status', to: '/admin/system' },
-      { label: 'Users', to: '/admin/users' },
-      { label: 'Settings', to: '/admin/settings' },
-    ],
-  },
+type NavItem = { label:string;to:string;roles:readonly StaffRole[] }
+type NavGroup = { label:string;items:NavItem[] }
+
+const allRoles: readonly StaffRole[] = ['owner','manager','dj','content_editor']
+const groups: NavGroup[] = [
+  { label:'Overview', items:[{label:'Dashboard',to:'/admin',roles:allRoles}] },
+  { label:'Operations', items:[
+    {label:'Gigs',to:'/admin/gigs',roles:['owner','manager','dj']},
+    {label:'Clients',to:'/admin/clients',roles:['owner','manager']},
+    {label:'Venues',to:'/admin/venues',roles:['owner','manager']},
+    {label:'Invoices',to:'/admin/invoices',roles:['owner','manager']},
+    {label:'Calendar',to:'/admin/calendar',roles:['owner','manager']},
+    {label:'Email',to:'/admin/email',roles:['owner','manager']},
+    {label:'Client portal',to:'/admin/questionnaire',roles:['owner','manager']},
+  ]},
+  { label:'Content', items:[
+    {label:'Media',to:'/admin/media',roles:['owner','content_editor']},
+    {label:'Website',to:'/admin/content',roles:['owner','content_editor']},
+    {label:'Landing pages',to:'/admin/landing-pages',roles:['owner','content_editor']},
+    {label:'Post generator',to:'/admin/post-generator',roles:['owner','content_editor']},
+  ]},
+  { label:'System', items:[
+    {label:'Production status',to:'/admin/system',roles:['owner']},
+    {label:'Users',to:'/admin/users',roles:['owner']},
+    {label:'Settings',to:'/admin/settings',roles:['owner']},
+    {label:'My account',to:'/admin/account',roles:allRoles},
+  ]},
 ]
 
-function isActive(to: string) {
-  return to === '/admin' ? route.path === to : route.path.startsWith(to)
-}
-
-async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST' })
-  await clear()
-  await navigateTo('/admin/login')
-}
-
-watch(() => route.path, () => {
-  mobileOpen.value = false
+const visibleGroups = computed(() => {
+  const role = user.value?.role as StaffRole | undefined
+  if (!role) return []
+  return groups
+    .map(group => ({...group,items:group.items.filter(item=>item.roles.includes(role))}))
+    .filter(group=>group.items.length)
 })
+
+function isActive(to:string){return to==='/admin'?route.path===to:route.path.startsWith(to)}
+async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await clear();await navigateTo('/admin/login')}
+watch(()=>route.path,()=>{mobileOpen.value=false})
 </script>
 
 <template>
@@ -75,7 +68,7 @@ watch(() => route.path, () => {
       </div>
 
       <nav class="nav" aria-label="Admin navigatie">
-        <section v-for="group in groups" :key="group.label" class="nav-group">
+        <section v-for="group in visibleGroups" :key="group.label" class="nav-group">
           <p>{{ group.label }}</p>
           <NuxtLink
             v-for="item in group.items"
