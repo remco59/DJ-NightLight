@@ -1,12 +1,16 @@
-import { asc, desc, eq } from 'drizzle-orm'
-import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, venues } from '../../../../db/schema'
+import { and, asc, desc, eq } from 'drizzle-orm'
+import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, users, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
-  await requireStaff(event)
+  const user = await requireStaff(event, ['owner', 'manager', 'dj'])
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+
+  const accessCondition = user.role === 'dj'
+    ? and(eq(gigs.id, id), eq(gigs.assignedUserId, user.id))
+    : eq(gigs.id, id)
 
   const [gig] = await db
     .select({
@@ -15,6 +19,7 @@ export default defineEventHandler(async (event) => {
       eventType: gigs.eventType,
       clientId: gigs.clientId,
       venueId: gigs.venueId,
+      assignedUserId: gigs.assignedUserId,
       status: gigs.status,
       startsAt: gigs.startsAt,
       endsAt: gigs.endsAt,
@@ -36,7 +41,7 @@ export default defineEventHandler(async (event) => {
     .from(gigs)
     .leftJoin(clients, eq(gigs.clientId, clients.id))
     .leftJoin(venues, eq(gigs.venueId, venues.id))
-    .where(eq(gigs.id, id))
+    .where(accessCondition)
     .limit(1)
 
   if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
@@ -49,20 +54,25 @@ export default defineEventHandler(async (event) => {
       action: auditLogs.action,
       metadata: auditLogs.metadata,
       createdAt: auditLogs.createdAt,
+      actorName: users.name,
+      actorEmail: users.email,
     })
     .from(auditLogs)
-    .where(eq(auditLogs.entityId, id))
+    .leftJoin(users, eq(auditLogs.userId, users.id))
+    .where(and(eq(auditLogs.entityType, 'gig'), eq(auditLogs.entityId, id)))
     .orderBy(desc(auditLogs.createdAt))
     .limit(25)
 
-  const clientOptions = await db
-    .select({ id: clients.id, type: clients.type, firstName: clients.firstName, lastName: clients.lastName, companyName: clients.companyName })
-    .from(clients)
-    .orderBy(asc(clients.companyName), asc(clients.lastName), asc(clients.firstName))
-  const venueOptions = await db
-    .select({ id: venues.id, name: venues.name, city: venues.city })
-    .from(venues)
-    .orderBy(asc(venues.name))
+  const canManage = user.role === 'owner' || user.role === 'manager'
+  const clientOptions = canManage
+    ? await db.select({ id: clients.id, type: clients.type, firstName: clients.firstName, lastName: clients.lastName, companyName: clients.companyName }).from(clients).orderBy(asc(clients.companyName), asc(clients.lastName), asc(clients.firstName))
+    : []
+  const venueOptions = canManage
+    ? await db.select({ id: venues.id, name: venues.name, city: venues.city }).from(venues).orderBy(asc(venues.name))
+    : []
+  const djOptions = canManage
+    ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, 'dj'), eq(users.active, true))).orderBy(asc(users.name))
+    : [{ id: user.id, name: user.name, email: user.email }]
 
-  return { gig, contacts, timeline, activity, options: { clients: clientOptions, venues: venueOptions } }
+  return { gig, contacts, timeline, activity, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
 })
