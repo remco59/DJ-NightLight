@@ -64,6 +64,29 @@ services:
     networks:
       - backend
 
+  render-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.render-worker
+    restart: unless-stopped
+    user: "100:101"
+    environment:
+      HOME: /tmp
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      STORAGE_UPLOADS: /app/storage/uploads
+      STORAGE_GENERATED: /app/storage/generated
+      REMOTION_BROWSER_EXECUTABLE: /usr/bin/chromium
+    volumes:
+      - ${APP_DATA_ROOT}/uploads:/app/storage/uploads:ro
+      - ${APP_DATA_ROOT}/generated:/app/storage/generated
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+
   web:
     build:
       context: .

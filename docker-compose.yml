@@ -27,6 +27,27 @@ services:
         condition: service_healthy
     restart: "no"
 
+  render-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.render-worker
+    restart: unless-stopped
+    user: "100:101"
+    environment:
+      HOME: /tmp
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nightlight}:${POSTGRES_PASSWORD:-nightlight}@db:5432/${POSTGRES_DB:-nightlight}
+      STORAGE_UPLOADS: /app/storage/uploads
+      STORAGE_GENERATED: /app/storage/generated
+      REMOTION_BROWSER_EXECUTABLE: /usr/bin/chromium
+    volumes:
+      - nightlight-uploads:/app/storage/uploads:ro
+      - nightlight-generated:/app/storage/generated
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   web:
     build:
       context: .
