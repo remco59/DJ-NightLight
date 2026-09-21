@@ -12,6 +12,9 @@ type StatusData = {
   }
   integrations: {
     stripe: {
+      configured: boolean
+      source: 'settings' | 'environment' | 'none'
+      livemode: boolean | null
       lastEvent: {
         eventId: string
         eventType: string
@@ -106,11 +109,15 @@ function formatDate(value: string | null | undefined) {
           <small>{{ data?.integrations.emailSource === 'settings' ? 'Settings' : data?.integrations.emailSource === 'environment' ? 'Server environment' : 'No provider settings' }}</small>
         </div>
         <div>
-          <span>Last Stripe webhook</span>
-          <strong>{{ data?.integrations.stripe.lastEvent?.eventType || 'No event recorded' }}</strong>
-          <small v-if="data?.integrations.stripe.lastEvent">
-            {{ formatDate(data.integrations.stripe.lastEvent.processedAt) }}
-            · {{ data.integrations.stripe.lastEvent.livemode ? 'live' : 'test' }}
+          <span>Stripe payments</span>
+          <strong :class="{ ok: data?.integrations.stripe.configured }">
+            {{ data?.integrations.stripe.configured ? (data.integrations.stripe.livemode ? 'Configured · live' : 'Configured · test') : 'Missing setup' }}
+          </strong>
+          <small>
+            {{ data?.integrations.stripe.source === 'settings' ? 'Settings' : data?.integrations.stripe.source === 'environment' ? 'Server environment' : 'No credentials' }}
+            <template v-if="data?.integrations.stripe.lastEvent">
+              · Last webhook {{ data.integrations.stripe.lastEvent.eventType }} · {{ formatDate(data.integrations.stripe.lastEvent.processedAt) }}
+            </template>
           </small>
         </div>
       </div>
