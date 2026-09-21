@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     .from(gigs).orderBy(desc(gigs.startsAt)).limit(150)
 
   return {
-    providerConfigured: emailProviderConfigured(),
+    providerConfigured: await emailProviderConfigured(),
     templates,
     jobs,
     attempts,
