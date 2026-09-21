@@ -4,7 +4,7 @@ export function gigEndFromDuration(
 ) {
   if (!startsAt || durationHours === null || durationHours === undefined || durationHours === '') return null
 
-  const start = startsAt instanceof Date ? new Date(startsAt) : new Date(startsAt)
+  const start = startsAt instanceof Date ? new Date(startsAt.getTime()) : new Date(startsAt)
   const hours = typeof durationHours === 'string'
     ? Number(durationHours.replace(',', '.'))
     : Number(durationHours)
