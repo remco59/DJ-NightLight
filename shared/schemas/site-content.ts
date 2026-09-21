@@ -10,6 +10,23 @@ const optionalUrl = z.string().trim().max(2000).optional().transform((value, ctx
   return parsed.data
 })
 
+const internalMediaUrlPattern = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const siteImageUrl = z.string().trim().max(2000).refine(
+  value => internalMediaUrlPattern.test(value) || z.url().safeParse(value).success,
+  { message: 'Enter a valid image URL' },
+)
+
+const optionalImageUrl = z.string().trim().max(2000).optional().transform((value, ctx) => {
+  if (!value) return null
+  const parsed = siteImageUrl.safeParse(value)
+  if (!parsed.success) {
+    ctx.addIssue({ code: 'custom', message: 'Enter a valid image URL' })
+    return z.NEVER
+  }
+  return parsed.data
+})
+
 const optionalEmail = z.string().trim().max(320).optional().transform((value, ctx) => {
   if (!value) return null
   const parsed = z.email().safeParse(value)
@@ -26,7 +43,7 @@ export const siteServiceSchema = z.object({
 })
 
 export const siteGalleryItemSchema = z.object({
-  url: z.url().max(2000),
+  url: siteImageUrl,
   alt: z.string().trim().max(240),
 })
 
@@ -35,7 +52,7 @@ export const siteContentInputSchema = z.object({
   heroEyebrow: z.string().trim().min(1).max(160),
   heroTitle: z.string().trim().min(1).max(300),
   heroBody: z.string().trim().min(1).max(3000),
-  heroImageUrl: optionalUrl,
+  heroImageUrl: optionalImageUrl,
   heroCtaLabel: z.string().trim().min(1).max(120),
   aboutEyebrow: z.string().trim().min(1).max(160),
   aboutTitle: z.string().trim().min(1).max(300),
@@ -56,7 +73,7 @@ export const siteContentInputSchema = z.object({
   spotifyUrl: optionalUrl,
   seoTitle: z.string().trim().min(1).max(180),
   seoDescription: z.string().trim().min(1).max(320),
-  seoImageUrl: optionalUrl,
+  seoImageUrl: optionalImageUrl,
   services: z.array(siteServiceSchema).max(12),
   gallery: z.array(siteGalleryItemSchema).max(40),
 })
