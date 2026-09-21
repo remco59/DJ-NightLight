@@ -22,16 +22,9 @@ services:
     environment:
       NIGHTLIGHT_UID: ${NIGHTLIGHT_UID:-10001}
       NIGHTLIGHT_GID: ${NIGHTLIGHT_GID:-10001}
-    command:
-      - /bin/sh
-      - -ec
-      - |
-        for directory in /storage/uploads /storage/generated; do
-          mkdir -p "$$directory"
-          chown -R "$${NIGHTLIGHT_UID}:$${NIGHTLIGHT_GID}" "$$directory"
-          chmod -R u+rwX,g+rwX "$$directory"
-        done
+    command: ["/bin/sh", "/scripts/init-storage.sh"]
     volumes:
+      - ./scripts:/scripts:ro
       - nightlight-uploads:/storage/uploads
       - nightlight-generated:/storage/generated
 
