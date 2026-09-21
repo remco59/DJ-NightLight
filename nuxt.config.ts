@@ -26,7 +26,9 @@ export default defineNuxtConfig({
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NUXT_SESSION_COOKIE_SECURE !== undefined
+          ? process.env.NUXT_SESSION_COOKIE_SECURE === 'true'
+          : process.env.NODE_ENV === 'production',
         sameSite: 'lax',
       },
     },
