@@ -44,10 +44,19 @@ const uploadBusy = ref(false)
 const uploadMessage = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 
-const currentUrl = computed({
-  get: () => props.modelValue || '',
-  set: value => emit('update:modelValue', value.trim() || null),
+function isExternalUrl(value: string | null) {
+  return Boolean(value && /^https?:\/\//i.test(value))
+}
+
+const externalUrl = ref(isExternalUrl(props.modelValue) ? props.modelValue || '' : '')
+
+watch(() => props.modelValue, (value) => {
+  externalUrl.value = isExternalUrl(value) ? value || '' : ''
 })
+
+function applyExternalUrl() {
+  emit('update:modelValue', externalUrl.value.trim() || null)
+}
 
 const selectedAsset = computed(() =>
   data.value?.assets.find(asset => asset.url === props.modelValue) || null,
@@ -64,6 +73,7 @@ const filteredAssets = computed(() => {
 })
 
 function selectAsset(asset: MediaAsset) {
+  externalUrl.value = ''
   emit('update:modelValue', asset.url)
   emit('selected', asset)
   open.value = false
@@ -71,6 +81,7 @@ function selectAsset(asset: MediaAsset) {
 }
 
 function clearSelection() {
+  externalUrl.value = ''
   emit('update:modelValue', null)
 }
 
@@ -101,6 +112,7 @@ async function upload() {
       body: form,
     })
     await refresh()
+    externalUrl.value = ''
     emit('update:modelValue', result.asset.url)
     emit('selected', result.asset)
     uploadFile.value = null
@@ -149,7 +161,7 @@ async function upload() {
 
     <details class="external">
       <summary>Use an external image URL</summary>
-      <input v-model="currentUrl" type="url" placeholder="https://…">
+      <input v-model="externalUrl" type="url" placeholder="https://…" @change="applyExternalUrl">
     </details>
 
     <Teleport to="body">
