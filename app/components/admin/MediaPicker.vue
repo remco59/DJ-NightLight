@@ -1,3 +1,5 @@
+import { apiErrorMessage } from '~/utils/api-error'
+import { createMediaThumbnail } from '~/utils/media-upload'
 <script setup lang="ts">
 type MediaAsset = {
   id: string
@@ -80,32 +82,12 @@ function chooseFile(event: Event) {
   }
 }
 
-async function createThumbnail(file: File) {
-  const bitmap = await createImageBitmap(file)
-  const max = 480
-  const scale = Math.min(1, max / bitmap.width, max / bitmap.height)
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Could not create thumbnail')
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      blob => blob ? resolve(blob) : reject(new Error('Could not encode thumbnail')),
-      'image/jpeg',
-      .82,
-    )
-  })
-}
-
 async function upload() {
   if (!uploadFile.value) return
   uploadBusy.value = true
   uploadMessage.value = ''
   try {
-    const thumbnail = await createThumbnail(uploadFile.value)
+    const thumbnail = await createMediaThumbnail(uploadFile.value)
     const form = new FormData()
     form.append('file', uploadFile.value)
     form.append('thumbnail', thumbnail, 'thumbnail.jpg')
@@ -128,7 +110,7 @@ async function upload() {
     uploadMessage.value = 'Uploaded and selected.'
     open.value = false
   } catch (error) {
-    uploadMessage.value = error instanceof Error ? error.message : 'Upload failed.'
+    uploadMessage.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Upload failed.')
   } finally {
     uploadBusy.value = false
   }
