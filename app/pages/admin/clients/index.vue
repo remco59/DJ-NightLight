@@ -91,10 +91,18 @@ useSeoMeta({ title: 'Clients — DJ NightLight', robots: 'noindex, nofollow' })
       <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Saving…' : 'Create client' }}</button>
     </form>
 
-    <div class="toolbar">
-      <input v-model="search" type="search" placeholder="Search name, company or email…">
-      <span>{{ data?.clients.length ?? 0 }} clients</span>
-    </div>
+    <AdminFilterBar
+      :has-active-filters="Boolean(search)"
+      :results-label="`${data?.clients.length ?? 0} clients`"
+      @clear-all="search = ''"
+    >
+      <template #primary>
+        <input v-model="search" type="search" placeholder="Search name, company or email…">
+      </template>
+      <template #chips>
+        <AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search = ''" />
+      </template>
+    </AdminFilterBar>
 
     <div v-if="status === 'pending'" class="empty">Loading clients…</div>
     <div v-else-if="!data?.clients.length" class="empty">No clients found.</div>
