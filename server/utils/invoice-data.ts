@@ -34,6 +34,7 @@ export async function getInvoiceDetail(id: string) {
     clientFirstName: clients.firstName,
     clientLastName: clients.lastName,
     clientCompanyName: clients.companyName,
+    clientStripeCustomerId: clients.stripeCustomerId,
     clientEmail: clients.email,
     clientBillingAddress: clients.billingAddress,
   }).from(invoices)
