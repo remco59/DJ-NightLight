@@ -466,4 +466,5 @@ label { display: grid; gap: .35rem; margin-top: .75rem; color: #bbb3c2; font-siz
   .media-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.video-link{display:inline-block;margin-bottom:1rem;color:#c4b7d1;text-decoration:none}\n</style>
+.video-link{display:inline-block;margin-bottom:1rem;color:#c4b7d1;text-decoration:none}
+</style>
