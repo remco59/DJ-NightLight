@@ -20,7 +20,9 @@ type StatusData = {
       } | null
     }
     calendarConfigured: boolean
+    calendarSource: 'settings' | 'environment' | 'none'
     emailConfigured: boolean
+    emailSource: 'settings' | 'environment' | 'none'
   }
   backup: { name: string, updatedAt: string } | null
 }
@@ -81,19 +83,27 @@ function formatDate(value: string | null | undefined) {
     </section>
 
     <section class="panel">
-      <h2>Integrations</h2>
+      <div class="panel-title">
+        <div>
+          <h2>Integrations</h2>
+          <p>Connection health reflects the effective configuration from Settings or the server environment.</p>
+        </div>
+        <NuxtLink to="/admin/settings#integrations">Manage integrations</NuxtLink>
+      </div>
       <div class="rows">
         <div>
           <span>Google Calendar credentials</span>
           <strong :class="{ ok: data?.integrations.calendarConfigured }">
             {{ data?.integrations.calendarConfigured ? 'Configured' : 'Missing' }}
           </strong>
+          <small>{{ data?.integrations.calendarSource === 'settings' ? 'Settings' : data?.integrations.calendarSource === 'environment' ? 'Server environment' : 'No credentials' }}</small>
         </div>
         <div>
           <span>Email provider</span>
           <strong :class="{ ok: data?.integrations.emailConfigured }">
             {{ data?.integrations.emailConfigured ? 'Configured' : 'Missing' }}
           </strong>
+          <small>{{ data?.integrations.emailSource === 'settings' ? 'Settings' : data?.integrations.emailSource === 'environment' ? 'Server environment' : 'No provider settings' }}</small>
         </div>
         <div>
           <span>Last Stripe webhook</span>
@@ -123,6 +133,10 @@ function formatDate(value: string | null | undefined) {
 .header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.05em; }
 h2 { margin: 0 0 .9rem; }
+.panel-title { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .3rem; }
+.panel-title h2 { margin-bottom: .25rem; }
+.panel-title p { margin: 0; font-size: .85rem; }
+.panel-title a { flex: none; }
 p, span, small { color: #918999; }
 button { border: 1px solid #39323f; border-radius: .65rem; padding: .65rem .85rem; background: #18151d; color: #fff; cursor: pointer; }
 .summary { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.2rem; padding: 1rem 1.2rem; border: 1px solid #2e4939; border-radius: .9rem; background: #111a15; }
@@ -140,7 +154,7 @@ a { color: #c9b2df; }
 .ok { color: #90c9a7; }
 .backup { display: grid; gap: .35rem; }
 @media (max-width: 800px) {
-  .header, .summary { display: grid; }
+  .header, .summary, .panel-title { display: grid; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
