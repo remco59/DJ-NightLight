@@ -110,3 +110,86 @@ jobs:
 
       - name: Audit production dependencies
         run: npm run security:audit
+
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality, restore-test, security]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: nightlight_e2e
+          POSTGRES_USER: nightlight
+          POSTGRES_PASSWORD: nightlight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nightlight -d nightlight_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://nightlight:nightlight@127.0.0.1:5432/nightlight_e2e
+      NUXT_SESSION_PASSWORD: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      NUXT_SESSION_COOKIE_SECURE: "false"
+      OWNER_BOOTSTRAP_TOKEN: e2e-bootstrap-token
+      NUXT_OWNER_BOOTSTRAP_TOKEN: e2e-bootstrap-token
+      NUXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
+      STRIPE_RESTRICTED_KEY: sk_test_e2e
+      STRIPE_WEBHOOK_SECRET: whsec_e2e_secret
+      NUXT_STRIPE_SECRET_KEY: sk_test_e2e
+      NUXT_STRIPE_WEBHOOK_SECRET: whsec_e2e_secret
+      E2E_BOOTSTRAP_TOKEN: e2e-bootstrap-token
+      E2E_BASE_URL: http://127.0.0.1:3100
+      NUXT_STORAGE_UPLOADS: /tmp/nightlight-e2e/uploads
+      NUXT_STORAGE_GENERATED: /tmp/nightlight-e2e/generated
+      NUXT_STORAGE_BACKUPS: /tmp/nightlight-e2e/backups
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Create E2E storage
+        run: mkdir -p /tmp/nightlight-e2e/uploads /tmp/nightlight-e2e/generated /tmp/nightlight-e2e/backups
+
+      - name: Migrate clean database
+        run: npm run db:migrate
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Start production application
+        run: |
+          PORT=3100 HOST=127.0.0.1 node .output/server/index.mjs > /tmp/nightlight-e2e.log 2>&1 &
+          echo $! > /tmp/nightlight-e2e.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3100/api/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nightlight-e2e.log
+          exit 1
+
+      - name: Run critical E2E workflows
+        run: npm run test:e2e
+
+      - name: Show application log
+        if: always()
+        run: cat /tmp/nightlight-e2e.log || true
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f /tmp/nightlight-e2e.pid ]; then
+            kill "$(cat /tmp/nightlight-e2e.pid)" || true
+          fi
