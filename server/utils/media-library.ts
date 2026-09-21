@@ -7,6 +7,21 @@ import { getMediaStorage } from './media-storage'
 export const MAX_MEDIA_BYTES = 15 * 1024 * 1024
 export const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
 
+export class MediaValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MediaValidationError'
+  }
+}
+
+function inspectUploadedImage(buffer: Uint8Array) {
+  try {
+    return inspectImage(buffer)
+  } catch (error) {
+    throw new MediaValidationError(error instanceof Error ? error.message : 'Invalid image')
+  }
+}
+
 export async function storeMediaImage(input: {
   data: Uint8Array
   originalFilename: string
@@ -17,10 +32,10 @@ export async function storeMediaImage(input: {
   gigId?: string | null
   venueId?: string | null
 }) {
-  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new Error('Image must be between 1 byte and 15 MB')
-  const info = inspectImage(input.data)
+  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new MediaValidationError('Image must be between 1 byte and 15 MB')
+  const info = inspectUploadedImage(input.data)
   if (info.width > 12000 || info.height > 12000 || info.width * info.height > 80_000_000) {
-    throw new Error('Image dimensions are too large')
+    throw new MediaValidationError('Image dimensions are too large')
   }
 
   const storage = getMediaStorage()
@@ -28,9 +43,9 @@ export async function storeMediaImage(input: {
   let thumbnailKey: string | null = null
   try {
     if (input.thumbnail?.length) {
-      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new Error('Thumbnail exceeds 2 MB')
-      const thumbnailInfo = inspectImage(input.thumbnail)
-      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new Error('Thumbnail dimensions are too large')
+      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('Thumbnail exceeds 2 MB')
+      const thumbnailInfo = inspectUploadedImage(input.thumbnail)
+      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('Thumbnail dimensions are too large')
       thumbnailKey = await storage.put(input.thumbnail, thumbnailInfo.extension, 'thumbnails')
     }
     const [asset] = await db.insert(mediaAssets).values({
