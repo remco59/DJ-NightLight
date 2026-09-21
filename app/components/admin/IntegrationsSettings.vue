@@ -276,7 +276,7 @@ async function removeEmailSettings() {
       <div class="form-grid email-grid">
         <label>
           From address
-          <input v-model="emailForm.from" placeholder="DJ NightLight <boekingen@example.com>">
+          <input v-model="emailForm.from" placeholder="DJ NightLight (boekingen@example.com)">
         </label>
         <label>
           Review URL
