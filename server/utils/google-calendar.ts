@@ -1,3 +1,5 @@
+import { loadCalendarIntegration } from './integration-settings'
+
 type TokenResponse = {
   access_token: string
   expires_in?: number
@@ -5,17 +7,16 @@ type TokenResponse = {
 
 let cachedToken: { value: string, expiresAt: number } | null = null
 
-function credentials() {
-  const config = useRuntimeConfig()
-  const calendar = config.googleCalendar as { clientId?: string, clientSecret?: string, refreshToken?: string }
+async function credentials() {
+  const { credentials: calendar } = await loadCalendarIntegration()
   if (!calendar.clientId || !calendar.clientSecret || !calendar.refreshToken) {
     throw new Error('Google Calendar credentials are not configured')
   }
-  return {
-    clientId: calendar.clientId,
-    clientSecret: calendar.clientSecret,
-    refreshToken: calendar.refreshToken,
-  }
+  return calendar
+}
+
+export function clearGoogleCalendarTokenCache() {
+  cachedToken = null
 }
 
 async function accessToken(forceRefresh = false) {
@@ -23,7 +24,7 @@ async function accessToken(forceRefresh = false) {
     return cachedToken.value
   }
 
-  const { clientId, clientSecret, refreshToken } = credentials()
+  const { clientId, clientSecret, refreshToken } = await credentials()
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
