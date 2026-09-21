@@ -32,6 +32,8 @@ const base = {
   gallery: [],
 }
 
+const mediaUrl = '/api/media/123e4567-e89b-42d3-a456-426614174000'
+
 describe('website content schema', () => {
   it('normalizes empty optional URLs and contact fields', () => {
     const parsed = siteContentInputSchema.parse(base)
@@ -39,10 +41,42 @@ describe('website content schema', () => {
     expect(parsed.contactEmail).toBeNull()
   })
 
+  it('accepts NightLight media URLs for website image fields', () => {
+    const parsed = siteContentInputSchema.parse({
+      ...base,
+      heroImageUrl: mediaUrl,
+      seoImageUrl: mediaUrl,
+      gallery: [{ url: mediaUrl, alt: 'NightLight behind the booth' }],
+    })
+
+    expect(parsed.heroImageUrl).toBe(mediaUrl)
+    expect(parsed.seoImageUrl).toBe(mediaUrl)
+    expect(parsed.gallery[0]?.url).toBe(mediaUrl)
+  })
+
+  it('keeps absolute external image URLs valid', () => {
+    const externalUrl = 'https://images.example.com/nightlight.webp'
+    const parsed = siteContentInputSchema.parse({
+      ...base,
+      heroImageUrl: externalUrl,
+      gallery: [{ url: externalUrl, alt: 'NightLight crowd' }],
+    })
+
+    expect(parsed.heroImageUrl).toBe(externalUrl)
+    expect(parsed.gallery[0]?.url).toBe(externalUrl)
+  })
+
   it('rejects invalid gallery URLs', () => {
     expect(() => siteContentInputSchema.parse({
       ...base,
       gallery: [{ url: 'not-a-url', alt: 'test' }],
+    })).toThrow()
+  })
+
+  it('rejects arbitrary relative image URLs', () => {
+    expect(() => siteContentInputSchema.parse({
+      ...base,
+      heroImageUrl: '/uploads/random-image.webp',
     })).toThrow()
   })
 })
