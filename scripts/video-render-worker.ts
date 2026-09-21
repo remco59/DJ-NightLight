@@ -1,5 +1,5 @@
 import { readFile, mkdir, rm } from 'node:fs/promises'
-import { dirname, extname, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { bundle } from '@remotion/bundler'
