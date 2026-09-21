@@ -3,12 +3,12 @@ import { gigCalendarSync, gigs } from '../../../../db/schema'
 import { getCalendarSyncSettings } from '../../../utils/calendar-sync'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { loadCalendarIntegration } from '../../../utils/integration-settings'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
   const settings = await getCalendarSyncSettings()
-  const config = useRuntimeConfig()
-  const credentials = config.googleCalendar as { clientId?: string, clientSecret?: string, refreshToken?: string }
+  const integration = await loadCalendarIntegration()
 
   const items = await db
     .select({
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     settings,
-    credentialsConfigured: Boolean(credentials.clientId && credentials.clientSecret && credentials.refreshToken),
+    credentialsConfigured: integration.status.configured,
     items,
   }
 })

@@ -1,4 +1,5 @@
 import { emailHtmlFromText } from '../../shared/email-automation'
+import { loadEmailIntegration } from './integration-settings'
 
 type SendInput = {
   to: string
@@ -7,15 +8,13 @@ type SendInput = {
   idempotencyKey: string
 }
 
-export function emailProviderConfigured() {
-  const config = useRuntimeConfig()
-  const email = config.email as { apiKey?: string, from?: string }
-  return Boolean(email.apiKey && email.from)
+export async function emailProviderConfigured() {
+  const { status } = await loadEmailIntegration()
+  return status.configured
 }
 
 export async function sendEmail(input: SendInput) {
-  const config = useRuntimeConfig()
-  const email = config.email as { apiKey?: string, from?: string }
+  const { config: email } = await loadEmailIntegration()
   if (!email.apiKey || !email.from) throw new Error('Email provider is not configured')
 
   const response = await fetch('https://api.resend.com/emails', {

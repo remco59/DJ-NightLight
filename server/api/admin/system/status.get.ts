@@ -9,7 +9,9 @@ import {
   stripeWebhookEvents,
 } from '../../../../db/schema'
 import { db } from '../../../utils/db'
+import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
+import { stripeStatus } from '../../../utils/stripe-settings'
 
 async function latestBackup() {
   const root = String(useRuntimeConfig().storageBackups)
@@ -51,11 +53,11 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-
-
-  const config = useRuntimeConfig()
-  const calendar = config.googleCalendar as { clientId?: string, clientSecret?: string, refreshToken?: string }
-  const email = config.email as { apiKey?: string, from?: string }
+  const [calendar, email, stripe] = await Promise.all([
+    loadCalendarIntegration(),
+    loadEmailIntegration(),
+    stripeStatus(),
+  ])
 
   return {
     generatedAt: new Date().toISOString(),
@@ -67,9 +69,16 @@ export default defineEventHandler(async (event) => {
       staleOutbox: Number(staleOutboxRow?.value || 0),
     },
     integrations: {
-      stripe: { lastEvent: lastStripeEvent },
-      calendarConfigured: Boolean(calendar.clientId && calendar.clientSecret && calendar.refreshToken),
-      emailConfigured: Boolean(email.apiKey && email.from),
+      stripe: {
+        configured: stripe.keyConfigured && stripe.webhookConfigured,
+        source: stripe.source,
+        livemode: stripe.livemode,
+        lastEvent: lastStripeEvent,
+      },
+      calendarConfigured: calendar.status.configured,
+      calendarSource: calendar.status.source,
+      emailConfigured: email.status.configured,
+      emailSource: email.status.source,
     },
     backup,
   }
