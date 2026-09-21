@@ -1,10 +1,10 @@
-import { emailHtmlFromText } from '../../shared/email-automation'
 import { loadEmailIntegration } from './integration-settings'
 
 type SendInput = {
   to: string
   subject: string
   text: string
+  html: string
   idempotencyKey: string
 }
 
@@ -29,7 +29,7 @@ export async function sendEmail(input: SendInput) {
       to: [input.to],
       subject: input.subject,
       text: input.text,
-      html: emailHtmlFromText(input.text),
+      html: input.html,
     }),
   })
 
