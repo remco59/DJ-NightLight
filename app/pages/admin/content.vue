@@ -29,6 +29,7 @@ const form = reactive({
 const activeSection = ref<SectionKey>('hero')
 const saving = ref(false)
 const message = ref('')
+const messageKind = ref<'idle' | 'saving' | 'success' | 'error'>('idle')
 
 const heroPreviewStyle = computed(() => ({
   backgroundImage: form.heroImageUrl
@@ -62,14 +63,22 @@ function applyGalleryAsset(image: { url: string, alt: string }, asset: PickerAss
   if (!image.alt) image.alt = asset.altText || asset.title || ''
 }
 
+function handleInvalid() {
+  messageKind.value = 'error'
+  message.value = 'Please fix the highlighted field before saving.'
+}
+
 async function save() {
   saving.value = true
-  message.value = ''
+  messageKind.value = 'saving'
+  message.value = 'Saving website…'
   try {
     await $fetch('/api/admin/content', { method: 'PUT', body: form })
-    message.value = 'Website content saved.'
-    refreshNuxtData('nightlight-site-content')
+    messageKind.value = 'success'
+    message.value = 'Website saved. Your changes are now public.'
+    await refreshNuxtData('nightlight-site-content')
   } catch (error: unknown) {
+    messageKind.value = 'error'
     message.value = apiErrorMessage(error, 'Could not save website content.')
   } finally {
     saving.value = false
@@ -90,7 +99,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
       <NuxtLink to="/" target="_blank" class="open-site">Open website ↗</NuxtLink>
     </header>
 
-    <form @submit.prevent="save">
+    <form @submit.prevent="save" @invalid.capture="handleInvalid">
       <div class="editor-shell">
         <nav class="section-nav" aria-label="Website sections">
           <button
@@ -379,7 +388,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
       </div>
 
       <div class="save-bar">
-        <span>{{ message || 'Changes become public after saving.' }}</span>
+        <span class="save-message" :class="`is-${messageKind}`" aria-live="polite">{{ message || 'Changes become public after saving.' }}</span>
         <div>
           <NuxtLink to="/" target="_blank">Preview full site ↗</NuxtLink>
           <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Saving…' : 'Save website' }}</button>
@@ -410,7 +419,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
 .fake-event{display:grid;grid-template-columns:3.5rem 1fr;gap:.7rem;align-items:center;margin-top:1.2rem;padding:.8rem;border-top:1px solid #2a252f}.fake-event span{color:#8e8796;font-size:.62rem}.fake-event strong{font-size:.78rem}.booking-preview{min-height:360px;padding:2rem;background:radial-gradient(circle at 82% 42%,rgba(100,54,218,.25),transparent 34%),#09080b}.social-preview{overflow:hidden;margin:1rem;border:1px solid #302a36;border-radius:.75rem;background:#151219}.social-preview>img,.social-placeholder{display:grid;width:100%;aspect-ratio:1.91/1;place-items:center;object-fit:cover;background:linear-gradient(135deg,#24162f,#0d0b10);color:#d7c9e9;font-size:2rem;font-weight:900}.social-preview>div:last-child{display:grid;gap:.25rem;padding:.8rem}.social-preview small{color:#777080;font-size:.65rem}.social-preview strong{font-size:.82rem}.social-preview p{margin:0;color:#928a9a;font-size:.7rem;line-height:1.45}
 
-.save-bar{position:sticky;z-index:20;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding:.9rem 1rem;border:1px solid #3a3341;border-radius:1rem;background:rgba(20,17,25,.96);backdrop-filter:blur(14px);box-shadow:0 18px 60px rgba(0,0,0,.3);color:#918a98;font-size:.8rem}.save-bar>div{display:flex;align-items:center;gap:.8rem}.save-bar a{color:#a99eb3;font-size:.75rem}.primary{border:0;border-radius:.65rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.primary:disabled{opacity:.55;cursor:not-allowed}
+.save-bar{position:sticky;z-index:20;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding:.9rem 1rem;border:1px solid #3a3341;border-radius:1rem;background:rgba(20,17,25,.96);backdrop-filter:blur(14px);box-shadow:0 18px 60px rgba(0,0,0,.3);color:#918a98;font-size:.8rem}.save-message{font-weight:650}.save-message.is-saving{color:#d8d1df}.save-message.is-success{color:#9ed7ad}.save-message.is-error{color:#f0a8b4}.save-bar>div{display:flex;align-items:center;gap:.8rem}.save-bar a{color:#a99eb3;font-size:.75rem}.primary{border:0;border-radius:.65rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.primary:disabled{opacity:.55;cursor:not-allowed}
 
 @media(max-width:1050px){.editor-shell{grid-template-columns:1fr}.section-nav{position:static;display:flex;overflow:auto;padding:.45rem}.section-nav button{min-width:8.5rem}.edit-preview-grid{grid-template-columns:1fr}.services-editor,.gallery-editor{grid-template-columns:1fr}.preview-panel{order:2}}
 @media(max-width:700px){.page-header{align-items:start;flex-direction:column}.page-header h1{font-size:2.6rem}.section-workspace{padding:.9rem}.section-heading{align-items:start;flex-direction:column}.section-heading .secondary{width:100%}.section-nav{margin-inline:-.2rem}.section-nav button{min-width:7.8rem}.hero-preview{min-height:330px;padding:1.3rem}.hero-preview h3{font-size:2.8rem}.service-preview-grid{grid-template-columns:1fr}.service-preview-grid article{min-height:9rem}.gallery-preview{grid-template-columns:1fr 1fr}.two-fields{grid-template-columns:1fr}.save-bar{align-items:stretch;flex-direction:column}.save-bar>div{justify-content:space-between}.save-bar .primary{flex:1}}
