@@ -11,6 +11,7 @@ import {
 import { db } from '../../../utils/db'
 import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
+import { stripeStatus } from '../../../utils/stripe-settings'
 
 async function latestBackup() {
   const root = String(useRuntimeConfig().storageBackups)
@@ -52,9 +53,10 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-  const [calendar, email] = await Promise.all([
+  const [calendar, email, stripe] = await Promise.all([
     loadCalendarIntegration(),
     loadEmailIntegration(),
+    stripeStatus(),
   ])
 
   return {
@@ -67,7 +69,12 @@ export default defineEventHandler(async (event) => {
       staleOutbox: Number(staleOutboxRow?.value || 0),
     },
     integrations: {
-      stripe: { lastEvent: lastStripeEvent },
+      stripe: {
+        configured: stripe.keyConfigured && stripe.webhookConfigured,
+        source: stripe.source,
+        livemode: stripe.livemode,
+        lastEvent: lastStripeEvent,
+      },
       calendarConfigured: calendar.status.configured,
       calendarSource: calendar.status.source,
       emailConfigured: email.status.configured,
