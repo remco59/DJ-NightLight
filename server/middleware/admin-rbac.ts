@@ -15,6 +15,7 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
   if (
     pathname.startsWith('/api/admin/system')
     || pathname.startsWith('/api/admin/business-settings')
+    || pathname.startsWith('/api/admin/integrations')
     || pathname.startsWith('/api/admin/stripe')
   ) return 'system:manage'
 
