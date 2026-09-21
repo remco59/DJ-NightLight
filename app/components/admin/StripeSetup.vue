@@ -99,7 +99,7 @@ async function copyUrl() {
     <div class="head">
       <div>
         <h2>Online payments (Stripe)</h2>
-        <p class="lede">Let clients pay finalized invoices by card or iDEAL from their portal. Follow the steps below; nothing needs to be edited on the server.</p>
+        <p class="lede">Let clients pay finalized invoices by card, iDEAL or bank transfer from their portal. Stripe automatically reconciles bank transfers and NightLight shows the status on the gig.</p>
       </div>
       <span class="pill" :class="{ on: status.keyConfigured && status.webhookConfigured }">
         {{ status.keyConfigured && status.webhookConfigured ? (status.livemode ? 'Live' : 'Test mode') : 'Not set up' }}
@@ -119,7 +119,8 @@ async function copyUrl() {
       <ol class="how">
         <li>Open the <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard → Developers → API keys</a>. Start in <strong>test mode</strong> so nothing real is charged.</li>
         <li>Click <strong>Create restricted key</strong> and name it “DJ NightLight”.</li>
-        <li>Set <strong>Checkout Sessions</strong> to <strong>Write</strong>. Also set <strong>Webhook Endpoints</strong> to <strong>Write</strong> if you want the webhook created for you in step 2.</li>
+        <li>Set <strong>Checkout Sessions</strong> and <strong>Customers</strong> to <strong>Write</strong>. NightLight needs Customers permission to create the virtual IBAN used for bank transfers. Also set <strong>Webhook Endpoints</strong> to <strong>Write</strong> if you want the webhook created for you in step 2.</li>
+        <li>In <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">Payment methods</a>, enable <strong>Bank transfer</strong> for your account. EUR invoices use Stripe's EU bank-transfer instructions.</li>
         <li>Create the key and paste it here. It is verified with Stripe, then stored encrypted and never shown again.</li>
       </ol>
       <label>Restricted key
