@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { clients, gigs, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(gigs)
     .leftJoin(clients, eq(gigs.clientId, clients.id))
-    .where(eq(gigs.venueId, id))
+    .where(and(eq(gigs.venueId, id), isNull(gigs.deletedAt)))
     .orderBy(desc(gigs.startsAt))
 
   return { venue, history }
