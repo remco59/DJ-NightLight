@@ -342,8 +342,8 @@ export async function materializeScheduledEmailJobs() {
       .where(and(eq(gigs.status, 'booked'), isNull(gigs.deletedAt)))
       .limit(500)
 
-    const config = useRuntimeConfig()
-    const reviewUrl = (config.email as { reviewUrl?: string }).reviewUrl || ''
+    const { config: emailConfig } = await loadEmailIntegration()
+    const reviewUrl = emailConfig.reviewUrl || ''
     for (const template of gigTemplates) {
       if (template.key === 'portal_reminder') continue
       for (const row of rows) {
