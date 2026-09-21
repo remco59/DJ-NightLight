@@ -262,7 +262,14 @@ function formatDate(value: string) {
               {{ busy === 'upload' ? 'Uploading…' : 'Upload new photo' }}
             </button>
           </div>
-          <input v-model="sourceSearch" type="search" placeholder="Search media library">
+          <AdminFilterBar compact :has-active-filters="Boolean(sourceSearch)" @clear-all="sourceSearch = ''">
+            <template #primary>
+              <input v-model="sourceSearch" type="search" placeholder="Search media library">
+            </template>
+            <template #chips>
+              <AdminFilterChip v-if="sourceSearch" :label="`Search: ${sourceSearch}`" @remove="sourceSearch = ''" />
+            </template>
+          </AdminFilterBar>
           <div class="media-grid">
             <button
               v-for="asset in filteredAssets.slice(0, 40)"
