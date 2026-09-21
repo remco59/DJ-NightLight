@@ -23,7 +23,9 @@ export default defineEventHandler(async (event) => {
     const sequence = settings.nextInvoiceNumber - 1
     const invoiceNumber = formatInvoiceNumber(settings.invoicePrefix, Number(detail.invoice.issueDate.slice(0, 4)), sequence)
     const snapshot: InvoiceSnapshot = {
-      invoiceNumber, issueDate: detail.invoice.issueDate, dueDate: detail.invoice.dueDate, currency: detail.invoice.currency,
+      invoiceNumber, issueDate: detail.invoice.issueDate, dueDate: detail.invoice.dueDate,
+      serviceDate: detail.invoice.gigStartsAt ? new Date(detail.invoice.gigStartsAt).toISOString().slice(0, 10) : undefined,
+      currency: detail.invoice.currency,
       vatMode: detail.invoice.vatMode, vatRateBasisPoints: detail.invoice.vatRateBasisPoints,
       business: {
         companyName: settings.companyName, address: settings.address, postalCode: settings.postalCode, city: settings.city,
