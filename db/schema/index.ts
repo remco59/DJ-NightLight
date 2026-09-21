@@ -272,6 +272,9 @@ export const calendarSyncSettings = pgTable('calendar_sync_settings', {
   enabled: boolean('enabled').default(false).notNull(),
   calendarId: varchar('calendar_id', { length: 255 }).default('primary').notNull(),
   cancellationBehavior: calendarCancellationBehavior('cancellation_behavior').default('delete').notNull(),
+  clientId: varchar('client_id', { length: 500 }),
+  clientSecretEncrypted: text('client_secret_encrypted'),
+  refreshTokenEncrypted: text('refresh_token_encrypted'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
@@ -285,6 +288,14 @@ export const gigCalendarSync = pgTable('gig_calendar_sync', {
   lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
   lastError: text('last_error'),
+  ...timestamps,
+})
+
+export const emailProviderSettings = pgTable('email_provider_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  apiKeyEncrypted: text('api_key_encrypted'),
+  fromAddress: varchar('from_address', { length: 500 }),
+  reviewUrl: text('review_url'),
   ...timestamps,
 })
 
