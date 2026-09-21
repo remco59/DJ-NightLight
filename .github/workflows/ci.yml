@@ -47,11 +47,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Docker Compose files
+        env:
+          APP_DATA_ROOT: /tmp/nightlight
+          POSTGRES_DB: nightlight
+          POSTGRES_USER: nightlight
+          POSTGRES_PASSWORD: nightlight
+          NUXT_PUBLIC_SITE_URL: https://nightlight.example.com
+          NUXT_SESSION_PASSWORD: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          PROXY_NETWORK: proxynet
+          BACKUP_INTERVAL_SECONDS: "86400"
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.unraid.yml config --quiet
+
+      - name: Test storage ownership initialization
+        run: |
+          rm -rf /tmp/nightlight-storage
+          mkdir -p /tmp/nightlight-storage/uploads/nested /tmp/nightlight-storage/generated
+          touch /tmp/nightlight-storage/uploads/nested/existing.jpg
+          docker run --rm \
+            -e NIGHTLIGHT_UID=12345 \
+            -e NIGHTLIGHT_GID=12346 \
+            -v "$PWD/scripts:/scripts:ro" \
+            -v /tmp/nightlight-storage/uploads:/storage/uploads \
+            -v /tmp/nightlight-storage/generated:/storage/generated \
+            alpine:3.22 sh /scripts/init-storage.sh
+          test "$(stat -c '%u:%g' /tmp/nightlight-storage/uploads)" = "12345:12346"
+          test "$(stat -c '%u:%g' /tmp/nightlight-storage/uploads/nested/existing.jpg)" = "12345:12346"
+          test "$(stat -c '%u:%g' /tmp/nightlight-storage/generated)" = "12345:12346"
+
       - name: Build production image
         run: docker build -t dj-nightlight:ci .
 
       - name: Build video render worker image
         run: docker build -f Dockerfile.render-worker -t dj-nightlight-render-worker:ci .
+
+      - name: Verify runtime UID and GID
+        run: |
+          test "$(docker run --rm --entrypoint id dj-nightlight:ci -u)" = "10001"
+          test "$(docker run --rm --entrypoint id dj-nightlight:ci -g)" = "10001"
+          test "$(docker run --rm --entrypoint id dj-nightlight-render-worker:ci -u)" = "10001"
+          test "$(docker run --rm --entrypoint id dj-nightlight-render-worker:ci -g)" = "10001"
 
 
   restore-test:

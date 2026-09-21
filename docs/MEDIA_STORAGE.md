@@ -11,6 +11,21 @@ The existing Unraid compose file mounts:
 
 The application reads `NUXT_STORAGE_UPLOADS=/app/storage/uploads`. Rebuilding or replacing the web container therefore does not remove uploaded images.
 
+## Portable ownership initialization
+
+Both Docker Compose configurations include a one-shot `storage-init` service. Before the web app or render worker starts, it creates the writable uploads/generated directories and applies the same numeric UID/GID used inside both NightLight images.
+
+The defaults are:
+
+- `NIGHTLIGHT_UID=10001`
+- `NIGHTLIGHT_GID=10001`
+
+These values are build arguments for the web and render-worker images and are also passed to `storage-init`. This keeps container identity and host/named-volume ownership in sync.
+
+On a normal fresh install, no manual `chown` is required. Existing installations are repaired on the next Compose start because `storage-init` reapplies ownership before the application services start.
+
+If a host requires a specific numeric identity, set `NIGHTLIGHT_UID` and `NIGHTLIGHT_GID` in `.env` before building. The values must be numeric and should remain stable for that installation.
+
 ## File safety
 
 Uploads are limited to 15 MB. NightLight does not trust the browser MIME type or extension: it inspects the file signature and dimensions and accepts JPEG, PNG and WebP only. Oversized pixel dimensions are rejected. Generated thumbnails are capped separately.
