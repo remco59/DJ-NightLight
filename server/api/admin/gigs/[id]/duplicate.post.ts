@@ -5,7 +5,7 @@ import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireStaff(event)
+  const user = await requireStaff(event, ['owner', 'manager'])
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
 
@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
       eventType: source.eventType,
       clientId: source.clientId,
       venueId: source.venueId,
+      assignedUserId: source.assignedUserId,
       status: 'lead',
       startsAt: source.startsAt,
       endsAt: source.endsAt,
@@ -34,31 +35,17 @@ export default defineEventHandler(async (event) => {
       source: source.source,
     }).returning()
 
-    if (!gig) {
-      throw createError({ statusCode: 500, statusMessage: 'Could not duplicate gig' })
-    }
-
+    if (!gig) throw createError({ statusCode: 500, statusMessage: 'Could not duplicate gig' })
     if (contacts.length) {
       await tx.insert(gigContacts).values(contacts.map(contact => ({
-        gigId: gig.id,
-        name: contact.name,
-        role: contact.role,
-        email: contact.email,
-        phone: contact.phone,
-        notes: contact.notes,
+        gigId: gig.id, name: contact.name, role: contact.role, email: contact.email, phone: contact.phone, notes: contact.notes,
       })))
     }
-
     if (timeline.length) {
       await tx.insert(gigTimelineItems).values(timeline.map(item => ({
-        gigId: gig.id,
-        time: item.time,
-        title: item.title,
-        description: item.description,
-        ordering: item.ordering,
+        gigId: gig.id, time: item.time, title: item.title, description: item.description, ordering: item.ordering,
       })))
     }
-
     return gig
   })
 
@@ -67,7 +54,7 @@ export default defineEventHandler(async (event) => {
     entityType: 'gig',
     entityId: created.id,
     action: 'duplicated',
-    metadata: { sourceGigId: id },
+    metadata: { sourceGigId: id, assignedUserId: created.assignedUserId },
   })
 
   event.node.res.statusCode = 201
