@@ -9,6 +9,7 @@ import {
   stripeWebhookEvents,
 } from '../../../../db/schema'
 import { db } from '../../../utils/db'
+import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
 
 async function latestBackup() {
@@ -51,11 +52,10 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-
-
-  const config = useRuntimeConfig()
-  const calendar = config.googleCalendar as { clientId?: string, clientSecret?: string, refreshToken?: string }
-  const email = config.email as { apiKey?: string, from?: string }
+  const [calendar, email] = await Promise.all([
+    loadCalendarIntegration(),
+    loadEmailIntegration(),
+  ])
 
   return {
     generatedAt: new Date().toISOString(),
@@ -68,8 +68,10 @@ export default defineEventHandler(async (event) => {
     },
     integrations: {
       stripe: { lastEvent: lastStripeEvent },
-      calendarConfigured: Boolean(calendar.clientId && calendar.clientSecret && calendar.refreshToken),
-      emailConfigured: Boolean(email.apiKey && email.from),
+      calendarConfigured: calendar.status.configured,
+      calendarSource: calendar.status.source,
+      emailConfigured: email.status.configured,
+      emailSource: email.status.source,
     },
     backup,
   }
