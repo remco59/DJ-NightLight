@@ -1,6 +1,6 @@
+<script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
 import { createMediaThumbnail } from '~/utils/media-upload'
-<script setup lang="ts">
 definePageMeta({ layout: 'admin' })
 
 type Asset = {
