@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { gigEndFromDuration } from '../../../../shared/gig-duration'
+import { gigEndFromDuration } from '~~/shared/gig-duration'
 import { apiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({ layout: 'admin' })
