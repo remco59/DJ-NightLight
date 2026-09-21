@@ -26,35 +26,8 @@ type CalendarData = {
 }
 
 const { data, refresh, pending } = await useFetch<CalendarData>('/api/admin/calendar')
-const form = reactive({
-  enabled: false,
-  calendarId: 'primary',
-  cancellationBehavior: 'delete' as CancellationBehavior,
-})
-const saving = ref(false)
 const syncing = ref<string | null>(null)
 const message = ref('')
-
-watchEffect(() => {
-  if (!data.value) return
-  form.enabled = data.value.settings.enabled
-  form.calendarId = data.value.settings.calendarId
-  form.cancellationBehavior = data.value.settings.cancellationBehavior
-})
-
-async function save() {
-  saving.value = true
-  message.value = ''
-  try {
-    await $fetch('/api/admin/calendar/settings', { method: 'PUT', body: form })
-    message.value = 'Calendar settings saved.'
-    await refresh()
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Saving failed.'
-  } finally {
-    saving.value = false
-  }
-}
 
 async function sync(gigId?: string) {
   syncing.value = gigId || 'all'
@@ -89,7 +62,7 @@ function formatDate(value: string | null) {
         <h1>Calendar</h1>
         <p class="intro">One-way synchronization from booked NightLight gigs to Google Calendar.</p>
       </div>
-      <button class="primary" type="button" :disabled="syncing !== null || !form.enabled" @click="sync()">
+      <button class="primary" type="button" :disabled="syncing !== null || !data?.settings.enabled" @click="sync()">
         {{ syncing === 'all' ? 'Syncing…' : 'Sync all' }}
       </button>
     </header>
@@ -98,34 +71,22 @@ function formatDate(value: string | null) {
       <div class="panel-heading">
         <div>
           <h2>Connection & behavior</h2>
-          <p>Credentials and sync behavior are managed centrally in <NuxtLink to="/admin/settings#integrations">Settings → Integrations</NuxtLink>. You can still adjust sync behavior here.</p>
+          <p>Google Calendar is configured centrally in Settings, so credentials and sync behavior have one source of truth.</p>
         </div>
         <span class="status" :class="{ ok: data?.credentialsConfigured }">
           {{ data?.credentialsConfigured ? 'Credentials configured' : 'Credentials missing' }}
         </span>
       </div>
 
-      <div class="form-grid">
-        <label class="toggle">
-          <input v-model="form.enabled" type="checkbox">
-          <span>Enable Google Calendar sync</span>
-        </label>
-        <label>
-          <span>Calendar ID</span>
-          <input v-model="form.calendarId" placeholder="primary">
-        </label>
-        <label>
-          <span>When a booked gig is cancelled/declined</span>
-          <select v-model="form.cancellationBehavior">
-            <option value="delete">Delete mapped event</option>
-            <option value="mark_cancelled">Keep event and mark cancelled</option>
-            <option value="keep">Leave event unchanged</option>
-          </select>
-        </label>
+      <div class="facts">
+        <div><span>Synchronization</span><strong>{{ data?.settings.enabled ? 'Enabled' : 'Disabled' }}</strong></div>
+        <div><span>Calendar ID</span><strong>{{ data?.settings.calendarId || 'primary' }}</strong></div>
+        <div>
+          <span>Cancelled / declined gigs</span>
+          <strong>{{ data?.settings.cancellationBehavior === 'delete' ? 'Delete mapped event' : data?.settings.cancellationBehavior === 'mark_cancelled' ? 'Keep and mark cancelled' : 'Leave event unchanged' }}</strong>
+        </div>
       </div>
-      <button class="secondary" type="button" :disabled="saving" @click="save">
-        {{ saving ? 'Saving…' : 'Save settings' }}
-      </button>
+      <NuxtLink class="settings-link" to="/admin/settings#integrations">Manage Google Calendar in Settings → Integrations</NuxtLink>
       <p v-if="message" class="message">{{ message }}</p>
     </section>
 
@@ -151,7 +112,7 @@ function formatDate(value: string | null) {
             <small v-else-if="item.lastAttemptAt">Last attempt {{ formatDate(item.lastAttemptAt) }}</small>
             <small v-if="item.lastError" class="error">{{ item.lastError }}</small>
           </div>
-          <button class="quiet" type="button" :disabled="syncing !== null || !form.enabled" @click="sync(item.gigId)">
+          <button class="quiet" type="button" :disabled="syncing !== null || !data?.settings.enabled" @click="sync(item.gigId)">
             {{ syncing === item.gigId ? 'Retrying…' : 'Sync now' }}
           </button>
         </article>
@@ -169,10 +130,11 @@ h2 { margin: 0 0 .35rem; }
 .intro, .panel p, .row p, small { color: #938c9c; }
 .panel a { color: #c9b2df; }
 .panel { margin-top: 1rem; padding: 1.35rem; border: 1px solid #29242f; border-radius: 1rem; background: #121016; }
-.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.25rem 0; }
-label { display: grid; gap: .45rem; color: #bdb6c5; font-size: .85rem; }
-.toggle { display: flex; align-items: center; align-self: end; min-height: 2.8rem; }
-input:not([type="checkbox"]), select { width: 100%; border: 1px solid #35303b; border-radius: .65rem; padding: .72rem; background: #0d0b10; color: #fff; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1.25rem 0; }
+.facts div { display: grid; gap: .3rem; padding: .8rem; border: 1px solid #2d2833; border-radius: .7rem; background: #0d0b10; }
+.facts span { color: #81798a; font-size: .75rem; }
+.facts strong { font-size: .85rem; }
+.settings-link { display: inline-flex; color: #c9b2df; font-size: .85rem; }
 button { border-radius: .7rem; padding: .7rem 1rem; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 .primary { border: 0; background: #fff; color: #0d0b10; font-weight: 700; }
@@ -191,7 +153,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .empty { margin-top: 1rem; padding: 1.2rem; border: 1px dashed #35303b; border-radius: .8rem; color: #8f8798; }
 @media (max-width: 800px) {
   .page-header, .panel-heading, .row { display: grid; }
-  .form-grid { grid-template-columns: 1fr; }
+  .facts { grid-template-columns: 1fr; }
   .sync-state { min-width: 0; }
 }
 </style>
