@@ -3,6 +3,7 @@ import {
   boolean,
   date,
   integer,
+  index,
   jsonb,
   numeric,
   pgEnum,
@@ -80,6 +81,7 @@ export const gigs = pgTable('gigs', {
   eventType: varchar('event_type', { length: 120 }),
   clientId: uuid('client_id').references(() => clients.id, { onDelete: 'restrict' }),
   venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
+  assignedUserId: uuid('assigned_user_id').references(() => users.id, { onDelete: 'set null' }),
   status: gigStatus('status').default('lead').notNull(),
   startsAt: timestamp('starts_at', { withTimezone: true }),
   endsAt: timestamp('ends_at', { withTimezone: true }),
@@ -93,7 +95,7 @@ export const gigs = pgTable('gigs', {
   source: varchar('source', { length: 160 }),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   ...timestamps,
-})
+}, table => [index('gigs_assigned_user_id_idx').on(table.assignedUserId)])
 
 export const gigContacts = pgTable('gig_contacts', {
   id: uuid('id').defaultRandom().primaryKey(),

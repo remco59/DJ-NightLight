@@ -1,13 +1,15 @@
 import { and, asc, desc, eq, gte, ilike, isNull, lt, lte, or } from 'drizzle-orm'
-import { clients, gigs, venues } from '../../../../db/schema'
+import { clients, gigs, users, venues } from '../../../../db/schema'
 import { gigStatuses } from '../../../../shared/gig-rules'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
-  await requireStaff(event)
+  const user = await requireStaff(event, ['owner', 'manager', 'dj'])
   const query = getQuery(event)
   const conditions = [isNull(gigs.deletedAt)]
+
+  if (user.role === 'dj') conditions.push(eq(gigs.assignedUserId, user.id))
 
   const search = typeof query.search === 'string' ? query.search.trim() : ''
   if (search) {
@@ -29,6 +31,9 @@ export default defineEventHandler(async (event) => {
   if (typeof query.eventType === 'string' && query.eventType) conditions.push(eq(gigs.eventType, query.eventType))
   if (typeof query.clientId === 'string' && query.clientId) conditions.push(eq(gigs.clientId, query.clientId))
   if (typeof query.venueId === 'string' && query.venueId) conditions.push(eq(gigs.venueId, query.venueId))
+  if (user.role !== 'dj' && typeof query.assignedUserId === 'string' && query.assignedUserId) {
+    conditions.push(eq(gigs.assignedUserId, query.assignedUserId))
+  }
 
   if (query.public === 'true') conditions.push(eq(gigs.publicVisibility, true))
   if (query.public === 'false') conditions.push(eq(gigs.publicVisibility, false))
@@ -59,6 +64,7 @@ export default defineEventHandler(async (event) => {
       publicVisibility: gigs.publicVisibility,
       clientId: gigs.clientId,
       venueId: gigs.venueId,
+      assignedUserId: gigs.assignedUserId,
       clientFirstName: clients.firstName,
       clientLastName: clients.lastName,
       clientCompanyName: clients.companyName,
@@ -71,25 +77,25 @@ export default defineEventHandler(async (event) => {
     .where(and(...conditions))
     .orderBy(desc(gigs.startsAt), desc(gigs.createdAt))
 
-  const clientOptions = await db
-    .select({ id: clients.id, type: clients.type, firstName: clients.firstName, lastName: clients.lastName, companyName: clients.companyName })
-    .from(clients)
-    .orderBy(asc(clients.companyName), asc(clients.lastName), asc(clients.firstName))
+  const canManage = user.role === 'owner' || user.role === 'manager'
+  const clientOptions = canManage
+    ? await db.select({ id: clients.id, type: clients.type, firstName: clients.firstName, lastName: clients.lastName, companyName: clients.companyName }).from(clients).orderBy(asc(clients.companyName), asc(clients.lastName), asc(clients.firstName))
+    : []
+  const venueOptions = canManage
+    ? await db.select({ id: venues.id, name: venues.name, city: venues.city }).from(venues).orderBy(asc(venues.name))
+    : []
+  const djOptions = canManage
+    ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, 'dj'), eq(users.active, true))).orderBy(asc(users.name))
+    : [{ id: user.id, name: user.name, email: user.email }]
 
-  const venueOptions = await db
-    .select({ id: venues.id, name: venues.name, city: venues.city })
-    .from(venues)
-    .orderBy(asc(venues.name))
-
-  const eventTypes = (await db.selectDistinct({ eventType: gigs.eventType }).from(gigs).orderBy(asc(gigs.eventType)))
-    .map(row => row.eventType)
-    .filter((value): value is string => Boolean(value))
+  const eventTypes = [...new Set(rows.map(row => row.eventType).filter((value): value is string => Boolean(value)))].sort()
 
   return {
     gigs: rows,
     options: {
       clients: clientOptions,
       venues: venueOptions,
+      djs: djOptions,
       eventTypes,
     },
   }

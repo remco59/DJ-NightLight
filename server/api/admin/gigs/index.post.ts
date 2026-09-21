@@ -4,34 +4,25 @@ import { recordAudit } from '../../../utils/audit'
 import { queueCalendarSync } from '../../../utils/calendar-sync'
 import { queueGigEmail } from '../../../utils/email-automation'
 import { db } from '../../../utils/db'
+import { validateGigAssignee } from '../../../utils/gig-assignee'
 import { requireStaff } from '../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireStaff(event)
+  const user = await requireStaff(event, ['owner', 'manager'])
   const input = await readValidatedBody(event, gigInputSchema.parse)
-  const { contacts, timeline, ...gigValues } = input
+  const { contacts, timeline, assignedUserId, ...gigValues } = input
+  const validAssignee = await validateGigAssignee(assignedUserId)
 
   const gig = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(gigs).values(gigValues).returning()
-    if (!created) {
-      throw createError({ statusCode: 500, statusMessage: 'Could not create gig' })
-    }
+    const [created] = await tx.insert(gigs).values({ ...gigValues, assignedUserId: validAssignee }).returning()
+    if (!created) throw createError({ statusCode: 500, statusMessage: 'Could not create gig' })
 
     if (contacts.length) {
-      await tx.insert(gigContacts).values(contacts.map(contact => ({
-        ...contact,
-        gigId: created.id,
-      })))
+      await tx.insert(gigContacts).values(contacts.map(contact => ({ ...contact, gigId: created.id })))
     }
-
     if (timeline.length) {
-      await tx.insert(gigTimelineItems).values(timeline.map((item, index) => ({
-        ...item,
-        gigId: created.id,
-        ordering: index,
-      })))
+      await tx.insert(gigTimelineItems).values(timeline.map((item, index) => ({ ...item, gigId: created.id, ordering: index })))
     }
-
     return created
   })
 
@@ -40,7 +31,7 @@ export default defineEventHandler(async (event) => {
     entityType: 'gig',
     entityId: gig.id,
     action: 'created',
-    metadata: { status: gig.status },
+    metadata: { status: gig.status, assignedUserId: gig.assignedUserId },
   })
 
   await queueCalendarSync(gig.id)
