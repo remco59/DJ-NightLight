@@ -4,7 +4,7 @@ import type { QuestionnaireField } from '~~/shared/questionnaire'
 
 definePageMeta({layout:'admin'})
 const route=useRoute();const id=String(route.params.id)
-const {user}=useUserSession();const canManageGigs=computed(()=>user.value?.role==='owner'||user.value?.role==='manager')
+const {user}=useUserSession();const canManageGigs=computed(()=>user.value?.role==='owner'||user.value?.role==='manager');const canDeleteGig=computed(()=>user.value?.role==='owner')
 
 type Status='lead'|'booked'|'declined'|'cancelled'
 type ClientOption={id:string;type:'person'|'company';firstName:string|null;lastName:string|null;companyName:string|null}
@@ -58,9 +58,11 @@ async function createInvoice(){
   catch(error:unknown){message.value=apiErrorMessage(error,'Could not create invoice.')}
 }
 async function remove(){
-  if(!confirm('Permanently delete this declined gig?'))return
-  try{await $fetch(`/api/admin/gigs/${id}`,{method:'DELETE'});await navigateTo('/admin/gigs')}
-  catch(error:unknown){message.value=apiErrorMessage(error,'Could not delete gig.')}
+  if(!confirm('Remove this declined gig? Gigs with invoice or payment history will be archived instead of permanently deleted.'))return
+  try{
+    const result=await $fetch<{mode:'delete'|'archive'}>(`/api/admin/gigs/${id}`,{method:'DELETE'})
+    await navigateTo({path:'/admin/gigs',query:{removed:result.mode}})
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not remove gig.')}
 }
 async function createPortalLink(resend=false){
   portalBusy.value=true;portalMessage.value='';portalUrl.value=''
@@ -88,7 +90,7 @@ useSeoMeta({title:()=>`${data.value?.gig.title||'Gig'} — DJ NightLight`,robots
 
 <template><div v-if="data" class="detail" :class="{readonly:!canManageGigs}">
 <NuxtLink to="/admin/gigs" class="back">← Gigs</NuxtLink>
-<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.title}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div v-if="canManageGigs" class="hero-actions"><button class="secondary" type="button" @click="createInvoice">Create invoice</button><button class="secondary" type="button" @click="duplicate">Duplicate</button><button v-if="form.status==='declined'" class="danger" type="button" @click="remove">Delete</button></div></header>
+<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.title}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div v-if="canManageGigs" class="hero-actions"><button class="secondary" type="button" @click="createInvoice">Create invoice</button><button class="secondary" type="button" @click="duplicate">Duplicate</button><button v-if="canDeleteGig&&form.status==='declined'" class="danger" type="button" @click="remove">Remove</button></div></header>
 
 <div v-if="!canManageGigs" class="readonly-note">This gig is assigned to you. DJ access is read-only; a manager or owner can change booking details.</div>
 <form @submit.prevent="save">
