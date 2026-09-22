@@ -65,10 +65,10 @@ useSeoMeta({
             <span />
           </div>
           <div>
-            <span>Openbare agenda</span>
-            <strong v-if="status === 'pending'">Laden…</strong>
-            <strong v-else>{{ publicCount }} {{ publicCount === 1 ? 'datum' : 'data' }}</strong>
-            <p>Besloten boekingen blijven privé en verschijnen hier nooit.</p>
+            <span>{{ content.publicCopy.agenda.statusEyebrow }}</span>
+            <strong v-if="status === 'pending'">{{ content.publicCopy.agenda.loadingLabel }}</strong>
+            <strong v-else>{{ publicCount }} {{ publicCount === 1 ? content.publicCopy.agenda.dateSingular : content.publicCopy.agenda.datePlural }}</strong>
+            <p>{{ content.publicCopy.agenda.statusBody }}</p>
           </div>
         </aside>
       </header>
@@ -83,14 +83,14 @@ useSeoMeta({
           <div class="empty-date" aria-hidden="true">
             <span>—</span>
             <strong>00</strong>
-            <small>OPENBAAR</small>
+            <small>{{ content.publicCopy.agenda.emptyMarkerLabel }}</small>
           </div>
 
           <div class="empty-copy">
-            <p class="eyebrow">Tussen twee avonden in</p>
-            <h2>Even geen openbare data.</h2>
-            <p>Dat betekent niet dat NightLight stil staat. Besloten bruiloften, bedrijfsfeesten en privé-events worden bewust niet in deze agenda getoond.</p>
-            <NuxtLink class="public-button secondary" to="/boeken">Plan je eigen avond</NuxtLink>
+            <p class="eyebrow">{{ content.publicCopy.agenda.emptyEyebrow }}</p>
+            <h2>{{ content.publicCopy.agenda.emptyTitle }}</h2>
+            <p>{{ content.publicCopy.agenda.emptyBody }}</p>
+            <NuxtLink class="public-button secondary" to="/boeken">{{ content.publicCopy.agenda.emptyCta }}</NuxtLink>
           </div>
 
           <div class="empty-orbit" aria-hidden="true">
@@ -101,8 +101,8 @@ useSeoMeta({
 
         <template v-else>
           <div class="list-heading">
-            <p class="eyebrow">Aankomende openbare shows</p>
-            <span>{{ publicCount }} {{ publicCount === 1 ? 'moment' : 'momenten' }}</span>
+            <p class="eyebrow">{{ content.publicCopy.agenda.listEyebrow }}</p>
+            <span>{{ publicCount }} {{ publicCount === 1 ? content.publicCopy.agenda.momentSingular : content.publicCopy.agenda.momentPlural }}</span>
           </div>
 
           <article v-for="(gig,index) in data?.gigs || []" :key="`${gig.startsAt}-${gig.title}`" class="gig">
@@ -128,11 +128,11 @@ useSeoMeta({
       </section>
 
       <section class="agenda-footer">
-        <p class="eyebrow">Niet openbaar ≠ niet beschikbaar</p>
+        <p class="eyebrow">{{ content.publicCopy.agenda.footerEyebrow }}</p>
         <div>
-          <h2>Zelf iets<br>te vieren?</h2>
-          <p>Stuur de datum en locatie. Dan kijken we of NightLight nog vrij is.</p>
-          <NuxtLink class="public-button" to="/boeken">Check je datum</NuxtLink>
+          <h2>{{ content.publicCopy.agenda.footerTitle }}</h2>
+          <p>{{ content.publicCopy.agenda.footerBody }}</p>
+          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.agenda.footerCta }}</NuxtLink>
         </div>
       </section>
     </div>
@@ -148,7 +148,7 @@ useSeoMeta({
 
 .empty{position:relative;display:grid;grid-template-columns:minmax(12rem,.38fr) minmax(0,1fr);gap:clamp(2rem,7vw,7rem);min-height:min(58vh,39rem);align-items:center;padding:clamp(3rem,7vw,6rem) 0;border-bottom:1px solid #2a2630;overflow:hidden}.empty-date{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr;align-items:end;max-width:20rem}.empty-date>span{grid-column:1/-1;color:#554f5b;font-size:3rem;line-height:.7}.empty-date strong{font-size:clamp(7rem,15vw,13rem);line-height:.75;letter-spacing:-.09em;color:#242029}.empty-date small{padding:0 0 .3rem .6rem;color:#655e6b;font-size:.62rem;writing-mode:vertical-rl}.empty-copy{position:relative;z-index:1;max-width:42rem}.empty-copy h2{margin:.7rem 0 1rem;font-size:clamp(3rem,6vw,6rem);line-height:.92;letter-spacing:-.065em}.empty-copy>p:not(.eyebrow){max-width:37rem;margin:0;color:#96909c;line-height:1.72}.empty-copy .public-button{margin-top:1.5rem}.empty-orbit{position:absolute;width:min(42rem,60vw);height:min(42rem,60vw);right:-8rem;top:50%;border:1px solid rgba(141,107,215,.1);border-radius:50%;transform:translateY(-50%)}.empty-orbit::before,.empty-orbit::after{content:"";position:absolute;border:1px solid rgba(141,107,215,.08);border-radius:50%}.empty-orbit::before{inset:14%}.empty-orbit::after{inset:30%}.empty-orbit span{position:absolute;width:45%;height:45%;left:27%;top:27%;border-radius:50%;background:radial-gradient(circle,rgba(106,61,205,.2),transparent 66%);filter:blur(4px)}.empty-orbit i{position:absolute;width:.55rem;height:.55rem;right:14%;top:48%;border-radius:50%;background:#bda9ff;box-shadow:0 0 1.4rem rgba(189,169,255,.75)}
 
-.agenda-footer{display:grid;grid-template-columns:.4fr 1fr;gap:clamp(2rem,8vw,8rem);padding:clamp(7rem,12vw,12rem) 0}.agenda-footer h2{margin:0 0 1rem;font-size:clamp(3.2rem,7vw,7rem);line-height:.88;letter-spacing:-.07em}.agenda-footer>div>p{max-width:34rem;color:#9a94a0;line-height:1.7}.agenda-footer .public-button{margin-top:1rem}
+.agenda-footer{display:grid;grid-template-columns:.4fr 1fr;gap:clamp(2rem,8vw,8rem);padding:clamp(7rem,12vw,12rem) 0}.agenda-footer h2{margin:0 0 1rem;white-space:pre-line;font-size:clamp(3.2rem,7vw,7rem);line-height:.88;letter-spacing:-.07em}.agenda-footer>div>p{max-width:34rem;color:#9a94a0;line-height:1.7}.agenda-footer .public-button{margin-top:1rem}
 
 @media(max-width:850px){.agenda-intro{grid-template-columns:1fr}.agenda-status{max-width:32rem}.gig{grid-template-columns:2.5rem 10rem 1fr}.gig-mark{display:none}.date>strong{font-size:4.8rem}.empty{grid-template-columns:1fr}.empty-date{opacity:.6}.agenda-footer{grid-template-columns:1fr;gap:1.5rem}}
 @media(max-width:600px){.agenda-status{padding-left:1rem}.list-heading{align-items:flex-start;flex-direction:column;gap:.35rem}.gig{grid-template-columns:2rem 1fr;gap:1rem;padding:2rem 0}.gig:hover{padding-left:.5rem}.date{grid-column:2}.copy{grid-column:2}.gig-index{grid-row:1/3}.empty{padding:4rem 0}.empty-date strong{font-size:8rem}.empty-orbit{right:-15rem;width:32rem;height:32rem}.agenda-footer{padding:6rem 0}}
