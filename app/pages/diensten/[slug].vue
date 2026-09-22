@@ -2,6 +2,8 @@
 definePageMeta({layout:'public'})
 const route=useRoute()
 const slug=String(route.params.slug)
+const {data:site}=await useSiteContent()
+const siteContent=computed(()=>site.value?.content)
 
 type LandingPage = {
   slug:string
@@ -61,10 +63,10 @@ useSeoMeta({
         <p v-for="(paragraph,index) in paragraphs" :key="index">{{paragraph}}</p>
       </div>
       <aside>
-        <span>DJ NightLight</span>
-        <strong>Een set die zich aanpast aan het moment.</strong>
-        <p>De concrete muziek, planning en wensen worden afgestemd op de boeking — niet op een vaste standaardset.</p>
-        <NuxtLink to="/boeken">Beschikbaarheid bespreken →</NuxtLink>
+        <span>{{ siteContent?.publicCopy.landing.asideEyebrow }}</span>
+        <strong>{{ siteContent?.publicCopy.landing.asideTitle }}</strong>
+        <p>{{ siteContent?.publicCopy.landing.asideBody }}</p>
+        <NuxtLink to="/boeken">{{ siteContent?.publicCopy.landing.asideCta }}</NuxtLink>
       </aside>
     </section>
   </main>
