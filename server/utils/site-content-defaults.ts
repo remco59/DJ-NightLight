@@ -91,6 +91,12 @@ export const defaultPublicCopy: SitePublicCopy = {
     footerBody: 'Stuur de datum en locatie. Dan kijken we of NightLight nog vrij is.',
     footerCta: 'Check je datum',
   },
+  landing: {
+    asideEyebrow: 'DJ NightLight',
+    asideTitle: 'Een set die zich aanpast aan het moment.',
+    asideBody: 'De concrete muziek, planning en wensen worden afgestemd op de boeking — niet op een vaste standaardset.',
+    asideCta: 'Beschikbaarheid bespreken →',
+  },
   booking: {
     successEyebrow: 'Ontvangen',
     successTitle: 'Je aanvraag staat in het NightLight-systeem.',
