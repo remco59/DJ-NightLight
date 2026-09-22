@@ -43,9 +43,11 @@ const sourceSearch = ref('')
 const freshFile = ref<File | null>(null)
 const freshInput = ref<HTMLInputElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const previewShellRef = ref<HTMLElement | null>(null)
 const busy = ref('')
 const message = ref('')
 const lastRenderedUrl = ref('')
+const openSections = ref<number[]>([1, 2, 3])
 let sourceBitmap: ImageBitmap | null = null
 
 const design = reactive<PostDesign>({
@@ -73,13 +75,30 @@ const templates = [
   { key: 'poster' as const, label: 'Poster', description: 'Bold framed event poster.' },
   { key: 'minimal' as const, label: 'Minimal', description: 'Clean editorial panel.' },
 ]
+
 const brands = [
-  { key: 'night' as const, label: 'NightLight', description: 'Purple nightlife accent.' },
-  { key: 'mono' as const, label: 'Mono', description: 'Black & white.' },
-  { key: 'warm' as const, label: 'Warm', description: 'Warm orange accent.' },
+  {
+    key: 'night' as const,
+    label: 'NightLight',
+    description: 'Purple nightlife accent.',
+    colors: ['#9d5cff', '#17131d', '#858093', '#f7f4fb'],
+  },
+  {
+    key: 'mono' as const,
+    label: 'Mono',
+    description: 'Black & white.',
+    colors: ['#ffffff', '#0d0b10', '#77717d', '#d8d4dc'],
+  },
+  {
+    key: 'warm' as const,
+    label: 'Warm',
+    description: 'Warm orange accent.',
+    colors: ['#ff7a45', '#1c1210', '#9f7465', '#fff3eb'],
+  },
 ]
 
 const selectedAsset = computed(() => data.value?.assets.find(asset => asset.id === sourceAssetId.value) || null)
+const selectedBrand = computed(() => brands.find(brand => brand.key === design.brandPreset) || brands[0])
 const filteredAssets = computed(() => {
   const q = sourceSearch.value.trim().toLowerCase()
   const assets = data.value?.assets || []
@@ -90,9 +109,41 @@ const filteredAssets = computed(() => {
     asset.originalFilename,
   ].some(value => value.toLowerCase().includes(q)))
 })
+const readyToGenerate = computed(() => Boolean(selectedAsset.value && design.headline.trim()))
+const checklistItems = computed(() => [
+  { label: 'Image selected', complete: Boolean(selectedAsset.value) },
+  { label: 'Headline added', complete: Boolean(design.headline.trim()) },
+  { label: 'Brand preset selected', complete: Boolean(design.brandPreset) },
+  { label: 'Ready to generate', complete: readyToGenerate.value },
+])
+
+function isSectionOpen(step: number) {
+  return openSections.value.includes(step)
+}
+
+function toggleSection(step: number) {
+  openSections.value = isSectionOpen(step)
+    ? openSections.value.filter(item => item !== step)
+    : [...openSections.value, step]
+}
 
 function chooseFreshFile(event: Event) {
   freshFile.value = (event.target as HTMLInputElement).files?.[0] || null
+}
+
+function openFilePicker() {
+  freshInput.value?.click()
+}
+
+function dropFreshFile(event: DragEvent) {
+  event.preventDefault()
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    message.value = 'Choose a JPEG, PNG or WebP image.'
+    return
+  }
+  freshFile.value = file
 }
 
 async function createThumbnail(file: File) {
@@ -180,6 +231,15 @@ function setPreset(preset: PostPreset) {
   design.preset = preset
 }
 
+async function toggleFullscreen() {
+  if (!previewShellRef.value || !import.meta.client) return
+  if (document.fullscreenElement) {
+    await document.exitFullscreen()
+    return
+  }
+  await previewShellRef.value.requestFullscreen()
+}
+
 async function renderAndSave() {
   if (!sourceBitmap || !selectedAsset.value) {
     message.value = 'Select a photo first.'
@@ -195,7 +255,7 @@ async function renderAndSave() {
       exportCanvas.toBlob(result => result ? resolve(result) : reject(new Error('PNG export failed')), 'image/png')
     })
     const form = new FormData()
-    form.append('file', blob, `nightlight-${design.preset}.png`)
+    form.append('file', blob, 'nightlight-' + design.preset + '.png')
     form.append('design', JSON.stringify(design))
     form.append('sourceMediaAssetId', selectedAsset.value.id)
     const result = await $fetch<{ post: { id: string, imageUrl: string } }>('/api/admin/post-generator/render', {
@@ -217,7 +277,7 @@ async function deletePost(post: GeneratedPost) {
   if (!confirm('Delete this generated output?')) return
   busy.value = post.id
   try {
-    const response = await fetch(`/api/admin/post-generator/${post.id}`, { method: 'DELETE' })
+    const response = await fetch('/api/admin/post-generator/' + post.id, { method: 'DELETE' })
     if (!response.ok) throw new Error('Could not delete generated post')
     if (lastRenderedUrl.value === post.imageUrl) lastRenderedUrl.value = ''
     await refresh()
@@ -235,17 +295,23 @@ function formatDate(value: string) {
 
 <template>
   <div class="page">
-    <NuxtLink to="/admin/post-generator/video" class="video-link">Video generator →</NuxtLink>
-    <header class="header">
-      <div>
-        <p class="eyebrow">Content</p>
-        <h1>Post generator</h1>
-        <p>Create branded NightLight social images independently from a gig.</p>
+    <header class="page-header">
+      <div class="header-copy">
+        <p class="breadcrumb">Content <span>/</span> Post generator</p>
+        <h1>Instagram post generator</h1>
+        <p class="subtitle">Create branded NightLight social images independently from a gig.</p>
       </div>
-      <div class="export-actions">
-        <a v-if="lastRenderedUrl" :href="lastRenderedUrl" download="nightlight-post.png">Export last PNG</a>
-        <button class="primary" type="button" :disabled="busy === 'render' || !selectedAsset" @click="renderAndSave">
-          {{ busy === 'render' ? 'Rendering…' : 'Render & save' }}
+
+      <div class="header-actions">
+        <span class="status-pill"><span class="status-dot" /> Live preview</span>
+        <NuxtLink class="secondary-button" to="/admin/post-generator/video">Video generator</NuxtLink>
+        <button
+          class="primary"
+          type="button"
+          :disabled="busy === 'render' || !readyToGenerate"
+          @click="renderAndSave"
+        >
+          {{ busy === 'render' ? 'Generating…' : 'Generate post →' }}
         </button>
       </div>
     </header>
@@ -254,224 +320,1443 @@ function formatDate(value: string) {
 
     <div class="workspace">
       <aside class="controls">
-        <section class="panel">
-          <p class="step">1 · Photo</p>
-          <div class="fresh-upload">
-            <input ref="freshInput" type="file" accept="image/jpeg,image/png,image/webp" @change="chooseFreshFile">
-            <button type="button" :disabled="!freshFile || busy === 'upload'" @click="uploadFreshSource">
-              {{ busy === 'upload' ? 'Uploading…' : 'Upload new photo' }}
-            </button>
-          </div>
-          <AdminFilterBar compact :has-active-filters="Boolean(sourceSearch)" @clear-all="sourceSearch = ''">
-            <template #primary>
-              <input v-model="sourceSearch" type="search" placeholder="Search media library">
-            </template>
-            <template #chips>
-              <AdminFilterChip v-if="sourceSearch" :label="`Search: ${sourceSearch}`" @remove="sourceSearch = ''" />
-            </template>
-          </AdminFilterBar>
-          <div class="media-grid">
-            <button
-              v-for="asset in filteredAssets.slice(0, 40)"
-              :key="asset.id"
-              type="button"
-              class="media-option"
-              :class="{ active: sourceAssetId === asset.id }"
-              :title="asset.title || asset.originalFilename"
-              @click="sourceAssetId = asset.id"
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(1)"
+            @click="toggleSection(1)"
+          >
+            <span class="step-number">1</span>
+            <span class="section-title">
+              <strong>Source photo</strong>
+              <small>Choose or upload a photo</small>
+            </span>
+            <span class="chevron">{{ isSectionOpen(1) ? '⌃' : '⌄' }}</span>
+          </button>
+
+          <div v-if="isSectionOpen(1)" class="section-body">
+            <input
+              ref="freshInput"
+              class="file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              @change="chooseFreshFile"
             >
-              <img :src="asset.thumbnailUrl" :alt="asset.altText || asset.title">
+
+            <button
+              class="upload-zone"
+              type="button"
+              @click="openFilePicker"
+              @dragover.prevent
+              @drop="dropFreshFile"
+            >
+              <span class="upload-icon">↑</span>
+              <span>
+                <strong>{{ freshFile ? freshFile.name : 'Upload new' }}</strong>
+                <small>{{ freshFile ? 'Ready to add to the media library' : 'Choose file or drag & drop' }}</small>
+              </span>
             </button>
+
+            <button
+              v-if="freshFile"
+              class="upload-confirm"
+              type="button"
+              :disabled="busy === 'upload'"
+              @click="uploadFreshSource"
+            >
+              {{ busy === 'upload' ? 'Uploading…' : 'Add photo to library' }}
+            </button>
+
+            <div class="search-wrap">
+              <span aria-hidden="true">⌕</span>
+              <input v-model="sourceSearch" type="search" placeholder="Search media library…">
+              <button v-if="sourceSearch" type="button" aria-label="Clear search" @click="sourceSearch = ''">×</button>
+            </div>
+
+            <div class="media-meta">
+              <span>Media library</span>
+              <small>{{ filteredAssets.length }} photos</small>
+            </div>
+
+            <div class="media-grid">
+              <button
+                v-for="asset in filteredAssets.slice(0, 12)"
+                :key="asset.id"
+                type="button"
+                class="media-option"
+                :class="{ active: sourceAssetId === asset.id }"
+                :title="asset.title || asset.originalFilename"
+                @click="sourceAssetId = asset.id"
+              >
+                <img :src="asset.thumbnailUrl" :alt="asset.altText || asset.title">
+                <span v-if="sourceAssetId === asset.id" class="selected-mark">✓</span>
+              </button>
+            </div>
           </div>
         </section>
 
-        <section class="panel">
-          <p class="step">2 · Format & template</p>
-          <div class="segmented">
-            <button
-              v-for="[key, preset] in presetOptions"
-              :key="key"
-              type="button"
-              :class="{ active: design.preset === key }"
-              @click="setPreset(key)"
-            >
-              <strong>{{ preset.label }}</strong>
-              <span>{{ preset.width }}×{{ preset.height }}</span>
-            </button>
-          </div>
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(2)"
+            @click="toggleSection(2)"
+          >
+            <span class="step-number">2</span>
+            <span class="section-title">
+              <strong>Format & templates</strong>
+              <small>Choose a format and visual style</small>
+            </span>
+            <span class="chevron">{{ isSectionOpen(2) ? '⌃' : '⌄' }}</span>
+          </button>
 
-          <div class="choice-grid">
-            <button
-              v-for="template in templates"
-              :key="template.key"
-              type="button"
-              :class="{ active: design.templateKey === template.key }"
-              @click="design.templateKey = template.key"
-            >
-              <strong>{{ template.label }}</strong>
-              <span>{{ template.description }}</span>
-            </button>
-          </div>
+          <div v-if="isSectionOpen(2)" class="section-body">
+            <div class="format-grid">
+              <button
+                v-for="[key, preset] in presetOptions"
+                :key="key"
+                type="button"
+                class="format-card"
+                :class="{ active: design.preset === key }"
+                @click="setPreset(key)"
+              >
+                <span class="format-icon" :data-format="key" />
+                <span>
+                  <strong>{{ preset.label }}</strong>
+                  <small>{{ key === 'square' ? 'Square' : key === 'portrait' ? 'Portrait' : 'Story' }}</small>
+                  <em>{{ preset.width }}×{{ preset.height }}</em>
+                </span>
+              </button>
+            </div>
 
-          <label>
-            <span>Brand preset</span>
-            <select v-model="design.brandPreset">
-              <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
-            </select>
-          </label>
+            <div class="subheading-row">
+              <strong>Templates</strong>
+              <small>Visual style</small>
+            </div>
+
+            <div class="template-grid">
+              <button
+                v-for="template in templates"
+                :key="template.key"
+                type="button"
+                class="template-card"
+                :class="{ active: design.templateKey === template.key }"
+                @click="design.templateKey = template.key"
+              >
+                <span
+                  class="template-shot"
+                  :class="'template-' + template.key"
+                  :style="selectedAsset ? { backgroundImage: 'url(' + selectedAsset.thumbnailUrl + ')' } : undefined"
+                >
+                  <span class="template-logo">NIGHTLIGHT</span>
+                  <span class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
+                </span>
+                <span class="template-copy">
+                  <strong>{{ template.label }}</strong>
+                  <small>{{ template.description }}</small>
+                </span>
+              </button>
+            </div>
+          </div>
         </section>
 
-        <section class="panel">
-          <p class="step">3 · Copy</p>
-          <label><span>Headline</span><textarea v-model="design.headline" rows="2" maxlength="180" /></label>
-          <label><span>Subline</span><textarea v-model="design.subline" rows="2" maxlength="260" /></label>
-          <div class="two">
-            <label><span>Date text</span><input v-model="design.dateText" maxlength="160" placeholder="12 SEP · 20:00"></label>
-            <label><span>Location text</span><input v-model="design.locationText" maxlength="160" placeholder="GRONINGEN"></label>
-          </div>
-          <label><span>Brand label</span><input v-model="design.logoText" maxlength="80"></label>
-        </section>
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(3)"
+            @click="toggleSection(3)"
+          >
+            <span class="step-number">3</span>
+            <span class="section-title">
+              <strong>Copy</strong>
+              <small>Add text and brand details</small>
+            </span>
+            <span class="chevron">{{ isSectionOpen(3) ? '⌃' : '⌄' }}</span>
+          </button>
 
-        <section class="panel">
-          <p class="step">4 · Crop & style</p>
-          <label>
-            <span>Zoom · {{ design.zoom.toFixed(2) }}×</span>
-            <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
-          </label>
-          <label>
-            <span>Horizontal position</span>
-            <input v-model.number="design.imageX" type="range" min="-1" max="1" step=".02">
-          </label>
-          <label>
-            <span>Vertical position</span>
-            <input v-model.number="design.imageY" type="range" min="-1" max="1" step=".02">
-          </label>
-          <label>
-            <span>Overlay · {{ Math.round(design.overlayOpacity * 100) }}%</span>
-            <input v-model.number="design.overlayOpacity" type="range" min="0" max=".9" step=".02">
-          </label>
-          <div class="two">
+          <div v-if="isSectionOpen(3)" class="section-body form-stack">
             <label>
-              <span>Text alignment</span>
-              <select v-model="design.textAlign">
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
-              </select>
+              <span class="label-row"><span>Headline</span><small>{{ design.headline.length }}/180</small></span>
+              <textarea v-model="design.headline" rows="2" maxlength="180" />
             </label>
             <label>
-              <span>Text position</span>
-              <select v-model="design.textPosition">
-                <option value="top">Top</option>
-                <option value="middle">Middle</option>
-                <option value="bottom">Bottom</option>
+              <span class="label-row"><span>Subline</span><small>{{ design.subline.length }}/260</small></span>
+              <textarea v-model="design.subline" rows="2" maxlength="260" />
+            </label>
+            <div class="two">
+              <label><span>Date text</span><input v-model="design.dateText" maxlength="160" placeholder="12 SEP · 20:00"></label>
+              <label><span>Location text</span><input v-model="design.locationText" maxlength="160" placeholder="GRONINGEN"></label>
+            </div>
+            <label><span>Brand label</span><input v-model="design.logoText" maxlength="80"></label>
+            <label>
+              <span>Brand preset</span>
+              <select v-model="design.brandPreset">
+                <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
               </select>
             </label>
           </div>
-          <label class="check"><input v-model="design.showSafeArea" type="checkbox"> Show safe-area guides in preview</label>
+        </section>
+
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(4)"
+            @click="toggleSection(4)"
+          >
+            <span class="step-number">4</span>
+            <span class="section-title">
+              <strong>Crop & styling</strong>
+              <small>Adjust framing, position and visual style</small>
+            </span>
+            <span class="chevron">{{ isSectionOpen(4) ? '⌃' : '⌄' }}</span>
+          </button>
+
+          <div v-if="isSectionOpen(4)" class="section-body form-stack">
+            <label>
+              <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}×</small></span>
+              <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
+            </label>
+            <label>
+              <span>Horizontal position</span>
+              <input v-model.number="design.imageX" type="range" min="-1" max="1" step=".02">
+            </label>
+            <label>
+              <span>Vertical position</span>
+              <input v-model.number="design.imageY" type="range" min="-1" max="1" step=".02">
+            </label>
+            <label>
+              <span class="label-row"><span>Overlay</span><small>{{ Math.round(design.overlayOpacity * 100) }}%</small></span>
+              <input v-model.number="design.overlayOpacity" type="range" min="0" max=".9" step=".02">
+            </label>
+            <div class="two">
+              <label>
+                <span>Text alignment</span>
+                <select v-model="design.textAlign">
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </label>
+              <label>
+                <span>Text position</span>
+                <select v-model="design.textPosition">
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(5)"
+            @click="toggleSection(5)"
+          >
+            <span class="step-number">5</span>
+            <span class="section-title">
+              <strong>Export</strong>
+              <small>Generate, download or reuse</small>
+            </span>
+            <span class="chevron">{{ isSectionOpen(5) ? '⌃' : '⌄' }}</span>
+          </button>
+
+          <div v-if="isSectionOpen(5)" class="section-body export-panel">
+            <p>Generate a full-resolution {{ POST_PRESETS[design.preset].width }}×{{ POST_PRESETS[design.preset].height }} PNG and keep it in your reusable output history.</p>
+            <button
+              class="primary full"
+              type="button"
+              :disabled="busy === 'render' || !readyToGenerate"
+              @click="renderAndSave"
+            >
+              {{ busy === 'render' ? 'Generating…' : 'Generate post' }}
+            </button>
+            <a v-if="lastRenderedUrl" class="download-link" :href="lastRenderedUrl" download="nightlight-post.png">Download latest PNG</a>
+          </div>
         </section>
       </aside>
 
-      <main class="preview-column">
-        <section class="preview-shell">
-          <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset">
-            <canvas ref="canvasRef" class="preview-canvas" />
+      <main class="stage-stack">
+        <section ref="previewShellRef" class="preview-shell">
+          <div class="preview-toolbar">
+            <div>
+              <strong>Preview</strong>
+              <small>See how your post will look on Instagram.</small>
+            </div>
+
+            <div class="preview-tools">
+              <select v-model="design.preset" aria-label="Preview format">
+                <option v-for="[key, preset] in presetOptions" :key="key" :value="key">
+                  Instagram {{ preset.label }}
+                </option>
+              </select>
+              <label class="toggle-control">
+                <input v-model="design.showSafeArea" type="checkbox">
+                <span class="toggle-track"><span /></span>
+                <small>Safe area</small>
+              </label>
+              <button class="icon-button" type="button" title="Fullscreen preview" @click="toggleFullscreen">⤢</button>
+            </div>
           </div>
-          <div v-else class="no-source">Choose a media-library image or upload a fresh photo.</div>
+
+          <div class="preview-stage">
+            <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset">
+              <canvas ref="canvasRef" class="preview-canvas" />
+            </div>
+            <div v-else class="no-source">
+              <span class="empty-icon">▧</span>
+              <strong>Choose a source photo</strong>
+              <small>Select a media-library image or upload a fresh photo.</small>
+            </div>
+          </div>
+
           <p class="preview-note">Safe-area guides are preview-only and never appear in the exported PNG.</p>
         </section>
 
-        <section class="panel history">
+        <section class="history">
           <div class="history-head">
             <div>
-              <p class="step">Generated posts</p>
+              <p class="eyebrow">Generated posts</p>
               <h2>Reusable outputs</h2>
+              <p>Your recent generations stay ready to download or reuse.</p>
             </div>
-            <button type="button" @click="refresh()">Refresh</button>
+            <button class="secondary-button" type="button" @click="refresh()">Refresh</button>
           </div>
-          <div v-if="data?.posts.length" class="history-grid">
-            <article v-for="post in data.posts" :key="post.id">
-              <img :src="post.imageUrl" alt="Generated NightLight social post" loading="lazy">
-              <div>
-                <strong>{{ post.preset }} · {{ post.templateKey }}</strong>
-                <small>{{ post.width }}×{{ post.height }} · {{ formatDate(post.createdAt) }}</small>
-                <span class="history-actions">
-                  <a :href="post.imageUrl" :download="`nightlight-${post.id}.png`">Export PNG</a>
+
+          <div v-if="data?.posts.length" class="history-strip">
+            <article v-for="post in data.posts" :key="post.id" class="history-card">
+              <div class="history-image-wrap">
+                <img :src="post.imageUrl" alt="Generated NightLight social post" loading="lazy">
+                <span>{{ post.preset }}</span>
+              </div>
+              <div class="history-card-copy">
+                <strong>{{ post.templateKey }}</strong>
+                <small>{{ post.width }}×{{ post.height }}</small>
+                <small>{{ formatDate(post.createdAt) }}</small>
+                <div class="history-actions">
+                  <a :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'">Download</a>
                   <button type="button" :disabled="busy === post.id" @click="deletePost(post)">Delete</button>
-                </span>
+                </div>
               </div>
             </article>
           </div>
-          <p v-else>No generated posts yet.</p>
+
+          <div v-else class="empty-history">
+            <strong>No generated posts yet</strong>
+            <small>Your rendered posts will appear here.</small>
+          </div>
         </section>
       </main>
+
+      <aside class="inspector">
+        <section class="side-card brand-guide">
+          <div class="side-heading">
+            <span class="side-icon">◇</span>
+            <div>
+              <strong>Brand guide</strong>
+              <small>Keep your content on brand.</small>
+            </div>
+          </div>
+
+          <div class="brand-current">
+            <span class="brand-orb" :style="{ background: selectedBrand.colors[0] }" />
+            <span>
+              <strong>{{ selectedBrand.label }}</strong>
+              <small>{{ selectedBrand.description }}</small>
+            </span>
+          </div>
+
+          <div class="swatches">
+            <span v-for="color in selectedBrand.colors" :key="color" :style="{ background: color }" />
+          </div>
+        </section>
+
+        <section class="side-card tip-card">
+          <div class="side-heading">
+            <span class="side-icon">✦</span>
+            <div>
+              <strong>Pro tip</strong>
+              <small>Use high-contrast photos with people, lights and atmosphere for the strongest result.</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-card">
+          <div class="side-heading">
+            <span class="side-icon">✓</span>
+            <div>
+              <strong>Post checklist</strong>
+              <small>Quick checks before generating.</small>
+            </div>
+          </div>
+
+          <div class="checklist">
+            <span v-for="item in checklistItems" :key="item.label" :class="{ complete: item.complete }">
+              <i>{{ item.complete ? '✓' : '·' }}</i>
+              {{ item.label }}
+            </span>
+          </div>
+        </section>
+      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
-.page { max-width: 1480px; margin: 0 auto; }
-.header, .export-actions, .history-head, .history-actions, .fresh-upload { display: flex; gap: .7rem; align-items: center; }
-.header, .history-head { justify-content: space-between; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.8rem); letter-spacing: -.055em; }
-h2 { margin: .15rem 0; }
-p, small, .choice-grid span, .segmented span { color: #918999; }
-.export-actions a, .history-actions a { color: #d8cdea; text-decoration: none; border: 1px solid #3d3547; border-radius: .65rem; padding: .65rem .8rem; }
-button, input, textarea, select { border: 1px solid #37313d; border-radius: .65rem; background: #18151d; color: #fff; }
-button { padding: .68rem .85rem; cursor: pointer; }
-button:disabled { opacity: .45; cursor: not-allowed; }
-input, textarea, select { width: 100%; padding: .7rem; }
-textarea { resize: vertical; }
-.primary { background: #fff; color: #0d0b10; border-color: #fff; font-weight: 800; }
-.message { padding: .8rem 1rem; border: 1px solid #403748; border-radius: .8rem; }
-.workspace { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 1rem; margin-top: 1.2rem; align-items: start; }
-.controls { display: grid; gap: .8rem; }
-.panel { border: 1px solid #2b2631; border-radius: 1rem; padding: 1rem; background: #121016; }
-.step { margin: 0 0 .75rem; color: #a997b7; font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-label { display: grid; gap: .35rem; margin-top: .75rem; color: #bbb3c2; font-size: .8rem; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
-.check { display: flex; align-items: center; }
-.check input { width: auto; }
-.fresh-upload { align-items: stretch; margin-bottom: .65rem; }
-.fresh-upload input { min-width: 0; }
-.media-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; margin-top: .65rem; max-height: 235px; overflow: auto; }
-.media-option { padding: 0; overflow: hidden; aspect-ratio: 1; background: #09080b; }
-.media-option.active { border-color: #b18cff; box-shadow: 0 0 0 2px rgba(177,140,255,.25); }
-.media-option img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.segmented, .choice-grid { display: grid; gap: .5rem; }
-.segmented { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: .7rem; }
-.segmented button, .choice-grid button { display: grid; gap: .2rem; text-align: left; }
-.segmented button.active, .choice-grid button.active { border-color: #8f74a3; background: #211b29; }
-.preview-column { min-width: 0; display: grid; gap: 1rem; }
-.preview-shell { min-height: 640px; display: grid; place-items: center; padding: 1.4rem; border: 1px solid #2b2631; border-radius: 1rem; background: radial-gradient(circle at 50% 30%, #231d2b, #0d0b10 70%); }
-.canvas-frame { display: grid; place-items: center; width: min(100%, 720px); max-height: 78vh; }
-.preview-canvas { display: block; width: auto; max-width: 100%; max-height: 74vh; border-radius: .35rem; box-shadow: 0 24px 70px rgba(0,0,0,.5); }
-.no-source { color: #8d8595; }
-.preview-note { margin: .8rem 0 0; align-self: end; text-align: center; font-size: .75rem; }
-.history { overflow: hidden; }
-.history-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; margin-top: 1rem; }
-.history-grid article { overflow: hidden; border: 1px solid #302a36; border-radius: .8rem; background: #0d0b10; }
-.history-grid img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; background: #050406; display: block; }
-.history-grid article > div { display: grid; gap: .35rem; padding: .7rem; }
-.history-actions { justify-content: space-between; margin-top: .35rem; }
-.history-actions a, .history-actions button { padding: .45rem .55rem; font-size: .72rem; }
-@media (max-width: 1150px) {
-  .workspace { grid-template-columns: 340px minmax(0, 1fr); }
-  .history-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .choice-grid { grid-template-columns: 1fr; }
+.page {
+  max-width: 1660px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
 }
-@media (max-width: 900px) {
-  .workspace { grid-template-columns: 1fr; }
-  .controls { order: 2; }
-  .preview-column { order: 1; }
-  .preview-shell { min-height: 460px; }
+
+.page-header,
+.header-actions,
+.preview-toolbar,
+.preview-tools,
+.history-head,
+.history-actions,
+.media-meta,
+.subheading-row,
+.label-row,
+.side-heading,
+.brand-current {
+  display: flex;
+  align-items: center;
 }
-@media (max-width: 620px) {
-  .header, .export-actions { display: grid; }
-  .two, .segmented { grid-template-columns: 1fr; }
-  .media-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.page-header {
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.25rem;
 }
-.video-link{display:inline-block;margin-bottom:1rem;color:#c4b7d1;text-decoration:none}
+
+.header-copy {
+  min-width: 0;
+}
+
+.breadcrumb,
+.eyebrow {
+  margin: 0;
+  color: #968aa3;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.breadcrumb span {
+  margin: 0 .35rem;
+  color: #5d5465;
+}
+
+h1 {
+  margin: .35rem 0 .3rem;
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+h2 {
+  margin: .12rem 0 .2rem;
+  font-size: 1.25rem;
+}
+
+.subtitle,
+.history-head p,
+.preview-note,
+.export-panel p {
+  margin: 0;
+  color: #948b9d;
+}
+
+.header-actions {
+  gap: .65rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-pill,
+.secondary-button,
+.primary,
+.download-link {
+  border-radius: .72rem;
+  min-height: 2.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-pill {
+  gap: .45rem;
+  padding: 0 .8rem;
+  border: 1px solid #302938;
+  background: #121016;
+  color: #bbb2c4;
+  font-size: .78rem;
+}
+
+.status-dot {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: #45c47b;
+  box-shadow: 0 0 0 4px rgba(69,196,123,.08);
+}
+
+button,
+input,
+textarea,
+select {
+  border: 1px solid #39313f;
+  border-radius: .68rem;
+  background: #17141b;
+  color: #fff;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: .72rem .78rem;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #7651a2;
+  box-shadow: 0 0 0 3px rgba(157,92,255,.09);
+}
+
+textarea {
+  resize: vertical;
+}
+
+input[type='range'] {
+  accent-color: #a66bff;
+  padding: 0;
+}
+
+.primary {
+  padding: 0 1rem;
+  border-color: #9d5cff;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 10px 28px rgba(124,58,237,.18);
+}
+
+.secondary-button,
+.download-link {
+  padding: 0 .9rem;
+  border: 1px solid #39313f;
+  background: #151219;
+  color: #ded6e5;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: .8rem;
+}
+
+.message {
+  margin: 0 0 1rem;
+  padding: .85rem 1rem;
+  border: 1px solid #4a3c58;
+  border-radius: .8rem;
+  background: #17121d;
+  color: #d8ccdf;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(330px, 390px) minmax(520px, 1fr) minmax(220px, 250px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.controls {
+  display: grid;
+  gap: .7rem;
+}
+
+.workflow-card,
+.preview-shell,
+.history,
+.side-card {
+  border: 1px solid #2e2834;
+  border-radius: 1rem;
+  background: #111014;
+  box-shadow: 0 14px 40px rgba(0,0,0,.08);
+}
+
+.workflow-card {
+  overflow: hidden;
+}
+
+.section-heading {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .72rem;
+  padding: .9rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.step-number {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #c4a3ff, #8b5cf6);
+  color: #140d1d;
+  font-weight: 900;
+}
+
+.section-title {
+  display: grid;
+  gap: .12rem;
+}
+
+.section-title strong {
+  font-size: .9rem;
+}
+
+.section-title small,
+.side-heading small,
+.brand-current small,
+.template-copy small,
+.format-card small,
+.format-card em,
+.media-meta small,
+.preview-toolbar small,
+.toggle-control small,
+.no-source small,
+.history-card small,
+.empty-history small {
+  color: #8f8797;
+  font-size: .72rem;
+  font-style: normal;
+}
+
+.chevron {
+  color: #847a8d;
+  font-size: 1rem;
+}
+
+.section-body {
+  padding: 0 .9rem .9rem;
+  border-top: 1px solid #26212b;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-zone {
+  width: 100%;
+  display: flex;
+  gap: .8rem;
+  align-items: center;
+  margin-top: .8rem;
+  padding: .85rem;
+  border: 1px dashed #554661;
+  background: #15111a;
+  text-align: left;
+}
+
+.upload-zone > span:last-child {
+  display: grid;
+  gap: .12rem;
+  min-width: 0;
+}
+
+.upload-zone strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-zone small {
+  color: #8f8797;
+}
+
+.upload-icon {
+  flex: 0 0 auto;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  border-radius: .65rem;
+  background: #261a34;
+  color: #c5a5ff;
+  font-size: 1.15rem;
+}
+
+.upload-confirm {
+  width: 100%;
+  margin-top: .5rem;
+  padding: .65rem .8rem;
+  border-color: #654889;
+  background: #25192f;
+  font-weight: 700;
+}
+
+.search-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .8rem;
+  padding: 0 .65rem;
+  border: 1px solid #39313f;
+  border-radius: .68rem;
+  background: #17141b;
+}
+
+.search-wrap input {
+  border: 0;
+  padding-left: .2rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.search-wrap > span {
+  color: #776e80;
+}
+
+.search-wrap button {
+  border: 0;
+  background: transparent;
+  color: #a79eae;
+  padding: .35rem;
+}
+
+.media-meta,
+.subheading-row,
+.label-row {
+  justify-content: space-between;
+}
+
+.media-meta {
+  margin-top: .75rem;
+  color: #c9c0d0;
+  font-size: .75rem;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: .38rem;
+  margin-top: .55rem;
+  max-height: 188px;
+  overflow: auto;
+}
+
+.media-option {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border-radius: .52rem;
+  background: #08070a;
+}
+
+.media-option.active {
+  border-color: #a66bff;
+  box-shadow: 0 0 0 2px rgba(166,107,255,.2);
+}
+
+.media-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.selected-mark {
+  position: absolute;
+  top: .25rem;
+  right: .25rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #17121d;
+  font-size: .7rem;
+  font-weight: 900;
+}
+
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .45rem;
+  margin-top: .8rem;
+}
+
+.format-card {
+  min-width: 0;
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+  padding: .65rem;
+  text-align: left;
+}
+
+.format-card > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: .04rem;
+}
+
+.format-card.active,
+.template-card.active {
+  border-color: #9b65e4;
+  background: #24182f;
+  box-shadow: inset 0 0 0 1px rgba(157,92,255,.14);
+}
+
+.format-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  border: 1.5px solid #9687a3;
+  border-radius: .2rem;
+}
+
+.format-icon[data-format='portrait'] {
+  width: .9rem;
+  height: 1.18rem;
+}
+
+.format-icon[data-format='story'] {
+  width: .68rem;
+  height: 1.2rem;
+}
+
+.subheading-row {
+  margin: .95rem 0 .5rem;
+  color: #cfc6d5;
+  font-size: .78rem;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+}
+
+.template-card {
+  padding: .35rem;
+  text-align: left;
+  overflow: hidden;
+}
+
+.template-shot {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: .45rem;
+  background: linear-gradient(145deg, #2d1d3a, #08070a);
+  background-size: cover;
+  background-position: center;
+}
+
+.template-shot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(5,4,7,.9), rgba(5,4,7,.08) 62%);
+}
+
+.template-poster {
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.55);
+}
+
+.template-poster::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(255,255,255,.55);
+  z-index: 1;
+}
+
+.template-minimal::after {
+  background: linear-gradient(to right, rgba(9,8,11,.96) 0 52%, rgba(9,8,11,.2) 100%);
+}
+
+.template-logo,
+.template-headline {
+  position: absolute;
+  left: .45rem;
+  z-index: 2;
+  color: #fff;
+}
+
+.template-logo {
+  top: .45rem;
+  font-size: .42rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.template-headline {
+  bottom: .48rem;
+  font-size: .62rem;
+  line-height: .92;
+  font-weight: 950;
+}
+
+.template-copy {
+  display: grid;
+  gap: .08rem;
+  padding: .45rem .2rem .2rem;
+}
+
+.template-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.form-stack label {
+  display: grid;
+  gap: .35rem;
+  margin-top: .75rem;
+  color: #bcb2c4;
+  font-size: .78rem;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+}
+
+.export-panel {
+  padding-top: .8rem;
+}
+
+.export-panel p {
+  font-size: .78rem;
+  line-height: 1.55;
+}
+
+.full {
+  width: 100%;
+  margin-top: .75rem;
+}
+
+.download-link {
+  width: 100%;
+  margin-top: .5rem;
+}
+
+.stage-stack {
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.preview-shell {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.preview-toolbar {
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem 1rem;
+  border-bottom: 1px solid #29232f;
+}
+
+.preview-toolbar > div:first-child {
+  display: grid;
+  gap: .12rem;
+}
+
+.preview-tools {
+  gap: .45rem;
+  justify-content: flex-end;
+}
+
+.preview-tools select {
+  width: auto;
+  min-width: 150px;
+  padding: .55rem .65rem;
+  font-size: .75rem;
+}
+
+.toggle-control {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  cursor: pointer;
+}
+
+.toggle-control input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-track {
+  width: 2rem;
+  height: 1.05rem;
+  padding: .15rem;
+  border-radius: 999px;
+  background: #39313f;
+  transition: background .16s ease;
+}
+
+.toggle-track span {
+  width: .75rem;
+  height: .75rem;
+  display: block;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .16s ease;
+}
+
+.toggle-control input:checked + .toggle-track {
+  background: #8b5cf6;
+}
+
+.toggle-control input:checked + .toggle-track span {
+  transform: translateX(.95rem);
+}
+
+.icon-button {
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.preview-stage {
+  min-height: 610px;
+  display: grid;
+  place-items: center;
+  padding: 1.4rem;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(80,48,103,.24), transparent 45%),
+    linear-gradient(145deg, #0b0a0d, #111014);
+}
+
+.canvas-frame {
+  display: grid;
+  place-items: center;
+  width: min(100%, 720px);
+  max-height: 74vh;
+}
+
+.preview-canvas {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: .4rem;
+  box-shadow: 0 28px 76px rgba(0,0,0,.55);
+}
+
+.no-source {
+  display: grid;
+  justify-items: center;
+  gap: .4rem;
+  color: #c9c0d0;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: .8rem;
+  background: #1c1721;
+  color: #a98ac8;
+  font-size: 1.25rem;
+}
+
+.preview-note {
+  padding: .65rem 1rem;
+  border-top: 1px solid #29232f;
+  text-align: center;
+  font-size: .68rem;
+}
+
+.preview-shell:fullscreen {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-radius: 0;
+  background: #09080b;
+}
+
+.preview-shell:fullscreen .preview-stage {
+  min-height: 0;
+}
+
+.preview-shell:fullscreen .preview-canvas {
+  max-height: calc(100vh - 150px);
+}
+
+.history {
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.history-head {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.history-head > div {
+  min-width: 0;
+}
+
+.history-head p {
+  font-size: .76rem;
+}
+
+.history-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 185px);
+  gap: .7rem;
+  margin-top: .9rem;
+  overflow-x: auto;
+  padding-bottom: .2rem;
+  scroll-snap-type: x proximity;
+}
+
+.history-card {
+  overflow: hidden;
+  border: 1px solid #302a36;
+  border-radius: .8rem;
+  background: #0c0a0e;
+  scroll-snap-align: start;
+}
+
+.history-image-wrap {
+  position: relative;
+}
+
+.history-image-wrap img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+  background: #050406;
+}
+
+.history-image-wrap span {
+  position: absolute;
+  top: .45rem;
+  left: .45rem;
+  padding: .18rem .38rem;
+  border-radius: 999px;
+  background: rgba(8,7,10,.76);
+  backdrop-filter: blur(8px);
+  color: #e8e1ed;
+  font-size: .62rem;
+  text-transform: capitalize;
+}
+
+.history-card-copy {
+  display: grid;
+  gap: .12rem;
+  padding: .65rem;
+}
+
+.history-card-copy > strong {
+  text-transform: capitalize;
+}
+
+.history-actions {
+  gap: .35rem;
+  margin-top: .45rem;
+}
+
+.history-actions a,
+.history-actions button {
+  flex: 1;
+  min-width: 0;
+  padding: .45rem .4rem;
+  border: 1px solid #39313f;
+  border-radius: .52rem;
+  background: #151219;
+  color: #d8d0de;
+  text-align: center;
+  text-decoration: none;
+  font-size: .68rem;
+}
+
+.empty-history {
+  display: grid;
+  justify-items: center;
+  gap: .25rem;
+  margin-top: .9rem;
+  padding: 2.3rem 1rem;
+  border: 1px dashed #3a323f;
+  border-radius: .8rem;
+  color: #c8bfd0;
+}
+
+.inspector {
+  display: grid;
+  gap: .8rem;
+}
+
+.side-card {
+  padding: .9rem;
+}
+
+.side-heading {
+  gap: .6rem;
+  align-items: flex-start;
+}
+
+.side-heading > div {
+  display: grid;
+  gap: .15rem;
+}
+
+.side-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: .55rem;
+  background: #20172a;
+  color: #b58aff;
+}
+
+.brand-current {
+  gap: .65rem;
+  margin-top: .9rem;
+  padding: .65rem;
+  border: 1px solid #332b39;
+  border-radius: .7rem;
+  background: #151219;
+}
+
+.brand-current > span:last-child {
+  display: grid;
+  gap: .06rem;
+  min-width: 0;
+}
+
+.brand-orb {
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: inset 0 0 18px rgba(255,255,255,.2);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .42rem;
+  margin-top: .65rem;
+}
+
+.swatches span {
+  aspect-ratio: 1.25;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: .5rem;
+}
+
+.tip-card {
+  border-color: #50336a;
+  background: linear-gradient(145deg, rgba(75,40,99,.2), #111014);
+}
+
+.tip-card .side-heading small {
+  line-height: 1.55;
+  color: #ad94bd;
+}
+
+.checklist {
+  display: grid;
+  gap: .55rem;
+  margin-top: .8rem;
+}
+
+.checklist span {
+  display: flex;
+  align-items: center;
+  gap: .48rem;
+  color: #8f8797;
+  font-size: .76rem;
+}
+
+.checklist i {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #242027;
+  color: #7c727f;
+  font-size: .68rem;
+  font-style: normal;
+}
+
+.checklist span.complete {
+  color: #cfc7d5;
+}
+
+.checklist span.complete i {
+  background: rgba(69,196,123,.16);
+  color: #57d889;
+}
+
+@media (max-width: 1320px) {
+  .workspace {
+    grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
+  }
+
+  .inspector {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-stack {
+    order: 1;
+  }
+
+  .controls {
+    order: 2;
+  }
+
+  .inspector {
+    order: 3;
+    grid-column: auto;
+  }
+
+  .preview-stage {
+    min-height: 500px;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-header {
+    display: grid;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .preview-toolbar {
+    align-items: flex-start;
+  }
+
+  .preview-tools {
+    flex-wrap: wrap;
+  }
+
+  .inspector {
+    grid-template-columns: 1fr;
+  }
+
+  .template-grid {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+    overflow-x: auto;
+  }
+
+  .format-grid,
+  .two {
+    grid-template-columns: 1fr;
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .preview-stage {
+    min-height: 420px;
+    padding: .8rem;
+  }
+}
+
+@media (max-width: 520px) {
+  h1 {
+    font-size: 2.35rem;
+  }
+
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .primary,
+  .secondary-button {
+    width: 100%;
+  }
+
+  .preview-toolbar {
+    display: grid;
+  }
+
+  .preview-tools {
+    justify-content: flex-start;
+  }
+
+  .preview-tools select {
+    flex: 1;
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .history-strip {
+    grid-auto-columns: minmax(145px, 72vw);
+  }
+}
 </style>
