@@ -98,7 +98,7 @@ const brands = [
 ]
 
 const selectedAsset = computed(() => data.value?.assets.find(asset => asset.id === sourceAssetId.value) || null)
-const selectedBrand = computed(() => brands.find(brand => brand.key === design.brandPreset) || brands[0])
+const selectedBrand = computed(() => brands.find(brand => brand.key === design.brandPreset) || brands[0]!)
 const filteredAssets = computed(() => {
   const q = sourceSearch.value.trim().toLowerCase()
   const assets = data.value?.assets || []
