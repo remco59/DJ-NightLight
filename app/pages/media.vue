@@ -18,9 +18,13 @@ const gallery = computed<MediaImage[]>(() => (content.value?.gallery ?? [])
 
 const selectedImage = ref<MediaImage | null>(null)
 
-const showreelStyle = computed(() => gallery.value[0]
+const showreelVisual = computed(() => content.value?.publicCopy.visuals.mediaShowreelImageUrl
+  ? { url: content.value.publicCopy.visuals.mediaShowreelImageUrl, alt: content.value.publicCopy.visuals.mediaShowreelAlt }
+  : gallery.value[0] || null)
+
+const showreelStyle = computed(() => showreelVisual.value
   ? {
-      backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.84), rgba(7,7,9,.26)), linear-gradient(0deg, rgba(7,7,9,.82), transparent 55%), url("${gallery.value[0].url}")`,
+      backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.84), rgba(7,7,9,.26)), linear-gradient(0deg, rgba(7,7,9,.82), transparent 55%), url("${showreelVisual.value.url}")`,
     }
   : undefined)
 
@@ -58,9 +62,7 @@ useSeoMeta({
         </div>
 
         <aside class="media-types" aria-label="Mediaformaten">
-          <span>Foto</span>
-          <span>Video</span>
-          <span>Showreel</span>
+          <span v-for="label in content.publicCopy.media.typeLabels" :key="label">{{ label }}</span>
         </aside>
       </header>
 
@@ -74,22 +76,22 @@ useSeoMeta({
         rel="noreferrer"
       >
         <div class="showreel-top">
-          <span>Featured · Showreel</span>
-          <span>Bekijk extern ↗</span>
+          <span>{{ content.publicCopy.media.showreelEyebrow }}</span>
+          <span>{{ content.publicCopy.media.showreelExternalLabel }}</span>
         </div>
         <div class="showreel-bottom">
           <span class="play" aria-hidden="true">▶</span>
           <div>
-            <strong>NightLight in beweging.</strong>
-            <p>Van eerste binnenkomst tot volle dansvloer.</p>
+            <strong>{{ content.publicCopy.media.showreelTitle }}</strong>
+            <p>{{ content.publicCopy.media.showreelBody }}</p>
           </div>
         </div>
       </a>
 
       <section v-if="gallery.length" class="gallery-section">
         <div class="section-heading">
-          <p class="eyebrow">Selectie</p>
-          <p>{{ gallery.length }} {{ gallery.length === 1 ? 'beeld' : 'beelden' }}</p>
+          <p class="eyebrow">{{ content.publicCopy.media.galleryEyebrow }}</p>
+          <p>{{ gallery.length }} {{ gallery.length === 1 ? content.publicCopy.media.imageSingular : content.publicCopy.media.imagePlural }}</p>
         </div>
 
         <div class="gallery">
@@ -115,21 +117,19 @@ useSeoMeta({
         </div>
 
         <div class="empty-copy">
-          <p class="eyebrow">Media library</p>
-          <h2>De beelden<br>komen eraan.</h2>
-          <p>Foto's, clips en showreels verschijnen hier zodra de eerste NightLight-selectie vanuit het beheer is gepubliceerd.</p>
+          <p class="eyebrow">{{ content.publicCopy.media.emptyEyebrow }}</p>
+          <h2>{{ content.publicCopy.media.emptyTitle }}</h2>
+          <p>{{ content.publicCopy.media.emptyBody }}</p>
         </div>
 
         <div class="empty-meta">
-          <span>01 · Foto</span>
-          <span>02 · Video</span>
-          <span>03 · Showreel</span>
+          <span v-for="label in content.publicCopy.media.emptyMeta" :key="label">{{ label }}</span>
         </div>
       </section>
     </div>
 
     <div v-if="selectedImage" class="lightbox" role="dialog" aria-modal="true" aria-label="Afbeelding bekijken" @click.self="closeImage">
-      <button type="button" class="lightbox-close" aria-label="Sluit afbeelding" @click="closeImage">Sluit ×</button>
+      <button type="button" class="lightbox-close" :aria-label="content.publicCopy.media.closeLabel" @click="closeImage">{{ content.publicCopy.media.closeLabel }} ×</button>
       <figure>
         <img :src="selectedImage.url" :alt="selectedImage.alt">
         <figcaption>{{ selectedImage.alt }}</figcaption>
@@ -145,7 +145,7 @@ useSeoMeta({
 
 .gallery-section{margin-top:clamp(6rem,10vw,10rem)}.section-heading{display:flex;justify-content:space-between;align-items:end;gap:2rem;margin-bottom:1.2rem}.section-heading>p:last-child{margin:0;color:#716b77;font-size:.78rem}.gallery{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-flow:dense;gap:.85rem}.gallery-item{position:relative;grid-column:span 5;min-height:29rem;padding:0;overflow:hidden;border:0;border-radius:1rem;background:#111014;color:#fff;text-align:left;cursor:zoom-in}.gallery-item:nth-child(4n+1){grid-column:span 7;min-height:39rem}.gallery-item:nth-child(4n+4){grid-column:span 7;min-height:33rem}.gallery-item img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .65s cubic-bezier(.2,.7,.2,1),filter .4s ease}.gallery-item::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,7,9,.78),transparent 48%);opacity:.75;transition:opacity .3s ease}.gallery-item:hover img{transform:scale(1.025);filter:saturate(1.08)}.gallery-item:hover::after{opacity:1}.image-index,.image-caption{position:absolute;z-index:1;bottom:1rem}.image-index{left:1rem;color:#aaa4b0;font-size:.68rem}.image-caption{right:1rem;left:4rem;color:#e2dde6;font-size:.8rem;text-align:right;opacity:0;transform:translateY(.35rem);transition:opacity .25s ease,transform .25s ease}.gallery-item:hover .image-caption,.gallery-item:focus-visible .image-caption{opacity:1;transform:none}
 
-.empty-media{position:relative;display:grid;min-height:min(67vh,47rem);align-content:end;margin-top:clamp(4rem,7vw,7rem);padding:clamp(1.5rem,4vw,3.5rem);overflow:hidden;border-top:1px solid #29242e;border-bottom:1px solid #29242e;background:linear-gradient(180deg,rgba(13,11,16,.2),rgba(13,11,16,.78))}.empty-glow{position:absolute;width:38rem;height:38rem;right:8%;top:-10rem;border-radius:50%;background:radial-gradient(circle,rgba(111,67,220,.26),transparent 65%);filter:blur(10px)}.visualizer{position:absolute;inset:16% 5% auto;display:flex;height:36%;align-items:center;justify-content:center;gap:clamp(.18rem,.7vw,.7rem);opacity:.22}.visualizer i{width:min(1.4vw,.8rem);height:calc(8% + (var(--bar) * 4%));max-height:100%;border-radius:999px;background:linear-gradient(180deg,#e4dafe,#6d46be);transform:scaleY(calc(.35 + (var(--bar) / 24)));transform-origin:center}.visualizer i:nth-child(2n){transform:scaleY(.48)}.visualizer i:nth-child(3n){transform:scaleY(.86)}.empty-copy,.empty-meta{position:relative;z-index:1}.empty-copy h2{margin:.7rem 0 1.2rem;font-size:clamp(3.4rem,7vw,7rem);line-height:.88;letter-spacing:-.07em}.empty-copy>p:last-child{max-width:37rem;margin:0;color:#9a94a0;line-height:1.7}.empty-meta{display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:2.5rem;color:#6f6975;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
+.empty-media{position:relative;display:grid;min-height:min(67vh,47rem);align-content:end;margin-top:clamp(4rem,7vw,7rem);padding:clamp(1.5rem,4vw,3.5rem);overflow:hidden;border-top:1px solid #29242e;border-bottom:1px solid #29242e;background:linear-gradient(180deg,rgba(13,11,16,.2),rgba(13,11,16,.78))}.empty-glow{position:absolute;width:38rem;height:38rem;right:8%;top:-10rem;border-radius:50%;background:radial-gradient(circle,rgba(111,67,220,.26),transparent 65%);filter:blur(10px)}.visualizer{position:absolute;inset:16% 5% auto;display:flex;height:36%;align-items:center;justify-content:center;gap:clamp(.18rem,.7vw,.7rem);opacity:.22}.visualizer i{width:min(1.4vw,.8rem);height:calc(8% + (var(--bar) * 4%));max-height:100%;border-radius:999px;background:linear-gradient(180deg,#e4dafe,#6d46be);transform:scaleY(calc(.35 + (var(--bar) / 24)));transform-origin:center}.visualizer i:nth-child(2n){transform:scaleY(.48)}.visualizer i:nth-child(3n){transform:scaleY(.86)}.empty-copy,.empty-meta{position:relative;z-index:1}.empty-copy h2{margin:.7rem 0 1.2rem;white-space:pre-line;font-size:clamp(3.4rem,7vw,7rem);line-height:.88;letter-spacing:-.07em}.empty-copy>p:last-child{max-width:37rem;margin:0;color:#9a94a0;line-height:1.7}.empty-meta{display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:2.5rem;color:#6f6975;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
 
 .lightbox{position:fixed;z-index:100;inset:0;display:grid;place-items:center;padding:clamp(1rem,4vw,4rem);background:rgba(5,4,7,.94);backdrop-filter:blur(18px)}.lightbox-close{position:absolute;z-index:2;top:1.2rem;right:1.2rem;border:1px solid #3b3540;border-radius:999px;padding:.65rem .9rem;background:#111014;color:#fff;cursor:pointer}.lightbox figure{display:grid;max-width:min(90vw,90rem);max-height:88vh;margin:0;place-items:center}.lightbox img{display:block;max-width:100%;max-height:80vh;border-radius:.7rem;object-fit:contain}.lightbox figcaption{margin-top:.8rem;color:#9c96a2;font-size:.78rem;text-align:center}
 
