@@ -39,6 +39,28 @@ describe('website content schema', () => {
     const parsed = siteContentInputSchema.parse(base)
     expect(parsed.heroImageUrl).toBeNull()
     expect(parsed.contactEmail).toBeNull()
+    expect(parsed.contactPhone).toBeNull()
+  })
+
+  it('accepts API-shaped null values for optional fields', () => {
+    const parsed = siteContentInputSchema.parse({
+      ...base,
+      heroImageUrl: null,
+      showreelUrl: null,
+      contactEmail: null,
+      contactPhone: null,
+      instagramUrl: null,
+      spotifyUrl: null,
+      seoImageUrl: null,
+    })
+
+    expect(parsed.heroImageUrl).toBeNull()
+    expect(parsed.showreelUrl).toBeNull()
+    expect(parsed.contactEmail).toBeNull()
+    expect(parsed.contactPhone).toBeNull()
+    expect(parsed.instagramUrl).toBeNull()
+    expect(parsed.spotifyUrl).toBeNull()
+    expect(parsed.seoImageUrl).toBeNull()
   })
 
   it('accepts NightLight media URLs for website image fields', () => {
