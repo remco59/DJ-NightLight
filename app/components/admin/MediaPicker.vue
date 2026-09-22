@@ -215,7 +215,7 @@ async function upload() {
               </label>
               <label>
                 <span>Alt text</span>
-                <textarea v-model="uploadAlt" rows="3" placeholder="Describe the image"></textarea>
+                <textarea v-model="uploadAlt" rows="3" placeholder="Describe the image" />
               </label>
               <p v-if="uploadMessage" class="upload-message">{{ uploadMessage }}</p>
               <button
