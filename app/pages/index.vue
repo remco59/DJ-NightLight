@@ -4,6 +4,30 @@ definePageMeta({ layout: 'public' })
 const { data } = await useSiteContent()
 const content = computed(() => data.value?.content)
 
+type RecentGig = {
+  title: string
+  description: string | null
+  startsAt: string
+  venue: string | null
+  city: string | null
+}
+
+const { data: recentGigData } = await useFetch<{ gigs: RecentGig[] }>('/api/public/recent-gigs', {
+  key: 'home-recent-gigs',
+})
+
+function recentGigDate(value: string) {
+  return new Intl.DateTimeFormat('nl-NL', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value)).replace('.', '')
+}
+
+function recentGigLocation(gig: RecentGig) {
+  return [gig.venue, gig.city].filter(Boolean).join(' · ')
+}
+
 const heroFallback = {
   url: 'https://images.unsplash.com/photo-1763630055101-2f6d6305dc38?auto=format&fit=crop&w=2200&q=85',
   alt: 'DJ achter de booth met dansend publiek',
@@ -121,6 +145,28 @@ useSeoMeta({
       </div>
     </section>
 
+    <section v-if="recentGigData?.gigs.length" class="recent-nights public-container" aria-labelledby="recent-nights-title">
+      <div class="recent-nights-intro">
+        <p class="eyebrow">Recent gedraaid</p>
+        <h2 id="recent-nights-title">Een paar recente openbare boekingen.</h2>
+        <p>Alleen boekingen die je zelf als openbaar markeert worden hier getoond.</p>
+      </div>
+
+      <div class="recent-nights-list">
+        <article v-for="(gig,index) in recentGigData.gigs" :key="`${gig.startsAt}-${gig.title}`" class="recent-night">
+          <div class="recent-night-meta">
+            <span>0{{ index + 1 }}</span>
+            <time :datetime="gig.startsAt">{{ recentGigDate(gig.startsAt) }}</time>
+          </div>
+          <div>
+            <p v-if="recentGigLocation(gig)" class="recent-night-location">{{ recentGigLocation(gig) }}</p>
+            <h3>{{ gig.title }}</h3>
+            <p v-if="gig.description" class="recent-night-description">{{ gig.description }}</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section class="proof-shell">
       <div class="proof public-container">
         <p class="eyebrow">{{ content.publicCopy.home.proofEyebrow }}</p>
@@ -157,11 +203,13 @@ useSeoMeta({
 
 .services-shell{padding:1.5rem 0 6rem}.services-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;margin-bottom:1.5rem}.services-heading>p:last-child{max-width:30rem;margin:0;color:#8f8995;font-size:.94rem;line-height:1.55}.services{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem}.services article{position:relative;min-height:27rem;overflow:hidden;border-radius:1rem;background:#111014}.services article::after{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.08);border-radius:inherit;pointer-events:none}.services img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1)}.services article:hover img{transform:scale(1.035)}.service-overlay{position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,7,9,.94) 4%,rgba(7,7,9,.52) 48%,rgba(7,7,9,.08) 78%)}.service-copy{position:absolute;z-index:1;left:1.4rem;right:1.4rem;bottom:1.5rem}.service-copy span{color:#aaa3af;font-size:.68rem}.service-copy h3{margin:2.6rem 0 .65rem;font-size:clamp(1.5rem,2vw,2.05rem);line-height:1;letter-spacing:-.04em}.service-copy p{margin:0;color:#b0aab5;font-size:.94rem;line-height:1.55}
 
+.recent-nights{display:grid;grid-template-columns:minmax(16rem,.58fr) minmax(0,1.2fr);gap:clamp(3rem,8vw,8rem);padding:3rem 0 7rem}.recent-nights-intro{position:sticky;top:7rem;align-self:start}.recent-nights-intro h2{margin:.65rem 0 1rem;font-size:clamp(2rem,3.4vw,3.4rem);line-height:1;letter-spacing:-.05em}.recent-nights-intro>p:last-child{max-width:28rem;margin:0;color:#8e8893;line-height:1.65}.recent-nights-list{border-top:1px solid #2a2630}.recent-night{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:clamp(1rem,3vw,2.5rem);padding:2rem 0 2.2rem;border-bottom:1px solid #2a2630}.recent-night-meta{display:flex;flex-direction:column;gap:.45rem;color:#716b77;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.recent-night-meta span{color:#4f4a54}.recent-night-location{margin:0 0 .45rem;color:#817a87;font-size:.76rem;letter-spacing:.05em;text-transform:uppercase}.recent-night h3{margin:0;font-size:clamp(1.55rem,2.7vw,2.65rem);line-height:1;letter-spacing:-.045em}.recent-night-description{max-width:46rem;margin:.75rem 0 0;color:#aaa4af;line-height:1.65}
+
 .proof-shell{border-top:1px solid #252129;border-bottom:1px solid #1a181d;background:#09090b}.proof{display:grid;grid-template-columns:minmax(10rem,.35fr) minmax(0,1fr);gap:clamp(2rem,8vw,8rem);align-items:start;padding:5.75rem 0 6.25rem}.proof>.eyebrow{margin-top:.45rem}.proof-main{max-width:62rem}.proof blockquote{max-width:25ch;margin:0 0 2.75rem;font-size:clamp(2rem,3.6vw,3.55rem);line-height:1.04;letter-spacing:-.045em;font-weight:800}.proof-tags{display:flex;gap:.65rem;flex-wrap:wrap}.proof-tags span{padding:.62rem .85rem;border:1px solid #302b34;border-radius:999px;color:#aaa4af;font-size:.78rem}
 
 .cta{padding:6.5rem 0;background:radial-gradient(circle at 76% 50%,rgba(100,54,218,.21),transparent 31%),linear-gradient(180deg,#09080b,#08080a)}.cta-inner{display:grid;grid-template-columns:1fr .68fr;gap:clamp(2rem,8vw,8rem);align-items:end}.cta h2{margin-bottom:0}.cta-copy p{max-width:38rem;color:#aaa4af;line-height:1.7}.cta-copy .public-button{margin-top:1rem}
 
-@media(max-width:900px){.statement{grid-template-columns:minmax(14rem,.7fr) minmax(0,1fr);gap:2.5rem;padding:5.5rem 0}.statement-copy{padding-top:1rem}.proof{grid-template-columns:1fr;gap:1.25rem}.services{grid-template-columns:1fr 1fr}.services article:last-child{grid-column:1/-1;min-height:25rem}.cta-inner{grid-template-columns:1fr}.hero-caption{display:none}}
-@media(max-width:700px){.hero{min-height:88svh;padding:7rem 0 3.25rem;background-position:64% center}.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,7,9,.8),rgba(7,7,9,.2))}.hero-inner{z-index:2}.hero h1{font-size:clamp(3.25rem,16vw,5.8rem)}.hero-actions{align-items:stretch;flex-direction:column;max-width:18rem}.scroll-cue{display:none}.visual-beat{padding-top:3.75rem}.visual-heading,.services-heading{display:block}.visual-heading>p:last-child,.services-heading>p:last-child{margin-top:.7rem}.visual-beat img{height:52vh}.visual-beat figcaption{display:block;left:1.2rem;right:1.2rem;bottom:1.2rem}.visual-beat figcaption strong{display:block;max-width:18ch;margin-top:.5rem;text-align:left}.statement{grid-template-columns:1fr;padding:4.75rem 0}.statement-copy{grid-column:1;grid-row:1;padding-top:0}.statement-visual{grid-column:1;grid-row:2;max-width:80%;margin-left:auto}.statement-visual img{aspect-ratio:4/5}.services-shell{padding-bottom:4rem}.services{grid-template-columns:1fr}.services article,.services article:last-child{grid-column:auto;min-height:24rem}.proof{padding:4rem 0 4.75rem}.proof blockquote{margin-bottom:2rem}.cta{padding:4.75rem 0}}
+@media(max-width:900px){.statement{grid-template-columns:minmax(14rem,.7fr) minmax(0,1fr);gap:2.5rem;padding:5.5rem 0}.statement-copy{padding-top:1rem}.recent-nights{grid-template-columns:1fr;gap:2rem;padding-bottom:5.5rem}.recent-nights-intro{position:static;max-width:38rem}.proof{grid-template-columns:1fr;gap:1.25rem}.services{grid-template-columns:1fr 1fr}.services article:last-child{grid-column:1/-1;min-height:25rem}.cta-inner{grid-template-columns:1fr}.hero-caption{display:none}}
+@media(max-width:700px){.hero{min-height:88svh;padding:7rem 0 3.25rem;background-position:64% center}.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,7,9,.8),rgba(7,7,9,.2))}.hero-inner{z-index:2}.hero h1{font-size:clamp(3.25rem,16vw,5.8rem)}.hero-actions{align-items:stretch;flex-direction:column;max-width:18rem}.scroll-cue{display:none}.visual-beat{padding-top:3.75rem}.visual-heading,.services-heading{display:block}.visual-heading>p:last-child,.services-heading>p:last-child{margin-top:.7rem}.visual-beat img{height:52vh}.visual-beat figcaption{display:block;left:1.2rem;right:1.2rem;bottom:1.2rem}.visual-beat figcaption strong{display:block;max-width:18ch;margin-top:.5rem;text-align:left}.statement{grid-template-columns:1fr;padding:4.75rem 0}.statement-copy{grid-column:1;grid-row:1;padding-top:0}.statement-visual{grid-column:1;grid-row:2;max-width:80%;margin-left:auto}.statement-visual img{aspect-ratio:4/5}.services-shell{padding-bottom:4rem}.recent-night{grid-template-columns:1fr;gap:.9rem}.recent-night-meta{flex-direction:row;justify-content:space-between}.recent-nights{padding-top:1rem}.services{grid-template-columns:1fr}.services article,.services article:last-child{grid-column:auto;min-height:24rem}.proof{padding:4rem 0 4.75rem}.proof blockquote{margin-bottom:2rem}.cta{padding:4.75rem 0}}
 @media(prefers-reduced-motion:reduce){.services img{transition:none}}
 </style>
