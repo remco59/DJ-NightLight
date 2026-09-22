@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import type { InvoiceSnapshot, VatMode } from '../../shared/invoice'
 import type { QuestionnaireField } from '../../shared/questionnaire'
+import type { SitePublicCopy } from '../../shared/schemas/site-content'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
 export const clientType = pgEnum('client_type', ['person', 'company'])
@@ -420,7 +421,7 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-export type SiteService = { title: string, body: string }
+export type SiteService = { title: string, body: string, imageUrl: string | null, imageAlt: string }
 export type SiteGalleryItem = { url: string, alt: string }
 
 export const siteContent = pgTable('site_content', {
@@ -453,6 +454,7 @@ export const siteContent = pgTable('site_content', {
   seoImageUrl: text('seo_image_url'),
   services: jsonb('services').$type<SiteService[]>().default([]).notNull(),
   gallery: jsonb('gallery').$type<SiteGalleryItem[]>().default([]).notNull(),
+  publicCopy: jsonb('public_copy').$type<SitePublicCopy>().default({} as SitePublicCopy).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 

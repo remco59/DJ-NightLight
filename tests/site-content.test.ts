@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { siteContentInputSchema } from '../shared/schemas/site-content'
+import { defaultPublicCopy } from '../server/utils/site-content-defaults'
 
 const base = {
   brandName: 'DJ NightLight',
@@ -30,6 +31,7 @@ const base = {
   seoImageUrl: '',
   services: [],
   gallery: [],
+  publicCopy: defaultPublicCopy,
 }
 
 const mediaUrl = '/api/media/123e4567-e89b-42d3-a456-426614174000'
@@ -69,11 +71,13 @@ describe('website content schema', () => {
       heroImageUrl: mediaUrl,
       seoImageUrl: mediaUrl,
       gallery: [{ url: mediaUrl, alt: 'NightLight behind the booth' }],
+      publicCopy: { ...defaultPublicCopy, visuals: { ...defaultPublicCopy.visuals, homeFeatureImageUrl: mediaUrl } },
     })
 
     expect(parsed.heroImageUrl).toBe(mediaUrl)
     expect(parsed.seoImageUrl).toBe(mediaUrl)
     expect(parsed.gallery[0]?.url).toBe(mediaUrl)
+    expect(parsed.publicCopy.visuals.homeFeatureImageUrl).toBe(mediaUrl)
   })
 
   it('keeps absolute external image URLs valid', () => {

@@ -1,4 +1,6 @@
-export type SiteService = { title: string, body: string }
+import type { SitePublicCopy } from '../../shared/schemas/site-content'
+
+export type SiteService = { title: string, body: string, imageUrl: string | null, imageAlt: string }
 export type SiteGalleryItem = { url: string, alt: string }
 
 export type PublicSiteContent = {
@@ -30,4 +32,5 @@ export type PublicSiteContent = {
   seoImageUrl: string | null
   services: SiteService[]
   gallery: SiteGalleryItem[]
+  publicCopy: SitePublicCopy
 }
