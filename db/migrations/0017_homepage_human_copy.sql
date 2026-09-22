@@ -23,7 +23,8 @@ SET
           jsonb_set(
             jsonb_set(
               jsonb_set(
-                "public_copy",
+                jsonb_set(
+                  "public_copy",
                 '{home,visualBody}',
                 CASE WHEN "public_copy" #>> '{home,visualBody}' = 'De avond in beeld — donker, dichtbij en midden in de energie.'
                   THEN to_jsonb('Een paar momenten van echte avonden met NightLight achter de booth.'::text)
@@ -54,10 +55,16 @@ SET
           ELSE COALESCE("public_copy" #> '{home,servicesBody}', 'null'::jsonb) END,
         true
       ),
-      '{home,proofQuote}',
-      CASE WHEN "public_copy" #>> '{home,proofQuote}' = 'Niet vooraf bepalen waar de avond heen moet. Eerst voelen waar de zaal klaar voor is.'
-        THEN to_jsonb('Ik werk niet met één vaste setlist. Ik bereid de avond voor, maar beslis in de zaal welke richting werkt.'::text)
-        ELSE COALESCE("public_copy" #> '{home,proofQuote}', 'null'::jsonb) END,
+        '{home,proofQuote}',
+        CASE WHEN "public_copy" #>> '{home,proofQuote}' = 'Niet vooraf bepalen waar de avond heen moet. Eerst voelen waar de zaal klaar voor is.'
+          THEN to_jsonb('Ik werk niet met één vaste setlist. Ik bereid de avond voor, maar beslis in de zaal welke richting werkt.'::text)
+          ELSE COALESCE("public_copy" #> '{home,proofQuote}', 'null'::jsonb) END,
+        true
+      ),
+      '{home,proofEyebrow}',
+      CASE WHEN "public_copy" #>> '{home,proofEyebrow}' = 'NightLight'
+        THEN to_jsonb('Zo draai ik'::text)
+        ELSE COALESCE("public_copy" #> '{home,proofEyebrow}', 'null'::jsonb) END,
       true
     ),
   "updated_at" = now()
