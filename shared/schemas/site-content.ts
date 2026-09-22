@@ -145,6 +145,12 @@ export const sitePublicCopySchema = z.object({
     footerBody: copy(600),
     footerCta: copy(160),
   }),
+  landing: z.object({
+    asideEyebrow: copy(160),
+    asideTitle: copy(300),
+    asideBody: copy(800),
+    asideCta: copy(160),
+  }),
   booking: z.object({
     successEyebrow: copy(120),
     successTitle: copy(300),
