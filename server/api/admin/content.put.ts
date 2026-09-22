@@ -5,8 +5,19 @@ import { requireStaff } from '../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const input = await readValidatedBody(event, siteContentInputSchema.parse)
 
+  const body = await readBody(event)
+  const parsed = siteContentInputSchema.safeParse(body)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const field = issue?.path.length ? issue.path.join('.') : 'website content'
+    throw createError({
+      statusCode: 422,
+      statusMessage: issue ? `${field}: ${issue.message}` : 'Website content is invalid',
+    })
+  }
+
+  const input = parsed.data
   const [content] = await db
     .insert(siteContent)
     .values({ key: 'default', ...input, updatedAt: new Date() })
