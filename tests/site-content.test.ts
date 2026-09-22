@@ -44,6 +44,21 @@ describe('website content schema', () => {
     expect(parsed.contactPhone).toBeNull()
   })
 
+  it('allows an empty homepage visual supporting text', () => {
+    const parsed = siteContentInputSchema.parse({
+      ...base,
+      publicCopy: {
+        ...defaultPublicCopy,
+        home: {
+          ...defaultPublicCopy.home,
+          visualBody: '',
+        },
+      },
+    })
+
+    expect(parsed.publicCopy.home.visualBody).toBe('')
+  })
+
   it('accepts API-shaped null values for optional fields', () => {
     const parsed = siteContentInputSchema.parse({
       ...base,
