@@ -537,6 +537,16 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
             </details>
 
             <details class="copy-group">
+              <summary>Landing-page shared panel</summary>
+              <div class="fields copy-fields">
+                <label>Eyebrow<input v-model="form.publicCopy.landing.asideEyebrow" required></label>
+                <label>Title<input v-model="form.publicCopy.landing.asideTitle" required></label>
+                <label>Body<textarea v-model="form.publicCopy.landing.asideBody" rows="4" required /></label>
+                <label>CTA<input v-model="form.publicCopy.landing.asideCta" required></label>
+              </div>
+            </details>
+
+            <details class="copy-group">
               <summary>Booking form details</summary>
               <div class="fields copy-fields">
                 <label>Success eyebrow<input v-model="form.publicCopy.booking.successEyebrow" required></label>
