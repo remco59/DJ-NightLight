@@ -30,11 +30,19 @@ const heroVisual = computed(() => content.value?.heroImageUrl
   ? { url: content.value.heroImageUrl, alt: 'DJ NightLight tijdens een optreden' }
   : uploadedVisuals.value[0] || heroFallback)
 
-const featureVisual = computed(() => uploadedVisuals.value[1] || uploadedVisuals.value[0] || crowdFallback)
+const featureVisual = computed(() => content.value?.publicCopy.visuals.homeFeatureImageUrl
+  ? { url: content.value.publicCopy.visuals.homeFeatureImageUrl, alt: content.value.publicCopy.visuals.homeFeatureAlt }
+  : uploadedVisuals.value[1] || uploadedVisuals.value[0] || crowdFallback)
+
+const aboutVisual = computed(() => content.value?.publicCopy.visuals.homeAboutImageUrl
+  ? { url: content.value.publicCopy.visuals.homeAboutImageUrl, alt: content.value.publicCopy.visuals.homeAboutAlt }
+  : heroVisual.value)
 
 const serviceVisuals = computed(() => {
   const sources = uploadedVisuals.value.length >= 3 ? uploadedVisuals.value : fallbackVisuals.slice(1)
-  return (content.value?.services ?? []).map((_, index) => sources[index % sources.length] || clubFallback)
+  return (content.value?.services ?? []).map((service, index) => service.imageUrl
+    ? { url: service.imageUrl, alt: service.imageAlt || service.title }
+    : sources[index % sources.length] || clubFallback)
 })
 
 const heroStyle = computed(() => ({
@@ -60,23 +68,23 @@ useSeoMeta({
         <p class="hero-copy">{{ content.heroBody }}</p>
         <div class="hero-actions">
           <NuxtLink class="public-button" to="/boeken">{{ content.heroCtaLabel }}</NuxtLink>
-          <NuxtLink class="public-button secondary" to="/media">Bekijk media</NuxtLink>
+          <NuxtLink class="public-button secondary" to="/media">{{ content.publicCopy.home.secondaryCta }}</NuxtLink>
         </div>
       </div>
-      <p class="hero-caption">NightLight · van achtergrond naar dansvloer</p>
-      <div class="scroll-cue">Scroll ↓</div>
+      <p class="hero-caption">{{ content.publicCopy.home.heroCaption }}</p>
+      <div class="scroll-cue">{{ content.publicCopy.home.scrollLabel }}</div>
     </section>
 
-    <section class="visual-beat public-container" aria-label="NightLight in de zaal">
+    <section class="visual-beat public-container" :aria-label="content.publicCopy.home.visualEyebrow">
       <div class="visual-heading">
-        <p class="eyebrow">NightLight in de zaal</p>
-        <p>De avond in beeld — donker, dichtbij en midden in de energie.</p>
+        <p class="eyebrow">{{ content.publicCopy.home.visualEyebrow }}</p>
+        <p>{{ content.publicCopy.home.visualBody }}</p>
       </div>
       <figure>
         <img :src="featureVisual.url" :alt="featureVisual.alt" loading="lazy">
         <figcaption>
           <span>01</span>
-          <strong>Lees de ruimte. Bouw het moment.</strong>
+          <strong>{{ content.publicCopy.home.visualCaption }}</strong>
         </figcaption>
       </figure>
     </section>
@@ -86,18 +94,18 @@ useSeoMeta({
         <p class="eyebrow">{{ content.aboutEyebrow }}</p>
         <h2>{{ content.aboutTitle }}</h2>
         <p>{{ content.aboutBody }}</p>
-        <NuxtLink to="/about">Meer over NightLight →</NuxtLink>
+        <NuxtLink to="/about">{{ content.publicCopy.home.aboutCta }}</NuxtLink>
       </div>
       <figure class="statement-visual">
-        <img :src="heroVisual.url" :alt="heroVisual.alt" loading="lazy">
-        <figcaption>Geen vaste setlist. Wel een duidelijke lijn door de avond.</figcaption>
+        <img :src="aboutVisual.url" :alt="aboutVisual.alt" loading="lazy">
+        <figcaption>{{ content.publicCopy.home.aboutImageCaption }}</figcaption>
       </figure>
     </section>
 
     <section class="services-shell">
       <div class="public-container services-heading">
-        <p class="eyebrow">Voor elke zaal een andere energie</p>
-        <p>De muziek verandert met het publiek. De aandacht voor opbouw blijft hetzelfde.</p>
+        <p class="eyebrow">{{ content.publicCopy.home.servicesEyebrow }}</p>
+        <p>{{ content.publicCopy.home.servicesBody }}</p>
       </div>
 
       <div class="services public-container">
@@ -114,14 +122,10 @@ useSeoMeta({
     </section>
 
     <section class="proof public-container">
-      <p class="eyebrow">NightLight</p>
-      <blockquote>“Niet vooraf bepalen waar de avond heen moet. Eerst voelen waar de zaal klaar voor is.”</blockquote>
+      <p class="eyebrow">{{ content.publicCopy.home.proofEyebrow }}</p>
+      <blockquote>“{{ content.publicCopy.home.proofQuote }}”</blockquote>
       <div class="proof-tags" aria-label="Soorten optredens">
-        <span>Bruiloften</span>
-        <span>Clubs</span>
-        <span>Studentenfeesten</span>
-        <span>Bedrijfsfeesten</span>
-        <span>Privé-events</span>
+        <span v-for="tag in content.publicCopy.home.proofTags" :key="tag">{{ tag }}</span>
       </div>
     </section>
 
@@ -133,7 +137,7 @@ useSeoMeta({
         </div>
         <div class="cta-copy">
           <p>{{ content.bookingBody }}</p>
-          <NuxtLink class="public-button" to="/boeken">Vertel over je feest</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.home.bookingCta }}</NuxtLink>
         </div>
       </div>
     </section>
