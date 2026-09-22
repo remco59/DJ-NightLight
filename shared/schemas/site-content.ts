@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-const optionalUrl = z.string().trim().max(2000).optional().transform((value, ctx) => {
+const nullableString = (maxLength: number) => z.preprocess(
+  value => value ?? '',
+  z.string().trim().max(maxLength),
+)
+
+const optionalUrl = nullableString(2000).transform((value, ctx) => {
   if (!value) return null
   const parsed = z.url().safeParse(value)
   if (!parsed.success) {
@@ -17,7 +22,7 @@ const siteImageUrl = z.string().trim().max(2000).refine(
   { message: 'Enter a valid image URL' },
 )
 
-const optionalImageUrl = z.string().trim().max(2000).optional().transform((value, ctx) => {
+const optionalImageUrl = nullableString(2000).transform((value, ctx) => {
   if (!value) return null
   const parsed = siteImageUrl.safeParse(value)
   if (!parsed.success) {
@@ -27,7 +32,7 @@ const optionalImageUrl = z.string().trim().max(2000).optional().transform((value
   return parsed.data
 })
 
-const optionalEmail = z.string().trim().max(320).optional().transform((value, ctx) => {
+const optionalEmail = nullableString(320).transform((value, ctx) => {
   if (!value) return null
   const parsed = z.email().safeParse(value)
   if (!parsed.success) {
@@ -36,6 +41,8 @@ const optionalEmail = z.string().trim().max(320).optional().transform((value, ct
   }
   return parsed.data.toLowerCase()
 })
+
+const optionalPhone = nullableString(64).transform(value => value || null)
 
 export const siteServiceSchema = z.object({
   title: z.string().trim().min(1).max(160),
@@ -68,7 +75,7 @@ export const siteContentInputSchema = z.object({
   bookingTitle: z.string().trim().min(1).max(300),
   bookingBody: z.string().trim().min(1).max(4000),
   contactEmail: optionalEmail,
-  contactPhone: z.string().trim().max(64).optional().transform(value => value || null),
+  contactPhone: optionalPhone,
   instagramUrl: optionalUrl,
   spotifyUrl: optionalUrl,
   seoTitle: z.string().trim().min(1).max(180),
