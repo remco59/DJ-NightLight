@@ -44,6 +44,7 @@ const optionalEmail = nullableString(320).transform((value, ctx) => {
 
 const optionalPhone = nullableString(64).transform(value => value || null)
 const copy = (max = 2000) => z.string().trim().min(1).max(max)
+const optionalCopy = (max = 2000) => z.string().trim().max(max)
 const copyList = (maxItems = 12) => z.array(copy(240)).min(1).max(maxItems)
 
 export const siteServiceSchema = z.object({
@@ -84,7 +85,7 @@ export const sitePublicCopySchema = z.object({
     heroCaption: copy(240),
     scrollLabel: copy(80),
     visualEyebrow: copy(160),
-    visualBody: copy(500),
+    visualBody: optionalCopy(500),
     visualCaption: copy(240),
     aboutCta: copy(160),
     aboutImageCaption: copy(300),
