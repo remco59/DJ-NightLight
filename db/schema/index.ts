@@ -454,7 +454,7 @@ export const siteContent = pgTable('site_content', {
   seoImageUrl: text('seo_image_url'),
   services: jsonb('services').$type<SiteService[]>().default([]).notNull(),
   gallery: jsonb('gallery').$type<SiteGalleryItem[]>().default([]).notNull(),
-  publicCopy: jsonb('public_copy').$type<SitePublicCopy>().default({}).notNull(),
+  publicCopy: jsonb('public_copy').$type<SitePublicCopy>().default({} as SitePublicCopy).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
