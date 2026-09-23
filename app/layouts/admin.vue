@@ -216,9 +216,18 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  .post-editor-route {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
   .post-editor-route .mobile-header { display: none; }
   .post-editor-route .admin-main {
-    min-height: 100dvh;
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
     padding: .5rem .6rem 0;
   }
   .backdrop {

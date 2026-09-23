@@ -683,8 +683,8 @@ function formatDate(value: string) {
           >
             <span class="step-number">3</span>
             <span class="section-title">
-              <strong>Copy</strong>
-              <small>Add text and brand details</small>
+              <strong class="mobile-labelable" data-mobile-label="Tekst">Copy</strong>
+              <small class="mobile-labelable" data-mobile-label="Bewerk de tekst op je post.">Add text and brand details</small>
             </span>
             <span class="chevron">{{ isSectionOpen(3) ? '⌃' : '⌄' }}</span>
           </button>
@@ -692,7 +692,7 @@ function formatDate(value: string) {
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
             <div class="field">
               <div class="label-row">
-                <span>Headline</span>
+                <span class="mobile-labelable" data-mobile-label="Titel">Headline</span>
                 <span class="field-actions">
                   <small>{{ design.headline.length }}/180</small>
                   <label class="field-toggle">
@@ -706,7 +706,7 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Subline</span>
+                <span class="mobile-labelable" data-mobile-label="Subtitel">Subline</span>
                 <span class="field-actions">
                   <small>{{ design.subline.length }}/260</small>
                   <label class="field-toggle">
@@ -721,7 +721,7 @@ function formatDate(value: string) {
             <div class="two">
               <div class="field">
                 <div class="label-row">
-                  <span>Date</span>
+                  <span class="mobile-labelable" data-mobile-label="Datum">Date</span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.date" type="checkbox">
                     <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
@@ -732,7 +732,7 @@ function formatDate(value: string) {
 
               <div class="field">
                 <div class="label-row">
-                  <span>Time</span>
+                  <span class="mobile-labelable" data-mobile-label="Tijd">Time</span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.time" type="checkbox">
                     <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
@@ -744,7 +744,7 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Location</span>
+                <span class="mobile-labelable" data-mobile-label="Locatie">Location</span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.location" type="checkbox">
                   <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
@@ -2270,11 +2270,15 @@ input[type='range'] {
 
 @media (max-width: 720px) {
   .page {
-    --mobile-editor-header-height: 3.6rem;
-    --mobile-editor-tabs-height: 4.65rem;
-    max-width: none;
-    padding-bottom: env(safe-area-inset-bottom);
+    --mobile-editor-tabs-height: 4.6rem;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    padding-bottom: 0;
   }
 
   .page-header {
@@ -2282,18 +2286,18 @@ input[type='range'] {
   }
 
   .mobile-editor-header {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 40;
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: 2.75rem minmax(0, 1fr) auto;
     align-items: center;
     gap: .55rem;
-    min-height: var(--mobile-editor-header-height);
-    margin: -.2rem 0 .5rem;
+    min-height: 3.7rem;
+    margin: 0 0 .5rem;
     padding: .35rem .15rem;
     border-bottom: 1px solid rgba(74, 62, 84, .72);
-    background: rgba(10, 8, 13, .94);
+    background: rgba(10, 8, 13, .96);
     backdrop-filter: blur(18px);
   }
 
@@ -2331,7 +2335,7 @@ input[type='range'] {
 
   .message {
     position: fixed;
-    top: calc(var(--mobile-editor-header-height) + .65rem);
+    top: .75rem;
     left: .75rem;
     right: .75rem;
     z-index: 55;
@@ -2340,19 +2344,25 @@ input[type='range'] {
   }
 
   .workspace {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 45%) minmax(0, 55%);
-    gap: .55rem;
-    height: calc(100dvh - var(--mobile-editor-header-height) - var(--mobile-editor-tabs-height) - 1rem - env(safe-area-inset-bottom));
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
     overflow: hidden;
   }
 
   .stage-stack {
     order: 1;
-    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
-    max-height: none;
+    display: block;
     overflow: hidden;
     scrollbar-gutter: auto;
   }
@@ -2362,9 +2372,12 @@ input[type='range'] {
   }
 
   .preview-shell {
-    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     border-radius: .9rem;
     box-shadow: none;
   }
@@ -2382,6 +2395,7 @@ input[type='range'] {
 
   .preview-tools {
     width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: .38rem;
@@ -2398,13 +2412,14 @@ input[type='range'] {
 
   .toggle-control {
     min-height: 2.75rem;
-    padding: 0 .45rem;
+    padding: 0 .5rem;
     border: 1px solid #39313f;
     border-radius: .68rem;
     background: #17141b;
   }
 
   .toggle-control small {
+    display: inline;
     white-space: nowrap;
   }
 
@@ -2414,21 +2429,26 @@ input[type='range'] {
   }
 
   .preview-stage {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
+    width: 100%;
+    height: min(42dvh, calc(100vw - 2rem));
+    min-height: min(16rem, calc(100vw - 2rem));
+    max-height: 27rem;
     padding: .45rem;
     overflow: hidden;
   }
 
   .canvas-frame {
     width: 100%;
+    max-width: 100%;
     height: 100%;
-    max-height: none;
+    max-height: 100%;
   }
 
   .preview-canvas {
     width: auto;
     max-width: 100%;
+    height: auto;
     max-height: 100%;
   }
 
@@ -2444,12 +2464,16 @@ input[type='range'] {
 
   .controls {
     order: 2;
+    flex: 1 1 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
-    height: 100%;
+    height: auto;
     max-height: none;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 0 0 .45rem;
+    padding: 0 0 .35rem;
     scrollbar-gutter: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -2468,7 +2492,10 @@ input[type='range'] {
   }
 
   .workflow-card {
+    width: 100%;
+    max-width: 100%;
     min-height: 100%;
+    overflow: hidden;
     border-radius: .9rem;
     box-shadow: none;
   }
@@ -2481,7 +2508,7 @@ input[type='range'] {
     min-height: 3rem;
     padding: .72rem .85rem;
     border-bottom: 1px solid #29232f;
-    background: rgba(17, 16, 20, .96);
+    background: rgba(17, 16, 20, .98);
     backdrop-filter: blur(14px);
   }
 
@@ -2495,8 +2522,61 @@ input[type='range'] {
     font-size: .95rem;
   }
 
+  .controls.mobile-tool-text .section-heading {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .7rem;
+    padding: .72rem .8rem;
+  }
+
+  .controls.mobile-tool-text .step-number {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    font-size: 0;
+    background: linear-gradient(145deg, #c58cff, #8b5cf6);
+    box-shadow: 0 8px 22px rgba(139, 92, 246, .24);
+  }
+
+  .controls.mobile-tool-text .step-number::before {
+    content: 'T';
+    font-family: Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 900;
+  }
+
+  .controls.mobile-tool-text .section-title {
+    gap: .1rem;
+  }
+
+  .controls.mobile-tool-text .section-title small {
+    display: block;
+    color: #91899a;
+    line-height: 1.25;
+  }
+
+  .controls.mobile-tool-text .chevron {
+    display: block;
+  }
+
+  .controls.mobile-tool-text .mobile-labelable {
+    font-size: 0;
+  }
+
+  .controls.mobile-tool-text .mobile-labelable::after {
+    content: attr(data-mobile-label);
+    font-size: .72rem;
+  }
+
+  .controls.mobile-tool-text .section-title strong.mobile-labelable::after {
+    font-size: .95rem;
+  }
+
+  .controls.mobile-tool-text .section-title small.mobile-labelable::after {
+    font-size: .7rem;
+  }
+
   .section-body {
-    padding: .2rem .75rem .9rem;
+    padding: .55rem .75rem .9rem;
     border-top: 0;
   }
 
@@ -2509,7 +2589,7 @@ input[type='range'] {
 
   .upload-zone {
     min-height: 3.4rem;
-    margin-top: .65rem;
+    margin-top: .15rem;
     padding: .62rem .7rem;
   }
 
@@ -2526,6 +2606,7 @@ input[type='range'] {
   .media-grid {
     display: flex;
     gap: .48rem;
+    max-width: 100%;
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
@@ -2541,7 +2622,8 @@ input[type='range'] {
   .format-grid {
     display: flex;
     gap: .48rem;
-    margin-top: .65rem;
+    max-width: 100%;
+    margin-top: .1rem;
     overflow-x: auto;
     padding-bottom: .3rem;
     scroll-snap-type: x proximity;
@@ -2556,6 +2638,7 @@ input[type='range'] {
   .template-grid {
     display: flex;
     gap: .65rem;
+    max-width: 100%;
     overflow-x: auto;
     padding-bottom: .35rem;
     scroll-snap-type: x mandatory;
@@ -2684,19 +2767,22 @@ input[type='range'] {
   }
 
   .mobile-tool-tabs {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: relative;
+    inset: auto;
     z-index: 45;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     min-height: calc(var(--mobile-editor-tabs-height) + env(safe-area-inset-bottom));
-    padding: .38rem .3rem calc(.38rem + env(safe-area-inset-bottom));
+    padding: .38rem .15rem calc(.38rem + env(safe-area-inset-bottom));
+    overflow: hidden;
     border-top: 1px solid rgba(68, 57, 77, .9);
-    background: rgba(11, 9, 14, .96);
+    background: rgba(11, 9, 14, .98);
     backdrop-filter: blur(18px);
-    box-shadow: 0 -12px 34px rgba(0, 0, 0, .32);
+    box-shadow: 0 -12px 34px rgba(0, 0, 0, .22);
   }
 
   .mobile-tool-tab {
@@ -2706,11 +2792,19 @@ input[type='range'] {
     grid-template-rows: 1.8rem auto;
     place-items: center;
     gap: .08rem;
-    padding: .18rem .1rem;
+    padding: .18rem .05rem;
+    overflow: hidden;
     border: 0;
     background: transparent;
     color: #8f8797;
     font-size: .62rem;
+  }
+
+  .mobile-tool-tab > span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-tab-icon {
@@ -2738,13 +2832,9 @@ input[type='range'] {
 }
 
 @media (max-width: 520px) {
-  .workspace {
-    grid-template-rows: minmax(0, 46%) minmax(0, 54%);
-    height: calc(100dvh - var(--mobile-editor-header-height) - var(--mobile-editor-tabs-height) - .7rem - env(safe-area-inset-bottom));
-  }
-
-  .toggle-control small {
-    display: none;
+  .preview-stage {
+    height: min(40dvh, calc(100vw - 1.5rem));
+    min-height: min(14.5rem, calc(100vw - 1.5rem));
   }
 
   .template-card {
