@@ -11,8 +11,10 @@ import type {
   VideoClipItem,
   VideoProject,
 } from '../shared/video-project'
+import { graphicBackdrop } from '../shared/video-project'
 import { animationState, animationStyle } from './animation'
 import { MediaFill, cropClipPath } from './media'
+import { MOTION_ACCENTS } from '../shared/video-templates'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
 
 // Single source of truth for what a project looks like. The editor mounts
@@ -55,6 +57,25 @@ const MediaItemView: React.FC<{
   )
 }
 
+function backdropStyle(item: GraphicItem, strength: number, fade: number): React.CSSProperties {
+  const colors = MOTION_ACCENTS[item.accent] || MOTION_ACCENTS['neon-purple']
+  switch (item.backdropStyle) {
+    case 'blur':
+      return {
+        backdropFilter: `blur(${Math.round(4 + strength * 28)}px) brightness(${1 - strength * 0.7})`,
+        opacity: fade,
+      }
+    case 'gradient':
+      // Dark at the bottom and top edge with the accent glowing through the middle.
+      return {
+        background: `linear-gradient(180deg, rgba(5,3,10,.55) 0%, ${colors.glow}66 45%, rgba(5,3,10,.9) 78%, #05030a 100%)`,
+        opacity: Math.min(1, strength * 1.6) * fade,
+      }
+    default:
+      return { background: '#05030a', opacity: strength * fade }
+  }
+}
+
 const GraphicItemView: React.FC<{
   item: GraphicItem
   assets: ProjectAssetMap
@@ -67,43 +88,51 @@ const GraphicItemView: React.FC<{
   const unit = Math.min(width, height) / 1080
   const virtualWidth = width / unit
   const virtualHeight = height / unit
-  const animation = animationStyle(
-    animationState({
-      frame,
-      duration: item.duration,
-      entrance: item.entrance,
-      exit: item.exit,
-      entranceFrames: item.entranceFrames,
-      exitFrames: item.exitFrames,
-    }),
-  )
+  const state = animationState({
+    frame,
+    duration: item.duration,
+    entrance: item.entrance,
+    exit: item.exit,
+    entranceFrames: item.entranceFrames,
+    exitFrames: item.exitFrames,
+  })
+  const animation = animationStyle(state)
+  // Full-frame treatment of the footage underneath; it ignores the item's
+  // transform and fades with the entrance/exit so the cut-in stays smooth.
+  const strength = graphicBackdrop(item)
+  const fade = item.opacity * state.opacity
   return h(
     AbsoluteFill,
-    { style: { opacity: item.opacity, ...transformStyle(item.transform) } },
+    null,
+    strength > 0 && fade > 0 ? h(AbsoluteFill, { style: backdropStyle(item, strength, fade) }) : null,
     h(
-      'div',
-      {
-        style: {
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: virtualWidth,
-          height: virtualHeight,
-          transform: `scale(${unit})`,
-          transformOrigin: 'top left',
-        },
-      },
+      AbsoluteFill,
+      { style: { opacity: item.opacity, ...transformStyle(item.transform) } },
       h(
-        AbsoluteFill,
-        { style: animation },
-        h(Template, {
-          item,
-          frame,
-          fps,
-          width: virtualWidth,
-          height: virtualHeight,
-          assets,
-        }),
+        'div',
+        {
+          style: {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: virtualWidth,
+            height: virtualHeight,
+            transform: `scale(${unit})`,
+            transformOrigin: 'top left',
+          },
+        },
+        h(
+          AbsoluteFill,
+          { style: animation },
+          h(Template, {
+            item,
+            frame,
+            fps,
+            width: virtualWidth,
+            height: virtualHeight,
+            assets,
+          }),
+        ),
       ),
     ),
   )

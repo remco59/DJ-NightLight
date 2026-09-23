@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {
+  MAX_BACKDROP,
   MAX_PROJECT_SECONDS,
   VIDEO_ASPECTS,
   VIDEO_ASPECT_KEYS,
   VIDEO_FPS_OPTIONS,
   defaultCrop,
   defaultTransform,
+  graphicBackdrop,
   mediaKind,
   type ItemCrop,
   type ItemTransform,
@@ -13,6 +15,7 @@ import {
   type VideoAspect,
 } from '~~/shared/video-project'
 import {
+  BACKDROP_STYLES,
   ENTRANCE_ANIMATIONS,
   EXIT_ANIMATIONS,
   MOTION_ACCENTS,
@@ -247,6 +250,15 @@ const assetTitle = computed(() => {
           <select :value="item.accent" @change="patch(target => { if (target.type === 'graphic') target.accent = ($event.target as HTMLSelectElement).value as typeof target.accent })">
             <option v-for="(accent, key) in MOTION_ACCENTS" :key="key" :value="key">{{ accent.label }}</option>
           </select>
+        </label>
+        <label class="row"><span>Background</span>
+          <select :value="item.backdropStyle || 'dim'" @change="patch(target => { if (target.type === 'graphic') target.backdropStyle = ($event.target as HTMLSelectElement).value as typeof target.backdropStyle })">
+            <option v-for="(label, key) in BACKDROP_STYLES" :key="key" :value="key">{{ label }}</option>
+          </select>
+        </label>
+        <label class="row"><span>Background strength</span>
+          <input type="range" min="0" :max="MAX_BACKDROP" step="0.05" :value="graphicBackdrop(item)" @input="patch(target => { if (target.type === 'graphic') target.backdrop = Number(($event.target as HTMLInputElement).value) }, 'backdrop')">
+          <output>{{ Math.round(graphicBackdrop(item) * 100) }}%</output>
         </label>
         <label class="row"><span>Entrance</span>
           <select :value="item.entrance" @change="patch(target => { if (target.type === 'graphic') target.entrance = ($event.target as HTMLSelectElement).value as typeof target.entrance })">

@@ -55,6 +55,15 @@ export const EXIT_ANIMATIONS = {
 export type ExitAnimation = keyof typeof EXIT_ANIMATIONS
 export const EXIT_ANIMATION_KEYS = Object.keys(EXIT_ANIMATIONS) as ExitAnimation[]
 
+/** How a template treats the footage behind it; strength is set per item. */
+export const BACKDROP_STYLES = {
+  dim: 'Dark',
+  blur: 'Blur',
+  gradient: 'Gradient',
+} as const
+export type BackdropStyle = keyof typeof BACKDROP_STYLES
+export const BACKDROP_STYLE_KEYS = Object.keys(BACKDROP_STYLES) as BackdropStyle[]
+
 export type TemplateFieldKind = 'text' | 'textarea' | 'list' | 'asset' | 'assets'
 
 export type TemplateField = {
@@ -78,6 +87,8 @@ export type MotionTemplateDefinition = {
   defaultAccent: MotionAccent
   defaultEntrance: EntranceAnimation
   defaultExit: ExitAnimation
+  /** Default darkening (0–1) of the footage behind the template; adjustable per item. */
+  defaultBackdrop: number
   fields: TemplateField[]
   defaults: TemplateProps
 }
@@ -94,6 +105,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
+    defaultBackdrop: 0.45,
     fields: [
       text('headline', 'Headline', 60),
       text('venue', 'Venue', 60),
@@ -120,6 +132,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'hot-pink',
     defaultEntrance: 'zoom',
     defaultExit: 'whip',
+    defaultBackdrop: 0.35,
     fields: [
       text('kicker', 'Kicker', 40),
       text('headline', 'Headline', 60),
@@ -136,6 +149,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
+    defaultBackdrop: 0.5,
     fields: [
       text('headline', 'Headline', 40),
       text('kicker', 'Kicker', 40),
@@ -162,6 +176,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'zoom',
     defaultExit: 'fade',
+    defaultBackdrop: 0.4,
     fields: [
       text('title', 'Title', 40),
       text('tagline', 'Tagline', 60),
@@ -177,6 +192,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'whip',
     defaultExit: 'whip',
+    defaultBackdrop: 0,
     fields: [
       text('title', 'Title', 50),
       text('subtitle', 'Subtitle', 70),
@@ -192,6 +208,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'hot-pink',
     defaultEntrance: 'glitch',
     defaultExit: 'zoom-out',
+    defaultBackdrop: 0.35,
     fields: [
       { key: 'lines', label: 'Lines (one per row)', kind: 'list', maxItems: 4, maxLength: 30, placeholder: 'HARDER' },
     ],
@@ -206,6 +223,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
+    defaultBackdrop: 0.35,
     fields: [
       { key: 'photo', label: 'Photo', kind: 'asset' },
       text('caption', 'Caption', 60),
@@ -221,6 +239,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'neon-purple',
     defaultEntrance: 'fade',
     defaultExit: 'fade',
+    defaultBackdrop: 0,
     fields: [
       text('title', 'Title', 50),
       { key: 'media', label: 'Media (3–5)', kind: 'assets', maxItems: 5 },
@@ -236,6 +255,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'none',
     defaultExit: 'fade',
+    defaultBackdrop: 0.45,
     fields: [
       text('tagline', 'Tagline', 50),
     ],
@@ -250,6 +270,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'none',
     defaultExit: 'whip',
+    defaultBackdrop: 0.4,
     fields: [
       text('title', 'Title', 24),
       text('subtitle', 'Subtitle', 60),
@@ -265,6 +286,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'none',
     defaultExit: 'fade',
+    defaultBackdrop: 0.5,
     fields: [
       text('headline', 'Headline', 30),
       text('day', 'Day', 4),
@@ -291,6 +313,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'whip',
     defaultExit: 'whip',
+    defaultBackdrop: 0,
     fields: [
       text('label', 'Label', 24),
       text('artist', 'Artist', 40),
@@ -307,6 +330,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'none',
     defaultExit: 'none',
+    defaultBackdrop: 0,
     fields: [
       text('word', 'Flash word (optional)', 14),
     ],
@@ -321,6 +345,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultAccent: 'ultraviolet',
     defaultEntrance: 'none',
     defaultExit: 'fade',
+    defaultBackdrop: 0.5,
     fields: [
       text('headline', 'Headline', 24),
       text('handle', 'Handle', 40),

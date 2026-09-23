@@ -5,6 +5,7 @@ import {
   createGraphicItem,
   createMediaItem,
   createVideoProject,
+  graphicBackdrop,
   parseVideoProject,
   projectDurationFrames,
   trackAccepts,
@@ -114,6 +115,27 @@ describe('motion templates', () => {
       project.tracks[1]!.items = [item]
       expect(() => parseVideoProject(project)).not.toThrow()
     }
+  })
+
+  it('dims the footage behind a template by default and lets items override it', () => {
+    const item = createGraphicItem('electric-gig-poster', 0, 30)
+    expect(graphicBackdrop(item)).toBe(MOTION_TEMPLATES['electric-gig-poster'].defaultBackdrop)
+    expect(graphicBackdrop(createGraphicItem('lower-third', 0, 30))).toBe(0)
+    // Projects saved before the setting existed fall back to the template default.
+    delete item.backdrop
+    const project = createVideoProject()
+    project.tracks[1]!.items = [item]
+    const parsed = parseVideoProject(project).tracks[1]!.items[0]!
+    expect(parsed.type === 'graphic' && graphicBackdrop(parsed)).toBe(0.5)
+    item.backdrop = 0
+    expect(graphicBackdrop(item)).toBe(0)
+    item.backdropStyle = 'blur'
+    expect(() => parseVideoProject(project)).not.toThrow()
+    item.backdropStyle = 'sepia' as never
+    expect(() => parseVideoProject(project)).toThrow()
+    item.backdropStyle = 'gradient'
+    item.backdrop = 1
+    expect(() => parseVideoProject(project)).toThrow()
   })
 
   it('parses upcoming gig rows', () => {
