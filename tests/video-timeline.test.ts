@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMediaItem, createVideoProject, findItem, type TimelineItem, type VideoProject } from '../shared/video-project'
+import { MAX_PROJECT_SECONDS, createGraphicItem, createMediaItem, createVideoProject, findItem, type TimelineItem, type VideoProject } from '../shared/video-project'
 import {
   addItem,
   createHistory,
@@ -64,6 +64,26 @@ describe('timeline operations', () => {
     const reordered = moveItem(moveItem(project, a.id, 300), b.id, 0)
     expect(item(reordered, b.id).start).toBe(0)
     expect(item(reordered, a.id).start).toBe(300)
+  })
+
+  it('shortens long audio dropped late on the timeline to the project limit', () => {
+    const project = createVideoProject()
+    const audioTrack = project.tracks.find(track => track.kind === 'audio')!
+    const song = createMediaItem({ id: '44444444-4444-4444-8444-444444444444', mimeType: 'audio/mpeg', durationMs: 200_000 }, 300, 30)
+    expect(song.duration).toBe(30 * MAX_PROJECT_SECONDS)
+    const added = addItem(project, audioTrack.id, song)
+    expect(item(added, song.id)).toMatchObject({ start: 300, duration: 30 * MAX_PROJECT_SECONDS - 300, fadeOut: 30 })
+  })
+
+  it('shortens moved audio and video but refuses graphics past the project limit', () => {
+    const { project, a } = projectWithClips()
+    const limit = 30 * MAX_PROJECT_SECONDS
+    const moved = moveItem(project, a.id, limit - 30)
+    expect(item(moved, a.id)).toMatchObject({ start: limit - 30, duration: 30 })
+    expect(moveItem(project, a.id, limit - 1)).toBe(project)
+
+    const graphicsTrack = project.tracks.find(track => track.kind === 'graphics')!
+    expect(addItem(project, graphicsTrack.id, createGraphicItem('gig-announcement', limit - 30, 30))).toBe(project)
   })
 
   it('refuses to move items onto incompatible tracks', () => {
