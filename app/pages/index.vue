@@ -91,12 +91,12 @@ useSeoMeta({
         <h1>{{ content.heroTitle }}</h1>
         <p class="hero-copy">{{ content.heroBody }}</p>
         <div class="hero-actions">
-          <NuxtLink class="public-button" to="/boeken">{{ content.heroCtaLabel }}</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.heroCtaLabel }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
           <NuxtLink class="public-button secondary" to="/media">{{ content.publicCopy.home.secondaryCta }}</NuxtLink>
         </div>
       </div>
       <p class="hero-caption">{{ content.publicCopy.home.heroCaption }}</p>
-      <div class="scroll-cue">{{ content.publicCopy.home.scrollLabel }}</div>
+      <div class="scroll-cue">{{ content.publicCopy.home.scrollLabel }} <Icon name="lucide:arrow-down" aria-hidden="true" /></div>
     </section>
 
     <section class="visual-beat" :aria-label="content.publicCopy.home.visualEyebrow">
@@ -116,7 +116,7 @@ useSeoMeta({
       <div class="statement-copy">
         <h2>{{ content.aboutTitle }}</h2>
         <p>{{ content.aboutBody }}</p>
-        <NuxtLink to="/about">{{ content.publicCopy.home.aboutCta }}</NuxtLink>
+        <NuxtLink to="/about">{{ content.publicCopy.home.aboutCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </div>
       <figure class="statement-visual">
         <img :src="aboutVisual.url" :alt="aboutVisual.alt" loading="lazy">
@@ -186,7 +186,7 @@ useSeoMeta({
         </div>
         <div class="cta-copy">
           <p>{{ content.bookingBody }}</p>
-          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.home.bookingCta }}</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.home.bookingCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
         </div>
       </div>
     </section>

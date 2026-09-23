@@ -53,8 +53,8 @@ useSeoMeta({
         <p class="eyebrow">{{page.eyebrow}}</p>
         <h1>{{page.title}}</h1>
         <p class="intro">{{page.intro}}</p>
-        <a v-if="externalCta" class="public-button" :href="page.ctaHref" target="_blank" rel="noreferrer">{{page.ctaLabel}}</a>
-        <NuxtLink v-else class="public-button" :to="page.ctaHref">{{page.ctaLabel}}</NuxtLink>
+        <a v-if="externalCta" class="public-button" :href="page.ctaHref" target="_blank" rel="noreferrer">{{page.ctaLabel}} <Icon name="lucide:arrow-up-right" aria-hidden="true" /></a>
+        <NuxtLink v-else class="public-button" :to="page.ctaHref">{{page.ctaLabel}} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </div>
     </section>
 
@@ -66,7 +66,7 @@ useSeoMeta({
         <span>{{ siteContent?.publicCopy.landing.asideEyebrow }}</span>
         <strong>{{ siteContent?.publicCopy.landing.asideTitle }}</strong>
         <p>{{ siteContent?.publicCopy.landing.asideBody }}</p>
-        <NuxtLink to="/boeken">{{ siteContent?.publicCopy.landing.asideCta }}</NuxtLink>
+        <NuxtLink to="/boeken">{{ siteContent?.publicCopy.landing.asideCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </aside>
     </section>
   </main>

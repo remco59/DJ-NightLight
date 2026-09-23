@@ -3,8 +3,16 @@ const defaultStorageRoot = process.env.NODE_ENV === 'production' ? '/app/storage
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-19',
   devtools: { enabled: true },
-  modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
+  modules: ['@nuxt/eslint', '@nuxt/icon', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
+  icon: {
+    // Lucide ships with the app: icons used in components are bundled into the
+    // client, anything else is served by our own server. Never call the Iconify CDN.
+    mode: 'svg',
+    serverBundle: { collections: ['lucide'] },
+    clientBundle: { scan: true },
+    fallbackToApi: false,
+  },
   vite: {
     // The video editor preview imports these lazily; pre-bundle them so the
     // dev server does not re-optimize (and break the in-flight import) on first use.

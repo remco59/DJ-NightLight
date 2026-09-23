@@ -495,12 +495,13 @@ function formatDate(value: string) {
         <span class="status-pill"><span class="status-dot" /> Live preview</span>
         <NuxtLink class="secondary-button" to="/admin/post-generator/video">Video editor</NuxtLink>
         <button
-          class="primary"
+          class="with-icon primary"
           type="button"
           :disabled="busy === 'render' || !readyToGenerate"
           @click="renderAndSave"
         >
-          {{ busy === 'render' ? 'Generating…' : 'Generate post →' }}
+          {{ busy === 'render' ? 'Generating…' : 'Generate post' }}
+          <Icon v-if="busy !== 'render'" name="lucide:arrow-right" aria-hidden="true" />
         </button>
       </div>
     </header>
@@ -521,7 +522,7 @@ function formatDate(value: string) {
               <strong>Source photo</strong>
               <small>Choose or upload a photo</small>
             </span>
-            <span class="chevron">{{ isSectionOpen(1) ? '⌃' : '⌄' }}</span>
+            <Icon class="chevron" :name="isSectionOpen(1) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
 
           <div v-if="isSectionOpen(1)" class="section-body">
@@ -540,7 +541,7 @@ function formatDate(value: string) {
               @dragover.prevent
               @drop="dropFreshFile"
             >
-              <span class="upload-icon">↑</span>
+              <span class="upload-icon"><Icon name="lucide:upload" aria-hidden="true" /></span>
               <span>
                 <strong>{{ freshFile ? freshFile.name : 'Upload new' }}</strong>
                 <small>{{ freshFile ? 'Ready to add to the media library' : 'Choose file or drag & drop' }}</small>
@@ -558,9 +559,9 @@ function formatDate(value: string) {
             </button>
 
             <div class="search-wrap">
-              <span aria-hidden="true">⌕</span>
+              <Icon class="search-icon" name="lucide:search" aria-hidden="true" />
               <input v-model="sourceSearch" type="search" placeholder="Search media library…">
-              <button v-if="sourceSearch" type="button" aria-label="Clear search" @click="sourceSearch = ''">×</button>
+              <button v-if="sourceSearch" type="button" aria-label="Clear search" @click="sourceSearch = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
 
             <div class="media-meta">
@@ -579,7 +580,7 @@ function formatDate(value: string) {
                 @click="sourceAssetId = asset.id"
               >
                 <img :src="asset.thumbnailUrl" :alt="asset.altText || asset.title">
-                <span v-if="sourceAssetId === asset.id" class="selected-mark">✓</span>
+                <span v-if="sourceAssetId === asset.id" class="selected-mark"><Icon name="lucide:check" aria-hidden="true" /></span>
               </button>
             </div>
           </div>
@@ -597,7 +598,7 @@ function formatDate(value: string) {
               <strong>Format & templates</strong>
               <small>Choose a format and visual style</small>
             </span>
-            <span class="chevron">{{ isSectionOpen(2) ? '⌃' : '⌄' }}</span>
+            <Icon class="chevron" :name="isSectionOpen(2) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
 
           <div v-if="isSectionOpen(2)" class="section-body">
@@ -614,7 +615,7 @@ function formatDate(value: string) {
                 <span>
                   <strong>{{ preset.label }}</strong>
                   <small>{{ key === 'square' ? 'Square' : key === 'portrait' ? 'Portrait' : 'Story' }}</small>
-                  <em>{{ preset.width }}×{{ preset.height }}</em>
+                  <em>{{ preset.width }}<IconTimes />{{ preset.height }}</em>
                 </span>
               </button>
             </div>
@@ -686,7 +687,7 @@ function formatDate(value: string) {
               <strong class="mobile-labelable" data-mobile-label="Tekst">Copy</strong>
               <small class="mobile-labelable" data-mobile-label="Bewerk de tekst op je post.">Add text and brand details</small>
             </span>
-            <span class="chevron">{{ isSectionOpen(3) ? '⌃' : '⌄' }}</span>
+            <Icon class="chevron" :name="isSectionOpen(3) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
 
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
@@ -835,12 +836,12 @@ function formatDate(value: string) {
               <strong>Crop & styling</strong>
               <small>Adjust framing, position and visual style</small>
             </span>
-            <span class="chevron">{{ isSectionOpen(4) ? '⌃' : '⌄' }}</span>
+            <Icon class="chevron" :name="isSectionOpen(4) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
 
           <div v-if="isSectionOpen(4)" class="section-body form-stack">
             <label>
-              <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}×</small></span>
+              <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}<IconTimes /></small></span>
               <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
             </label>
             <label>
@@ -888,11 +889,11 @@ function formatDate(value: string) {
               <strong>Export</strong>
               <small>Generate, download or reuse</small>
             </span>
-            <span class="chevron">{{ isSectionOpen(5) ? '⌃' : '⌄' }}</span>
+            <Icon class="chevron" :name="isSectionOpen(5) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
 
           <div v-if="isSectionOpen(5)" class="section-body export-panel">
-            <p>Generate a full-resolution {{ POST_PRESETS[design.preset].width }}×{{ POST_PRESETS[design.preset].height }} PNG and keep it in your reusable output history.</p>
+            <p>Generate a full-resolution {{ POST_PRESETS[design.preset].width }}<IconTimes />{{ POST_PRESETS[design.preset].height }} PNG and keep it in your reusable output history.</p>
             <button
               class="primary full"
               type="button"
@@ -943,12 +944,12 @@ function formatDate(value: string) {
                 @lostpointercapture="endPreviewDrag"
               />
               <span class="drag-hint" :class="{ active: dragState.active }">
-                <span aria-hidden="true">✥</span>
+                <Icon name="lucide:move" aria-hidden="true" />
                 {{ dragState.active ? 'Repositioning photo' : 'Drag photo to reposition' }}
               </span>
             </div>
             <div v-else class="no-source">
-              <span class="empty-icon">▧</span>
+              <span class="empty-icon"><Icon name="lucide:image" aria-hidden="true" /></span>
               <strong>Choose a source photo</strong>
               <small>Select a media-library image or upload a fresh photo.</small>
             </div>
@@ -964,7 +965,7 @@ function formatDate(value: string) {
               <h2>Reusable outputs</h2>
               <p>Your recent generations stay ready to download or reuse.</p>
             </div>
-            <button class="secondary-button" type="button" @click="refresh()">Refresh</button>
+            <button class="with-icon secondary-button" type="button" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
           </div>
 
           <div v-if="data?.posts.length" class="history-strip">
@@ -975,11 +976,11 @@ function formatDate(value: string) {
               </div>
               <div class="history-card-copy">
                 <strong>{{ post.templateKey }}</strong>
-                <small>{{ post.width }}×{{ post.height }}</small>
+                <small>{{ post.width }}<IconTimes />{{ post.height }}</small>
                 <small>{{ formatDate(post.createdAt) }}</small>
                 <div class="history-actions">
-                  <a :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'">Download</a>
-                  <button type="button" :disabled="busy === post.id" @click="deletePost(post)">Delete</button>
+                  <a class="with-icon" :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'"><Icon name="lucide:download" aria-hidden="true" />Download</a>
+                  <button class="with-icon" type="button" :disabled="busy === post.id" @click="deletePost(post)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
                 </div>
               </div>
             </article>
@@ -1362,11 +1363,12 @@ input[type='range'] {
   box-shadow: none;
 }
 
-.search-wrap > span {
+.search-wrap .search-icon {
   color: #776e80;
 }
 
 .search-wrap button {
+  display: flex;
   border: 0;
   background: transparent;
   color: #a79eae;

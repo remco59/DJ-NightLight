@@ -49,8 +49,8 @@ useSeoMeta({title:'Client — DJ NightLight',robots:'noindex, nofollow'})
 
 <template>
   <div v-if="data" class="detail-page">
-    <NuxtLink to="/admin/clients" class="back">← Clients</NuxtLink>
-    <header><div><p class="eyebrow">Client</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button class="danger" type="button" @click="remove">Delete</button></header>
+    <NuxtLink to="/admin/clients" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Clients</NuxtLink>
+    <header><div><p class="eyebrow">Client</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button></header>
     <form class="editor" @submit.prevent="save">
       <div class="grid">
         <label>Type<select v-model="form.type"><option value="person">Person</option><option value="company">Company</option></select></label>

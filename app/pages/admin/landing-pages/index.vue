@@ -35,7 +35,7 @@ useSeoMeta({title:'Landing pages — DJ NightLight',robots:'noindex, nofollow'})
   <div class="landing-admin">
     <header class="page-header">
       <div><p class="eyebrow">Content</p><h1>Landing pages</h1><p>Public service pages with independent publish, navigation and indexing controls.</p></div>
-      <button class="primary" type="button" @click="showCreate=!showCreate">{{showCreate?'Close':'New page'}}</button>
+      <button class="with-icon primary" type="button" @click="showCreate=!showCreate"><Icon :name="showCreate?'lucide:x':'lucide:plus'" aria-hidden="true" />{{showCreate?'Close':'New page'}}</button>
     </header>
 
     <form v-if="showCreate" class="create-card" @submit.prevent="createPage">

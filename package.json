@@ -21,6 +21,8 @@
     "worker:video": "tsx scripts/video-render-worker.ts"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.136",
+    "@nuxt/icon": "^2.5.1",
     "drizzle-orm": "^0.45.2",
     "nuxt": "^4.0.0",
     "nuxt-auth-utils": "^0.5.30",

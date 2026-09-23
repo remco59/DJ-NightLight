@@ -84,7 +84,7 @@ useSeoMeta({
       </div>
       <div class="actions">
         <button type="button" class="secondary" @click="() => refresh()">Refresh</button>
-        <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="primary">New gig</NuxtLink>
+        <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="with-icon primary"><Icon name="lucide:plus" aria-hidden="true" />New gig</NuxtLink>
       </div>
     </header>
 

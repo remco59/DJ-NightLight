@@ -122,7 +122,7 @@ useSeoMeta({
               <p v-if="gig.description">{{ gig.description }}</p>
             </div>
 
-            <div class="gig-mark" aria-hidden="true">↗</div>
+            <div class="gig-mark" aria-hidden="true"><Icon name="lucide:arrow-up-right" aria-hidden="true" /></div>
           </article>
         </template>
       </section>

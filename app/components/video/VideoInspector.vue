@@ -175,7 +175,7 @@ const assetTitle = computed(() => {
         <label v-if="!state.project.autoDuration" class="row"><span>Duration (s)</span>
           <input type="number" min="1" :max="MAX_PROJECT_SECONDS" step="0.5" :value="seconds(state.project.durationFrames)" @change="setProjectDuration(Number(($event.target as HTMLInputElement).value))">
         </label>
-        <p class="note">{{ state.project.width }}×{{ state.project.height }} · length {{ seconds(editor.duration.value) }}s</p>
+        <p class="note">{{ state.project.width }}<IconTimes />{{ state.project.height }} · length {{ seconds(editor.duration.value) }}s</p>
         <label class="row check"><span>Show Reels / Stories safe zones</span>
           <input type="checkbox" :checked="state.project.showSafeZones" @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })">
         </label>
@@ -186,9 +186,9 @@ const assetTitle = computed(() => {
           <dt>Space</dt><dd>Play / pause</dd>
           <dt>S</dt><dd>Split at playhead</dd>
           <dt>Delete</dt><dd>Delete selection</dd>
-          <dt>Ctrl/⌘ D</dt><dd>Duplicate</dd>
-          <dt>Ctrl/⌘ Z</dt><dd>Undo (⇧ to redo)</dd>
-          <dt>← →</dt><dd>Step one frame (⇧ one second)</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> D</dt><dd>Duplicate</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> Z</dt><dd>Undo (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> to redo)</dd>
+          <dt><Icon name="lucide:arrow-left" role="img" aria-label="Left" /> <Icon name="lucide:arrow-right" role="img" aria-label="Right" /></dt><dd>Step one frame (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> one second)</dd>
         </dl>
       </section>
     </template>
@@ -199,7 +199,7 @@ const assetTitle = computed(() => {
           <h2>{{ template ? template.label : assetTitle }}</h2>
           <small>{{ template ? 'Motion Graphic Template' : item.type === 'audio' ? 'Audio clip' : item.type === 'video' ? 'Video clip' : 'Image' }}</small>
         </div>
-        <button type="button" class="ghost" title="Deselect" @click="state.selectedId = null">✕</button>
+        <button type="button" class="ghost" title="Deselect" aria-label="Deselect" @click="state.selectedId = null"><Icon name="lucide:x" aria-hidden="true" /></button>
       </header>
 
       <!-- Motion graphic content -->
@@ -216,9 +216,9 @@ const assetTitle = computed(() => {
             <span>{{ field.label }}</span>
             <div v-for="(row, index) in listValue(field)" :key="index" class="list-row">
               <input type="text" :maxlength="field.maxLength" :placeholder="field.placeholder" :value="row" @input="setListRow(field, index, ($event.target as HTMLInputElement).value)">
-              <button type="button" class="ghost" title="Remove" @click="removeListRow(field, index)">×</button>
+              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)">+ Add row</button>
+            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
           </div>
           <label v-else-if="field.kind === 'asset'" class="row"><span>{{ field.label }}</span>
             <select :value="textValue(field)" @change="setField(field, ($event.target as HTMLSelectElement).value)">
@@ -232,9 +232,9 @@ const assetTitle = computed(() => {
               <select :value="assetId" @change="setListRow(field, index, ($event.target as HTMLSelectElement).value)">
                 <option v-for="asset in visualMedia" :key="asset.id" :value="asset.id">{{ asset.title || asset.originalFilename }}</option>
               </select>
-              <button type="button" class="ghost" title="Remove" @click="removeListRow(field, index)">×</button>
+              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 5) && visualMedia.length" type="button" class="ghost" @click="addListRow(field, visualMedia[0]!.id)">+ Add media</button>
+            <button v-if="listValue(field).length < (field.maxItems || 5) && visualMedia.length" type="button" class="ghost" @click="addListRow(field, visualMedia[0]!.id)"><Icon name="lucide:plus" aria-hidden="true" />Add media</button>
           </div>
         </template>
       </section>
@@ -475,6 +475,10 @@ output {
 }
 
 .ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
   padding: .3rem .55rem;
   border: 1px solid var(--ve-border);
   border-radius: 6px;

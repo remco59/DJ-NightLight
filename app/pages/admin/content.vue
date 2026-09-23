@@ -122,7 +122,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
       <div class="topbar-actions">
         <NuxtLink :to="activePageMeta.href" target="_blank" class="secondary-button">
-          View page ↗
+          View page <Icon name="lucide:external-link" aria-hidden="true" />
         </NuxtLink>
         <button class="primary-button" type="submit" :disabled="saving">
           {{ saving ? 'Saving…' : 'Save website' }}
@@ -153,7 +153,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
         <div class="sidebar-note">
           <strong>Landing pages</strong>
           <p>Individual service landing pages stay in the dedicated Landing pages editor.</p>
-          <NuxtLink to="/admin/landing-pages">Open landing pages →</NuxtLink>
+          <NuxtLink to="/admin/landing-pages">Open landing pages <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
         </div>
       </aside>
 
@@ -241,7 +241,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
                   <h3>Service cards</h3>
                   <p>These cards appear on the homepage. Full service pages are edited under Landing pages.</p>
                 </div>
-                <button type="button" class="secondary-button" @click="addService">+ Add service</button>
+                <button type="button" class="secondary-button" @click="addService"><Icon name="lucide:plus" aria-hidden="true" /> Add service</button>
               </div>
 
               <div class="repeat-list">
@@ -249,8 +249,8 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
                   <div class="repeat-top">
                     <strong>Service {{ index + 1 }}</strong>
                     <div>
-                      <button type="button" :disabled="index === 0" @click="moveService(index, -1)">↑</button>
-                      <button type="button" :disabled="index === form.services.length - 1" @click="moveService(index, 1)">↓</button>
+                      <button type="button" :disabled="index === 0" aria-label="Move up" title="Move up" @click="moveService(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
+                      <button type="button" :disabled="index === form.services.length - 1" aria-label="Move down" title="Move down" @click="moveService(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
                       <button type="button" class="danger-text" @click="form.services.splice(index, 1)">Remove</button>
                     </div>
                   </div>
@@ -374,7 +374,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
                   <label>Body<textarea v-model="principle.body" rows="3" /></label>
                 </article>
               </div>
-              <button type="button" class="secondary-button add-button" @click="addPrinciple">+ Add principle</button>
+              <button type="button" class="secondary-button add-button" @click="addPrinciple"><Icon name="lucide:plus" aria-hidden="true" /> Add principle</button>
             </div>
           </details>
 
@@ -453,7 +453,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
                   <h3>Gallery images</h3>
                   <p>The order here is the order used on the public media page.</p>
                 </div>
-                <button type="button" class="secondary-button" @click="addImage">+ Add image</button>
+                <button type="button" class="secondary-button" @click="addImage"><Icon name="lucide:plus" aria-hidden="true" /> Add image</button>
               </div>
 
               <div class="repeat-list gallery-list">
@@ -461,8 +461,8 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
                   <div class="repeat-top">
                     <strong>Image {{ index + 1 }}</strong>
                     <div>
-                      <button type="button" :disabled="index === 0" @click="moveImage(index, -1)">↑</button>
-                      <button type="button" :disabled="index === form.gallery.length - 1" @click="moveImage(index, 1)">↓</button>
+                      <button type="button" :disabled="index === 0" aria-label="Move up" title="Move up" @click="moveImage(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
+                      <button type="button" :disabled="index === form.gallery.length - 1" aria-label="Move down" title="Move down" @click="moveImage(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
                       <button type="button" class="danger-text" @click="form.gallery.splice(index, 1)">Remove</button>
                     </div>
                   </div>
@@ -742,7 +742,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
               <b>05</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">Individual landing-page content stays in Admin → Landing pages. This is only the panel shared by all of them.</p>
+              <p class="section-note">Individual landing-page content stays in Admin <Icon name="lucide:chevron-right" aria-hidden="true" /> Landing pages. This is only the panel shared by all of them.</p>
               <label>Eyebrow<input v-model="form.publicCopy.landing.asideEyebrow"></label>
               <label>Title<input v-model="form.publicCopy.landing.asideTitle"></label>
               <label>Body<textarea v-model="form.publicCopy.landing.asideBody" rows="4" /></label>

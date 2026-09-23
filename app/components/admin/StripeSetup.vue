@@ -110,14 +110,14 @@ async function copyUrl() {
 
     <ol class="steps">
       <li v-for="(label, i) in steps" :key="label" :class="{ active: step === i + 1, done: step > i + 1 }">
-        <span>{{ step > i + 1 ? '✓' : i + 1 }}</span>{{ label }}
+        <span><Icon v-if="step > i + 1" name="lucide:check" aria-hidden="true" /><template v-else>{{ i + 1 }}</template></span>{{ label }}
       </li>
     </ol>
 
     <div v-if="step === 1" class="panel">
       <h3>Step 1 — Create a restricted API key</h3>
       <ol class="how">
-        <li>Open the <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard → Developers → API keys</a>. Start in <strong>test mode</strong> so nothing real is charged.</li>
+        <li>Open the <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard <Icon name="lucide:chevron-right" aria-hidden="true" /> Developers <Icon name="lucide:chevron-right" aria-hidden="true" /> API keys</a>. Start in <strong>test mode</strong> so nothing real is charged.</li>
         <li>Click <strong>Create restricted key</strong> and name it “DJ NightLight”.</li>
         <li>Set <strong>Checkout Sessions</strong> and <strong>Customers</strong> to <strong>Write</strong>. NightLight needs Customers permission to create the virtual IBAN used for bank transfers. Also set <strong>Webhook Endpoints</strong> to <strong>Write</strong> if you want the webhook created for you in step 2.</li>
         <li>In <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">Payment methods</a>, enable <strong>Bank transfer</strong> for your account. EUR invoices use Stripe's EU bank-transfer instructions.</li>
@@ -143,7 +143,7 @@ async function copyUrl() {
       <button class="link" @click="showManual = !showManual">{{ showManual ? 'Hide manual steps' : 'Set it up manually instead' }}</button>
       <div v-if="showManual || !status.webhookPublic" class="manual">
         <ol class="how">
-          <li>Stripe Dashboard → <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener">Developers → Webhooks</a> → <strong>Add endpoint</strong>.</li>
+          <li>Stripe Dashboard <Icon name="lucide:chevron-right" aria-hidden="true" /> <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener">Developers <Icon name="lucide:chevron-right" aria-hidden="true" /> Webhooks</a> <Icon name="lucide:chevron-right" aria-hidden="true" /> <strong>Add endpoint</strong>.</li>
           <li>Endpoint URL: <code>{{ status.webhookUrl }}</code> <button class="link" @click="copyUrl">{{ copied ? 'Copied' : 'Copy' }}</button></li>
           <li>Select events: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>, <code>checkout.session.async_payment_failed</code>, <code>checkout.session.expired</code>, <code>payment_intent.payment_failed</code>.</li>
           <li>After creating it, reveal the <strong>Signing secret</strong> (starts with <code>whsec_</code>) and paste it here.</li>
@@ -167,7 +167,7 @@ async function copyUrl() {
         <button :disabled="busy === 'test'" @click="runTest">{{ busy === 'test' ? 'Checking…' : 'Run connection check' }}</button>
       </div>
       <ul v-if="checks.length" class="checks">
-        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong>{{ c.ok ? '✓' : '✕' }} {{ c.label }}</strong> {{ c.detail }}</li>
+        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong><Icon :name="c.ok ? 'lucide:circle-check' : 'lucide:circle-x'" aria-hidden="true" /> {{ c.label }}</strong> {{ c.detail }}</li>
       </ul>
       <p v-if="!status.livemode" class="hint">You’re in test mode. When ready to take real payments, repeat these steps with a <strong>live</strong> key (<code>rk_live_…</code>) — toggle “Test mode” off in the Stripe Dashboard first.</p>
     </div>

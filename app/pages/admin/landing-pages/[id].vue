@@ -45,7 +45,7 @@ useSeoMeta({title:()=>`${form.navLabel||'Landing page'} — DJ NightLight`,robot
 
 <template>
   <div class="editor">
-    <div class="topline"><NuxtLink to="/admin/landing-pages">← Landing pages</NuxtLink><div class="actions"><NuxtLink v-if="form.published" :to="`/diensten/${form.slug}`" target="_blank">Preview ↗</NuxtLink><button class="danger" type="button" @click="remove">Delete</button></div></div>
+    <div class="topline"><NuxtLink to="/admin/landing-pages"><Icon name="lucide:arrow-left" aria-hidden="true" /> Landing pages</NuxtLink><div class="actions"><NuxtLink v-if="form.published" :to="`/diensten/${form.slug}`" target="_blank">Preview <Icon name="lucide:external-link" aria-hidden="true" /></NuxtLink><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button></div></div>
     <header><p class="eyebrow">Landing page</p><h1>{{form.navLabel}}</h1><p>/diensten/{{form.slug}}</p></header>
 
     <form @submit.prevent="save">
