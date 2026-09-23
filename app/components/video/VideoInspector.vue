@@ -12,7 +12,9 @@ import {
   type ItemTransform,
   type TimelineItem,
   type VideoAspect,
+  type VideoProject,
 } from '~~/shared/video-project'
+import { updateItem } from '~~/shared/video-timeline'
 import {
   BACKDROP_STYLES,
   ENTRANCE_ANIMATIONS,
@@ -23,6 +25,7 @@ import {
   textProp,
   type TemplateField,
 } from '~~/shared/video-templates'
+import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
 // `mobile` turns the inspector into the contextual Edit tab: touch-sized
@@ -61,6 +64,28 @@ function setTransform(key: keyof ItemTransform, value: number) {
   patch((target) => {
     if ('transform' in target) target.transform[key] = value
   }, `transform.${key}`)
+}
+
+// Scrubbing a label is one undo step: the drag edits the project transiently
+// from a snapshot taken when it starts.
+let scrubBase: VideoProject | null = null
+
+function scrubStart() {
+  scrubBase = JSON.parse(JSON.stringify(toRaw(state.project))) as VideoProject
+  editor.beginTransient()
+}
+
+function scrubTransform(key: keyof ItemTransform, value: number) {
+  const id = item.value?.id
+  if (!scrubBase || !id) return
+  editor.transient(updateItem(scrubBase, id, (target) => {
+    if ('transform' in target) target.transform[key] = value
+  }))
+}
+
+function scrubEnd() {
+  scrubBase = null
+  editor.endTransient()
 }
 
 function setCrop(key: keyof ItemCrop, value: number) {
@@ -302,15 +327,15 @@ const assetTitle = computed(() => {
         <component :is="headingTag">Transform <button type="button" class="ghost small" @click.prevent="resetTransform">Reset</button></component>
         <div class="row"><span>Position</span>
           <div class="pair">
-            <label>X <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
-            <label>Y <input type="number" step="10" :value="item.transform.y" @input="setTransform('y', Number(($event.target as HTMLInputElement).value))"></label>
+            <label><ScrubLabel :value="item.transform.x" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('x', $event)" @end="scrubEnd">X</ScrubLabel> <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
+            <label><ScrubLabel :value="item.transform.y" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('y', $event)" @end="scrubEnd">Y</ScrubLabel> <input type="number" step="10" :value="item.transform.y" @input="setTransform('y', Number(($event.target as HTMLInputElement).value))"></label>
           </div>
         </div>
-        <label class="row"><span>Scale</span>
+        <label class="row"><ScrubLabel :value="item.transform.scale" :step="0.005" :min="0.1" :max="3" :precision="3" @start="scrubStart" @scrub="scrubTransform('scale', $event)" @end="scrubEnd">Scale</ScrubLabel>
           <input type="range" min="0.1" max="3" step="0.01" :value="item.transform.scale" @input="setTransform('scale', Number(($event.target as HTMLInputElement).value))">
           <output>{{ Math.round(item.transform.scale * 100) }}%</output>
         </label>
-        <label class="row"><span>Rotation</span>
+        <label class="row"><ScrubLabel :value="item.transform.rotation" :step="0.5" :min="-180" :max="180" :precision="1" @start="scrubStart" @scrub="scrubTransform('rotation', $event)" @end="scrubEnd">Rotation</ScrubLabel>
           <input type="range" min="-180" max="180" step="1" :value="item.transform.rotation" @input="setTransform('rotation', Number(($event.target as HTMLInputElement).value))">
           <output>{{ item.transform.rotation }}°</output>
         </label>
