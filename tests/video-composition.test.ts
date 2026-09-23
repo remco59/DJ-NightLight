@@ -19,6 +19,12 @@ describe('remotion project composition', () => {
     }
   })
 
+  it('ships the bundled fonts with their licences', () => {
+    for (const file of ['ArchivoBlack-Regular.woff2', 'Archivo-Variable.woff2', 'Archivo-Italic-Variable.woff2', 'ArchivoBlack-OFL.txt', 'Archivo-OFL.txt']) {
+      expect(existsSync(`public/fonts/${file}`), file).toBe(true)
+    }
+  })
+
   it('animates entrances and exits and rests in between', () => {
     const base = { duration: 90, entrance: 'fade' as const, exit: 'fade' as const, entranceFrames: 15, exitFrames: 15 }
     expect(animationState({ ...base, frame: 0 }).opacity).toBe(0)
