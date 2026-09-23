@@ -374,7 +374,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       icon('websiteIcon', 'Website icon'),
     ],
     defaults: {
-      headline: 'BLIJF GELADEN',
+      headline: 'ALTIJD FEEST!',
       handle: 'dj_nightlight',
       handleIcon: 'instagram',
       website: 'DJNIGHTLIGHT.NL',
