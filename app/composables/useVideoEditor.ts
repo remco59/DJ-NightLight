@@ -33,6 +33,7 @@ import {
   undoHistory,
   updateItem,
 } from '~~/shared/video-timeline'
+import type { VideoRenderStatus } from '~~/shared/video-generator'
 import type { MotionTemplateKey } from '~~/shared/video-templates'
 
 export type EditorMediaAsset = {
@@ -50,7 +51,7 @@ export type EditorMediaAsset = {
 
 export type EditorRender = {
   id: string
-  status: 'queued' | 'rendering' | 'completed' | 'failed'
+  status: VideoRenderStatus
   progress: number
   error: string | null
   renderEngine: string | null

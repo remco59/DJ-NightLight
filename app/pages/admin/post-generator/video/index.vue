@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { canCancelRender, type VideoRenderStatus } from '~~/shared/video-generator'
 import { VIDEO_ASPECTS, VIDEO_ASPECT_KEYS, type VideoAspect } from '~~/shared/video-project'
 
 definePageMeta({ layout: 'admin' })
@@ -19,7 +20,7 @@ type RenderJob = {
   id: string
   projectId: string | null
   projectName: string | null
-  status: 'queued' | 'rendering' | 'completed' | 'failed'
+  status: VideoRenderStatus
   progress: number
   width: number
   height: number
@@ -69,6 +70,20 @@ async function remove(project: ProjectSummary) {
     await refresh()
   } catch (error) {
     message.value = apiErrorMessage(error, 'Project could not be deleted.')
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function cancelJob(job: RenderJob) {
+  if (!confirm('Cancel this render?')) return
+  busy.value = job.id
+  message.value = ''
+  try {
+    await $fetch(`/api/admin/post-generator/video/${job.id}/cancel`, { method: 'POST' })
+    await refreshQueue()
+  } catch (error) {
+    message.value = apiErrorMessage(error, 'Render could not be cancelled.')
   } finally {
     busy.value = ''
   }
@@ -133,6 +148,7 @@ useSeoMeta({ title: 'Video editor — DJ NightLight', robots: 'noindex, nofollow
           <strong>{{ job.projectName || (job.projectId ? 'Video project' : 'Legacy video') }}</strong>
           <small>{{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s<template v-if="job.renderEngine"> · {{ job.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template> · {{ new Date(job.createdAt).toLocaleString() }}</small>
           <a v-if="job.videoUrl" class="with-icon" :href="job.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
+          <button v-if="canCancelRender(job.status)" class="cancel with-icon" type="button" :disabled="busy === job.id" @click="cancelJob(job)"><Icon name="lucide:circle-x" aria-hidden="true" />Cancel</button>
         </li>
         <li v-if="!queue?.jobs.length" class="empty">Nothing rendered yet.</li>
       </ol>
@@ -280,6 +296,15 @@ h2 { margin: 0 0 .8rem; }
 }
 
 .exports a { color: #c4b5fd; }
+
+.exports .cancel {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fca5a5;
+  cursor: pointer;
+}
 
 .status {
   min-width: 90px;

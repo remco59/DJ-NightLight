@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { bundle } from '@remotion/bundler'
-import { renderMedia, selectComposition } from '@remotion/renderer'
+import { makeCancelSignal, renderMedia, selectComposition, type CancelSignal } from '@remotion/renderer'
 import type { VideoDesign } from '../shared/video-generator'
 import { RENDER_ENGINE_LABELS, parseRenderEngineSetting, resolveRenderEngine } from '../shared/render-engine'
 import { detectRenderCapabilities, renderOptionsFor, type RenderCapabilities } from './render-engine'
@@ -29,6 +29,7 @@ let stopping = false
 let capabilities: RenderCapabilities = { engines: [] }
 
 const CAPABILITY_REFRESH_MS = 60_000
+const CANCEL_POLL_MS = 2000
 
 type JobRow = {
   id: string
@@ -112,16 +113,35 @@ async function claimJob() {
   })
 }
 
+// Returns false when the job was cancelled meanwhile; a cancelled job keeps
+// that status.
 async function markFailed(jobId: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
-  await sql`
+  const rows = await sql`
     UPDATE video_render_jobs
     SET status = 'failed',
         error = ${message.slice(0, 10000)},
         finished_at = NOW(),
         updated_at = NOW()
-    WHERE id = ${jobId}
+    WHERE id = ${jobId} AND status = 'rendering'
+    RETURNING id
   `
+  return rows.length > 0
+}
+
+// Staff can cancel a job from the editor while it renders. The worker polls the
+// job and aborts Remotion as soon as it is no longer 'rendering' (cancelled or
+// deleted).
+function watchForCancellation(jobId: string) {
+  const { cancelSignal, cancel } = makeCancelSignal()
+  const timer = setInterval(() => {
+    void (sql`SELECT status FROM video_render_jobs WHERE id = ${jobId}` as unknown as Promise<{ status: string }[]>)
+      .then((rows) => {
+        if (rows[0]?.status !== 'rendering') cancel()
+      })
+      .catch(() => undefined)
+  }, CANCEL_POLL_MS)
+  return { cancelSignal, stop: () => clearInterval(timer) }
 }
 
 // Headless Chromium and Remotion's video extractor fetch project media over
@@ -190,7 +210,7 @@ async function resolveJobEngine(job: JobRow) {
   return renderOptionsFor(engine, capabilities)
 }
 
-async function renderComposition(job: JobRow, serveUrl: string, id: string, inputProps: Record<string, unknown>) {
+async function renderComposition(job: JobRow, serveUrl: string, cancelSignal: CancelSignal, id: string, inputProps: Record<string, unknown>) {
   const browser = browserExecutable ? { browserExecutable } : {}
   const composition = await selectComposition({
     serveUrl,
@@ -215,6 +235,7 @@ async function renderComposition(job: JobRow, serveUrl: string, id: string, inpu
       inputProps,
       ...browser,
       ...engineOptions,
+      cancelSignal,
       onProgress: ({ progress }) => {
         const percent = Math.max(2, Math.min(99, Math.round(progress * 100)))
         if (percent < lastPercent + 3) return
@@ -227,7 +248,7 @@ async function renderComposition(job: JobRow, serveUrl: string, id: string, inpu
       },
     })
 
-    await sql`
+    const completed = await sql`
       UPDATE video_render_jobs
       SET status = 'completed',
           progress = 100,
@@ -236,15 +257,17 @@ async function renderComposition(job: JobRow, serveUrl: string, id: string, inpu
           error = NULL,
           finished_at = NOW(),
           updated_at = NOW()
-      WHERE id = ${job.id}
+      WHERE id = ${job.id} AND status = 'rendering'
+      RETURNING id
     `
+    if (!completed.length) throw new Error('Render was cancelled')
   } catch (error) {
     await rm(target, { force: true }).catch(() => undefined)
     throw error
   }
 }
 
-async function renderProjectJob(job: JobRow, serveUrl: string) {
+async function renderProjectJob(job: JobRow, serveUrl: string, cancelSignal: CancelSignal) {
   const project = parseVideoProject(job.project_snapshot)
   const ids = collectProjectAssetIds(project)
   const rows = ids.length
@@ -268,15 +291,15 @@ async function renderProjectJob(job: JobRow, serveUrl: string) {
     }
   }
   try {
-    await renderComposition(job, serveUrl, 'NightLightProject', { project, assets })
+    await renderComposition(job, serveUrl, cancelSignal, 'NightLightProject', { project, assets })
   } finally {
     servedAssets.clear()
   }
 }
 
-async function renderJob(job: JobRow, serveUrl: string) {
+async function renderJob(job: JobRow, serveUrl: string, cancelSignal: CancelSignal) {
   if (job.project_snapshot) {
-    await renderProjectJob(job, serveUrl)
+    await renderProjectJob(job, serveUrl, cancelSignal)
     return
   }
   if (!job.source_media_asset_id) throw new Error('Render job has neither a project nor a source image')
@@ -299,7 +322,7 @@ async function renderJob(job: JobRow, serveUrl: string) {
     audioSrc = dataUri(job.audio_mime_type || 'audio/mpeg', audioBuffer)
   }
 
-  await renderComposition(job, serveUrl, 'NightLightVertical', {
+  await renderComposition(job, serveUrl, cancelSignal, 'NightLightVertical', {
     imageSrc,
     audioSrc,
     design: job.design,
@@ -350,12 +373,15 @@ async function main() {
     }
 
     console.log(`Rendering video job ${job.id}`)
+    const cancellation = watchForCancellation(job.id)
     try {
-      await renderJob(job, serveUrl)
+      await renderJob(job, serveUrl, cancellation.cancelSignal)
       console.log(`Completed video job ${job.id}`)
     } catch (error) {
-      console.error(`Video job ${job.id} failed`, error)
-      await markFailed(job.id, error)
+      if (await markFailed(job.id, error)) console.error(`Video job ${job.id} failed`, error)
+      else console.log(`Cancelled video job ${job.id}`)
+    } finally {
+      cancellation.stop()
     }
   }
 }
