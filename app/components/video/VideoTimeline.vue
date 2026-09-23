@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MARKER_COLORS, findItem, formatTimecode, itemEnd, type MarkerColor, type TimelineItem, type TimelineMarker, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
-import { moveItem, snapFrame, snapTargets, updateMarker } from '~~/shared/video-timeline'
+import { moveItem, reorderTrack, snapFrame, snapTargets, updateMarker } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
 import { clampZoom, fitZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
@@ -278,6 +278,49 @@ function setMarkerColor(color: MarkerColor) {
 
 function addMarker() {
   editor.addMarkerAtPlayhead()
+}
+
+// --- Track order ------------------------------------------------------------------
+// Drag a track's grip up or down (or focus it and use the arrow keys). The top
+// row is the front layer; visual and audio tracks stay in their own groups.
+
+const trackDrag = ref<{ id: string, target: number } | null>(null)
+
+function displayIndexOf(trackId: string) {
+  return displayTracks.value.findIndex(track => track.id === trackId)
+}
+
+function startTrackDrag(event: PointerEvent, track: VideoTrack) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  const grip = event.currentTarget as HTMLElement
+  grip.setPointerCapture(event.pointerId)
+  trackDrag.value = { id: track.id, target: displayIndexOf(track.id) }
+  const move = (moveEvent: PointerEvent) => {
+    const row = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest<HTMLElement>('[data-row-id]')
+    if (row && trackDrag.value) trackDrag.value.target = displayIndexOf(row.dataset.rowId!)
+  }
+  const end = (endEvent: PointerEvent) => {
+    grip.removeEventListener('pointermove', move)
+    grip.removeEventListener('pointerup', end)
+    grip.removeEventListener('pointercancel', end)
+    const drag = trackDrag.value
+    trackDrag.value = null
+    if (drag && endEvent.type === 'pointerup') editor.commit(reorderTrack(state.project, drag.id, drag.target))
+  }
+  grip.addEventListener('pointermove', move)
+  grip.addEventListener('pointerup', end)
+  grip.addEventListener('pointercancel', end)
+}
+
+function trackKey(event: KeyboardEvent, track: VideoTrack) {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  event.stopPropagation()
+  const target = displayIndexOf(track.id) + (event.key === 'ArrowUp' ? -1 : 1)
+  editor.commit(reorderTrack(state.project, track.id, target))
+  // The grip is re-rendered in its new row; keep keyboard focus on it.
+  void nextTick(() => document.querySelector<HTMLElement>(`[data-row-id="${track.id}"] .grip`)?.focus())
 }
 
 function itemTap(item: TimelineItem) {
@@ -587,7 +630,18 @@ defineExpose({ zoomToFit, zoomToSelection })
           </div>
         </div>
 
-        <div v-for="track in displayTracks" :key="track.id" class="track-row" :class="[track.kind, { hidden: track.hidden, muted: track.muted }]">
+        <div
+          v-for="(track, index) in displayTracks"
+          :key="track.id"
+          class="track-row"
+          :class="[track.kind, {
+            hidden: track.hidden,
+            muted: track.muted,
+            'reorder-source': trackDrag?.id === track.id,
+            'reorder-target': trackDrag && trackDrag.id !== track.id && trackDrag.target === index,
+          }]"
+          :data-row-id="track.id"
+        >
           <div v-if="props.compact" class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
             <button
               type="button"
@@ -601,6 +655,15 @@ defineExpose({ zoomToFit, zoomToSelection })
             </button>
           </div>
           <div v-else class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
+            <span
+              class="grip"
+              role="button"
+              tabindex="0"
+              :aria-label="`Reorder ${track.name}: drag, or use the up and down arrow keys`"
+              :title="track.kind === 'audio' ? 'Drag to reorder' : 'Drag to reorder (top row = front layer)'"
+              @pointerdown="startTrackDrag($event, track)"
+              @keydown="trackKey($event, track)"
+            ><Icon name="lucide:grip-vertical" aria-hidden="true" /></span>
             <Icon class="kind" :name="kindIcon[track.kind]" aria-hidden="true" />
             <span class="name">{{ track.name }}</span>
             <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
@@ -834,6 +897,24 @@ defineExpose({ zoomToFit, zoomToSelection })
   padding: 0 .4rem 0 .6rem;
   font-size: .8rem;
 }
+
+.grip {
+  display: grid;
+  flex: none;
+  margin-left: -.35rem;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--ve-muted);
+  cursor: grab;
+  opacity: .5;
+  touch-action: none;
+}
+
+.grip svg { width: 14px; height: 14px; }
+.track-label:hover .grip, .grip:focus-visible { opacity: 1; }
+.grip:focus-visible { outline: 2px solid var(--ve-accent); }
+.track-row.reorder-source { opacity: .55; }
+.track-row.reorder-target { box-shadow: inset 0 0 0 2px var(--ve-accent); }
 
 .track-label .kind {
   flex: none;
