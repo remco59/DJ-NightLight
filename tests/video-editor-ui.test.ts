@@ -3,9 +3,13 @@ import { createGraphicItem, createMediaItem } from '../shared/video-project'
 import {
   MAX_TIMELINE_ZOOM,
   MIN_TIMELINE_ZOOM,
+  MIN_PREVIEW_WIDTH,
+  clampPanelSizes,
   clampZoom,
+  defaultPanelSizes,
   filterMediaAssets,
   formatMediaDuration,
+  parsePanelSizes,
   pinchZoom,
   quickActionsFor,
   timelineDisplayOrder,
@@ -91,5 +95,40 @@ describe('timeline display order', () => {
     const tracks = [{ kind: 'video' as const }, { kind: 'graphics' as const }]
     timelineDisplayOrder(tracks)
     expect(tracks.map(track => track.kind)).toEqual(['video', 'graphics'])
+  })
+})
+
+describe('resizable panels', () => {
+  const desktop = { width: 1440, height: 900, rail: 76, inspectorVisible: true }
+
+  it('keeps each panel within its limits', () => {
+    expect(clampPanelSizes({ side: 50, inspector: 5000, timeline: 20 }, desktop)).toEqual({ side: 220, inspector: 480, timeline: 160 })
+    // Timeline can take at most 65% of the height and must leave the workspace its minimum.
+    expect(clampPanelSizes({ side: 300, inspector: 320, timeline: 5000 }, desktop).timeline).toBe(542)
+    expect(clampPanelSizes({ side: 300, inspector: 320, timeline: 5000 }, { ...desktop, height: 2000 }).timeline).toBe(1300)
+  })
+
+  it('leaves the preview its minimum width, shrinking the panel not being dragged first', () => {
+    const narrow = { ...desktop, width: 1100 }
+    const available = narrow.width - narrow.rail - MIN_PREVIEW_WIDTH
+    const sideFirst = clampPanelSizes({ side: 480, inspector: 480, timeline: 300 }, narrow, 'side')
+    expect(sideFirst).toMatchObject({ side: 444, inspector: 260 })
+    expect(sideFirst.side + sideFirst.inspector).toBeLessThanOrEqual(available)
+    const inspectorFirst = clampPanelSizes({ side: 480, inspector: 480, timeline: 300 }, narrow, 'inspector')
+    expect(inspectorFirst).toMatchObject({ side: 224, inspector: 480 })
+  })
+
+  it('ignores the inspector while it is hidden', () => {
+    const compact = { width: 900, height: 800, rail: 64, inspectorVisible: false }
+    expect(clampPanelSizes({ side: 480, inspector: 480, timeline: 300 }, compact).side).toBe(480)
+    expect(clampPanelSizes({ side: 480, inspector: 480, timeline: 300 }, { ...compact, width: 700 }).side).toBe(316)
+  })
+
+  it('scales the default timeline with the window and reads stored sizes defensively', () => {
+    expect(defaultPanelSizes(900).timeline).toBe(306)
+    expect(defaultPanelSizes(500).timeline).toBe(220)
+    expect(parsePanelSizes('{"side":250,"inspector":"wide","timeline":null}')).toEqual({ side: 250 })
+    expect(parsePanelSizes('not json')).toEqual({})
+    expect(parsePanelSizes(null)).toEqual({})
   })
 })

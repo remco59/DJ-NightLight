@@ -4,6 +4,7 @@ import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.
 import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
 import MobileVideoToolbar from '~/components/video/MobileVideoToolbar.vue'
 import MobileVideoTransport from '~/components/video/MobileVideoTransport.vue'
+import PanelSplitter from '~/components/video/PanelSplitter.vue'
 import RemotionPreview from '~/components/video/RemotionPreview.vue'
 import VideoInspector from '~/components/video/VideoInspector.vue'
 import VideoMediaPanel from '~/components/video/VideoMediaPanel.vue'
@@ -16,7 +17,15 @@ import {
   type EditorRender,
 } from '~/composables/useVideoEditor'
 import { VIDEO_ASPECTS, formatTimecode, type MediaKind, type VideoProject } from '~~/shared/video-project'
-import type { MobileVideoTool } from '~~/shared/video-editor-ui'
+import {
+  PANEL_LIMITS,
+  clampPanelSizes,
+  defaultPanelSizes,
+  parsePanelSizes,
+  type MobileVideoTool,
+  type PanelKey,
+  type PanelSizes,
+} from '~~/shared/video-editor-ui'
 
 definePageMeta({ layout: false })
 
@@ -122,6 +131,87 @@ async function refreshRenders() {
     // Keep the last known list; the next poll retries.
   }
 }
+
+// --- Resizable panels (desktop) ----------------------------------------------------
+// Sizes live in CSS variables on the root; limits keep the preview usable.
+// Remembered per browser; storage can be unavailable, so every access is guarded.
+
+const PANEL_STORAGE_KEY = 'nightlight:video-editor-panels'
+const COMPACT_QUERY = '(max-width: 1100px)'
+const panels = reactive<PanelSizes>(defaultPanelSizes(900))
+const viewport = reactive({ width: 1440, height: 900, compact: false })
+let panelDragBase: PanelSizes | null = null
+
+function panelViewport() {
+  return { width: viewport.width, height: viewport.height, rail: viewport.compact ? 64 : 76, inspectorVisible: !viewport.compact }
+}
+
+function applyPanels(next: PanelSizes, priority: PanelKey = 'side') {
+  Object.assign(panels, clampPanelSizes(next, panelViewport(), priority))
+}
+
+const panelMax = computed(() => clampPanelSizes(
+  { side: Infinity, inspector: Infinity, timeline: Infinity },
+  panelViewport(),
+))
+
+function savePanels() {
+  try {
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panels))
+  } catch {
+    // Private mode or blocked storage: sizes last for this visit only.
+  }
+}
+
+function loadPanels() {
+  let stored: Partial<PanelSizes> = {}
+  try {
+    stored = parsePanelSizes(localStorage.getItem(PANEL_STORAGE_KEY))
+  } catch {
+    stored = {}
+  }
+  applyPanels({ ...defaultPanelSizes(viewport.height), ...stored })
+}
+
+function syncViewport() {
+  viewport.width = window.innerWidth
+  viewport.height = window.innerHeight
+  viewport.compact = window.matchMedia(COMPACT_QUERY).matches
+  applyPanels({ ...panels })
+}
+
+// Dragging right grows the side panel but shrinks the inspector; dragging up grows the timeline.
+const PANEL_DIRECTION: Record<PanelKey, 1 | -1> = { side: 1, inspector: -1, timeline: -1 }
+
+function resizePanel(key: PanelKey, delta: number) {
+  const base = panelDragBase || { ...panels }
+  applyPanels({ ...base, [key]: base[key] + PANEL_DIRECTION[key] * delta }, key)
+}
+
+function startPanelDrag() {
+  panelDragBase = { ...panels }
+}
+
+function endPanelDrag() {
+  panelDragBase = null
+  savePanels()
+}
+
+function stepPanel(key: PanelKey, delta: number) {
+  resizePanel(key, delta)
+  savePanels()
+}
+
+function resetPanel(key: PanelKey) {
+  applyPanels({ ...panels, [key]: defaultPanelSizes(viewport.height)[key] }, key)
+  savePanels()
+}
+
+const panelStyle = computed(() => ({
+  '--side-w': `${panels.side}px`,
+  '--inspector-w': `${panels.inspector}px`,
+  '--timeline-h': `${panels.timeline}px`,
+}))
 
 // --- Preview sizing and transport ----------------------------------------------
 
@@ -260,6 +350,9 @@ onMounted(() => {
     stageSize.height = entry.contentRect.height
   })
   if (stage.value) resizeObserver.observe(stage.value)
+  syncViewport()
+  loadPanels()
+  window.addEventListener('resize', syncViewport)
   mobileQuery = window.matchMedia(MOBILE_QUERY)
   syncMobile()
   mobileQuery.addEventListener('change', syncMobile)
@@ -271,6 +364,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('beforeunload', beforeUnload)
+  window.removeEventListener('resize', syncViewport)
   resizeObserver?.disconnect()
   mobileQuery?.removeEventListener('change', syncMobile)
   if (pollTimer) clearInterval(pollTimer)
@@ -280,7 +374,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 </script>
 
 <template>
-  <div class="video-editor" :class="{ mobile: isMobile }">
+  <div class="video-editor" :class="{ mobile: isMobile }" :style="isMobile ? undefined : panelStyle">
     <MobileVideoEditorHeader
       v-if="isMobile"
       v-model:name="nameDraft"
@@ -378,6 +472,49 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
       </main>
 
       <VideoInspector v-if="!isMobile" class="inspector-column" />
+
+      <template v-if="!isMobile">
+        <PanelSplitter
+          class="split-side"
+          orientation="vertical"
+          label="Resize media panel"
+          :value="panels.side"
+          :min="PANEL_LIMITS.side.min"
+          :max="panelMax.side"
+          @start="startPanelDrag"
+          @move="resizePanel('side', $event)"
+          @end="endPanelDrag"
+          @step="stepPanel('side', $event)"
+          @reset="resetPanel('side')"
+        />
+        <PanelSplitter
+          v-if="!viewport.compact"
+          class="split-inspector"
+          orientation="vertical"
+          label="Resize inspector"
+          :value="panels.inspector"
+          :min="PANEL_LIMITS.inspector.min"
+          :max="panelMax.inspector"
+          @start="startPanelDrag"
+          @move="resizePanel('inspector', $event)"
+          @end="endPanelDrag"
+          @step="stepPanel('inspector', $event)"
+          @reset="resetPanel('inspector')"
+        />
+        <PanelSplitter
+          class="split-timeline"
+          orientation="horizontal"
+          label="Resize timeline"
+          :value="panels.timeline"
+          :min="PANEL_LIMITS.timeline.min"
+          :max="panelMax.timeline"
+          @start="startPanelDrag"
+          @move="resizePanel('timeline', $event)"
+          @end="endPanelDrag"
+          @step="stepPanel('timeline', $event)"
+          @reset="resetPanel('timeline')"
+        />
+      </template>
     </div>
 
     <VideoTimeline class="timeline-row" :compact="isMobile" @seek="seek" />
@@ -416,7 +553,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 58px minmax(0, 1fr) minmax(220px, 34vh);
+  grid-template-rows: 58px minmax(0, 1fr) var(--timeline-h, minmax(220px, 34vh));
   height: 100vh;
   overflow: hidden;
   background: var(--ve-bg);
@@ -568,10 +705,18 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 }
 
 .workspace {
+  --rail-w: 76px;
+
+  position: relative;
   display: grid;
-  grid-template-columns: 76px 300px minmax(0, 1fr) 320px;
+  grid-template-columns: var(--rail-w) var(--side-w, 300px) minmax(0, 1fr) var(--inspector-w, 320px);
   min-height: 0;
 }
+
+.split-side { left: calc(var(--rail-w) + var(--side-w, 300px)); }
+/* Handles are 9px wide and centred on the panel borders. */
+.split-inspector { right: calc(var(--inspector-w, 320px) - 4.5px); }
+.split-timeline { bottom: -4.5px; }
 
 .rail {
   display: flex;
@@ -684,7 +829,12 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 }
 
 @media (max-width: 1100px) {
-  .workspace { grid-template-columns: 64px 240px minmax(0, 1fr); }
+  .workspace {
+    --rail-w: 64px;
+
+    grid-template-columns: var(--rail-w) var(--side-w, 240px) minmax(0, 1fr);
+  }
+
   .inspector-column { display: none; }
 }
 
