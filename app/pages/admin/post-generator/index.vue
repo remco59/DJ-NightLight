@@ -98,7 +98,6 @@ const brands = [
 ]
 
 const selectedAsset = computed(() => data.value?.assets.find(asset => asset.id === sourceAssetId.value) || null)
-const selectedBrand = computed(() => brands.find(brand => brand.key === design.brandPreset) || brands[0]!)
 const filteredAssets = computed(() => {
   const q = sourceSearch.value.trim().toLowerCase()
   const assets = data.value?.assets || []
@@ -110,12 +109,6 @@ const filteredAssets = computed(() => {
   ].some(value => value.toLowerCase().includes(q)))
 })
 const readyToGenerate = computed(() => Boolean(selectedAsset.value && design.headline.trim()))
-const checklistItems = computed(() => [
-  { label: 'Image selected', complete: Boolean(selectedAsset.value) },
-  { label: 'Headline added', complete: Boolean(design.headline.trim()) },
-  { label: 'Brand preset selected', complete: Boolean(design.brandPreset) },
-  { label: 'Ready to generate', complete: readyToGenerate.value },
-])
 
 function isSectionOpen(step: number) {
   return openSections.value.includes(step)
@@ -654,63 +647,15 @@ function formatDate(value: string) {
         </section>
       </main>
 
-      <aside class="inspector">
-        <section class="side-card brand-guide">
-          <div class="side-heading">
-            <span class="side-icon">◇</span>
-            <div>
-              <strong>Brand guide</strong>
-              <small>Keep your content on brand.</small>
-            </div>
-          </div>
-
-          <div class="brand-current">
-            <span class="brand-orb" :style="{ background: selectedBrand.colors[0] }" />
-            <span>
-              <strong>{{ selectedBrand.label }}</strong>
-              <small>{{ selectedBrand.description }}</small>
-            </span>
-          </div>
-
-          <div class="swatches">
-            <span v-for="color in selectedBrand.colors" :key="color" :style="{ background: color }" />
-          </div>
-        </section>
-
-        <section class="side-card tip-card">
-          <div class="side-heading">
-            <span class="side-icon">✦</span>
-            <div>
-              <strong>Pro tip</strong>
-              <small>Use high-contrast photos with people, lights and atmosphere for the strongest result.</small>
-            </div>
-          </div>
-        </section>
-
-        <section class="side-card">
-          <div class="side-heading">
-            <span class="side-icon">✓</span>
-            <div>
-              <strong>Post checklist</strong>
-              <small>Quick checks before generating.</small>
-            </div>
-          </div>
-
-          <div class="checklist">
-            <span v-for="item in checklistItems" :key="item.label" :class="{ complete: item.complete }">
-              <i>{{ item.complete ? '✓' : '·' }}</i>
-              {{ item.label }}
-            </span>
-          </div>
-        </section>
-      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
 .page {
-  max-width: 1660px;
+  width: 100%;
+  max-width: 1480px;
+  min-width: 0;
   margin: 0 auto;
   padding-bottom: 2rem;
 }
@@ -884,14 +829,19 @@ input[type='range'] {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(330px, 390px) minmax(520px, 1fr) minmax(220px, 250px);
+  grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
 
 .controls {
+  min-width: 0;
   display: grid;
   gap: .7rem;
+}
+
+.workspace > * {
+  min-width: 0;
 }
 
 .workflow-card,
@@ -1110,7 +1060,7 @@ input[type='range'] {
 
 .format-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: .45rem;
   margin-top: .8rem;
 }
@@ -1163,11 +1113,12 @@ input[type='range'] {
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: .5rem;
 }
 
 .template-card {
+  min-width: 0;
   padding: .35rem;
   text-align: left;
   overflow: hidden;
@@ -1299,8 +1250,10 @@ input[type='range'] {
 }
 
 .preview-tools {
+  min-width: 0;
   gap: .45rem;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .preview-tools select {
@@ -1639,14 +1592,9 @@ input[type='range'] {
   color: #57d889;
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1180px) {
   .workspace {
-    grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
-  }
-
-  .inspector {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
   }
 }
 
@@ -1665,11 +1613,6 @@ input[type='range'] {
 
   .controls {
     order: 2;
-  }
-
-  .inspector {
-    order: 3;
-    grid-column: auto;
   }
 
   .preview-stage {
@@ -1692,10 +1635,6 @@ input[type='range'] {
 
   .preview-tools {
     flex-wrap: wrap;
-  }
-
-  .inspector {
-    grid-template-columns: 1fr;
   }
 
   .template-grid {
