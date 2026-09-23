@@ -47,7 +47,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 </script>
 
 <template>
-  <div class="admin-shell">
+  <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }">
     <header class="mobile-header">
       <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
       <button class="menu-button" type="button" :aria-expanded="mobileOpen" aria-label="Menu openen" @click="mobileOpen = !mobileOpen">
@@ -216,6 +216,11 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  .post-editor-route .mobile-header { display: none; }
+  .post-editor-route .admin-main {
+    min-height: 100dvh;
+    padding: .5rem .6rem 0;
+  }
   .backdrop {
     position: fixed;
     inset: 0;

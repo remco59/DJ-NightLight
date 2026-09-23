@@ -43,6 +43,7 @@ type GeneratorData = {
 }
 
 const { data, refresh } = await useFetch<GeneratorData>('/api/admin/post-generator')
+const router = useRouter()
 const sourceAssetId = ref('')
 const sourceSearch = ref('')
 const freshFile = ref<File | null>(null)
@@ -53,6 +54,18 @@ const busy = ref('')
 const message = ref('')
 const lastRenderedUrl = ref('')
 const openSections = ref<number[]>([1, 2, 3])
+
+type MobileTool = 'photo' | 'template' | 'text' | 'style' | 'export'
+
+const mobileTool = ref<MobileTool>('text')
+const mobileTabs: Array<{ key: MobileTool, label: string, icon: string, step: number }> = [
+  { key: 'photo', label: 'Foto', icon: '▧', step: 1 },
+  { key: 'template', label: 'Template', icon: '▦', step: 2 },
+  { key: 'text', label: 'Tekst', icon: 'T', step: 3 },
+  { key: 'style', label: 'Stijl', icon: '◉', step: 4 },
+  { key: 'export', label: 'Export', icon: '⇧', step: 5 },
+]
+
 const dragState = reactive({
   active: false,
   pointerId: -1,
@@ -143,9 +156,19 @@ function isSectionOpen(step: number) {
 }
 
 function toggleSection(step: number) {
+  if (import.meta.client && window.matchMedia('(max-width: 720px)').matches) {
+    if (!isSectionOpen(step)) openSections.value = [...openSections.value, step]
+    return
+  }
+
   openSections.value = isSectionOpen(step)
     ? openSections.value.filter(item => item !== step)
     : [...openSections.value, step]
+}
+
+function selectMobileTool(tool: MobileTool, step: number) {
+  mobileTool.value = tool
+  if (!isSectionOpen(step)) openSections.value = [...openSections.value, step]
 }
 
 function chooseFreshFile(event: Event) {
@@ -448,6 +471,19 @@ function formatDate(value: string) {
 
 <template>
   <div class="page">
+    <header class="mobile-editor-header">
+      <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()">←</button>
+      <strong>Post editor</strong>
+      <button
+        class="mobile-export-button"
+        type="button"
+        :disabled="busy === 'render' || !readyToGenerate"
+        @click="renderAndSave"
+      >
+        {{ busy === 'render' ? 'Bezig…' : 'Export' }}
+      </button>
+    </header>
+
     <header class="page-header">
       <div class="header-copy">
         <p class="breadcrumb">Content <span>/</span> Post generator</p>
@@ -472,7 +508,7 @@ function formatDate(value: string) {
     <p v-if="message" class="message">{{ message }}</p>
 
     <div class="workspace">
-      <aside class="controls">
+      <aside class="controls" :class="'mobile-tool-' + mobileTool">
         <section class="workflow-card">
           <button
             class="section-heading"
@@ -957,6 +993,21 @@ function formatDate(value: string) {
       </main>
 
     </div>
+
+    <nav class="mobile-tool-tabs" aria-label="Editor tools">
+      <button
+        v-for="tab in mobileTabs"
+        :key="tab.key"
+        class="mobile-tool-tab"
+        :class="{ active: mobileTool === tab.key }"
+        type="button"
+        :aria-current="mobileTool === tab.key ? 'page' : undefined"
+        @click="selectMobileTool(tab.key, tab.step)"
+      >
+        <span class="mobile-tab-icon" aria-hidden="true">{{ tab.icon }}</span>
+        <span>{{ tab.label }}</span>
+      </button>
+    </nav>
   </div>
 </template>
 
@@ -967,6 +1018,11 @@ function formatDate(value: string) {
   min-width: 0;
   margin: 0 auto;
   padding-bottom: 2rem;
+}
+
+.mobile-editor-header,
+.mobile-tool-tabs {
+  display: none;
 }
 
 .page-header,
@@ -2213,84 +2269,491 @@ input[type='range'] {
 }
 
 @media (max-width: 720px) {
-  .page-header {
-    display: grid;
+  .page {
+    --mobile-editor-header-height: 3.6rem;
+    --mobile-editor-tabs-height: 4.65rem;
+    max-width: none;
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow: hidden;
   }
 
-  .header-actions {
-    justify-content: flex-start;
+  .page-header {
+    display: none;
+  }
+
+  .mobile-editor-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .55rem;
+    min-height: var(--mobile-editor-header-height);
+    margin: -.2rem 0 .5rem;
+    padding: .35rem .15rem;
+    border-bottom: 1px solid rgba(74, 62, 84, .72);
+    background: rgba(10, 8, 13, .94);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-editor-header strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1.05rem;
+    letter-spacing: -.02em;
+  }
+
+  .mobile-back-button,
+  .mobile-export-button {
+    min-height: 2.75rem;
+    border-radius: .78rem;
+  }
+
+  .mobile-back-button {
+    width: 2.75rem;
+    padding: 0;
+    border-color: #342d3b;
+    background: #151219;
+    font-size: 1.2rem;
+  }
+
+  .mobile-export-button {
+    padding: 0 .9rem;
+    border-color: #9d5cff;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    font-size: .78rem;
+    font-weight: 850;
+    box-shadow: 0 9px 24px rgba(124, 58, 237, .2);
+  }
+
+  .message {
+    position: fixed;
+    top: calc(var(--mobile-editor-header-height) + .65rem);
+    left: .75rem;
+    right: .75rem;
+    z-index: 55;
+    margin: 0;
+    box-shadow: 0 16px 42px rgba(0, 0, 0, .42);
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 45%) minmax(0, 55%);
+    gap: .55rem;
+    height: calc(100dvh - var(--mobile-editor-header-height) - var(--mobile-editor-tabs-height) - 1rem - env(safe-area-inset-bottom));
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .stage-stack {
+    order: 1;
+    display: block;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .history {
+    display: none;
+  }
+
+  .preview-shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: .9rem;
+    box-shadow: none;
   }
 
   .preview-toolbar {
-    align-items: flex-start;
+    flex: 0 0 auto;
+    gap: .4rem;
+    padding: .42rem .52rem;
+    border-bottom-color: #27212d;
+  }
+
+  .preview-toolbar > div:first-child {
+    display: none;
   }
 
   .preview-tools {
-    flex-wrap: wrap;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: .38rem;
+    justify-content: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .preview-tools select {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: .5rem .62rem;
+  }
+
+  .toggle-control {
+    min-height: 2.75rem;
+    padding: 0 .45rem;
+    border: 1px solid #39313f;
+    border-radius: .68rem;
+    background: #17141b;
+  }
+
+  .toggle-control small {
+    white-space: nowrap;
+  }
+
+  .icon-button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .preview-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: .45rem;
+    overflow: hidden;
+  }
+
+  .canvas-frame {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+  }
+
+  .preview-canvas {
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .drag-hint {
+    bottom: .45rem;
+    max-width: calc(100% - 1rem);
+    white-space: nowrap;
+  }
+
+  .preview-note {
+    display: none;
+  }
+
+  .controls {
+    order: 2;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0 0 .45rem;
+    scrollbar-gutter: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .controls > .workflow-card {
+    display: none;
+  }
+
+  .controls.mobile-tool-photo > .workflow-card:nth-child(1),
+  .controls.mobile-tool-template > .workflow-card:nth-child(2),
+  .controls.mobile-tool-text > .workflow-card:nth-child(3),
+  .controls.mobile-tool-style > .workflow-card:nth-child(4),
+  .controls.mobile-tool-export > .workflow-card:nth-child(5) {
+    display: block;
+  }
+
+  .workflow-card {
+    min-height: 100%;
+    border-radius: .9rem;
+    box-shadow: none;
+  }
+
+  .section-heading {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 3rem;
+    padding: .72rem .85rem;
+    border-bottom: 1px solid #29232f;
+    background: rgba(17, 16, 20, .96);
+    backdrop-filter: blur(14px);
+  }
+
+  .step-number,
+  .chevron,
+  .section-title small {
+    display: none;
+  }
+
+  .section-title strong {
+    font-size: .95rem;
+  }
+
+  .section-body {
+    padding: .2rem .75rem .9rem;
+    border-top: 0;
+  }
+
+  .controls input:not([type='checkbox']):not([type='range']),
+  .controls textarea,
+  .controls select,
+  .controls button {
+    min-height: 2.75rem;
+  }
+
+  .upload-zone {
+    min-height: 3.4rem;
+    margin-top: .65rem;
+    padding: .62rem .7rem;
+  }
+
+  .upload-icon {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  .search-wrap {
+    min-height: 2.85rem;
+    margin-top: .65rem;
+  }
+
+  .media-grid {
+    display: flex;
+    gap: .48rem;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 .35rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .media-option {
+    flex: 0 0 4.65rem;
+    scroll-snap-align: start;
+  }
+
+  .format-grid {
+    display: flex;
+    gap: .48rem;
+    margin-top: .65rem;
+    overflow-x: auto;
+    padding-bottom: .3rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .format-card {
+    flex: 0 0 9.4rem;
+    min-height: 4rem;
+    scroll-snap-align: start;
   }
 
   .template-grid {
-    grid-template-columns: repeat(2, minmax(130px, 1fr));
+    display: flex;
+    gap: .65rem;
+    overflow-x: auto;
+    padding-bottom: .35rem;
+    scroll-snap-type: x mandatory;
   }
 
-  .gig-row-fields {
+  .template-card {
+    flex: 0 0 min(68vw, 15rem);
+    scroll-snap-align: start;
+  }
+
+  .controls.mobile-tool-text .form-stack {
+    display: grid;
+    gap: .42rem;
+    padding-top: .55rem;
+  }
+
+  .controls.mobile-tool-text .form-stack > .two {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: .42rem;
   }
 
-  .format-grid,
+  .controls.mobile-tool-text .form-stack > .field,
+  .controls.mobile-tool-text .form-stack > .two > .field {
+    display: grid;
+    grid-template-columns: minmax(4.7rem, .34fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .48rem;
+    margin: 0;
+    padding: .48rem .58rem;
+    border: 1px solid #302936;
+    border-radius: .72rem;
+    background: #151219;
+  }
+
+  .controls.mobile-tool-text .field > .label-row {
+    display: contents;
+  }
+
+  .controls.mobile-tool-text .field > .label-row > span:first-child,
+  .controls.mobile-tool-text .field > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    margin: 0;
+    color: #a79dad;
+    font-size: .72rem;
+  }
+
+  .controls.mobile-tool-text .field-actions,
+  .controls.mobile-tool-text .field > .label-row > .field-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .controls.mobile-tool-text .field-actions > small {
+    display: none;
+  }
+
+  .controls.mobile-tool-text .field > input,
+  .controls.mobile-tool-text .field > textarea,
+  .controls.mobile-tool-text .field > select {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 2.6rem;
+    padding: .42rem .5rem;
+    border-color: #28222e;
+    background: #0f0d12;
+    font-size: .78rem;
+  }
+
+  .controls.mobile-tool-text textarea {
+    height: 2.6rem;
+    min-height: 2.6rem;
+    resize: none;
+  }
+
+  .controls.mobile-tool-text .field-toggle {
+    gap: 0;
+  }
+
+  .controls.mobile-tool-text .field-toggle span {
+    display: none;
+  }
+
+  .controls.mobile-tool-text .field-toggle input {
+    position: relative;
+    width: 2.15rem;
+    height: 1.2rem;
+    min-height: 1.2rem;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    background: #39313f;
+    cursor: pointer;
+    transition: background .16s ease;
+  }
+
+  .controls.mobile-tool-text .field-toggle input::after {
+    content: '';
+    position: absolute;
+    top: .15rem;
+    left: .15rem;
+    width: .9rem;
+    height: .9rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+    transition: transform .16s ease;
+  }
+
+  .controls.mobile-tool-text .field-toggle input:checked {
+    background: #8b5cf6;
+  }
+
+  .controls.mobile-tool-text .field-toggle input:checked::after {
+    transform: translateX(.95rem);
+  }
+
+  .gig-row-fields,
   .two {
     grid-template-columns: 1fr;
   }
 
-  .media-grid {
+  .mobile-tool-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: calc(var(--mobile-editor-tabs-height) + env(safe-area-inset-bottom));
+    padding: .38rem .3rem calc(.38rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(68, 57, 77, .9);
+    background: rgba(11, 9, 14, .96);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 -12px 34px rgba(0, 0, 0, .32);
   }
 
-  .preview-stage {
-    min-height: 420px;
-    padding: .8rem;
+  .mobile-tool-tab {
+    min-width: 0;
+    min-height: 3.45rem;
+    display: grid;
+    grid-template-rows: 1.8rem auto;
+    place-items: center;
+    gap: .08rem;
+    padding: .18rem .1rem;
+    border: 0;
+    background: transparent;
+    color: #8f8797;
+    font-size: .62rem;
+  }
+
+  .mobile-tab-icon {
+    width: 1.85rem;
+    height: 1.85rem;
+    display: grid;
+    place-items: center;
+    border-radius: .65rem;
+    color: #b8aebe;
+    font-size: .9rem;
+    font-weight: 900;
+    transition: background .16s ease, color .16s ease, transform .16s ease;
+  }
+
+  .mobile-tool-tab.active {
+    color: #f7f3fb;
+  }
+
+  .mobile-tool-tab.active .mobile-tab-icon {
+    background: linear-gradient(145deg, #bb8cff, #8b5cf6);
+    color: #130b1d;
+    box-shadow: 0 7px 18px rgba(139, 92, 246, .32);
+    transform: translateY(-1px);
   }
 }
 
 @media (max-width: 520px) {
-  h1 {
-    font-size: 2.35rem;
+  .workspace {
+    grid-template-rows: minmax(0, 46%) minmax(0, 54%);
+    height: calc(100dvh - var(--mobile-editor-header-height) - var(--mobile-editor-tabs-height) - .7rem - env(safe-area-inset-bottom));
   }
 
-  .header-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
+  .toggle-control small {
+    display: none;
   }
 
-  .status-pill {
-    grid-column: 1 / -1;
-    justify-self: start;
+  .template-card {
+    flex-basis: min(72vw, 14.5rem);
   }
 
-  .primary,
-  .secondary-button {
-    width: 100%;
-  }
-
-  .preview-toolbar {
-    display: grid;
-  }
-
-  .preview-tools {
-    justify-content: flex-start;
-  }
-
-  .preview-tools select {
-    flex: 1;
-  }
-
-  .media-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .history-strip {
-    grid-auto-columns: minmax(145px, 72vw);
+  .drag-hint {
+    font-size: .62rem;
   }
 }
+
 </style>
