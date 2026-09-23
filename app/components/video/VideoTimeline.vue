@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { findItem, formatTimecode, itemEnd, type TimelineItem, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
-import { moveItem, snapFrame, snapTargets } from '~~/shared/video-timeline'
+import { MARKER_COLORS, findItem, formatTimecode, itemEnd, type MarkerColor, type TimelineItem, type TimelineMarker, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
+import { moveItem, snapFrame, snapTargets, updateMarker } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
 import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
@@ -202,6 +202,84 @@ function formatSourceTime(frames: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
 }
 
+// --- Markers ---------------------------------------------------------------------
+// Click selects a marker and moves the playhead to it, drag moves it (snapping
+// like clips), double-click edits its label and colour.
+
+const markerLabel = ref('')
+const editingMarker = computed(() => state.project.markers?.find(marker => marker.id === state.editingMarkerId) || null)
+
+function startMarkerDrag(event: PointerEvent, marker: TimelineMarker) {
+  if (event.button !== 0) return
+  event.stopPropagation()
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+  state.selectedId = null
+  state.selectedMarkerId = marker.id
+  const startX = event.clientX
+  const base = JSON.parse(JSON.stringify(toRaw(state.project))) as VideoProject
+  let started = false
+  const move = (moveEvent: PointerEvent) => {
+    const dx = moveEvent.clientX - startX
+    if (!started) {
+      if (Math.abs(dx) < 3) return
+      started = true
+      editor.beginTransient()
+    }
+    const frame = snapped(marker.frame + Math.round(dx / pxPerFrame.value), base, marker.id)
+    editor.transient(updateMarker(base, marker.id, { frame }))
+  }
+  const end = (endEvent: PointerEvent) => {
+    target.removeEventListener('pointermove', move)
+    target.removeEventListener('pointerup', end)
+    target.removeEventListener('pointercancel', end)
+    if (!started) emit('seek', marker.frame)
+    else if (endEvent.type === 'pointercancel') editor.cancelTransient()
+    else editor.endTransient()
+  }
+  target.addEventListener('pointermove', move)
+  target.addEventListener('pointerup', end)
+  target.addEventListener('pointercancel', end)
+}
+
+const markerInput = ref<HTMLInputElement | null>(null)
+
+function editMarker(marker: TimelineMarker) {
+  state.editingMarkerId = marker.id
+}
+
+// Clicking anywhere outside the editor closes it (keeping the typed label).
+function outsideMarkerEditor(event: PointerEvent) {
+  if (!(event.target as Element | null)?.closest('.marker-editor')) closeMarkerEditor()
+}
+// Opened from here (double-click, toolbar) or by the M shortcut on the page.
+watch(() => state.editingMarkerId, (id, previous) => {
+  markerLabel.value = editingMarker.value?.label || ''
+  if (id) void nextTick(() => markerInput.value?.focus())
+  if (id && !previous) window.addEventListener('pointerdown', outsideMarkerEditor, { capture: true })
+  if (!id) window.removeEventListener('pointerdown', outsideMarkerEditor, { capture: true })
+})
+onBeforeUnmount(() => window.removeEventListener('pointerdown', outsideMarkerEditor, { capture: true }))
+
+function commitMarkerLabel() {
+  if (editingMarker.value && markerLabel.value !== (editingMarker.value.label || '')) {
+    editor.patchMarker(editingMarker.value.id, { label: markerLabel.value })
+  }
+}
+
+function closeMarkerEditor() {
+  commitMarkerLabel()
+  state.editingMarkerId = null
+}
+
+function setMarkerColor(color: MarkerColor) {
+  if (editingMarker.value) editor.patchMarker(editingMarker.value.id, { color })
+}
+
+function addMarker() {
+  editor.addMarkerAtPlayhead()
+}
+
 function itemTap(item: TimelineItem) {
   if (props.compact) state.selectedId = item.id
 }
@@ -382,6 +460,7 @@ function wheel(event: WheelEvent) {
         <button type="button" title="Delete (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
         <button type="button" title="Split at playhead (S)" @click="editor.splitSelected()"><Icon name="lucide:scissors" aria-hidden="true" /></button>
         <button type="button" title="Duplicate (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()"><Icon name="lucide:copy" aria-hidden="true" /></button>
+        <button type="button" title="Add marker at playhead (M)" @click="addMarker"><Icon name="lucide:bookmark-plus" aria-hidden="true" /></button>
         <span class="divider" />
         <button type="button" title="Add video track" @click="editor.addTrack('video')"><Icon name="lucide:plus" aria-hidden="true" />Video</button>
         <button type="button" title="Add graphics track" @click="editor.addTrack('graphics')"><Icon name="lucide:plus" aria-hidden="true" />Graphics</button>
@@ -417,6 +496,46 @@ function wheel(event: WheelEvent) {
           <div class="ruler" :style="{ width: `${contentWidth}px` }" @pointerdown="scrubStart">
             <span v-for="tick in ticks" :key="tick.frame" class="tick" :style="{ left: `${x(tick.frame)}px` }">{{ tick.label }}</span>
             <span class="end-marker" :style="{ left: `${x(editor.duration.value)}px` }" title="End of video" />
+            <span
+              v-for="marker in state.project.markers || []"
+              :key="marker.id"
+              class="marker"
+              :class="{ selected: state.selectedMarkerId === marker.id }"
+              :style="{ left: `${x(marker.frame)}px`, '--marker': marker.color || MARKER_COLORS[0] }"
+              :title="`${marker.label || 'Marker'} — drag to move, double-click to edit`"
+              @pointerdown="startMarkerDrag($event, marker)"
+              @dblclick.stop="editMarker(marker)"
+            >{{ marker.label }}</span>
+            <div
+              v-if="editingMarker"
+              class="marker-editor"
+              :style="{ left: `${x(editingMarker.frame)}px` }"
+              @pointerdown.stop
+              @keydown.stop
+            >
+              <input
+                ref="markerInput"
+                v-model="markerLabel"
+                type="text"
+                maxlength="40"
+                placeholder="Label, e.g. Drop"
+                aria-label="Marker label"
+                @keydown.enter="closeMarkerEditor"
+                @keydown.escape="state.editingMarkerId = null"
+                @blur="commitMarkerLabel"
+              >
+              <button
+                v-for="color in MARKER_COLORS"
+                :key="color"
+                type="button"
+                class="swatch"
+                :class="{ on: (editingMarker.color || MARKER_COLORS[0]) === color }"
+                :style="{ background: color }"
+                :aria-label="`Colour ${color}`"
+                @click="setMarkerColor(color)"
+              />
+              <button type="button" class="done" @click="closeMarkerEditor">Done</button>
+            </div>
           </div>
         </div>
 
@@ -485,6 +604,12 @@ function wheel(event: WheelEvent) {
           </div>
         </div>
 
+        <div
+          v-for="marker in state.project.markers || []"
+          :key="`line-${marker.id}`"
+          class="marker-line"
+          :style="{ left: `${LABEL_WIDTH + x(marker.frame)}px`, '--marker': marker.color || MARKER_COLORS[0] }"
+        />
         <div class="playhead" :style="{ left: `${LABEL_WIDTH + x(state.frame)}px` }"><i /></div>
       </div>
     </div>
@@ -783,6 +908,86 @@ function wheel(event: WheelEvent) {
 
 .item:hover .handle, .item.selected .handle {
   background: rgba(255, 255, 255, .35);
+}
+
+.marker {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  max-width: 110px;
+  height: 16px;
+  padding: 0 .35rem 0 .3rem;
+  overflow: hidden;
+  border-left: 2px solid var(--marker);
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--marker) 30%, transparent);
+  color: #fff;
+  font-size: .66rem;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: grab;
+  touch-action: none;
+}
+
+.marker:empty { width: 10px; padding: 0; }
+.marker.selected { background: var(--marker); color: #111; }
+
+.marker-line {
+  position: absolute;
+  top: 26px;
+  bottom: 0;
+  z-index: 3;
+  width: 0;
+  border-left: 1px dashed var(--marker);
+  opacity: .55;
+  pointer-events: none;
+}
+
+.marker-editor {
+  position: absolute;
+  top: 20px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .35rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 8px;
+  background: var(--ve-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  cursor: default;
+}
+
+.marker-editor input {
+  width: 130px;
+  padding: .25rem .4rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 5px;
+  background: var(--ve-bg);
+  color: var(--ve-text);
+  font-size: .75rem;
+}
+
+.marker-editor .swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.marker-editor .swatch.on { border-color: #fff; }
+
+.marker-editor .done {
+  padding: .2rem .5rem;
+  border: 0;
+  border-radius: 5px;
+  background: var(--ve-accent);
+  color: #fff;
+  font-size: .72rem;
+  cursor: pointer;
 }
 
 .playhead {
