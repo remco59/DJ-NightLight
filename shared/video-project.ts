@@ -48,6 +48,14 @@ export type ItemTransform = {
 
 export type ItemCrop = { top: number, right: number, bottom: number, left: number }
 
+/**
+ * How footage sits in the frame at scale 1: `cover` fills it (the overflow is
+ * cut off by the canvas edge and comes back when the clip is moved or zoomed
+ * out), `contain` shows the whole source.
+ */
+export const MEDIA_FITS = ['cover', 'contain'] as const
+export type MediaFit = typeof MEDIA_FITS[number]
+
 type ItemBase = {
   id: string
   /** First frame on the timeline. */
@@ -64,6 +72,8 @@ export type VideoClipItem = ItemBase & {
   trimStart: number
   transform: ItemTransform
   crop: ItemCrop
+  /** Unset = the track default (see mediaFit). */
+  fit?: MediaFit
   speed: number
   volume: number
   muted: boolean
@@ -74,6 +84,7 @@ export type ImageClipItem = ItemBase & {
   assetId: string
   transform: ItemTransform
   crop: ItemCrop
+  fit?: MediaFit
   /** Subtle Ken Burns push-in, 0 = static. */
   kenBurns: number
 }
@@ -141,6 +152,11 @@ export type ProjectAssetMap = Record<string, ProjectAsset>
 export function newId(prefix = 'it') {
   const random = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
   return `${prefix}_${random.replaceAll('-', '').slice(0, 12)}`
+}
+
+/** Video tracks fill the frame; images on graphics tracks are overlays shown whole. */
+export function mediaFit(item: { fit?: MediaFit }, trackKind: TrackKind): MediaFit {
+  return item.fit ?? (trackKind === 'graphics' ? 'contain' : 'cover')
 }
 
 export function trackAccepts(kind: TrackKind, type: TimelineItemType) {
@@ -349,6 +365,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     trimStart: frame,
     transform: transformSchema,
     crop: cropSchema,
+    fit: z.enum(MEDIA_FITS).optional(),
     speed: z.number().min(0.25).max(4),
     volume: z.number().min(0).max(1),
     muted: z.boolean(),
@@ -359,6 +376,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     assetId: uuid,
     transform: transformSchema,
     crop: cropSchema,
+    fit: z.enum(MEDIA_FITS).optional(),
     kenBurns: z.number().min(0).max(1),
   }),
   z.object({

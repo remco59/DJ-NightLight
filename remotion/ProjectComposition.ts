@@ -11,7 +11,8 @@ import type {
   VideoClipItem,
   VideoProject,
 } from '../shared/video-project'
-import { graphicBackdrop } from '../shared/video-project'
+import { graphicBackdrop, mediaFit } from '../shared/video-project'
+import { mediaBoxSize } from '../shared/video-canvas'
 import { animationState, animationStyle } from './animation'
 import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
@@ -41,14 +42,32 @@ const MediaItemView: React.FC<{
   trackMuted: boolean
 }> = ({ item, assets, trackKind, trackMuted }) => {
   const frame = useCurrentFrame()
+  const { width, height } = useVideoConfig()
   const kenBurns = item.type === 'image' ? 1 + item.kenBurns * 0.12 * (frame / Math.max(1, item.duration)) : 1
-  const overlay = trackKind === 'graphics'
+  const asset = assets[item.assetId]
+  const fit = mediaFit(item, trackKind)
+  // The box has the source's aspect ratio and is centred on the canvas, so the
+  // canvas edge (not object-fit) crops it and moving/zooming reveals the rest.
+  // Crop insets are therefore relative to the source.
+  const box = mediaBoxSize(asset, { width, height }, fit)
   return h(
-    AbsoluteFill,
-    { style: { opacity: item.opacity, clipPath: cropClipPath(item.crop), ...transformStyle(item.transform, kenBurns) } },
+    'div',
+    {
+      style: {
+        position: 'absolute',
+        left: (width - box.width) / 2,
+        top: (height - box.height) / 2,
+        width: box.width,
+        height: box.height,
+        opacity: item.opacity,
+        clipPath: cropClipPath(item.crop),
+        ...transformStyle(item.transform, kenBurns),
+      },
+    },
     h(MediaFill, {
-      asset: assets[item.assetId],
-      style: overlay ? { objectFit: 'contain' } : undefined,
+      asset,
+      // Only matters when the source size is unknown and the box is the canvas.
+      style: { objectFit: fit },
       trimBefore: item.type === 'video' ? item.trimStart : undefined,
       playbackRate: item.type === 'video' ? item.speed : undefined,
       volume: item.type === 'video' ? item.volume : undefined,

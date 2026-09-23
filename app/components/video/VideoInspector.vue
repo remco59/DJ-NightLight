@@ -8,7 +8,9 @@ import {
   defaultCrop,
   defaultTransform,
   graphicBackdrop,
+  mediaFit,
   type ItemCrop,
+  type MediaFit,
   type ItemTransform,
   type TimelineItem,
   type VideoAspect,
@@ -86,6 +88,17 @@ function scrubTransform(key: keyof ItemTransform, value: number) {
 function scrubEnd() {
   scrubBase = null
   editor.endTransient()
+}
+
+const currentFit = computed(() => {
+  const selection = editor.selection.value
+  return selection && 'crop' in selection.item ? mediaFit(selection.item, selection.track.kind) : 'cover'
+})
+
+function setFit(fit: MediaFit) {
+  patch((target) => {
+    if ('crop' in target) target.fit = fit
+  })
 }
 
 function setCrop(key: keyof ItemCrop, value: number) {
@@ -325,6 +338,12 @@ const assetTitle = computed(() => {
       <!-- Transform for everything visual -->
       <component :is="sectionTag" v-if="'transform' in item" class="block">
         <component :is="headingTag">Transform <button type="button" class="ghost small" @click.prevent="resetTransform">Reset</button></component>
+        <label v-if="'crop' in item" class="row"><span>Frame</span>
+          <select :value="currentFit" @change="setFit(($event.target as HTMLSelectElement).value as MediaFit)">
+            <option value="cover">Fill (crop to frame)</option>
+            <option value="contain">Fit (show whole clip)</option>
+          </select>
+        </label>
         <div class="row"><span>Position</span>
           <div class="pair">
             <label><ScrubLabel :value="item.transform.x" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('x', $event)" @end="scrubEnd">X</ScrubLabel> <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
