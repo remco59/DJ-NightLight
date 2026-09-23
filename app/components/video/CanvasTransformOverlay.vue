@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { hitsItem, itemBoxSize, snapPosition, visualItemsAt, type CanvasItem, type Point, type SnapGuides } from '~~/shared/video-canvas'
+import { hitsItem, snapPosition, type Point, type SnapGuides } from '~~/shared/video-canvas'
 import type { VideoProject } from '~~/shared/video-project'
 import { updateItem } from '~~/shared/video-timeline'
+import { useCanvasItems, type CanvasEntry } from '~/composables/useCanvasItems'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
 // Direct manipulation on the preview: click selects the clip under the pointer
@@ -13,6 +14,7 @@ const props = defineProps<{ scale: number }>()
 
 const editor = useVideoEditor()
 const { state } = editor
+const { entries, selected, boxStyle } = useCanvasItems()
 const layer = ref<HTMLElement | null>(null)
 const guides = ref<SnapGuides>({ vertical: [], horizontal: [] })
 const dragging = ref(false)
@@ -22,26 +24,13 @@ const MAX_SCALE = 3
 
 const canvas = computed(() => ({ width: state.project.width, height: state.project.height }))
 
-const selected = computed<CanvasItem | null>(() => {
-  const item = editor.selection.value?.item
-  if (!item || item.type === 'audio') return null
-  return visualItemsAt(state.project, state.frame).some(entry => entry.id === item.id) ? item : null
-})
-
 const outline = computed(() => {
-  const item = selected.value
-  if (!item) return null
-  const box = itemBoxSize(item, state.project)
-  const { x, y, rotation, scale } = item.transform
-  const s = props.scale
+  const entry = selected.value
+  if (!entry) return null
   return {
-    left: `${(canvas.value.width - box.width) / 2 * s}px`,
-    top: `${(canvas.value.height - box.height) / 2 * s}px`,
-    width: `${box.width * s}px`,
-    height: `${box.height * s}px`,
-    transform: `translate(${x * s}px, ${y * s}px) rotate(${rotation}deg) scale(${scale})`,
+    ...boxStyle(entry, props.scale),
     // Keep the outline and handles a constant on-screen size however far the clip is scaled.
-    '--inverse-scale': String(1 / Math.max(0.01, scale)),
+    '--inverse-scale': String(1 / Math.max(0.01, entry.item.transform.scale)),
   }
 })
 
@@ -50,12 +39,10 @@ function canvasPoint(event: PointerEvent): Point {
   return { x: (event.clientX - rect.left) / props.scale, y: (event.clientY - rect.top) / props.scale }
 }
 
-function itemAt(point: Point) {
-  const items = visualItemsAt(state.project, state.frame)
-  const hit = (item: CanvasItem) => hitsItem(point, itemBoxSize(item, state.project), item.transform, canvas.value)
-  const current = items.find(item => item.id === state.selectedId)
-  if (current && hit(current)) return current
-  return items.find(hit) || null
+function entryAt(point: Point) {
+  const hit = (entry: CanvasEntry) => hitsItem(point, entry.box, entry.item.transform, canvas.value)
+  if (selected.value && hit(selected.value)) return selected.value
+  return entries.value.find(hit) || null
 }
 
 function snapshot() {
@@ -104,15 +91,16 @@ function track(event: PointerEvent, onMove: (moveEvent: PointerEvent) => void) {
 function pointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   const origin = canvasPoint(event)
-  const item = itemAt(origin)
+  const entry = entryAt(origin)
+  const item = entry?.item
   // Touch: the first tap only selects so a stray swipe never moves a clip.
   const touchSelectOnly = event.pointerType !== 'mouse' && item?.id !== state.selectedId
   state.selectedId = item?.id || null
-  if (!item || touchSelectOnly) return
+  if (!entry || !item || touchSelectOnly) return
   event.preventDefault()
   const base = snapshot()
   const start = { ...item.transform }
-  const box = itemBoxSize(item, state.project)
+  const box = entry.box
   track(event, (moveEvent) => {
     const point = canvasPoint(moveEvent)
     let dx = point.x - origin.x
@@ -140,7 +128,7 @@ function pointerDown(event: PointerEvent) {
 }
 
 function handleDown(event: PointerEvent) {
-  const item = selected.value
+  const item = selected.value?.item
   if (event.button !== 0 || !item) return
   event.preventDefault()
   event.stopPropagation()

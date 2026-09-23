@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminNav from '~/components/admin/AdminNav.vue'
+import CanvasGhost from '~/components/video/CanvasGhost.vue'
 import CanvasTransformOverlay from '~/components/video/CanvasTransformOverlay.vue'
 import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.vue'
 import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
@@ -429,6 +430,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         <div v-if="!isMobile" class="stage-title">Preview</div>
         <div ref="stage" class="stage" @pointerdown.self="state.selectedId = null">
           <div class="preview-wrap" :style="{ width: `${previewSize.width}px`, height: `${previewSize.height}px` }">
+            <CanvasGhost v-if="!state.playing" :scale="previewSize.scale" />
             <ClientOnly>
               <RemotionPreview
                 ref="preview"
