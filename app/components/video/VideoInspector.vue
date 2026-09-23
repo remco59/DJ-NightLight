@@ -16,6 +16,7 @@ import {
   type VideoAspect,
   type VideoProject,
 } from '~~/shared/video-project'
+import { LUCIDE_ICONS, LUCIDE_ICON_GROUPS } from '~~/shared/lucide-icons'
 import { updateItem } from '~~/shared/video-timeline'
 import {
   BACKDROP_STYLES,
@@ -23,6 +24,7 @@ import {
   EXIT_ANIMATIONS,
   MOTION_ACCENTS,
   MOTION_TEMPLATES,
+  iconProp,
   listProp,
   textProp,
   type TemplateField,
@@ -166,6 +168,10 @@ function textValue(field: TemplateField) {
   return item.value?.type === 'graphic' ? textProp(item.value.templateProps, field.key) : ''
 }
 
+function iconValue(field: TemplateField) {
+  return item.value?.type === 'graphic' ? iconProp(item.value.templateKey, item.value.templateProps, field.key) : null
+}
+
 function assetUrl(assetId: string) {
   return editor.mediaById.value.get(assetId)?.url || null
 }
@@ -302,6 +308,15 @@ const assetTitle = computed(() => {
           </label>
           <label v-else-if="field.kind === 'textarea'" class="stack"><span>{{ field.label }}</span>
             <textarea :maxlength="field.maxLength" :value="textValue(field)" @input="setField(field, ($event.target as HTMLTextAreaElement).value)" />
+          </label>
+          <label v-else-if="field.kind === 'icon'" class="row"><span>{{ field.label }}</span>
+            <select :value="iconValue(field) || ''" @change="setField(field, ($event.target as HTMLSelectElement).value)">
+              <option value="">None</option>
+              <optgroup v-for="(names, group) in LUCIDE_ICON_GROUPS" :key="group" :label="group">
+                <option v-for="name in names" :key="name" :value="name">{{ LUCIDE_ICONS[name].label }}</option>
+              </optgroup>
+            </select>
+            <span class="icon-preview" aria-hidden="true"><Icon v-if="iconValue(field)" :name="`lucide:${iconValue(field)}`" /></span>
           </label>
           <div v-else-if="field.kind === 'list'" class="stack">
             <span>{{ field.label }}</span>
@@ -581,6 +596,15 @@ input[type="color"] {
   background: none;
 }
 
+/* Same width as `output` so icon selects line up with the sliders. */
+.row > .icon-preview {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  color: var(--ve-text);
+  font-size: 1.05rem;
+}
+
 output {
   min-width: 42px;
   color: var(--ve-muted);
@@ -759,7 +783,8 @@ details.block > * + :not(summary) { margin-top: .7rem; }
   grid-row: 2;
 }
 
-.mobile .row:has(input[type="range"]) > output { grid-column: 2; grid-row: 1; }
+.mobile .row:has(input[type="range"]) > output,
+.mobile .row > .icon-preview { grid-column: 2; grid-row: 1; }
 
 .mobile .row > select,
 .mobile .row > input[type="text"],

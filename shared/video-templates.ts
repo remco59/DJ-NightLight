@@ -3,6 +3,8 @@
 // and controlled style options. The Remotion side lives in
 // remotion/motion-templates.tsx and must implement every key listed here.
 
+import { isLucideIcon, type LucideIconName } from './lucide-icons'
+
 export const MOTION_TEMPLATE_KEYS = [
   'gig-announcement',
   'recap-intro',
@@ -64,7 +66,7 @@ export const BACKDROP_STYLES = {
 export type BackdropStyle = keyof typeof BACKDROP_STYLES
 export const BACKDROP_STYLE_KEYS = Object.keys(BACKDROP_STYLES) as BackdropStyle[]
 
-export type TemplateFieldKind = 'text' | 'textarea' | 'list' | 'asset' | 'assets'
+export type TemplateFieldKind = 'text' | 'textarea' | 'list' | 'asset' | 'assets' | 'icon'
 
 export type TemplateField = {
   key: string
@@ -94,6 +96,8 @@ export type MotionTemplateDefinition = {
 }
 
 const text = (key: string, label: string, maxLength = 120, placeholder?: string): TemplateField => ({ key, label, kind: 'text', maxLength, placeholder })
+/** A Lucide icon the user can swap, or hide with an empty value. */
+const icon = (key: string, label: string): TemplateField => ({ key, label, kind: 'icon' })
 
 export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinition> = {
   'gig-announcement': {
@@ -110,17 +114,25 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('headline', 'Headline', 60),
       text('venue', 'Venue', 60),
       text('date', 'Date', 40),
+      icon('dateIcon', 'Date icon'),
       text('time', 'Time', 40),
+      icon('timeIcon', 'Time icon'),
       text('location', 'Location', 60),
+      icon('venueIcon', 'Venue icon'),
       text('cta', 'CTA', 60),
+      icon('ctaIcon', 'CTA icon'),
     ],
     defaults: {
       headline: 'DIT WEEKEND',
       venue: 'CLUB NOVA',
       date: 'ZAT 26 APR',
+      dateIcon: 'calendar',
       time: '22:00 - 04:00',
+      timeIcon: 'clock',
       location: 'Amsterdam',
+      venueIcon: 'map-pin',
       cta: 'TOT DAN',
+      ctaIcon: 'arrow-right',
     },
   },
   'recap-intro': {
@@ -155,6 +167,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('kicker', 'Kicker', 40),
       { key: 'gigs', label: 'Gigs (date | title | place)', kind: 'list', maxItems: 6, maxLength: 120, placeholder: '06 DEC | Club Nova | Amsterdam' },
       text('cta', 'CTA', 60),
+      icon('ctaIcon', 'CTA icon'),
     ],
     defaults: {
       headline: 'BINNENKORT',
@@ -165,6 +178,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
         '27 DEC | ’T Portiertje | Uitgeest',
       ],
       cta: 'BOEK NU',
+      ctaIcon: 'arrow-right',
     },
   },
   'logo-sting': {
@@ -292,16 +306,22 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('day', 'Day', 4),
       text('month', 'Month', 10),
       text('venue', 'Venue', 50),
+      icon('venueIcon', 'Venue icon'),
       text('time', 'Time', 30),
+      icon('timeIcon', 'Time icon'),
       text('cta', 'CTA', 40),
+      icon('ctaIcon', 'CTA icon'),
     ],
     defaults: {
       headline: 'DEZE ZATERDAG',
       day: '26',
       month: 'APR',
       venue: 'CLUB NOVA · AMSTERDAM',
+      venueIcon: 'map-pin',
       time: '22:00 – 04:00',
+      timeIcon: 'clock',
       cta: 'TICKETS VIA BIO',
+      ctaIcon: 'arrow-right',
     },
   },
   'now-playing': {
@@ -339,7 +359,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'neon-outro': {
     key: 'neon-outro',
     label: 'Neon Outro',
-    description: 'End card with the real logo, headline between its rules, handle and booking line.',
+    description: 'End card with the real logo, headline between its rules, handle and website.',
     category: 'Brand',
     defaultDurationSeconds: 4,
     defaultAccent: 'ultraviolet',
@@ -349,9 +369,17 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     fields: [
       text('headline', 'Headline', 24),
       text('handle', 'Handle', 40),
-      text('website', 'Website / booking', 50),
+      icon('handleIcon', 'Handle icon'),
+      text('website', 'Website', 50),
+      icon('websiteIcon', 'Website icon'),
     ],
-    defaults: { headline: 'BLIJF GELADEN', handle: '@dj_nightlight', website: 'BOEKINGEN · DJNIGHTLIGHT.NL' },
+    defaults: {
+      headline: 'ALTIJD FEEST!',
+      handle: 'dj_nightlight',
+      handleIcon: 'instagram',
+      website: 'DJNIGHTLIGHT.NL',
+      websiteIcon: 'globe',
+    },
   },
 }
 
@@ -362,6 +390,15 @@ export function motionTemplate(key: string): MotionTemplateDefinition | null {
 export function textProp(props: TemplateProps, key: string) {
   const value = props[key]
   return typeof value === 'string' ? value : ''
+}
+
+/**
+ * The icon a template draws for `key`, or null when the user hid it. Projects
+ * saved before the icon became editable fall back to the template default.
+ */
+export function iconProp(templateKey: MotionTemplateKey, props: TemplateProps, key: string): LucideIconName | null {
+  const value = props[key] ?? MOTION_TEMPLATES[templateKey]?.defaults[key]
+  return isLucideIcon(value) ? value : null
 }
 
 export function listProp(props: TemplateProps, key: string) {
