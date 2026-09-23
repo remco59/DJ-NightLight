@@ -10,7 +10,8 @@ import {
   projectDurationFrames,
   trackAccepts,
 } from '../shared/video-project'
-import { MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, parseGigRow } from '../shared/video-templates'
+import { isLucideIcon } from '../shared/lucide-icons'
+import { MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, iconProp, parseGigRow } from '../shared/video-templates'
 import { inspectTimedMedia } from '../shared/media'
 
 const assetId = '11111111-1111-4111-8111-111111111111'
@@ -115,6 +116,28 @@ describe('motion templates', () => {
       project.tracks[1]!.items = [item]
       expect(() => parseVideoProject(project)).not.toThrow()
     }
+  })
+
+  it('defaults every icon field to an icon the templates can draw', () => {
+    for (const template of Object.values(MOTION_TEMPLATES)) {
+      for (const field of template.fields.filter(field => field.kind === 'icon')) {
+        expect(isLucideIcon(template.defaults[field.key]), `${template.key}.${field.key}`).toBe(true)
+      }
+    }
+  })
+
+  it('lets items swap or hide template icons', () => {
+    const item = createGraphicItem('gig-announcement', 0, 30)
+    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('calendar')
+    item.templateProps.dateIcon = 'ticket'
+    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('ticket')
+    item.templateProps.dateIcon = ''
+    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBeNull()
+    item.templateProps.dateIcon = 'not-an-icon'
+    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBeNull()
+    // Projects saved before icons were editable keep the template default.
+    delete item.templateProps.dateIcon
+    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('calendar')
   })
 
   it('dims the footage behind a template by default and lets items override it', () => {

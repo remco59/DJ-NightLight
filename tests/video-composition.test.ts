@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs'
 import { icons as lucide } from '@iconify-json/lucide'
 import { describe, expect, it } from 'vitest'
 import { BRAND_LOGOS } from '../remotion/brand-logo'
-import { LUCIDE_ICONS } from '../remotion/lucide-icon'
 import { MOTION_TEMPLATE_COMPONENTS } from '../remotion/motion-templates'
 import { animationState } from '../remotion/animation'
+import { LUCIDE_ICONS } from '../shared/lucide-icons'
 import { MOTION_TEMPLATE_KEYS } from '../shared/video-templates'
 
 describe('remotion project composition', () => {
@@ -22,8 +22,8 @@ describe('remotion project composition', () => {
   })
 
   it('draws the same Lucide icons as the website', () => {
-    for (const [name, body] of Object.entries(LUCIDE_ICONS)) {
-      expect(body, name).toBe(lucide.icons[name]?.body)
+    for (const [name, icon] of Object.entries(LUCIDE_ICONS)) {
+      expect(icon.body, name).toBe(lucide.icons[name]?.body)
     }
   })
 

@@ -45,3 +45,4 @@ The whole site (public pages and back office) uses [Lucide](https://lucide.dev/i
 - For a button or link that leads with an icon, add the global `with-icon` class to space and align it.
 - Use `<IconTimes />` for the "×" in dimensions and multipliers (`1080<IconTimes />1920`).
 - Don't use Unicode glyphs or emoji (`▶ ✕ ↗ 🗑`) as icons, and don't put arrows in editable site copy: the templates add them.
+- Video motion templates (Remotion) can't use `<Icon>`. They draw Lucide icons from `shared/lucide-icons.ts`, which is also the list users pick from in the editor's `icon` template fields. To offer another icon, add it there with its body copied from `@iconify-json/lucide`; a test checks that the bodies match the package.
