@@ -108,7 +108,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       date: 'ZAT 26 APR',
       time: '22:00 - 04:00',
       location: 'Amsterdam',
-      cta: 'SEE YOU THERE',
+      cta: 'TOT DAN',
     },
   },
   'recap-intro': {
@@ -125,7 +125,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('headline', 'Headline', 60),
       text('meta', 'Date / venue', 80),
     ],
-    defaults: { kicker: 'RECAP', headline: 'WHAT A NIGHT', meta: 'CLUB NOVA · 26.04' },
+    defaults: { kicker: 'TERUGBLIK', headline: 'WAT EEN AVOND', meta: 'CLUB NOVA · 26.04' },
   },
   'upcoming-gigs': {
     key: 'upcoming-gigs',
@@ -143,14 +143,14 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('cta', 'CTA', 60),
     ],
     defaults: {
-      headline: 'UPCOMING',
+      headline: 'BINNENKORT',
       kicker: 'DJ NIGHTLIGHT',
       gigs: [
         '06 DEC | Eredivisie Dames | VC Sneek',
         '17 DEC | Tjas & Skeuvel | Collabo',
         '27 DEC | ’T Portiertje | Uitgeest',
       ],
-      cta: 'BOOK NOW',
+      cta: 'BOEK NU',
     },
   },
   'logo-sting': {
@@ -166,7 +166,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('title', 'Title', 40),
       text('tagline', 'Tagline', 60),
     ],
-    defaults: { title: 'DJ NightLight', tagline: 'CREATE · PLAY · SHARE' },
+    defaults: { title: 'DJ NightLight', tagline: 'MAKEN · DRAAIEN · DELEN' },
   },
   'lower-third': {
     key: 'lower-third',
@@ -181,7 +181,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('title', 'Title', 50),
       text('subtitle', 'Subtitle', 70),
     ],
-    defaults: { title: 'DJ NIGHTLIGHT', subtitle: 'Live at Club Nova' },
+    defaults: { title: 'DJ NIGHTLIGHT', subtitle: 'Live in Club Nova' },
   },
   'hype-title': {
     key: 'hype-title',
@@ -193,9 +193,9 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     defaultEntrance: 'glitch',
     defaultExit: 'zoom-out',
     fields: [
-      { key: 'lines', label: 'Lines (one per row)', kind: 'list', maxItems: 4, maxLength: 30, placeholder: 'LOUDER' },
+      { key: 'lines', label: 'Lines (one per row)', kind: 'list', maxItems: 4, maxLength: 30, placeholder: 'HARDER' },
     ],
-    defaults: { lines: ['GOOD MUSIC', 'BIGGER', 'PEOPLE'] },
+    defaults: { lines: ['GOEIE MUZIEK', 'HARDER', 'SAMEN'] },
   },
   'photo-drop': {
     key: 'photo-drop',
@@ -210,7 +210,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       { key: 'photo', label: 'Photo', kind: 'asset' },
       text('caption', 'Caption', 60),
     ],
-    defaults: { photo: '', caption: 'MUSIC · PEOPLE · BETTER DAYS' },
+    defaults: { photo: '', caption: 'MUZIEK · MENSEN · BETERE DAGEN' },
   },
   'clip-recap': {
     key: 'clip-recap',
@@ -225,7 +225,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('title', 'Title', 50),
       { key: 'media', label: 'Media (3–5)', kind: 'assets', maxItems: 5 },
     ],
-    defaults: { title: 'LAST NIGHT', media: [] },
+    defaults: { title: 'GISTERAVOND', media: [] },
   },
   'neon-logo-reveal': {
     key: 'neon-logo-reveal',

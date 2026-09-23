@@ -125,7 +125,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
         alignItems: landscape ? 'flex-start' : 'center',
       },
     },
-    h('div', { style: { textAlign: landscape ? 'left' : 'center', opacity: stagger(frame, 0) } }, h(Kicker, null, 'DJ NIGHTLIGHT PRESENTS')),
+    h('div', { style: { textAlign: landscape ? 'left' : 'center', opacity: stagger(frame, 0) } }, h(Kicker, null, 'DJ NIGHTLIGHT PRESENTEERT')),
     h(
       'div',
       { style: { transform: 'rotate(-7deg)', textAlign: landscape ? 'left' : 'center' } },
