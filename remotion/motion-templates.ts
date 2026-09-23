@@ -1,11 +1,13 @@
 import type React from 'react'
-import { createElement as h } from 'react'
+import { createElement as h, Fragment } from 'react'
 import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 'remotion'
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
-import { MOTION_ACCENTS, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
+import type { LucideIconName } from '../shared/lucide-icons'
+import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
 import { BODY_FONT_FAMILY, DISPLAY_FONT_FAMILY } from './fonts'
+import { LucideIcon } from './lucide-icon'
 import { MediaFill } from './media'
 
 // NightLight motion templates. Every template lays out on a virtual canvas
@@ -101,8 +103,19 @@ const Kicker: React.FC<{
   children?: React.ReactNode
 }> = ({ children }) => h('div', { style: { ...body, fontSize: 26, fontWeight: 800, letterSpacing: 10, opacity: 0.85 } }, children)
 
-function ensureArrow(text: string) {
-  return /[→>]$/.test(text) ? text : `${text} →`
+function iconOf(item: GraphicItem, key: string) {
+  return iconProp(item.templateKey, item.templateProps, key)
+}
+
+/** CTA text followed by its icon; a typed trailing arrow makes way for the icon. */
+function ctaLabel(text: string, icon: LucideIconName | null) {
+  if (!icon) return text
+  return h(
+    Fragment,
+    null,
+    text.replace(/\s*(?:->|[→>])$/, ''),
+    h(LucideIcon, { name: icon, style: { marginLeft: '0.3em', verticalAlign: '-0.12em' } }),
+  )
 }
 
 const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
@@ -111,10 +124,12 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
   const headline = textProp(props, 'headline')
   const words = headline.split(/\s+/).filter(Boolean)
   const rows = [
-    { icon: '▦', text: textProp(props, 'date') },
-    { icon: '◷', text: textProp(props, 'time') },
-    { icon: '⌖', text: [textProp(props, 'venue'), textProp(props, 'location')].filter(Boolean).join('\n') },
+    { key: 'date', icon: iconOf(item, 'dateIcon'), text: textProp(props, 'date') },
+    { key: 'time', icon: iconOf(item, 'timeIcon'), text: textProp(props, 'time') },
+    { key: 'venue', icon: iconOf(item, 'venueIcon'), text: [textProp(props, 'venue'), textProp(props, 'location')].filter(Boolean).join('\n') },
   ].filter(row => row.text)
+  // Keep the text column aligned when only some rows have an icon.
+  const rowIcons = rows.some(row => row.icon)
   const landscape = width > height
   const safe = safeInsets(width, height)
   return h(
@@ -179,7 +194,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
               h(
                 'div',
                 {
-                  key: row.icon,
+                  key: row.key,
                   style: {
                     display: 'flex',
                     gap: 22,
@@ -188,7 +203,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
                     transform: `translateY(${(1 - stagger(frame, index + 5)) * 30}px)`,
                   },
                 },
-                h('span', { style: { ...body, fontSize: 40, color: colors.soft, width: 44, textAlign: 'center' } }, row.icon),
+                rowIcons ? h('span', { style: { display: 'flex', justifyContent: 'center', width: 44, flexShrink: 0, color: colors.soft } }, row.icon ? h(LucideIcon, { name: row.icon, size: 40 }) : null) : null,
                 h('span', { style: { ...display, fontStyle: 'normal', fontSize: 42, whiteSpace: 'pre-line', lineHeight: 1.1 } }, row.text),
               ),
             ),
@@ -198,7 +213,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
         ? h(
             'div',
             { style: { opacity: stagger(frame, 9), transform: `scale(${interpolate(stagger(frame, 9), [0, 1], [1.4, 1])})` } },
-            h(Pill, { colors, style: { fontSize: 44, padding: '18px 56px' } }, ensureArrow(textProp(props, 'cta'))),
+            h(Pill, { colors, style: { fontSize: 44, padding: '18px 56px' } }, ctaLabel(textProp(props, 'cta'), iconOf(item, 'ctaIcon'))),
           )
         : null,
     ),
@@ -299,7 +314,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
       ),
     ),
     textProp(props, 'cta')
-      ? h('div', { style: { marginTop: 'auto', opacity: stagger(frame, gigs.length + 3) } }, h(Pill, { colors }, ensureArrow(textProp(props, 'cta'))))
+      ? h('div', { style: { marginTop: 'auto', opacity: stagger(frame, gigs.length + 3) } }, h(Pill, { colors }, ctaLabel(textProp(props, 'cta'), iconOf(item, 'ctaIcon'))))
       : null,
   )
 }
@@ -882,7 +897,11 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
   // Shrink the stack on short canvases (square) so nothing collides.
   const k = landscape ? 1 : Math.min(1, (height - padding.top - padding.bottom) / 1260)
   const headline = textProp(props, 'headline')
-  const info = [textProp(props, 'venue'), textProp(props, 'time')].filter(Boolean)
+  const info = [
+    { key: 'venue', icon: iconOf(item, 'venueIcon'), text: textProp(props, 'venue') },
+    { key: 'time', icon: iconOf(item, 'timeIcon'), text: textProp(props, 'time') },
+  ].filter(row => row.text)
+  const infoIcons = info.some(row => row.icon)
   const cta = textProp(props, 'cta')
   const badgeWidth = (landscape ? 640 : 520) * k
   const ringSize = (2 * EMBLEM_RING.radius * badgeWidth) / BRAND_LOGOS.emblem.width
@@ -916,8 +935,13 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
           h(
             'div',
             { style: { transform: 'skewX(12deg)', display: 'flex', flexDirection: 'column', gap: 8 } },
-            info.map((line, index) =>
-              h('div', { key: `${line}-${index}`, style: { ...display, fontStyle: 'normal', fontSize: index ? 34 : 40, color: index ? colors.soft : '#fff' } }, line),
+            info.map((row, index) =>
+              h(
+                'div',
+                { key: row.key, style: { ...display, fontStyle: 'normal', fontSize: index ? 34 : 40, color: index ? colors.soft : '#fff', display: 'flex', alignItems: 'center', gap: 16 } },
+                infoIcons ? h('span', { style: { display: 'flex', width: 38, flexShrink: 0, color: colors.soft } }, row.icon ? h(LucideIcon, { name: row.icon, size: 38 }) : null) : null,
+                row.text,
+              ),
             ),
           ),
         )
@@ -926,7 +950,7 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
       ? h(
           'div',
           { key: 'cta', style: { opacity: reveal(frame, 32, 10), transform: `scale(${interpolate(reveal(frame, 32, 10), [0, 1], [1.4, 1]) * k})` } },
-          h(Pill, { colors, style: { background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`, fontSize: 40 } }, ensureArrow(cta)),
+          h(Pill, { colors, style: { background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`, fontSize: 40 } }, ctaLabel(cta, iconOf(item, 'ctaIcon'))),
         )
       : null,
   ]
@@ -1079,6 +1103,8 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   const colors = colorsFor(item)
   const props = item.templateProps
   const headline = textProp(props, 'headline')
+  const handleIcon = iconOf(item, 'handleIcon')
+  const websiteIcon = iconOf(item, 'websiteIcon')
   const ring = reveal(frame, 0, 16)
   const mask = `conic-gradient(from -150deg, #000 ${ring * 360}deg, transparent ${ring * 360}deg)`
   return h(
@@ -1101,10 +1127,20 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
       ? h(RuleFrame, { colors, width: Math.min(width - 80, 900), frame, start: 14, seed: `outro-rules-${item.id}`, bolt: false, arcs: false, content: band => bandText(colors, band, headline, reveal(frame, 18, 12)) })
       : null,
     textProp(props, 'handle')
-      ? h('div', { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10) } }, textProp(props, 'handle'))
+      ? h(
+          'div',
+          { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10), display: 'flex', alignItems: 'center', gap: 20 } },
+          handleIcon ? h(LucideIcon, { name: handleIcon, size: '0.85em', style: { filter: `drop-shadow(0 0 14px ${colors.glow})` } }) : null,
+          textProp(props, 'handle'),
+        )
       : null,
     textProp(props, 'website')
-      ? h('div', { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: reveal(frame, 30, 10) } }, textProp(props, 'website'))
+      ? h(
+          'div',
+          { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: reveal(frame, 30, 10), display: 'flex', alignItems: 'center', gap: 14 } },
+          websiteIcon ? h(LucideIcon, { name: websiteIcon }) : null,
+          textProp(props, 'website'),
+        )
       : null,
   )
 }
