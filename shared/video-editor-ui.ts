@@ -62,3 +62,71 @@ export function formatMediaDuration(ms: number | null) {
   const seconds = Math.round(ms / 1000)
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
+
+// --- Resizable desktop panels ----------------------------------------------------
+
+export type PanelSizes = { side: number, inspector: number, timeline: number }
+export type PanelKey = keyof PanelSizes
+
+export const PANEL_LIMITS = {
+  side: { min: 220, max: 480 },
+  inspector: { min: 260, max: 480 },
+  timeline: { min: 160, maxShare: 0.65 },
+} as const
+
+/** Space the preview column keeps no matter how the panels are dragged. */
+export const MIN_PREVIEW_WIDTH = 320
+/** Top bar plus a workspace tall enough for a 200px preview, its title and the transport. */
+export const MIN_WORKSPACE_HEIGHT = 58 + 300
+
+export function defaultPanelSizes(viewportHeight: number): PanelSizes {
+  return { side: 300, inspector: 320, timeline: Math.max(220, Math.round(viewportHeight * 0.34)) }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.round(Math.min(Math.max(value, min), Math.max(min, max)))
+}
+
+/**
+ * Keeps panel sizes inside their limits and leaves the preview its minimum room.
+ * When side panel and inspector do not both fit, the one not being dragged
+ * (`priority`) gives way first; the inspector is ignored while it is hidden.
+ */
+export function clampPanelSizes(
+  sizes: PanelSizes,
+  viewport: { width: number, height: number, rail: number, inspectorVisible: boolean },
+  priority: PanelKey = 'side',
+): PanelSizes {
+  const { side: sideLimit, inspector: inspectorLimit, timeline: timelineLimit } = PANEL_LIMITS
+  let side = clamp(sizes.side, sideLimit.min, sideLimit.max)
+  let inspector = clamp(sizes.inspector, inspectorLimit.min, inspectorLimit.max)
+  const available = viewport.width - viewport.rail - MIN_PREVIEW_WIDTH
+  if (!viewport.inspectorVisible) {
+    side = clamp(side, sideLimit.min, available)
+  } else if (priority === 'inspector') {
+    side = clamp(side, sideLimit.min, available - inspector)
+    inspector = clamp(inspector, inspectorLimit.min, available - side)
+  } else {
+    inspector = clamp(inspector, inspectorLimit.min, available - side)
+    side = clamp(side, sideLimit.min, available - inspector)
+  }
+  const timelineMax = Math.min(viewport.height * timelineLimit.maxShare, viewport.height - MIN_WORKSPACE_HEIGHT)
+  const timeline = clamp(sizes.timeline, timelineLimit.min, timelineMax)
+  return { side, inspector, timeline }
+}
+
+/** Reads stored panel sizes, ignoring anything malformed. */
+export function parsePanelSizes(value: string | null): Partial<PanelSizes> {
+  if (!value) return {}
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>
+    const sizes: Partial<PanelSizes> = {}
+    for (const key of ['side', 'inspector', 'timeline'] as const) {
+      const entry = parsed?.[key]
+      if (typeof entry === 'number' && Number.isFinite(entry)) sizes[key] = entry
+    }
+    return sizes
+  } catch {
+    return {}
+  }
+}
