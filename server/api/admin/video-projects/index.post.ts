@@ -1,0 +1,24 @@
+import { z } from 'zod'
+import { videoProjects } from '../../../../db/schema'
+import { VIDEO_ASPECT_KEYS, createVideoProject, type VideoAspect } from '../../../../shared/video-project'
+import { db } from '../../../utils/db'
+import { requireStaff } from '../../../utils/require-staff'
+import { VIDEO_EDITOR_ROLES } from '../../../utils/video-projects'
+
+const schema = z.object({
+  name: z.string().trim().max(160).default(''),
+  aspect: z.enum(VIDEO_ASPECT_KEYS as [VideoAspect, ...VideoAspect[]]).default('9:16'),
+})
+
+export default defineEventHandler(async (event) => {
+  const user = await requireStaff(event, VIDEO_EDITOR_ROLES)
+  const input = await readValidatedBody(event, body => schema.parse(body ?? {}))
+  const [row] = await db.insert(videoProjects).values({
+    name: input.name || 'Untitled video',
+    project: createVideoProject(input.aspect),
+    createdByUserId: user.id,
+  }).returning()
+  if (!row) throw createError({ statusCode: 500, statusMessage: 'Video project could not be created' })
+  event.node.res.statusCode = 201
+  return { project: row }
+})

@@ -457,7 +457,7 @@ function formatDate(value: string) {
 
       <div class="header-actions">
         <span class="status-pill"><span class="status-dot" /> Live preview</span>
-        <NuxtLink class="secondary-button" to="/admin/post-generator/video">Video generator</NuxtLink>
+        <NuxtLink class="secondary-button" to="/admin/post-generator/video">Video editor</NuxtLink>
         <button
           class="primary"
           type="button"

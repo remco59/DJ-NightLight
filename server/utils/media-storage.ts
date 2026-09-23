@@ -38,6 +38,11 @@ export class LocalMediaStorage implements MediaStorage {
     return readFile(safePath(this.root, key))
   }
 
+  /** Absolute path for streaming large files (video/audio) with range support. */
+  path(key: string) {
+    return safePath(this.root, key)
+  }
+
   async delete(key: string | null | undefined) {
     if (!key) return
     await rm(safePath(this.root, key), { force: true })

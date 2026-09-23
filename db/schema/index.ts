@@ -17,6 +17,8 @@ import {
 import type { InvoiceSnapshot, VatMode } from '../../shared/invoice'
 import type { QuestionnaireField } from '../../shared/questionnaire'
 import type { SitePublicCopy } from '../../shared/schemas/site-content'
+import type { MediaAssetMetadata } from '../../shared/media'
+import type { VideoProject } from '../../shared/video-project'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
 export const clientType = pgEnum('client_type', ['person', 'company'])
@@ -352,6 +354,8 @@ export const mediaAssets = pgTable('media_assets', {
   byteSize: integer('byte_size').notNull(),
   width: integer('width').notNull(),
   height: integer('height').notNull(),
+  durationMs: integer('duration_ms'),
+  metadata: jsonb('metadata').$type<MediaAssetMetadata>().default({}).notNull(),
   title: varchar('title', { length: 240 }).default('').notNull(),
   altText: varchar('alt_text', { length: 500 }).default('').notNull(),
   tags: jsonb('tags').$type<string[]>().default([]).notNull(),
@@ -373,9 +377,22 @@ export const generatedPosts = pgTable('generated_posts', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const videoProjects = pgTable('video_projects', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 160 }).notNull(),
+  project: jsonb('project').$type<VideoProject>().notNull(),
+  revision: integer('revision').default(1).notNull(),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [
+  index('video_projects_updated_idx').on(table.updatedAt),
+])
+
 export const videoRenderJobs = pgTable('video_render_jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  sourceMediaAssetId: uuid('source_media_asset_id').notNull().references(() => mediaAssets.id, { onDelete: 'restrict' }),
+  sourceMediaAssetId: uuid('source_media_asset_id').references(() => mediaAssets.id, { onDelete: 'restrict' }),
+  projectId: uuid('project_id').references(() => videoProjects.id, { onDelete: 'set null' }),
+  projectSnapshot: jsonb('project_snapshot').$type<VideoProject>(),
   createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   templateKey: varchar('template_key', { length: 80 }).notNull(),
   motionPreset: varchar('motion_preset', { length: 40 }).notNull(),
@@ -398,6 +415,7 @@ export const videoRenderJobs = pgTable('video_render_jobs', {
 }, table => [
   index('video_render_jobs_queue_idx').on(table.status, table.createdAt),
   index('video_render_jobs_source_idx').on(table.sourceMediaAssetId),
+  index('video_render_jobs_project_idx').on(table.projectId, table.createdAt),
 ])
 
 export const outboxEvents = pgTable('outbox_events', {
@@ -507,6 +525,7 @@ export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
 export type VideoRenderJob = typeof videoRenderJobs.$inferSelect
+export type VideoProjectRow = typeof videoProjects.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect
 export type SiteContent = typeof siteContent.$inferSelect
 export type LandingPage = typeof landingPages.$inferSelect

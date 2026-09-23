@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
-import { mediaAssets, videoRenderJobs } from '../../../../../db/schema'
+import { mediaAssets, videoProjects, videoRenderJobs } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
 
@@ -10,6 +10,8 @@ export default defineEventHandler(async (event) => {
     .select({
       id: videoRenderJobs.id,
       sourceMediaAssetId: videoRenderJobs.sourceMediaAssetId,
+      projectId: videoRenderJobs.projectId,
+      projectName: videoProjects.name,
       templateKey: videoRenderJobs.templateKey,
       motionPreset: videoRenderJobs.motionPreset,
       brandPreset: videoRenderJobs.brandPreset,
@@ -31,6 +33,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(videoRenderJobs)
     .leftJoin(mediaAssets, eq(videoRenderJobs.sourceMediaAssetId, mediaAssets.id))
+    .leftJoin(videoProjects, eq(videoRenderJobs.projectId, videoProjects.id))
     .orderBy(desc(videoRenderJobs.createdAt))
     .limit(100)
 

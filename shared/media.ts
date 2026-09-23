@@ -86,3 +86,45 @@ export function normalizeTags(value: string | string[]) {
 export function mediaUrl(id: string, variant: 'original' | 'thumb' = 'original') {
   return `/api/media/${id}${variant === 'thumb' ? '?variant=thumb' : ''}`
 }
+
+export type TimedMediaInfo = {
+  kind: 'video' | 'audio'
+  mimeType: 'video/mp4' | 'video/quicktime' | 'video/webm' | 'audio/mpeg' | 'audio/mp4' | 'audio/wav' | 'audio/ogg'
+  extension: 'mp4' | 'mov' | 'webm' | 'mp3' | 'm4a' | 'wav' | 'ogg'
+}
+
+/** Detects the supported video and audio containers from their magic bytes. */
+export function inspectTimedMedia(buffer: Uint8Array): TimedMediaInfo {
+  if (buffer.length < 16) throw new Error('Media file is too small')
+  const ascii = (start: number, length: number) => String.fromCharCode(...buffer.slice(start, start + length))
+
+  if (ascii(4, 4) === 'ftyp') {
+    const brand = ascii(8, 4)
+    if (brand === 'qt  ') return { kind: 'video', mimeType: 'video/quicktime', extension: 'mov' }
+    if (brand === 'M4A ' || brand === 'M4B ') return { kind: 'audio', mimeType: 'audio/mp4', extension: 'm4a' }
+    return { kind: 'video', mimeType: 'video/mp4', extension: 'mp4' }
+  }
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) {
+    return { kind: 'video', mimeType: 'video/webm', extension: 'webm' }
+  }
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WAVE') return { kind: 'audio', mimeType: 'audio/wav', extension: 'wav' }
+  if (ascii(0, 4) === 'OggS') return { kind: 'audio', mimeType: 'audio/ogg', extension: 'ogg' }
+  if (ascii(0, 3) === 'ID3' || (buffer[0] === 0xff && (buffer[1]! & 0xe0) === 0xe0)) {
+    return { kind: 'audio', mimeType: 'audio/mpeg', extension: 'mp3' }
+  }
+
+  throw new Error('Only MP4, MOV, WebM, MP3, M4A, WAV and OGG files are supported')
+}
+
+export function mediaKindFromMime(mimeType: string): 'image' | 'video' | 'audio' {
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  return 'image'
+}
+
+export type MediaAssetMetadata = {
+  /** Normalised 0..1 audio peaks for timeline waveforms. */
+  peaks?: number[]
+  fps?: number
+  hasAudio?: boolean
+}
