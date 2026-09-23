@@ -23,8 +23,14 @@ import {
 } from '~~/shared/video-templates'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
+// `mobile` turns the inspector into the contextual Edit tab: touch-sized
+// controls and collapsible sections instead of one long form.
+const props = defineProps<{ mobile?: boolean }>()
+
 const editor = useVideoEditor()
 const { state } = editor
+const sectionTag = computed(() => props.mobile ? 'details' : 'section')
+const headingTag = computed(() => props.mobile ? 'summary' : 'h3')
 const item = computed(() => editor.selection.value?.item || null)
 const template = computed(() => item.value?.type === 'graphic' ? MOTION_TEMPLATES[item.value.templateKey] : null)
 const visualMedia = computed(() => state.media.filter(asset => mediaKind(asset.mimeType) !== 'audio'))
@@ -97,14 +103,6 @@ function removeListRow(field: TemplateField, index: number) {
   setField(field, listValue(field).filter((_, row) => row !== index))
 }
 
-function setAspect(aspect: VideoAspect) {
-  editor.patchProject((project) => {
-    project.aspect = aspect
-    project.width = VIDEO_ASPECTS[aspect].width
-    project.height = VIDEO_ASPECTS[aspect].height
-  })
-}
-
 function setProjectDuration(value: number) {
   if (!Number.isFinite(value)) return
   editor.patchProject((project) => {
@@ -145,19 +143,23 @@ const assetTitle = computed(() => {
 </script>
 
 <template>
-  <aside class="inspector">
+  <aside class="inspector" :class="{ mobile: props.mobile }">
     <!-- Project settings when nothing is selected -->
     <template v-if="!item">
-      <header class="head">
+      <div v-if="props.mobile" class="empty-state">
+        <Icon name="lucide:mouse-pointer-click" aria-hidden="true" />
+        <p>Select a clip, image, text or audio item in the timeline to edit it.</p>
+      </div>
+      <header v-else class="head">
         <div>
           <h2>Project</h2>
           <small>Select a clip or graphic to edit it</small>
         </div>
       </header>
-      <section>
-        <h3>Output</h3>
+      <component :is="sectionTag" class="block">
+        <component :is="headingTag">{{ props.mobile ? 'Project settings' : 'Output' }}</component>
         <label class="row"><span>Format</span>
-          <select :value="state.project.aspect" @change="setAspect(($event.target as HTMLSelectElement).value as VideoAspect)">
+          <select :value="state.project.aspect" @change="editor.setAspect(($event.target as HTMLSelectElement).value as VideoAspect)">
             <option v-for="key in VIDEO_ASPECT_KEYS" :key="key" :value="key">{{ VIDEO_ASPECTS[key].label }}</option>
           </select>
         </label>
@@ -179,8 +181,8 @@ const assetTitle = computed(() => {
         <label class="row check"><span>Show Reels / Stories safe zones</span>
           <input type="checkbox" :checked="state.project.showSafeZones" @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })">
         </label>
-      </section>
-      <section>
+      </component>
+      <section v-if="!props.mobile">
         <h3>Shortcuts</h3>
         <dl class="shortcuts">
           <dt>Space</dt><dd>Play / pause</dd>
@@ -203,8 +205,8 @@ const assetTitle = computed(() => {
       </header>
 
       <!-- Motion graphic content -->
-      <section v-if="item.type === 'graphic' && template">
-        <h3>Content</h3>
+      <component :is="sectionTag" v-if="item.type === 'graphic' && template" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">Content</component>
         <template v-for="field in template.fields" :key="field.key">
           <label v-if="field.kind === 'text'" class="row"><span>{{ field.label }}</span>
             <input type="text" :maxlength="field.maxLength" :value="textValue(field)" @input="setField(field, ($event.target as HTMLInputElement).value)">
@@ -237,10 +239,10 @@ const assetTitle = computed(() => {
             <button v-if="listValue(field).length < (field.maxItems || 5) && visualMedia.length" type="button" class="ghost" @click="addListRow(field, visualMedia[0]!.id)"><Icon name="lucide:plus" aria-hidden="true" />Add media</button>
           </div>
         </template>
-      </section>
+      </component>
 
-      <section v-if="item.type === 'graphic'">
-        <h3>Style</h3>
+      <component :is="sectionTag" v-if="item.type === 'graphic'" class="block">
+        <component :is="headingTag">{{ props.mobile ? 'Style & animation' : 'Style' }}</component>
         <label class="row"><span>Accent style</span>
           <select :value="item.accent" @change="patch(target => { if (target.type === 'graphic') target.accent = ($event.target as HTMLSelectElement).value as typeof target.accent })">
             <option v-for="(accent, key) in MOTION_ACCENTS" :key="key" :value="key">{{ accent.label }}</option>
@@ -264,11 +266,11 @@ const assetTitle = computed(() => {
           <input type="range" min="0" max="60" :value="item.exitFrames" @input="patch(target => { if (target.type === 'graphic') target.exitFrames = Number(($event.target as HTMLInputElement).value) }, 'exitFrames')">
           <output>{{ seconds(item.exitFrames) }}s</output>
         </label>
-      </section>
+      </component>
 
       <!-- Transform for everything visual -->
-      <section v-if="'transform' in item">
-        <h3>Transform <button type="button" class="ghost small" @click="resetTransform">Reset</button></h3>
+      <component :is="sectionTag" v-if="'transform' in item" class="block">
+        <component :is="headingTag">Transform <button type="button" class="ghost small" @click.prevent="resetTransform">Reset</button></component>
         <div class="row"><span>Position</span>
           <div class="pair">
             <label>X <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
@@ -287,26 +289,26 @@ const assetTitle = computed(() => {
           <input type="range" min="0" max="1" step="0.01" :value="item.opacity" @input="patch(target => { target.opacity = Number(($event.target as HTMLInputElement).value) }, 'opacity')">
           <output>{{ Math.round(item.opacity * 100) }}%</output>
         </label>
-      </section>
+      </component>
 
-      <section v-if="'crop' in item">
-        <h3>Crop</h3>
+      <component :is="sectionTag" v-if="'crop' in item" class="block">
+        <component :is="headingTag">Crop</component>
         <label v-for="side in (['top', 'right', 'bottom', 'left'] as const)" :key="side" class="row"><span>{{ side[0]!.toUpperCase() + side.slice(1) }}</span>
           <input type="range" min="0" max="45" step="1" :value="Math.round(item.crop[side] * 100)" @input="setCrop(side, Number(($event.target as HTMLInputElement).value))">
           <output>{{ Math.round(item.crop[side] * 100) }}%</output>
         </label>
-      </section>
+      </component>
 
-      <section v-if="item.type === 'image'">
-        <h3>Motion</h3>
+      <component :is="sectionTag" v-if="item.type === 'image'" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">Motion</component>
         <label class="row"><span>Ken Burns</span>
           <input type="range" min="0" max="1" step="0.05" :value="item.kenBurns" @input="patch(target => { if (target.type === 'image') target.kenBurns = Number(($event.target as HTMLInputElement).value) }, 'kenBurns')">
           <output>{{ Math.round(item.kenBurns * 100) }}%</output>
         </label>
-      </section>
+      </component>
 
-      <section v-if="item.type === 'video'">
-        <h3>Playback</h3>
+      <component :is="sectionTag" v-if="item.type === 'video'" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">Playback</component>
         <label class="row"><span>Speed</span>
           <select :value="item.speed" @change="patch(target => { if (target.type === 'video') target.speed = Number(($event.target as HTMLSelectElement).value) })">
             <option v-for="speed in [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]" :key="speed" :value="speed">{{ speed }}×</option>
@@ -319,10 +321,10 @@ const assetTitle = computed(() => {
         <label class="row check"><span>Mute clip audio</span>
           <input type="checkbox" :checked="item.muted" @change="patch(target => { if (target.type === 'video') target.muted = ($event.target as HTMLInputElement).checked })">
         </label>
-      </section>
+      </component>
 
-      <section v-if="item.type === 'audio'">
-        <h3>Audio</h3>
+      <component :is="sectionTag" v-if="item.type === 'audio'" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">Audio</component>
         <label class="row"><span>Volume</span>
           <input type="range" min="0" max="1" step="0.01" :value="item.volume" @input="patch(target => { if (target.type === 'audio') target.volume = Number(($event.target as HTMLInputElement).value) }, 'volume')">
           <output>{{ Math.round(item.volume * 100) }}%</output>
@@ -335,10 +337,10 @@ const assetTitle = computed(() => {
           <input type="range" min="0" :max="Math.min(item.duration, fps * 5)" :value="item.fadeOut" @input="patch(target => { if (target.type === 'audio') target.fadeOut = Number(($event.target as HTMLInputElement).value) }, 'fadeOut')">
           <output>{{ seconds(item.fadeOut) }}s</output>
         </label>
-      </section>
+      </component>
 
-      <section>
-        <h3>Timing</h3>
+      <component :is="sectionTag" class="block">
+        <component :is="headingTag">Timing</component>
         <label class="row"><span>Start (s)</span>
           <input type="number" min="0" step="0.1" :value="seconds(item.start)" @change="setTiming('start', Number(($event.target as HTMLInputElement).value))">
         </label>
@@ -346,7 +348,7 @@ const assetTitle = computed(() => {
           <input type="number" min="0.1" step="0.1" :value="seconds(item.duration)" @change="setTiming('duration', Number(($event.target as HTMLInputElement).value))">
         </label>
         <p v-if="item.type === 'video' || item.type === 'audio'" class="note">Trimmed {{ seconds(item.trimStart) }}s from the start of the source.</p>
-      </section>
+      </component>
     </template>
   </aside>
 </template>
@@ -516,5 +518,151 @@ output {
 .shortcuts dd {
   margin: 0;
   color: var(--ve-muted);
+}
+/* --- Mobile Edit tab ------------------------------------------------------------ */
+
+.inspector.mobile {
+  gap: .6rem;
+  padding: .75rem 1rem 1rem;
+  border-left: 0;
+  overscroll-behavior: contain;
+}
+
+.mobile .head {
+  align-items: center;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.mobile .head .ghost { width: 40px; height: 40px; }
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  padding: 1rem;
+  border: 1px dashed rgba(167, 139, 250, .35);
+  border-radius: 12px;
+  color: var(--ve-muted);
+  font-size: .85rem;
+  line-height: 1.4;
+}
+
+.empty-state svg { flex: none; width: 24px; height: 24px; color: #a78bfa; }
+.empty-state p { margin: 0; }
+
+details.block {
+  border: 1px solid var(--ve-border);
+  border-radius: 12px;
+  background: var(--ve-raised);
+}
+
+details.block > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-height: 48px;
+  padding: 0 .9rem;
+  font-size: .88rem;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+details.block > summary::-webkit-details-marker { display: none; }
+
+details.block > summary::after {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-right: 2px solid var(--ve-muted);
+  border-bottom: 2px solid var(--ve-muted);
+  transform: rotate(45deg);
+  transition: transform .15s;
+  content: "";
+}
+
+details.block[open] > summary::after { transform: rotate(-135deg); }
+
+details.block > summary .ghost { min-height: 32px; margin-left: auto; }
+details.block > summary:has(.ghost)::after { margin-left: .4rem; }
+
+details.block > :not(summary) { margin: 0 .9rem; }
+details.block > :last-child { margin-bottom: .9rem; }
+details.block[open] > summary { margin-bottom: .2rem; }
+details.block > * + :not(summary) { margin-top: .7rem; }
+
+.mobile .row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .35rem .6rem;
+  font-size: .85rem;
+}
+
+/* Sliders get their own full-width line under the label. */
+.mobile .row:has(input[type="range"]) > input[type="range"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.mobile .row:has(input[type="range"]) > output { grid-column: 2; grid-row: 1; }
+
+.mobile .row > select,
+.mobile .row > input[type="text"],
+.mobile .row > input[type="number"] {
+  grid-column: 1 / -1;
+}
+
+.mobile .row.check { grid-template-columns: minmax(0, 1fr) auto; min-height: 44px; }
+
+.mobile .pair { grid-column: 1 / -1; }
+
+.mobile input[type="text"], .mobile input[type="number"], .mobile select, .mobile textarea {
+  min-height: 44px;
+  padding: .55rem .7rem;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+.mobile input[type="range"] {
+  height: 32px;
+  margin: 0;
+}
+
+/* Switch-style checkboxes for touch. */
+.mobile input[type="checkbox"] {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  margin: 0;
+  border-radius: 999px;
+  background: #3f3a4d;
+  transition: background .15s;
+  appearance: none;
+  cursor: pointer;
+}
+
+.mobile input[type="checkbox"]::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s;
+  content: "";
+}
+
+.mobile input[type="checkbox"]:checked { background: var(--ve-accent); }
+.mobile input[type="checkbox"]:checked::after { transform: translateX(18px); }
+
+.mobile input[type="color"] { width: 56px; height: 40px; }
+
+.mobile .list-row .ghost { flex: none; width: 44px; min-height: 44px; }
+.mobile .stack > .ghost { min-height: 40px; align-self: flex-start; }
+
+.mobile summary:focus-visible, .mobile input:focus-visible, .mobile select:focus-visible, .mobile button:focus-visible, .mobile textarea:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
 }
 </style>

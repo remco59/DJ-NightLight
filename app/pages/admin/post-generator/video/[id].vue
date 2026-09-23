@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.vue'
+import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
+import MobileVideoToolbar from '~/components/video/MobileVideoToolbar.vue'
+import MobileVideoTransport from '~/components/video/MobileVideoTransport.vue'
 import RemotionPreview from '~/components/video/RemotionPreview.vue'
 import VideoInspector from '~/components/video/VideoInspector.vue'
 import VideoMediaPanel from '~/components/video/VideoMediaPanel.vue'
@@ -10,7 +14,8 @@ import {
   type EditorMediaAsset,
   type EditorRender,
 } from '~/composables/useVideoEditor'
-import { VIDEO_ASPECTS, formatTimecode, type VideoProject } from '~~/shared/video-project'
+import { VIDEO_ASPECTS, formatTimecode, type MediaKind, type VideoProject } from '~~/shared/video-project'
+import type { MobileVideoTool } from '~~/shared/video-editor-ui'
 
 definePageMeta({ layout: false })
 
@@ -44,6 +49,42 @@ const volume = ref(1)
 const preview = ref<InstanceType<typeof RemotionPreview> | null>(null)
 const stage = ref<HTMLElement | null>(null)
 const stageSize = reactive({ width: 0, height: 0 })
+
+// --- Mobile workspace -------------------------------------------------------------
+// Below 760px the editor switches to a dedicated touch layout: compact header,
+// persistent preview + mini timeline, and one tool panel picked from bottom tabs.
+// The CSS media query uses the same breakpoint so the first paint already fits.
+
+const MOBILE_QUERY = '(max-width: 760px)'
+const isMobile = ref(false)
+const mobileTool = ref<MobileVideoTool>('media')
+const replaceKind = ref<MediaKind | null>(null)
+const mobilePanelTab = computed(() => mobileTool.value === 'export' ? 'exports' : mobileTool.value === 'edit' ? 'media' : mobileTool.value)
+const rendering = computed(() => state.renders.some(render => render.status === 'queued' || render.status === 'rendering'))
+
+function startReplace() {
+  const item = editor.selection.value?.item
+  if (!item || item.type === 'graphic') return
+  replaceKind.value = item.type
+  mobileTool.value = 'media'
+}
+
+function openEdit() {
+  replaceKind.value = null
+  mobileTool.value = 'edit'
+}
+
+watch(() => state.selectedId, () => {
+  replaceKind.value = null
+})
+watch(mobileTool, (tool) => {
+  if (tool !== 'media') replaceKind.value = null
+})
+
+let mobileQuery: MediaQueryList | null = null
+function syncMobile() {
+  isMobile.value = Boolean(mobileQuery?.matches)
+}
 
 async function refreshMedia() {
   try {
@@ -164,6 +205,7 @@ async function exportVideo() {
     if (state.saveState === 'error') throw new Error(state.saveError)
     await $fetch(`/api/admin/video-projects/${id}/render`, { method: 'POST' })
     tab.value = 'exports'
+    mobileTool.value = 'export'
     await refreshRenders()
   } catch (exportError) {
     message.value = apiErrorMessage(exportError, exportError instanceof Error ? exportError.message : 'Export could not be queued.')
@@ -195,6 +237,9 @@ onMounted(() => {
     stageSize.height = entry.contentRect.height
   })
   if (stage.value) resizeObserver.observe(stage.value)
+  mobileQuery = window.matchMedia(MOBILE_QUERY)
+  syncMobile()
+  mobileQuery.addEventListener('change', syncMobile)
   pollTimer = setInterval(() => {
     if (state.renders.some(render => render.status === 'queued' || render.status === 'rendering')) void refreshRenders()
   }, 3000)
@@ -204,6 +249,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('beforeunload', beforeUnload)
   resizeObserver?.disconnect()
+  mobileQuery?.removeEventListener('change', syncMobile)
   if (pollTimer) clearInterval(pollTimer)
 })
 
@@ -211,8 +257,16 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 </script>
 
 <template>
-  <div class="video-editor">
-    <header class="topbar">
+  <div class="video-editor" :class="{ mobile: isMobile }">
+    <MobileVideoEditorHeader
+      v-if="isMobile"
+      v-model:name="nameDraft"
+      :save-label="saveLabel"
+      :exporting="exporting"
+      @commit-name="commitName"
+      @export="exportVideo"
+    />
+    <header v-else class="topbar">
       <NuxtLink to="/admin/post-generator/video" class="brand" title="All video projects">
         <svg viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h5l3-8 5 16 4-12 3 6 3-4 3 2h10" /></svg>
         <span><strong>DJ NightLight</strong><small>CREATE · PLAY · SHARE</small></span>
@@ -229,17 +283,17 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
     <p v-if="message" class="banner">{{ message }} <button type="button" aria-label="Dismiss" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button></p>
 
     <div class="workspace">
-      <nav class="rail" aria-label="Editor panels">
+      <nav v-if="!isMobile" class="rail" aria-label="Editor panels">
         <button type="button" :class="{ active: tab === 'media' }" @click="tab = 'media'"><Icon name="lucide:images" aria-hidden="true" />Media</button>
         <button type="button" :class="{ active: tab === 'templates' }" @click="tab = 'templates'"><Icon name="lucide:layout-template" aria-hidden="true" />Templates</button>
         <button type="button" :class="{ active: tab === 'exports' }" @click="tab = 'exports'"><Icon name="lucide:clapperboard" aria-hidden="true" />Exports</button>
         <NuxtLink to="/admin/post-generator/video"><Icon name="lucide:folder-open" aria-hidden="true" />Projects</NuxtLink>
       </nav>
 
-      <VideoMediaPanel class="side" :tab="tab" @refresh-media="refreshMedia" @refresh-renders="refreshRenders" />
+      <VideoMediaPanel v-if="!isMobile" class="side" :tab="tab" @refresh-media="refreshMedia" @refresh-renders="refreshRenders" />
 
       <main class="stage-column">
-        <div class="stage-title">Preview</div>
+        <div v-if="!isMobile" class="stage-title">Preview</div>
         <div ref="stage" class="stage" @pointerdown.self="state.selectedId = null">
           <div class="preview-wrap" :style="{ width: `${previewSize.width}px`, height: `${previewSize.height}px` }">
             <ClientOnly>
@@ -261,7 +315,14 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
             />
           </div>
         </div>
-        <div class="transport">
+        <MobileVideoTransport
+          v-if="isMobile"
+          v-model:volume="volume"
+          @seek="seek"
+          @toggle="togglePlay"
+          @fullscreen="preview?.requestFullscreen()"
+        />
+        <div v-else class="transport">
           <button type="button" :title="state.playing ? 'Pause (Space)' : 'Play (Space)'" @click="togglePlay"><Icon :name="state.playing ? 'lucide:pause' : 'lucide:play'" aria-hidden="true" /></button>
           <span class="time">{{ formatTimecode(state.frame, state.project.fps) }} / {{ formatTimecode(editor.duration.value, state.project.fps) }}</span>
           <input
@@ -278,10 +339,30 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         </div>
       </main>
 
-      <VideoInspector class="inspector-column" />
+      <VideoInspector v-if="!isMobile" class="inspector-column" />
     </div>
 
-    <VideoTimeline class="timeline-row" @seek="seek" />
+    <VideoTimeline class="timeline-row" :compact="isMobile" @seek="seek" />
+
+    <template v-if="isMobile">
+      <MobileVideoQuickActions @replace="startReplace" />
+      <div class="tool-panel">
+        <VideoInspector v-if="mobileTool === 'edit'" mobile />
+        <VideoMediaPanel
+          v-else
+          mobile
+          :tab="mobilePanelTab"
+          :replace-kind="replaceKind"
+          @refresh-media="refreshMedia"
+          @refresh-renders="refreshRenders"
+          @template-added="openEdit"
+          @replaced="openEdit"
+          @cancel-replace="openEdit"
+          @open-edit="openEdit"
+        />
+      </div>
+      <MobileVideoToolbar v-model="mobileTool" :has-selection="Boolean(state.selectedId)" :rendering="rendering" />
+    </template>
   </div>
 </template>
 
@@ -554,19 +635,60 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
   .inspector-column { display: none; }
 }
 
+/* --- Mobile workspace ------------------------------------------------------------ */
+/* Media query (not the .mobile class) so the server-rendered first paint already
+   uses the viewport-sized layout before the mobile components mount. */
+
 @media (max-width: 760px) {
   .video-editor {
-    grid-template-rows: auto auto auto;
-    height: auto;
-    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
-  .topbar { flex-wrap: wrap; padding: .6rem 1rem; }
-  .workspace { grid-template-columns: 1fr; }
-  .rail { flex-direction: row; }
-  .stage { height: 60vh; }
-  .inspector-column { display: flex; }
-  .timeline-row { height: 320px; }
-  .format, .save { margin-left: 0; }
+  .topbar, .rail, .side, .inspector-column, .stage-title { display: none; }
+
+  .workspace {
+    display: block;
+    flex: none;
+  }
+
+  .stage-column { display: block; }
+
+  /* Persistent preview: roughly a third of the viewport, never scrolls away. */
+  .stage {
+    height: clamp(150px, 32dvh, 440px);
+  }
+
+  .timeline-row {
+    flex: none;
+    height: 126px;
+  }
+
+  .tool-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--ve-bg);
+  }
+
+  .tool-panel > * {
+    flex: 1;
+    min-height: 0;
+    background: var(--ve-bg);
+  }
+
+  .banner { top: calc(env(safe-area-inset-top) + 96px); }
+}
+
+/* Short landscape phones: give the tool panel room by shrinking the preview. */
+@media (max-width: 760px) and (max-height: 560px) {
+  .stage { height: 30dvh; }
+  .timeline-row { height: 106px; }
 }
 </style>
