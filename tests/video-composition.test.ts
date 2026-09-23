@@ -1,4 +1,6 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { BRAND_LOGOS } from '../remotion/brand-logo'
 import { MOTION_TEMPLATE_COMPONENTS } from '../remotion/motion-templates'
 import { animationState } from '../remotion/animation'
 import { MOTION_TEMPLATE_KEYS } from '../shared/video-templates'
@@ -6,6 +8,15 @@ import { MOTION_TEMPLATE_KEYS } from '../shared/video-templates'
 describe('remotion project composition', () => {
   it('implements every motion template', () => {
     expect(Object.keys(MOTION_TEMPLATE_COMPONENTS).sort()).toEqual([...MOTION_TEMPLATE_KEYS].sort())
+  })
+
+  it('ships every logo layer the electric templates animate', () => {
+    for (const [logo, spec] of Object.entries(BRAND_LOGOS)) {
+      for (const layer of Object.keys(spec.layers)) {
+        expect(existsSync(`public/brand/logo/${logo}-${layer}.webp`), `${logo}-${layer}`).toBe(true)
+      }
+      expect(existsSync(`public/brand/logo/${logo}-thumb.webp`)).toBe(true)
+    }
   })
 
   it('animates entrances and exits and rests in between', () => {

@@ -1,9 +1,10 @@
 import type React from 'react'
 import { createElement as h } from 'react'
-import { AbsoluteFill, interpolate, random, Sequence } from 'remotion'
+import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 'remotion'
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import { MOTION_ACCENTS, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
 import { stagger } from './animation'
+import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
 import { MediaFill } from './media'
 
 // NightLight motion templates. Every template lays out on a virtual canvas
@@ -539,11 +540,24 @@ const ClipRecap: React.FC<TemplateRenderProps> = ({ item, frame, width, height, 
 }
 
 // ── Electric set ────────────────────────────────────────────────────────────
-// Built straight from the NightLight logo: white-to-violet gradient type,
-// slanted neon rules with tapered ends, a neon ring, lightning bolts and
-// crackling electric arcs on a deep black night.
+// Animates the real NightLight logo artwork. scripts/brand/extract-logo-layers.py
+// cuts both logo files into layers (every letter, the bolt, the ring frame, the
+// neon rules and the electric arcs) that stack back into the exact logo; these
+// templates build, strike and crackle with those layers. Custom text gets the
+// logo's white-to-violet gradient and sits between the logo's own neon rules.
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
+
+const EMBLEM_LETTERS = ['n1', 'i1', 'g1', 'h1', 't1', 'l2', 'i2', 'g2', 'h2', 't2'] as const
+const WORDMARK_LETTERS = ['n', 'i', 'g', 'h', 't', 'l', 'i2', 'g2', 'h2', 't2'] as const
+/** Ring centre and inner radius on the emblem canvas. */
+const EMBLEM_RING = { x: 581, y: 552, radius: 380 }
+/** Letter band of the wordmark: centre, size and tilt of the space between its rules. */
+const WORDMARK_BAND = { x: 930, y: 348, width: 1260, height: 216, rotate: -6.2 }
+/** Vertical span of the wordmark rules, used to crop the rule frame. */
+const WORDMARK_RULES = { top: 95, bottom: 605 }
+/** Dominant hue of the logo artwork. */
+const LOGO_HUE = 268
 
 /** Logo-style type: white at the top fading into the accent at the bottom. */
 function gradientText(colors: Colors, glowSize = 22): React.CSSProperties {
@@ -559,233 +573,199 @@ function gradientText(colors: Colors, glowSize = 22): React.CSSProperties {
   }
 }
 
-/** Thin neon line with tapered ends, like the rules framing the logo. */
-const NeonRule: React.FC<{
-  colors: Colors
-  progress: number
-  width: number | string
-  thickness?: number
-  rotate?: number
-  origin?: 'left' | 'right'
-  style?: React.CSSProperties
-}> = ({ colors, progress, width, thickness = 7, rotate = 0, origin = 'left', style }) =>
-  h('div', {
-    style: {
-      width,
-      height: thickness,
-      transform: `rotate(${rotate}deg) scaleX(${progress})`,
-      transformOrigin: `${origin} center`,
-      background: `linear-gradient(90deg, transparent, ${colors.accent} 14%, ${colors.soft} 50%, ${colors.accent} 86%, transparent)`,
-      boxShadow: `0 0 22px ${colors.glow}, 0 0 6px ${colors.accent}`,
-      borderRadius: thickness,
-      ...style,
-    },
-  })
-
-/** Lightning bolt with the logo's white-to-violet fill. */
-const Bolt: React.FC<{
-  colors: Colors
-  size: number
-  style?: React.CSSProperties
-}> = ({ colors, size, style }) => {
-  const id = `nl-bolt-${colors.accent.slice(1)}`
-  return h(
-    'svg',
-    {
-      width: size * 0.6,
-      height: size,
-      viewBox: '0 0 60 100',
-      style: { overflow: 'visible', filter: `drop-shadow(0 0 ${Math.round(size / 7)}px ${colors.glow}) drop-shadow(0 0 4px ${colors.accent})`, ...style },
-    },
-    h('defs', null, h('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 }, h('stop', { offset: '0%', stopColor: '#ffffff' }), h('stop', { offset: '100%', stopColor: colors.accent }))),
-    h('path', { d: 'M38 0 L4 58 L28 58 L16 100 L56 36 L32 36 Z', fill: `url(#${id})` }),
-  )
+function hueOf(hex: string) {
+  const [r, g, b] = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255) as [number, number, number]
+  const max = Math.max(r, g, b)
+  const delta = max - Math.min(r, g, b)
+  if (!delta) return LOGO_HUE
+  const hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4
+  return (hue * 60 + 360) % 360
 }
 
-/** Double neon ring that draws itself clockwise. */
-const NeonRing: React.FC<{
+/** Shifts the violet artwork towards the chosen accent; the logo's own violet stays untouched. */
+function artTint(colors: Colors) {
+  if (colors === MOTION_ACCENTS.mono) return 'grayscale(1) brightness(1.15)'
+  const shift = ((hueOf(colors.accent) - LOGO_HUE + 540) % 360) - 180
+  return Math.abs(shift) < 12 ? undefined : `hue-rotate(${Math.round(shift)}deg)`
+}
+
+/** 0→1 over `length` frames starting at `start`. */
+function reveal(frame: number, start: number, length = 10) {
+  return stagger(frame - start, 0, 0, length)
+}
+
+/** Neon-tube flicker once a light has switched on. */
+function flicker(frame: number, seed: string, from: number) {
+  if (frame < from) return 0
+  const roll = random(`${seed}-${Math.floor(frame / 2)}`)
+  return roll > 0.3 ? 1 : roll > 0.12 ? 0.45 : 0
+}
+
+/** A letter or bolt hitting its place: overshoot, then a bright flash that settles. */
+function slam(t: number, from = 1.5): React.CSSProperties {
+  return {
+    opacity: Math.min(1, t * 1.6),
+    transform: `scale(${interpolate(t, [0, 1], [from, 1])})`,
+    filter: t < 1 ? `brightness(${1 + (1 - t) * 1.8})` : undefined,
+  }
+}
+
+type LayerStyle = (layer: string) => React.CSSProperties | null
+
+/** The logo rebuilt from its layers. `layer` styles each layer; returning null hides it. */
+const LogoArt: React.FC<{
+  logo: BrandLogo
+  width: number
   colors: Colors
-  progress: number
-  size: number
+  layer?: LayerStyle
   style?: React.CSSProperties
-}> = ({ colors, progress, size, style }) => {
-  const center = size / 2
-  const rings = [center - 8, center - 8 - size * 0.045]
+}> = ({ logo, width, colors, layer, style }) => {
+  const spec = BRAND_LOGOS[logo]
+  const scale = width / spec.width
   return h(
-    'svg',
-    { width: size, height: size, viewBox: `0 0 ${size} ${size}`, style: { overflow: 'visible', filter: `drop-shadow(0 0 16px ${colors.glow})`, ...style } },
-    rings.map((radius, index) => {
-      const circumference = 2 * Math.PI * radius
-      return h('circle', {
-        key: radius,
-        cx: center,
-        cy: center,
-        r: radius,
-        fill: 'none',
-        stroke: index ? colors.accent : colors.soft,
-        strokeWidth: index ? 4 : 7,
-        strokeLinecap: 'round',
-        strokeDasharray: circumference,
-        strokeDashoffset: circumference * (1 - progress),
-        transform: `rotate(${-120 + index * 40} ${center} ${center})`,
+    'div',
+    { style: { position: 'relative', width, height: spec.height * scale, filter: artTint(colors), ...style } },
+    Object.entries(spec.layers).map(([name, [x, y, w, hh]]) => {
+      const extra = layer ? layer(name) : {}
+      if (extra === null) return null
+      return h(Img, {
+        key: name,
+        src: staticFile(`brand/logo/${logo}-${name}.webp`),
+        style: { position: 'absolute', left: x * scale, top: y * scale, width: w * scale, height: hh * scale, maxWidth: 'none', ...extra },
       })
     }),
   )
 }
 
-type Arc = [x1: number, y1: number, x2: number, y2: number]
-
-/** Jagged path between two points; the offset fades out at both ends. */
-function arcPath(seed: string, [x1, y1, x2, y2]: Arc, segments = 9, jag = 26) {
-  const dx = x2 - x1
-  const dy = y2 - y1
-  const length = Math.hypot(dx, dy) || 1
-  const nx = -dy / length
-  const ny = dx / length
-  let path = `M${x1} ${y1}`
-  for (let index = 1; index < segments; index++) {
-    const t = index / segments
-    const offset = (random(`${seed}-${index}`) - 0.5) * 2 * jag * Math.sin(Math.PI * t)
-    path += ` L${x1 + dx * t + nx * offset} ${y1 + dy * t + ny * offset}`
-  }
-  return `${path} L${x2} ${y2}`
-}
-
-/** Flickering electric arcs, re-rolled every two frames. Coordinates are local to the svg box. */
-const ElectricArcs: React.FC<{
+/**
+ * The wordmark's own neon rules (plus its bolt and arcs when asked) with custom
+ * content in the letter band between them. Cropped to the rules for layout;
+ * the bolt and arcs spill over.
+ */
+const RuleFrame: React.FC<{
   colors: Colors
-  frame: number
   width: number
-  height: number
-  arcs: Arc[]
+  frame: number
+  start?: number
   seed: string
-  intensity?: number
-  style?: React.CSSProperties
-}> = ({ colors, frame, width, height, arcs, seed, intensity = 0.65, style }) => {
-  const tick = Math.floor(frame / 2)
+  bolt?: boolean
+  arcs?: boolean
+  content: (band: { width: number, height: number }) => React.ReactNode
+}> = ({ colors, width, frame, start = 0, seed, bolt = true, arcs = true, content }) => {
+  const scale = width / BRAND_LOGOS.wordmark.width
+  const top = reveal(frame, start, 12)
+  const bottom = reveal(frame, start + 2, 12)
+  const strike = reveal(frame, start + 12, 6)
+  const band = { width: WORDMARK_BAND.width * scale, height: WORDMARK_BAND.height * scale }
   return h(
-    'svg',
-    {
+    'div',
+    { style: { position: 'relative', width, height: (WORDMARK_RULES.bottom - WORDMARK_RULES.top) * scale } },
+    h(LogoArt, {
+      logo: 'wordmark',
       width,
-      height,
-      viewBox: `0 0 ${width} ${height}`,
-      style: { position: 'absolute', left: 0, top: 0, overflow: 'visible', pointerEvents: 'none', filter: `drop-shadow(0 0 10px ${colors.glow})`, ...style },
-    },
-    arcs.map((arc, index) => {
-      if (random(`${seed}-on-${index}-${tick}`) > intensity) return null
-      const key = `${seed}-${index}-${tick}`
-      const main = arcPath(key, arc)
-      const [x1, y1, x2, y2] = arc
-      const midX = x1 + (x2 - x1) * 0.55
-      const midY = y1 + (y2 - y1) * 0.55
-      const branch = arcPath(`${key}-b`, [midX, midY, midX + (y2 - y1) * 0.35 + (x2 - x1) * 0.25, midY - (x2 - x1) * 0.35 + (y2 - y1) * 0.25], 5, 12)
-      return h(
-        'g',
-        { key: index, fill: 'none', strokeLinejoin: 'round', strokeLinecap: 'round' },
-        h('path', { d: main, stroke: colors.accent, strokeWidth: 7, opacity: 0.55 }),
-        h('path', { d: main, stroke: '#fff', strokeWidth: 2.4 }),
-        h('path', { d: branch, stroke: colors.soft, strokeWidth: 1.6, opacity: 0.85 }),
-      )
+      colors,
+      style: { position: 'absolute', left: 0, top: -WORDMARK_RULES.top * scale },
+      layer: (name) => {
+        if (name === 'rule-top') return { clipPath: `inset(-20% ${(1 - top) * 100}% -20% 0)` }
+        if (name === 'rule-bottom') return { clipPath: `inset(-20% 0 -20% ${(1 - bottom) * 100}%)` }
+        if (name === 'bolt' && bolt) return { ...slam(strike, 1.8), opacity: strike * (frame >= start + 18 ? Math.max(0.55, flicker(frame, `${seed}-bolt`, 0)) : 1) }
+        if (name === 'arcs' && arcs) return { opacity: flicker(frame, `${seed}-arcs`, start + 14) }
+        return null
+      },
     }),
+    h(
+      'div',
+      {
+        style: {
+          position: 'absolute',
+          left: (WORDMARK_BAND.x - WORDMARK_BAND.width / 2) * scale,
+          top: (WORDMARK_BAND.y - WORDMARK_RULES.top - WORDMARK_BAND.height / 2) * scale,
+          width: band.width,
+          height: band.height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transform: `rotate(${WORDMARK_BAND.rotate}deg)`,
+        },
+      },
+      content(band),
+    ),
   )
 }
 
-/** Neon-tube flicker once a light has "switched on". */
-function flicker(frame: number, seed: string, from: number) {
-  if (frame < from) return 0
-  return random(`${seed}-${Math.floor(frame / 3)}`) > 0.12 ? 1 : 0.35
+/** Custom text sized to fill a rule-frame band. */
+function bandText(colors: Colors, band: { width: number, height: number }, text: string, reveal01: number): React.ReactNode {
+  return h(
+    'div',
+    {
+      style: {
+        ...gradientText(colors, Math.max(10, band.height * 0.14)),
+        fontSize: Math.min(band.height * 0.86, band.width / (0.66 * Math.max(4, text.length))),
+        lineHeight: 1,
+        letterSpacing: -2,
+        whiteSpace: 'nowrap',
+        transform: 'skewX(-8deg)',
+        clipPath: `inset(-40% ${(1 - reveal01) * 100}% -40% -10%)`,
+      },
+    },
+    text,
+  )
 }
 
-const NeonLogoReveal: React.FC<TemplateRenderProps> = ({ item, frame }) => {
+const NeonLogoReveal: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
-  const props = item.templateProps
-  const lines = [textProp(props, 'line1'), textProp(props, 'line2')].filter(Boolean)
-  const size = 760
-  const ring = stagger(frame, 0, 0, 18)
-  const strike = stagger(frame, 3, 4, 8)
-  const flash = interpolate(frame, [14, 16, 24], [0, 0.45, 0], clamp)
+  const size = Math.min(width, height) * 0.86
+  const ring = reveal(frame, 0, 20)
+  const strike = reveal(frame, 26, 6)
+  const flash = interpolate(frame, [27, 29, 38], [0, 0.4, 0], clamp)
+  const breathe = frame > 40 ? 1 + Math.sin((frame - 40) / 14) * 0.008 : 1
+  const artHeight = (size * BRAND_LOGOS.emblem.height) / BRAND_LOGOS.emblem.width
+  const tagline = textProp(item.templateProps, 'tagline')
   return h(
     AbsoluteFill,
     null,
-    h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 50%, ${colors.glow}4d, transparent 58%)`, opacity: ring } }),
+    h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 50%, ${colors.glow}55, transparent 58%)`, opacity: ring } }),
     h(
       AbsoluteFill,
       { style: { alignItems: 'center', justifyContent: 'center' } },
       h(
         'div',
-        { style: { position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' } },
-        h(NeonRing, { colors, progress: ring, size, style: { position: 'absolute', inset: 0 } }),
-        frame >= 12
-          ? h(ElectricArcs, {
-              colors,
-              frame,
-              width: size,
-              height: size,
-              seed: `logo-${item.id}`,
-              arcs: [
-                [size * 0.14, size * 0.2, -size * 0.12, -size * 0.08],
-                [size * 0.8, size * 0.1, size * 0.98, -size * 0.2],
-                [size * 0.98, size * 0.62, size * 1.24, size * 0.82],
-                [size * 0.3, size * 0.95, size * 0.06, size * 1.2],
-              ],
-            })
-          : null,
-        h(NeonRule, { colors, progress: stagger(frame, 3, 0, 12), width: size * 0.9, rotate: -12, style: { position: 'absolute', top: size * 0.2, left: size * 0.3 } }),
-        h(NeonRule, { colors, progress: stagger(frame, 4, 0, 12), width: size * 0.9, rotate: -12, origin: 'right', style: { position: 'absolute', bottom: size * 0.2, right: size * 0.3 } }),
-        h(
-          'div',
-          { style: { position: 'relative', transform: 'rotate(-8deg) skewX(-8deg)' } },
-          lines.map((line, index) => {
-            const reveal = stagger(frame, 4 + index * 3, 0, 10)
-            return h(
-              'div',
-              {
-                key: `${line}-${index}`,
-                style: {
-                  ...gradientText(colors),
-                  fontSize: Math.min(200, 1000 / Math.max(4, line.length)),
-                  lineHeight: 0.92,
-                  letterSpacing: -4,
-                  marginLeft: index ? -40 : 40,
-                  opacity: reveal,
-                  transform: `scale(${interpolate(reveal, [0, 1], [1.6, 1])})`,
-                },
-              },
-              line,
-            )
-          }),
-        ),
-        h(Bolt, {
+        { style: { position: 'relative', transform: `scale(${breathe})` } },
+        h(LogoArt, {
+          logo: 'emblem',
+          width: size,
           colors,
-          size: 230,
-          style: {
-            position: 'absolute',
-            right: -size * 0.14,
-            top: size * 0.12,
-            opacity: strike * flicker(frame, `logo-bolt-${item.id}`, 12),
-            transform: `translateY(${(1 - strike) * -160}px) scale(${interpolate(strike, [0, 1], [1.4, 1])})`,
+          layer: (name) => {
+            if (name === 'frame') {
+              const mask = `conic-gradient(from -150deg, #000 ${ring * 360}deg, transparent ${ring * 360}deg)`
+              return ring < 1 ? { WebkitMaskImage: mask, maskImage: mask } : {}
+            }
+            if (name === 'bolt') return slam(strike, 2)
+            if (name === 'arcs') return { opacity: flicker(frame, `reveal-arcs-${item.id}`, 28) }
+            const index = EMBLEM_LETTERS.indexOf(name as typeof EMBLEM_LETTERS[number])
+            return slam(reveal(frame, 6 + index * 2 + (index >= 5 ? 2 : 0), 8))
           },
         }),
-        textProp(props, 'tagline')
+        tagline
           ? h(
               'div',
               {
                 style: {
                   ...body,
                   position: 'absolute',
-                  top: size + 40,
+                  top: artHeight + 30,
                   left: -200,
                   right: -200,
                   textAlign: 'center',
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: 800,
                   letterSpacing: 14,
                   color: colors.soft,
                   textShadow: `0 0 18px ${colors.glow}`,
-                  opacity: stagger(frame, 8),
+                  opacity: reveal(frame, 34, 12),
                 },
               },
-              textProp(props, 'tagline'),
+              tagline,
             )
           : null,
       ),
@@ -794,84 +774,28 @@ const NeonLogoReveal: React.FC<TemplateRenderProps> = ({ item, frame }) => {
   )
 }
 
-const LightningBanner: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+const LightningBanner: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   const colors = colorsFor(item)
   const title = textProp(item.templateProps, 'title')
   const subtitle = textProp(item.templateProps, 'subtitle')
-  // Arial Black italic runs ~0.6em per glyph; keep room for the bolt on the right.
-  const size = Math.min(180, (Math.min(width, 1920) - 300) / (0.6 * Math.max(5, title.length)))
-  const bannerWidth = Math.min(width - 200, title.length * size * 0.6 + 120)
-  const reveal = stagger(frame, 2, 0, 12)
-  const strike = stagger(frame, 6, 0, 8)
-  const tilt = -5
-  const lift = Math.sin((-tilt * Math.PI) / 180) * (bannerWidth / 2)
-  const left: [number, number] = [width / 2 - bannerWidth / 2, height / 2 + lift]
-  const right: [number, number] = [width / 2 + bannerWidth / 2, height / 2 - lift]
+  const frameWidth = Math.min(width - 60, 1560)
   return h(
     AbsoluteFill,
-    { style: { alignItems: 'center', justifyContent: 'center' } },
-    frame >= 8
-      ? h(ElectricArcs, {
-          colors,
-          frame,
-          width,
-          height,
-          seed: `banner-${item.id}`,
-          arcs: [
-            [left[0] + 20, left[1], left[0] - 150, left[1] - 150],
-            [left[0] + 40, left[1] + 20, left[0] - 110, left[1] + 130],
-            [right[0] - 20, right[1], right[0] + 150, right[1] - 160],
-            [right[0] - 40, right[1] + 20, right[0] + 120, right[1] + 120],
-          ],
-        })
-      : null,
-    h(
-      'div',
-      { style: { position: 'relative', width: bannerWidth, padding: `${size * 0.3}px 0`, transform: `rotate(${tilt}deg)` } },
-      h(NeonRule, { colors, progress: stagger(frame, 0, 0, 12), width: '100%', style: { position: 'absolute', top: 0, left: 0 } }),
-      h(NeonRule, { colors, progress: stagger(frame, 1, 0, 12), width: '100%', origin: 'right', style: { position: 'absolute', bottom: 0, left: 0 } }),
-      h(
-        'div',
-        {
-          style: {
-            ...gradientText(colors),
-            fontSize: size,
-            lineHeight: 1,
-            letterSpacing: -3,
-            textAlign: 'center',
-            whiteSpace: 'nowrap',
-            transform: 'skewX(-6deg)',
-            clipPath: `inset(-30% ${(1 - reveal) * 100}% -30% -10%)`,
-          },
-        },
-        title,
-      ),
-      h(Bolt, {
-        colors,
-        size: size * 1.5,
-        style: {
-          position: 'absolute',
-          right: -size * 0.45,
-          top: '50%',
-          opacity: strike * flicker(frame, `banner-bolt-${item.id}`, 6),
-          transform: `translateY(-50%) translateY(${(1 - strike) * -120}px) rotate(12deg)`,
-        },
-      }),
-    ),
+    { style: { alignItems: 'center', justifyContent: 'center', gap: 34 } },
+    h(RuleFrame, { colors, width: frameWidth, frame, seed: `banner-${item.id}`, content: band => bandText(colors, band, title, reveal(frame, 6, 12)) }),
     subtitle
       ? h(
           'div',
           {
             style: {
               ...body,
-              marginTop: size * 0.45,
               fontSize: 32,
               fontWeight: 800,
               letterSpacing: 10,
               color: colors.soft,
               textShadow: `0 0 16px ${colors.glow}`,
-              transform: `rotate(${tilt}deg)`,
-              opacity: stagger(frame, 8),
+              transform: `rotate(${WORDMARK_BAND.rotate}deg)`,
+              opacity: reveal(frame, 16, 12),
             },
           },
           subtitle,
@@ -880,91 +804,112 @@ const LightningBanner: React.FC<TemplateRenderProps> = ({ item, frame, width, he
   )
 }
 
+/** The emblem's ring (with its bolt and arcs) as a badge around custom content. */
+const RingBadge: React.FC<{
+  colors: Colors
+  width: number
+  frame: number
+  start: number
+  seed: string
+  children?: React.ReactNode
+}> = ({ colors, width, frame, start, seed, children }) => {
+  const scale = width / BRAND_LOGOS.emblem.width
+  const ring = reveal(frame, start, 18)
+  const mask = `conic-gradient(from -150deg, #000 ${ring * 360}deg, transparent ${ring * 360}deg)`
+  return h(
+    'div',
+    { style: { position: 'relative', width, height: BRAND_LOGOS.emblem.height * scale } },
+    h(LogoArt, {
+      logo: 'emblem',
+      width,
+      colors,
+      layer: (name) => {
+        if (name === 'frame') return ring < 1 ? { WebkitMaskImage: mask, maskImage: mask } : {}
+        if (name === 'bolt') return slam(reveal(frame, start + 14, 6), 1.8)
+        if (name === 'arcs') return { opacity: flicker(frame, `${seed}-arcs`, start + 18) }
+        return null
+      },
+    }),
+    h(
+      'div',
+      {
+        style: {
+          position: 'absolute',
+          left: (EMBLEM_RING.x - EMBLEM_RING.radius) * scale,
+          top: (EMBLEM_RING.y - EMBLEM_RING.radius) * scale,
+          width: EMBLEM_RING.radius * 2 * scale,
+          height: EMBLEM_RING.radius * 2 * scale,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      },
+      children,
+    ),
+  )
+}
+
+/** The full wordmark, letters slamming in one after another. */
+const WordmarkBuild: React.FC<{
+  colors: Colors
+  width: number
+  frame: number
+  start: number
+  seed: string
+}> = ({ colors, width, frame, start, seed }) =>
+  h(LogoArt, {
+    logo: 'wordmark',
+    width,
+    colors,
+    layer: (name) => {
+      if (name === 'rule-top') return { clipPath: `inset(-20% ${(1 - reveal(frame, start, 12)) * 100}% -20% 0)` }
+      if (name === 'rule-bottom') return { clipPath: `inset(-20% 0 -20% ${(1 - reveal(frame, start + 2, 12)) * 100}%)` }
+      if (name === 'bolt') return slam(reveal(frame, start + 24, 6), 1.8)
+      if (name === 'arcs') return { opacity: flicker(frame, `${seed}-arcs`, start + 26) }
+      const index = WORDMARK_LETTERS.indexOf(name as typeof WORDMARK_LETTERS[number])
+      return slam(reveal(frame, start + 4 + index * 2, 8))
+    },
+  })
+
 const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
   const props = item.templateProps
   const landscape = width > height
   const safe = safeInsets(width, height)
-  const ringSize = landscape ? 600 : 500
+  const padding = landscape ? { top: 70, bottom: 70 } : { top: safe.top - 60, bottom: safe.bottom - 60 }
+  // Shrink the stack on short canvases (square) so nothing collides.
+  const k = landscape ? 1 : Math.min(1, (height - padding.top - padding.bottom) / 1260)
   const headline = textProp(props, 'headline')
   const info = [textProp(props, 'venue'), textProp(props, 'time')].filter(Boolean)
   const cta = textProp(props, 'cta')
-  const ring = h(
-    'div',
-    { style: { position: 'relative', width: ringSize, height: ringSize, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
-    h(AbsoluteFill, { style: { borderRadius: '50%', background: `radial-gradient(circle, ${colors.glow}40, transparent 70%)` } }),
-    h(NeonRing, { colors, progress: stagger(frame, 0, 0, 20), size: ringSize, style: { position: 'absolute', inset: 0 } }),
-    frame >= 14
-      ? h(ElectricArcs, {
-          colors,
-          frame,
-          width: ringSize,
-          height: ringSize,
-          seed: `poster-${item.id}`,
-          intensity: 0.5,
-          arcs: [
-            [ringSize * 0.1, ringSize * 0.3, -ringSize * 0.15, ringSize * 0.1],
-            [ringSize * 0.9, ringSize * 0.72, ringSize * 1.15, ringSize * 0.95],
-          ],
-        })
-      : null,
-    h(
-      'div',
-      {
-        style: {
-          ...gradientText(colors, 28),
-          fontSize: ringSize * 0.42,
-          lineHeight: 0.9,
-          letterSpacing: -8,
-          opacity: stagger(frame, 3),
-          transform: `skewX(-6deg) scale(${interpolate(stagger(frame, 3), [0, 1], [1.5, 1])})`,
-        },
-      },
-      textProp(props, 'day'),
-    ),
-    h('div', { style: { ...display, fontSize: ringSize * 0.11, letterSpacing: 14, color: colors.soft, textShadow: `0 0 18px ${colors.glow}`, opacity: stagger(frame, 5) } }, textProp(props, 'month')),
-    h(Bolt, {
-      colors,
-      size: ringSize * 0.34,
-      style: { position: 'absolute', right: -ringSize * 0.04, top: -ringSize * 0.06, transform: 'rotate(14deg)', opacity: stagger(frame, 5) * flicker(frame, `poster-bolt-${item.id}`, 10) },
-    }),
+  const badgeWidth = (landscape ? 640 : 520) * k
+  const ringSize = (2 * EMBLEM_RING.radius * badgeWidth) / BRAND_LOGOS.emblem.width
+  const day = reveal(frame, 16, 8)
+
+  const header = h(WordmarkBuild, { colors, width: (landscape ? 700 : 660) * k, frame, start: 0, seed: `poster-mark-${item.id}` })
+  const badge = h(
+    RingBadge,
+    { colors, width: badgeWidth, frame, start: 6, seed: `poster-ring-${item.id}` },
+    h('div', { style: { ...gradientText(colors, 26), fontSize: ringSize * 0.5, lineHeight: 0.9, letterSpacing: -8, transform: 'skewX(-8deg)', ...slam(day) } }, textProp(props, 'day')),
+    h('div', { style: { ...display, fontSize: ringSize * 0.13, letterSpacing: 14, color: colors.soft, textShadow: `0 0 18px ${colors.glow}`, opacity: reveal(frame, 20, 10) } }, textProp(props, 'month')),
   )
-  const kicker = h('div', { style: { opacity: stagger(frame, 1) } }, h(Kicker, null, textProp(props, 'kicker')))
   const blocks = [
     headline
-      ? h(
-          'div',
-          { style: { position: 'relative', padding: '22px 10px', transform: 'rotate(-6deg)' } },
-          h(NeonRule, { colors, progress: stagger(frame, 5, 0, 12), width: '110%', style: { position: 'absolute', top: 0, left: '-5%' } }),
-          h(NeonRule, { colors, progress: stagger(frame, 6, 0, 12), width: '110%', origin: 'right', style: { position: 'absolute', bottom: 0, left: '-5%' } }),
-          h(
-            'div',
-            {
-              style: {
-                ...gradientText(colors),
-                fontSize: Math.min(140, (landscape ? 1150 : 1250) / Math.max(5, headline.length)),
-                lineHeight: 1,
-                letterSpacing: -3,
-                whiteSpace: 'nowrap',
-                transform: 'skewX(-6deg)',
-                clipPath: `inset(-30% ${(1 - stagger(frame, 6, 0, 12)) * 100}% -30% -10%)`,
-              },
-            },
-            headline,
-          ),
-        )
+      ? h(RuleFrame, { key: 'headline', colors, width: (landscape ? 820 : 900) * k, frame, start: 18, seed: `poster-rules-${item.id}`, arcs: false, bolt: false, content: band => bandText(colors, band, headline, reveal(frame, 22, 12)) })
       : null,
     info.length
       ? h(
           'div',
           {
+            key: 'info',
             style: {
               padding: '18px 42px',
               background: 'rgba(6,4,10,.84)',
               border: `2px solid ${colors.accent}aa`,
               boxShadow: `0 0 36px ${colors.glow}55, inset 0 0 22px ${colors.glow}33`,
-              transform: 'skewX(-12deg)',
-              opacity: stagger(frame, 8),
+              transform: `skewX(-12deg) scale(${k})`,
+              opacity: reveal(frame, 28, 12),
             },
           },
           h(
@@ -979,7 +924,7 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
     cta
       ? h(
           'div',
-          { style: { opacity: stagger(frame, 10), transform: `scale(${interpolate(stagger(frame, 10), [0, 1], [1.4, 1])})` } },
+          { key: 'cta', style: { opacity: reveal(frame, 32, 10), transform: `scale(${interpolate(reveal(frame, 32, 10), [0, 1], [1.4, 1]) * k})` } },
           h(Pill, { colors, style: { background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`, fontSize: 40 } }, ensureArrow(cta)),
         )
       : null,
@@ -988,16 +933,16 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
     AbsoluteFill,
     {
       style: {
-        padding: landscape ? '70px 120px' : `${safe.top - 60}px 70px ${safe.bottom - 60}px`,
+        padding: landscape ? '70px 110px' : `${padding.top}px 60px ${padding.bottom}px`,
         flexDirection: landscape ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: landscape ? 'center' : 'space-evenly',
-        gap: landscape ? 90 : 20,
+        gap: landscape ? 70 : 10,
       },
     },
     ...(landscape
-      ? [ring, h('div', { key: 'details', style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 34 } }, kicker, ...blocks)]
-      : [kicker, ring, ...blocks]),
+      ? [badge, h('div', { key: 'details', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30 } }, header, ...blocks)]
+      : [header, badge, ...blocks]),
   )
 }
 
@@ -1025,49 +970,39 @@ const EqBars: React.FC<{
 const NowPlaying: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
   const props = item.templateProps
-  const artist = textProp(props, 'artist')
-  const cardWidth = 820
+  const frameWidth = Math.min(width - 100, 960)
+  const tilt = `rotate(${WORDMARK_BAND.rotate}deg)`
   return h(
     AbsoluteFill,
     null,
     h(
       'div',
-      { style: { position: 'absolute', left: 80, bottom: safeInsets(width, height).bottom, width: cardWidth, transform: 'rotate(-4deg)', transformOrigin: 'left bottom' } },
-      h(NeonRule, { colors, progress: stagger(frame, 0, 0, 12), width: '100%' }),
+      { style: { position: 'absolute', left: 30, bottom: safeInsets(width, height).bottom, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' } },
       h(
         'div',
-        { style: { display: 'flex', alignItems: 'center', gap: 18, padding: '22px 0 4px', opacity: stagger(frame, 2) } },
+        { style: { display: 'flex', alignItems: 'center', gap: 18, marginLeft: frameWidth * 0.2, marginBottom: -6, transform: tilt, opacity: reveal(frame, 4, 10) } },
         h(EqBars, { colors, frame }),
         h('div', { style: { ...body, fontSize: 26, fontWeight: 800, letterSpacing: 9, color: colors.soft, textShadow: `0 0 14px ${colors.glow}` } }, textProp(props, 'label')),
       ),
-      h(
-        'div',
-        {
-          style: {
-            ...gradientText(colors, 18),
-            fontSize: Math.min(96, 1025 / Math.max(6, artist.length)),
-            lineHeight: 1.02,
-            letterSpacing: -2,
-            whiteSpace: 'nowrap',
-            opacity: stagger(frame, 3),
-            transform: `translateX(${(1 - stagger(frame, 3)) * -60}px) skewX(-6deg)`,
-          },
-        },
-        artist,
-      ),
+      h(RuleFrame, { colors, width: frameWidth, frame, seed: `np-${item.id}`, content: band => bandText(colors, band, textProp(props, 'artist'), reveal(frame, 6, 12)) }),
       textProp(props, 'track')
         ? h(
             'div',
-            { style: { ...body, fontSize: 34, fontWeight: 700, padding: '4px 0 22px', opacity: stagger(frame, 5), transform: `translateX(${(1 - stagger(frame, 5)) * -40}px)` } },
+            {
+              style: {
+                ...body,
+                fontSize: 34,
+                fontWeight: 700,
+                marginTop: -8,
+                marginLeft: frameWidth * 0.14,
+                transform: tilt,
+                opacity: reveal(frame, 12, 10),
+                textShadow: '0 4px 18px rgba(0,0,0,.8)',
+              },
+            },
             textProp(props, 'track'),
           )
-        : h('div', { style: { height: 22 } }),
-      h(NeonRule, { colors, progress: stagger(frame, 1, 0, 12), width: '100%', origin: 'right' }),
-      h(Bolt, {
-        colors,
-        size: 130,
-        style: { position: 'absolute', right: 0, top: -64, transform: 'rotate(12deg)', opacity: stagger(frame, 6) * flicker(frame, `np-bolt-${item.id}`, 6) },
-      }),
+        : null,
     ),
   )
 }
@@ -1083,35 +1018,38 @@ const BoltTransition: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
   const drop = interpolate(frame, [0, Math.max(1, mid - 1)], [-1, 0], { ...clamp, easing: t => t * t })
   const flash = interpolate(frame, [mid - 2, mid, mid + tail], [0, 1, 0], clamp)
   const boltOpacity = interpolate(frame, [0, 1, mid + tail - 1, mid + tail + 2], [0, 1, 1, 0], clamp)
-  const arcsOn = frame >= mid - 3 && frame <= mid + tail
+  const arcsOn = frame >= mid - 4 && frame <= mid + tail + 2
   const wordIn = interpolate(frame, [mid, mid + 3], [0, 1], clamp) * interpolate(frame, [duration - 4, duration - 1], [1, 0], clamp)
-  const boltSize = Math.min(height * 0.9, width * 1.2)
-  const cx = width / 2
+  const [, , boltW, boltH] = BRAND_LOGOS.wordmark.layers.bolt
+  const boltHeight = height * 0.8
+  const arcSize = Math.max(width, height) * 1.15
+  const only = (keep: string) => (name: string) => (name === keep ? {} : null)
   return h(
     AbsoluteFill,
     null,
     h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 45%, ${colors.glow}aa, #05030a 70%)`, opacity: wash } }),
     arcsOn
-      ? h(ElectricArcs, {
-          colors,
-          frame,
-          width,
-          height,
-          intensity: 0.85,
-          seed: `transition-${item.id}`,
-          arcs: [
-            [cx, height * 0.45, -40, height * 0.2],
-            [cx, height * 0.5, width + 40, height * 0.3],
-            [cx, height * 0.55, -40, height * 0.8],
-            [cx, height * 0.55, width + 40, height * 0.85],
-            [cx - 60, -20, cx + 40, height * 0.45],
-          ],
-        })
+      ? h(
+          AbsoluteFill,
+          { style: { alignItems: 'center', justifyContent: 'center', opacity: flicker(frame, `transition-arcs-${item.id}`, 0) } },
+          h(LogoArt, { logo: 'emblem', width: arcSize, colors, layer: only('arcs'), style: { position: 'absolute' } }),
+          h(LogoArt, { logo: 'wordmark', width: arcSize, colors, layer: only('arcs'), style: { position: 'absolute', transform: 'rotate(90deg) scaleX(-1)' } }),
+        )
       : null,
     h(
       AbsoluteFill,
       { style: { alignItems: 'center', justifyContent: 'center' } },
-      h(Bolt, { colors, size: boltSize, style: { opacity: boltOpacity, transform: `translateY(${drop * height}px) rotate(8deg)` } }),
+      h(Img, {
+        src: staticFile('brand/logo/wordmark-bolt.webp'),
+        style: {
+          height: boltHeight,
+          width: (boltHeight * boltW) / boltH,
+          maxWidth: 'none',
+          opacity: boltOpacity,
+          filter: artTint(colors),
+          transform: `translateY(${drop * height}px)`,
+        },
+      }),
     ),
     word
       ? h(
@@ -1125,7 +1063,7 @@ const BoltTransition: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
                 fontSize: Math.min(260, (Math.min(width, 1700) * 1.3) / Math.max(4, word.length)),
                 letterSpacing: -6,
                 opacity: wordIn,
-                transform: `rotate(-6deg) skewX(-8deg) scale(${interpolate(wordIn, [0, 1], [1.5, 1])})`,
+                transform: `rotate(${WORDMARK_BAND.rotate}deg) skewX(-8deg) scale(${interpolate(wordIn, [0, 1], [1.5, 1])})`,
               },
             },
             word,
@@ -1136,53 +1074,36 @@ const BoltTransition: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
   )
 }
 
-const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame }) => {
+const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   const colors = colorsFor(item)
   const props = item.templateProps
   const headline = textProp(props, 'headline')
-  const ringSize = 300
+  const ring = reveal(frame, 0, 16)
+  const mask = `conic-gradient(from -150deg, #000 ${ring * 360}deg, transparent ${ring * 360}deg)`
   return h(
     AbsoluteFill,
-    { style: { alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 44, padding: 70 } },
+    { style: { alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 36, padding: 60 } },
     h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 40%, ${colors.glow}40, transparent 60%)` } }),
-    h(
-      'div',
-      { style: { position: 'relative', width: ringSize, height: ringSize, display: 'flex', alignItems: 'center', justifyContent: 'center' } },
-      h(NeonRing, { colors, progress: stagger(frame, 0, 0, 18), size: ringSize, style: { position: 'absolute', inset: 0 } }),
-      frame >= 12
-        ? h(ElectricArcs, {
-            colors,
-            frame,
-            width: ringSize,
-            height: ringSize,
-            seed: `outro-${item.id}`,
-            intensity: 0.5,
-            arcs: [
-              [ringSize * 0.1, ringSize * 0.25, -ringSize * 0.3, -ringSize * 0.05],
-              [ringSize * 0.9, ringSize * 0.75, ringSize * 1.3, ringSize * 1.05],
-            ],
-          })
-        : null,
-      h(Bolt, { colors, size: ringSize * 0.62, style: { opacity: stagger(frame, 3) * flicker(frame, `outro-bolt-${item.id}`, 8), transform: `rotate(8deg) scale(${interpolate(stagger(frame, 3), [0, 1], [1.5, 1])})` } }),
-    ),
+    h(LogoArt, {
+      logo: 'emblem',
+      width: 560,
+      colors,
+      layer: (name) => {
+        if (name === 'frame') return ring < 1 ? { WebkitMaskImage: mask, maskImage: mask } : {}
+        if (name === 'bolt') return slam(reveal(frame, 18, 6), 1.8)
+        if (name === 'arcs') return { opacity: flicker(frame, `outro-arcs-${item.id}`, 20) }
+        const index = EMBLEM_LETTERS.indexOf(name as typeof EMBLEM_LETTERS[number])
+        return slam(reveal(frame, 4 + index, 8))
+      },
+    }),
     headline
-      ? h(
-          'div',
-          { style: { position: 'relative', padding: '20px 30px', transform: 'rotate(-5deg)' } },
-          h(NeonRule, { colors, progress: stagger(frame, 3, 0, 12), width: '100%', style: { position: 'absolute', top: 0, left: 0 } }),
-          h(NeonRule, { colors, progress: stagger(frame, 4, 0, 12), width: '100%', origin: 'right', style: { position: 'absolute', bottom: 0, left: 0 } }),
-          h(
-            'div',
-            { style: { ...gradientText(colors), fontSize: Math.min(140, 1150 / Math.max(5, headline.length)), lineHeight: 1, letterSpacing: -3, whiteSpace: 'nowrap', transform: 'skewX(-6deg)', opacity: stagger(frame, 4) } },
-            headline,
-          ),
-        )
+      ? h(RuleFrame, { colors, width: Math.min(width - 80, 900), frame, start: 14, seed: `outro-rules-${item.id}`, bolt: false, arcs: false, content: band => bandText(colors, band, headline, reveal(frame, 18, 12)) })
       : null,
     textProp(props, 'handle')
-      ? h('div', { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: stagger(frame, 7) } }, textProp(props, 'handle'))
+      ? h('div', { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10) } }, textProp(props, 'handle'))
       : null,
     textProp(props, 'website')
-      ? h('div', { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: stagger(frame, 9) } }, textProp(props, 'website'))
+      ? h('div', { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: reveal(frame, 30, 10) } }, textProp(props, 'website'))
       : null,
   )
 }
