@@ -5,6 +5,8 @@ import {
   VIDEO_OUTPUT,
   VIDEO_RENDER_STATUSES,
   VIDEO_TEMPLATES,
+  defaultVideoGigItems,
+  defaultVideoVisibility,
   videoDurationFrames,
 } from '../shared/video-generator'
 
@@ -20,9 +22,35 @@ describe('video generator', () => {
   })
 
   it('exposes motion-safe templates and presets', () => {
-    expect(VIDEO_TEMPLATES).toEqual(['spotlight', 'pulse', 'slide'])
+    expect(VIDEO_TEMPLATES).toEqual([
+      'spotlight',
+      'pulse',
+      'slide',
+      'gig-announcement',
+      'recap',
+      'upcoming-gigs',
+    ])
     expect(VIDEO_MOTION_PRESETS).toEqual(['smooth', 'energy', 'minimal'])
     expect(VIDEO_BRAND_PRESETS).toEqual(['night', 'mono', 'warm'])
+  })
+
+  it('starts with all editable video fields visible', () => {
+    expect(defaultVideoVisibility()).toEqual({
+      logo: true,
+      headline: true,
+      subline: true,
+      date: true,
+      time: true,
+      location: true,
+      cta: true,
+      gigList: true,
+    })
+  })
+
+  it('provides editable default planning rows', () => {
+    const gigs = defaultVideoGigItems()
+    expect(gigs).toHaveLength(4)
+    expect(gigs.every(item => item.enabled)).toBe(true)
   })
 
   it('uses explicit persistent queue states', () => {
