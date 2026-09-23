@@ -4,9 +4,12 @@
 // the full signal and a low-passed bass band (kicks and drops show up as solid
 // blocks of bass). Results are cached in IndexedDB per asset, so a track is
 // only decoded again after the cache is cleared or WAVEFORM_VERSION changes.
+// The bass envelope also feeds beat detection, cached alongside.
+
+import { detectBeatGrid, type BeatGrid } from '../../shared/beat-grid'
 
 export const WAVEFORM_RATE = 200
-const WAVEFORM_VERSION = 1
+const WAVEFORM_VERSION = 2
 // Decoding resamples to this rate: plenty for 200 peaks/s and the bass band,
 // and ~6× less memory than 44.1 kHz for long DJ mixes.
 const DECODE_SAMPLE_RATE = 16000
@@ -22,6 +25,8 @@ export type Waveform = {
   peaks: Uint8Array
   /** Bass-band peak per bucket, 0–255, normalised to its own loudest bucket. */
   bass: Uint8Array
+  /** Detected tempo and phase, null when the track has no clear beat. */
+  grid: BeatGrid | null
 }
 
 /** Per-bucket peak of the absolute sample value across channels, scaled to 0–255. */
@@ -80,7 +85,7 @@ async function analyse(url: string): Promise<Waveform> {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index))
   const peaks = bucketPeaks(channels, buffer.sampleRate)
   const bass = await bassBand(buffer)
-  return { rate: WAVEFORM_RATE, peaks, bass }
+  return { rate: WAVEFORM_RATE, peaks, bass, grid: detectBeatGrid(bass, WAVEFORM_RATE) }
 }
 
 // --- IndexedDB cache (best effort: private mode or blocked storage just skips it) --
@@ -104,7 +109,7 @@ async function readCache(key: string): Promise<Waveform | null> {
       const request = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
       request.onsuccess = () => {
         const value = request.result as (Waveform & { version: number }) | undefined
-        resolve(value?.version === WAVEFORM_VERSION ? { rate: value.rate, peaks: value.peaks, bass: value.bass } : null)
+        resolve(value?.version === WAVEFORM_VERSION ? { rate: value.rate, peaks: value.peaks, bass: value.bass, grid: value.grid } : null)
       }
       request.onerror = () => resolve(null)
     })

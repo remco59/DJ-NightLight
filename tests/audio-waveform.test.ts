@@ -19,6 +19,7 @@ describe('waveform columns', () => {
     rate: 10,
     peaks: Uint8Array.from([0, 51, 102, 153, 204, 255, 0, 0, 0, 0]),
     bass: Uint8Array.from([0, 0, 0, 0, 255, 255, 0, 0, 0, 0]),
+    grid: null,
   }
 
   it('takes the maximum over the buckets each column covers', () => {

@@ -13,6 +13,7 @@ import {
   type MotionTemplateKey,
   type TemplateProps,
 } from './video-templates'
+import { MAX_BPM, MIN_BPM, type BeatGrid } from './beat-grid'
 
 // A video project is a small NLE sequence: fixed output settings plus ordered
 // tracks holding timeline items. All times are integer frames at project fps.
@@ -96,6 +97,8 @@ export type AudioClipItem = ItemBase & {
   volume: number
   fadeIn: number
   fadeOut: number
+  /** Beat grid corrected by hand; unset = the detected one. */
+  beatGrid?: BeatGrid
 }
 
 export type GraphicItem = ItemBase & {
@@ -387,6 +390,10 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     volume: z.number().min(0).max(1),
     fadeIn: frame,
     fadeOut: frame,
+    beatGrid: z.object({
+      bpm: z.number().min(MIN_BPM / 2).max(MAX_BPM * 2),
+      offset: z.number().min(0).max(60),
+    }).optional(),
   }),
   z.object({
     ...baseSchema,
