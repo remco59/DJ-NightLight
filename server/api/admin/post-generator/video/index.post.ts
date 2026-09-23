@@ -11,16 +11,51 @@ import { db } from '../../../../utils/db'
 import { getGeneratedStorage } from '../../../../utils/media-storage'
 import { requireStaff } from '../../../../utils/require-staff'
 
+const visibilitySchema = z.object({
+  logo: z.boolean(),
+  headline: z.boolean(),
+  subline: z.boolean(),
+  date: z.boolean(),
+  time: z.boolean(),
+  location: z.boolean(),
+  cta: z.boolean(),
+  gigList: z.boolean(),
+})
+
+const gigItemSchema = z.object({
+  enabled: z.boolean(),
+  dateText: z.string().trim().max(40),
+  title: z.string().trim().max(120),
+  locationText: z.string().trim().max(120),
+})
+
 const designSchema = z.object({
   templateKey: z.enum(VIDEO_TEMPLATES),
   motionPreset: z.enum(VIDEO_MOTION_PRESETS),
   brandPreset: z.enum(VIDEO_BRAND_PRESETS),
-  headline: z.string().trim().min(1).max(180),
+  headline: z.string().trim().max(180),
   subline: z.string().trim().max(260),
   dateText: z.string().trim().max(160),
+  timeText: z.string().trim().max(80),
   locationText: z.string().trim().max(160),
-  logoText: z.string().trim().min(1).max(80),
+  ctaText: z.string().trim().max(180),
+  logoText: z.string().trim().max(80),
+  visibility: visibilitySchema,
+  gigItems: z.array(gigItemSchema).min(1).max(6),
+  imageX: z.number().min(-1).max(1),
+  imageY: z.number().min(-1).max(1),
+  zoom: z.number().min(1).max(3),
   overlayOpacity: z.number().min(0).max(0.9),
+  textAlign: z.enum(['left', 'center', 'right']),
+  textPosition: z.enum(['top', 'middle', 'bottom']),
+}).superRefine((design, context) => {
+  if (design.visibility.headline && !design.headline) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['headline'],
+      message: 'Headline is required while it is shown',
+    })
+  }
 })
 
 const sourceIdSchema = z.string().uuid()
