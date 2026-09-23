@@ -28,6 +28,8 @@ import {
   type TemplateField,
 } from '~~/shared/video-templates'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
+import { useWaveforms } from '~/composables/useWaveforms'
+import { MAX_BPM, MIN_BPM, withDownbeatAt, type BeatGrid } from '~~/shared/beat-grid'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
 // `mobile` turns the inspector into the contextual Edit tab: touch-sized
@@ -99,6 +101,42 @@ function setFit(fit: MediaFit) {
   patch((target) => {
     if ('crop' in target) target.fit = fit
   })
+}
+
+// --- Beat grid (audio) ---------------------------------------------------------
+
+const { waveforms, gridFor } = useWaveforms()
+const beatGrid = computed(() => item.value?.type === 'audio' ? gridFor(item.value) : null)
+const waveformState = computed(() => {
+  if (item.value?.type !== 'audio') return 'none'
+  return waveforms.has(item.value.assetId) ? 'ready' : 'loading'
+})
+/** Source time under the playhead for the selected audio clip. */
+const playheadSourceTime = computed(() => {
+  const clip = item.value
+  if (clip?.type !== 'audio') return 0
+  return (state.frame - clip.start + clip.trimStart) / fps.value
+})
+const gridNote = computed(() => {
+  const clip = item.value
+  if (clip?.type !== 'audio') return ''
+  if (waveformState.value === 'loading') return 'Analysing the track…'
+  const detected = waveforms.get(clip.assetId)?.grid
+  if (clip.beatGrid) return detected ? `Adjusted by hand (detected ${detected.bpm.toFixed(2)} BPM).` : 'Set by hand.'
+  return detected ? 'Detected from the kicks. Clips snap to these beats.' : 'No clear beat found in this track.'
+})
+
+function setGrid(grid: BeatGrid | undefined) {
+  if (grid && (!Number.isFinite(grid.bpm) || grid.bpm < MIN_BPM / 2 || grid.bpm > MAX_BPM * 2)) return
+  patch((target) => {
+    if (target.type !== 'audio') return
+    if (grid) target.beatGrid = { bpm: Math.round(grid.bpm * 100) / 100, offset: withDownbeatAt(grid, grid.offset).offset }
+    else delete target.beatGrid
+  })
+}
+
+function downbeatAtPlayhead() {
+  if (beatGrid.value) setGrid(withDownbeatAt(beatGrid.value, playheadSourceTime.value))
 }
 
 function setCrop(key: keyof ItemCrop, value: number) {
@@ -412,6 +450,27 @@ const assetTitle = computed(() => {
         </label>
       </component>
 
+      <component :is="sectionTag" v-if="item.type === 'audio'" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">
+          Beat grid
+          <button v-if="item.beatGrid" type="button" class="ghost small" title="Use the detected tempo and downbeat again" @click.prevent="setGrid(undefined)">Use detected</button>
+        </component>
+        <template v-if="beatGrid">
+          <label class="row"><span>Tempo (BPM)</span>
+            <input type="number" :min="MIN_BPM / 2" :max="MAX_BPM * 2" step="0.01" :value="beatGrid.bpm" @change="setGrid({ ...beatGrid, bpm: Number(($event.target as HTMLInputElement).value) })">
+          </label>
+          <div class="row"><span>Adjust</span>
+            <div class="pair">
+              <button type="button" class="ghost small" title="Half the tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm / 2 })">½×</button>
+              <button type="button" class="ghost small" title="Double the tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm * 2 })">2×</button>
+            </div>
+          </div>
+          <button type="button" class="ghost small wide" title="Make the beat under the playhead the first beat of a bar" @click="downbeatAtPlayhead">Set downbeat at playhead</button>
+        </template>
+        <button v-else-if="waveformState !== 'loading'" type="button" class="ghost small wide" @click="setGrid(withDownbeatAt({ bpm: 125, offset: 0 }, playheadSourceTime))">Add a 125 BPM grid from the playhead</button>
+        <p class="note">{{ gridNote }}</p>
+      </component>
+
       <component :is="sectionTag" class="block">
         <component :is="headingTag">Timing</component>
         <label class="row"><span>Start (s)</span>
@@ -585,6 +644,11 @@ output {
   padding: .1rem .45rem;
   font-size: .7rem;
   font-weight: 400;
+}
+
+.ghost.small.wide {
+  width: 100%;
+  padding: .35rem .5rem;
 }
 
 .note {

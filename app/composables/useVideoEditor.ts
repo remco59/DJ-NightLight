@@ -78,6 +78,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     /** Timeline zoom in pixels per second. */
     zoom: 80,
     snap: true,
+    /** Snapping also catches the beat grid of the audio clips. */
+    beatSnap: 'beats' as 'beats' | 'bars' | 'off',
     saveState: 'saved' as SaveState,
     saveError: '',
     lastSavedAt: Date.now(),

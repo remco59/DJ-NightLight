@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { GridLine } from '~~/shared/beat-grid'
 import { sampleColumns, type Waveform } from '~/utils/audio-waveform'
 
 // Draws the visible part of an audio clip's detailed waveform. Only the slice
@@ -13,6 +14,8 @@ const props = defineProps<{
   /** Visible range in item-local pixels. */
   from: number
   to: number
+  /** Beat grid lines in item-local pixels. */
+  beats?: Array<GridLine & { x: number }>
 }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -45,13 +48,24 @@ function draw() {
     const size = Math.min(bass[column]!, peaks[column]!) * reach
     if (size >= 0.5) context.fillRect(column, middle - size, 1, size * 2)
   }
+  // Beat grid: faint ticks per beat, full-height lines on bars. Beats closer than
+  // 4px are skipped so a zoomed-out timeline shows bars only.
+  const beatSpacing = (props.beats?.[1]?.x ?? Infinity) - (props.beats?.[0]?.x ?? 0)
+  for (const line of props.beats || []) {
+    if (!line.bar && beatSpacing < 4) continue
+    const column = Math.round((line.x - props.from) * ratio)
+    if (column < 0 || column >= width) continue
+    context.fillStyle = line.bar ? 'rgba(255, 255, 255, .55)' : 'rgba(255, 255, 255, .22)'
+    const tick = line.bar ? height : height * 0.3
+    context.fillRect(column, line.bar ? 0 : height - tick, Math.max(1, Math.round(ratio)), tick)
+  }
 }
 
 function schedule() {
   if (!frame) frame = requestAnimationFrame(draw)
 }
 
-watch(() => [props.waveform, props.offset, props.pixelsPerSecond, props.from, props.to], schedule)
+watch(() => [props.waveform, props.offset, props.pixelsPerSecond, props.from, props.to, props.beats], schedule)
 onMounted(schedule)
 onBeforeUnmount(() => cancelAnimationFrame(frame))
 </script>

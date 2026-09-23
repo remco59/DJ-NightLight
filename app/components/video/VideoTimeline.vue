@@ -5,7 +5,8 @@ import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templa
 import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 import WaveformCanvas from '~/components/video/WaveformCanvas.vue'
-import { MAX_DETAILED_SECONDS, loadWaveform, type Waveform } from '~/utils/audio-waveform'
+import { useWaveforms } from '~/composables/useWaveforms'
+import { beatFrames, type GridLine } from '~~/shared/beat-grid'
 
 // `compact` is the touch-first mobile timeline: no toolbar, icon-only track
 // labels, bigger trim handles and tap-to-select so panning never moves clips.
@@ -84,9 +85,27 @@ function seekLane(event: MouseEvent) {
 type DragMode = 'move' | 'trim-start' | 'trim-end'
 const dragging = ref<{ id: string, mode: DragMode } | null>(null)
 
+/** Beat (or bar) frames of every audio clip except the one being dragged, which moves with its own beats. */
+function beatTargets(project: VideoProject, ignoreId: string) {
+  if (state.beatSnap === 'off') return []
+  const frames: number[] = []
+  for (const track of project.tracks) {
+    for (const item of track.items) {
+      if (item.type !== 'audio' || item.id === ignoreId) continue
+      const grid = gridFor(item)
+      if (!grid) continue
+      for (const line of beatFrames(item, grid, project.fps)) {
+        if (state.beatSnap === 'beats' || line.bar) frames.push(line.frame)
+      }
+    }
+  }
+  return frames
+}
+
 function snapped(frame: number, base: VideoProject, itemId: string) {
   if (!state.snap) return frame
-  return snapFrame(frame, snapTargets(base, state.frame, itemId), SNAP_PX.value / pxPerFrame.value)
+  const targets = [...snapTargets(base, state.frame, itemId), ...beatTargets(base, itemId)]
+  return snapFrame(frame, targets, SNAP_PX.value / pxPerFrame.value)
 }
 
 function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
@@ -219,23 +238,25 @@ function waveform(item: TimelineItem) {
 // Decoded once per asset (cached in IndexedDB); until then the coarse stored
 // peaks are drawn. Only the on-screen slice of each clip is painted.
 
-const waveforms = shallowReactive(new Map<string, Waveform>())
+const { waveforms, ensure: ensureWaveform, gridFor } = useWaveforms()
 const view = reactive({ left: 0, width: 0 })
 
 watchEffect(() => {
   for (const track of state.project.tracks) {
     for (const item of track.items) {
-      if (item.type !== 'audio' || waveforms.has(item.assetId)) continue
-      const asset = editor.mediaById.value.get(item.assetId)
-      if (!asset || (asset.durationMs ?? 0) > MAX_DETAILED_SECONDS * 1000) continue
-      loadWaveform(asset.id, asset.url)
-        .then(waveform => waveforms.set(asset.id, waveform))
-        .catch(() => {
-          // Undecodable in this browser: keep the stored overview peaks.
-        })
+      const asset = item.type === 'audio' ? editor.mediaById.value.get(item.assetId) : null
+      if (asset) ensureWaveform(asset)
     }
   }
 })
+
+/** Beat lines of an audio clip in its own pixel coordinates. */
+function gridLines(item: TimelineItem): Array<GridLine & { x: number }> {
+  if (item.type !== 'audio') return []
+  const grid = gridFor(item)
+  if (!grid) return []
+  return beatFrames(item, grid, state.project.fps).map(line => ({ ...line, x: x(line.frame - item.start) }))
+}
 
 function syncView() {
   const element = scroller.value
@@ -339,6 +360,11 @@ function wheel(event: WheelEvent) {
         <input v-model.number="state.zoom" class="zoom" type="range" min="8" max="400" aria-label="Timeline zoom">
         <button type="button" title="Zoom in" @click="zoomBy(1.25)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
         <label class="snap"><input v-model="state.snap" type="checkbox"> Snap</label>
+        <select v-model="state.beatSnap" class="beat-snap" aria-label="Snap to the music" :disabled="!state.snap" title="Also snap to the beat grid of the audio">
+          <option value="beats">to beats</option>
+          <option value="bars">to bars</option>
+          <option value="off">not to music</option>
+        </select>
       </div>
     </div>
 
@@ -411,6 +437,7 @@ function wheel(event: WheelEvent) {
                   :pixels-per-second="state.zoom"
                   :from="visibleSlice(item)!.from"
                   :to="visibleSlice(item)!.to"
+                  :beats="gridLines(item)"
                 />
                 <svg v-else-if="!waveforms.get(item.assetId)" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
               </template>
@@ -505,6 +532,17 @@ function wheel(event: WheelEvent) {
 }
 
 .snap input { accent-color: var(--ve-accent); }
+
+.beat-snap {
+  padding: .2rem .35rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 6px;
+  background: var(--ve-bg);
+  color: var(--ve-text);
+  font-size: .76rem;
+}
+
+.beat-snap:disabled { opacity: .5; }
 
 .scroller {
   position: relative;
