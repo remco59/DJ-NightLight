@@ -6,10 +6,9 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
   vite: {
-    // remotion/*.tsx are React components (shared by the editor preview and the
-    // render worker). Keep them away from Vue JSX and compile them as React.
-    vueJsx: { exclude: [/[\\/]remotion[\\/]/] },
-    esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
+    // The video editor preview imports these lazily; pre-bundle them so the
+    // dev server does not re-optimize (and break the in-flight import) on first use.
+    optimizeDeps: { include: ['react', 'react-dom/client', 'remotion', '@remotion/player'] },
   },
   runtimeConfig: {
     appVersion: process.env.NUXT_APP_VERSION || 'development',
