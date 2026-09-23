@@ -597,6 +597,57 @@ h3 {
   background: radial-gradient(circle at 30% 20%, #ff2d9588, transparent 60%), #1b0c14;
 }
 
+/* Electric set: mirrors the NightLight logo (gradient type, neon ring, bolt). */
+.template-art[data-template="neon-logo-reveal"],
+.template-art[data-template="lightning-banner"],
+.template-art[data-template="electric-gig-poster"],
+.template-art[data-template="now-playing"],
+.template-art[data-template="bolt-transition"],
+.template-art[data-template="neon-outro"] {
+  background: radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%), #07040d;
+}
+
+.template-art[data-template="neon-logo-reveal"] b,
+.template-art[data-template="lightning-banner"] b,
+.template-art[data-template="electric-gig-poster"] b,
+.template-art[data-template="now-playing"] b,
+.template-art[data-template="bolt-transition"] b,
+.template-art[data-template="neon-outro"] b {
+  color: transparent;
+  background: linear-gradient(180deg, #fff, #eadcff 45%, #9d5cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 5px #6d28d9);
+}
+
+.template-art[data-template="neon-logo-reveal"]::after,
+.template-art[data-template="lightning-banner"]::after,
+.template-art[data-template="electric-gig-poster"]::after,
+.template-art[data-template="now-playing"]::after,
+.template-art[data-template="bolt-transition"]::after,
+.template-art[data-template="neon-outro"]::after {
+  position: absolute;
+  top: 12%;
+  right: 12%;
+  width: 14px;
+  height: 24px;
+  content: "";
+  background: linear-gradient(#fff, #9d5cff);
+  clip-path: polygon(63% 0, 7% 58%, 47% 58%, 27% 100%, 93% 36%, 53% 36%);
+}
+
+.template-art[data-template="neon-logo-reveal"]::before,
+.template-art[data-template="electric-gig-poster"]::before,
+.template-art[data-template="neon-outro"]::before {
+  position: absolute;
+  height: 72%;
+  aspect-ratio: 1;
+  content: "";
+  border: 2px solid #b98bff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #7c3aed, inset 0 0 8px #7c3aed;
+}
+
 .template-copy {
   display: flex;
   flex-direction: column;
