@@ -1141,12 +1141,23 @@ input[type='range'] {
   grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  height: calc(100dvh - 11rem);
+  min-height: 560px;
+  overflow: hidden;
 }
 
 .controls {
   min-width: 0;
+  height: 100%;
+  min-height: 0;
   display: grid;
+  align-content: start;
   gap: .7rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: .25rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .workspace > * {
@@ -1765,8 +1776,15 @@ input[type='range'] {
 
 .stage-stack {
   min-width: 0;
+  height: 100%;
+  min-height: 0;
   display: grid;
+  align-content: start;
   gap: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .preview-shell {
@@ -2177,14 +2195,24 @@ input[type='range'] {
 
   .workspace {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
 
   .stage-stack {
     order: 1;
+    height: auto;
+    overflow: visible;
+    scrollbar-gutter: auto;
   }
 
   .controls {
     order: 2;
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+    scrollbar-gutter: auto;
   }
 
   .preview-stage {
