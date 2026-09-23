@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatTimecode, itemEnd, type TimelineItem, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
+import { findItem, formatTimecode, itemEnd, type TimelineItem, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
 import { moveItem, snapFrame, snapTargets } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
 import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
@@ -82,7 +82,7 @@ function seekLane(event: MouseEvent) {
 
 // --- Item drag / trim --------------------------------------------------------
 
-type DragMode = 'move' | 'trim-start' | 'trim-end'
+type DragMode = 'move' | 'trim-start' | 'trim-end' | 'slip'
 const dragging = ref<{ id: string, mode: DragMode } | null>(null)
 
 /** Beat (or bar) frames of every audio clip except the one being dragged, which moves with its own beats. */
@@ -108,6 +108,29 @@ function snapped(frame: number, base: VideoProject, itemId: string) {
   return snapFrame(frame, targets, SNAP_PX.value / pxPerFrame.value)
 }
 
+/**
+ * Slip amount adjusted so one of the clip's own beats lands on a snap target
+ * (playhead, clip edges, other audio's beats) when one is close enough.
+ */
+function slipDelta(base: VideoProject, item: TimelineItem, delta: number) {
+  if (!state.snap || item.type !== 'audio' || state.beatSnap === 'off') return delta
+  const grid = gridFor(item)
+  if (!grid) return delta
+  const slipped = findItem(editor.slip(base, item.id, delta), item.id)?.item
+  if (!slipped || slipped.type !== 'audio') return delta
+  const targets = [...snapTargets(base, state.frame, item.id), ...beatTargets(base, item.id)]
+  const threshold = SNAP_PX.value / pxPerFrame.value
+  let best: number | null = null
+  for (const line of beatFrames(slipped, grid, state.project.fps)) {
+    if (state.beatSnap === 'bars' && !line.bar) continue
+    for (const target of targets) {
+      const offset = target - line.frame
+      if (Math.abs(offset) <= threshold && (best === null || Math.abs(offset) < Math.abs(best))) best = offset
+    }
+  }
+  return best === null ? delta : delta + best
+}
+
 function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   if (event.button !== 0) return
   event.stopPropagation()
@@ -115,6 +138,8 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   // it (see itemTap) and a pan over unselected clips scrolls the timeline.
   if (props.compact && event.pointerType !== 'mouse' && state.selectedId !== item.id) return
   if (pinching) return
+  // Alt-drag (or the mobile Slip tool) slips the source under a video or audio clip.
+  if (mode === 'move' && (event.altKey || state.slipMode) && (item.type === 'video' || item.type === 'audio')) mode = 'slip'
   state.selectedId = item.id
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
@@ -138,6 +163,8 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
       const start = Math.abs(snapStart - desired) <= Math.abs(snapEnd - desired) ? snapStart : snapEnd
       const lane = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest<HTMLElement>('[data-track-id]')
       editor.transient(moveItem(base, item.id, start, lane?.dataset.trackId))
+    } else if (mode === 'slip') {
+      editor.transient(editor.slip(base, item.id, slipDelta(base, item, delta)))
     } else if (mode === 'trim-start') {
       const edge = snapped(item.start + delta, base, item.id)
       editor.transient(editor.trim(base, item.id, 'start', edge - item.start))
@@ -167,6 +194,12 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   target.addEventListener('pointerup', end)
   target.addEventListener('pointercancel', end)
   window.addEventListener('keydown', cancel)
+}
+
+/** Source in-point as m:ss.t for the slip tooltip. */
+function formatSourceTime(frames: number) {
+  const seconds = frames / state.project.fps
+  return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
 }
 
 function itemTap(item: TimelineItem) {
@@ -340,7 +373,7 @@ function wheel(event: WheelEvent) {
 </script>
 
 <template>
-  <section class="timeline" :class="{ dragging: Boolean(dragging), compact: props.compact }">
+  <section class="timeline" :class="{ dragging: Boolean(dragging), slipping: dragging?.mode === 'slip', compact: props.compact }">
     <div v-if="!props.compact" class="toolbar">
       <div class="group">
         <button type="button" title="Undo (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()"><Icon name="lucide:undo-2" aria-hidden="true" /></button>
@@ -424,7 +457,7 @@ function wheel(event: WheelEvent) {
               class="item"
               :class="[item.type, { selected: state.selectedId === item.id }]"
               :style="itemStyle(item)"
-              :title="itemLabel(item)"
+              :title="item.type === 'video' || item.type === 'audio' ? `${itemLabel(item)} — Alt-drag to slip the source` : itemLabel(item)"
               @pointerdown="startDrag($event, item, 'move')"
               @click.stop="itemTap(item)"
             >
@@ -446,6 +479,7 @@ function wheel(event: WheelEvent) {
                 <b v-else-if="item.type === 'audio'"><Icon name="lucide:music" aria-hidden="true" /></b>
                 {{ itemLabel(item) }}
               </span>
+              <span v-if="dragging?.id === item.id && dragging.mode === 'slip' && 'trimStart' in item" class="slip-tip">In {{ formatSourceTime(item.trimStart) }}</span>
               <span class="handle end" @pointerdown="startDrag($event, item, 'trim-end')" />
             </div>
           </div>
@@ -543,6 +577,22 @@ function wheel(event: WheelEvent) {
 }
 
 .beat-snap:disabled { opacity: .5; }
+
+.slip-tip {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  z-index: 3;
+  padding: .05rem .4rem;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .75);
+  font-size: .7rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.timeline.slipping .item { cursor: ew-resize; }
 
 .scroller {
   position: relative;

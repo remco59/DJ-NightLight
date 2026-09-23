@@ -10,6 +10,7 @@ import {
   recordHistory,
   redoHistory,
   replaceItemAsset,
+  slipItem,
   snapFrame,
   snapTargets,
   splitItem,
@@ -84,6 +85,16 @@ describe('timeline operations', () => {
 
     const graphicsTrack = project.tracks.find(track => track.kind === 'graphics')!
     expect(addItem(project, graphicsTrack.id, createGraphicItem('gig-announcement', limit - 30, 30))).toBe(project)
+  })
+
+  it('slips the in-point without moving the clip, within the source', () => {
+    const { project, a } = projectWithClips()
+    // a: 90 frames at 0 from a 300-frame source; content moving left reveals later source.
+    const later = slipItem(project, a.id, -40, sourceFrames)
+    expect(item(later, a.id)).toMatchObject({ start: 0, duration: 90, trimStart: 40 })
+    expect(item(slipItem(later, a.id, 100, sourceFrames), a.id)).toMatchObject({ trimStart: 0 })
+    expect(item(slipItem(project, a.id, -1000, sourceFrames), a.id)).toMatchObject({ trimStart: 210 })
+    expect(slipItem(project, a.id, 10, sourceFrames)).toBe(project)
   })
 
   it('refuses to move items onto incompatible tracks', () => {

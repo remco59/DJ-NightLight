@@ -14,6 +14,7 @@ const meta: Record<QuickAction, { label: string, icon: string }> = {
   split: { label: 'Split', icon: 'lucide:scissors' },
   duplicate: { label: 'Duplicate', icon: 'lucide:copy' },
   mute: { label: 'Mute', icon: 'lucide:volume-x' },
+  slip: { label: 'Slip', icon: 'lucide:move-horizontal' },
   replace: { label: 'Replace', icon: 'lucide:replace' },
   delete: { label: 'Delete', icon: 'lucide:trash-2' },
 }
@@ -33,12 +34,19 @@ function run(action: QuickAction) {
   else if (action === 'duplicate') editor.duplicateSelected()
   else if (action === 'delete') editor.deleteSelected()
   else if (action === 'replace') emit('replace')
+  // Slip is a mode: while on, dragging the selected clip slips its source.
+  else if (action === 'slip') state.slipMode = !state.slipMode
   else if (action === 'mute' && item.value) {
     editor.patchItem(item.value.id, (target) => {
       if (target.type === 'video') target.muted = !target.muted
     }, `${item.value.id}:muted:${Date.now()}`)
   }
 }
+
+// Slip mode applies to the clip it was turned on for.
+watch(() => state.selectedId, () => {
+  state.slipMode = false
+})
 
 function zoomBy(factor: number) {
   state.zoom = clampZoom(state.zoom * factor)
@@ -52,7 +60,8 @@ function zoomBy(factor: number) {
         v-for="action in actions"
         :key="action"
         type="button"
-        :class="{ danger: action === 'delete' }"
+        :class="{ danger: action === 'delete', on: action === 'slip' && state.slipMode }"
+        :aria-pressed="action === 'slip' ? state.slipMode : undefined"
         :title="action === 'split' && !item ? 'Split the clip under the playhead' : undefined"
         @click="run(action)"
       >
@@ -110,6 +119,7 @@ button {
 button svg { width: 17px; height: 17px; }
 
 button.danger { background: rgba(239, 68, 68, .14); color: #fca5a5; }
+button.on { background: rgba(124, 58, 237, .35); color: #fff; }
 
 .zoom {
   display: flex;

@@ -44,13 +44,14 @@ export function filterMediaAssets<T extends { title: string, originalFilename: s
   })
 }
 
-export type QuickAction = 'split' | 'duplicate' | 'mute' | 'replace' | 'delete'
+export type QuickAction = 'split' | 'duplicate' | 'mute' | 'slip' | 'replace' | 'delete'
 
 /** Clip actions offered next to the mobile timeline for the current selection. */
 export function quickActionsFor(item: TimelineItem | null): QuickAction[] {
   if (!item) return ['split']
   const actions: QuickAction[] = ['split', 'duplicate']
   if (item.type === 'video') actions.push('mute')
+  if (item.type === 'video' || item.type === 'audio') actions.push('slip')
   if (item.type !== 'graphic') actions.push('replace')
   actions.push('delete')
   return actions

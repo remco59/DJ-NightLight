@@ -134,6 +134,26 @@ export function trimItem(
   return next
 }
 
+/**
+ * Slip edit: shows a different part of the source without moving or resizing
+ * the clip. `delta` is in timeline frames; positive moves the content right
+ * (an earlier part of the source comes into view). The in-point stays within
+ * the source.
+ */
+export function slipItem(project: VideoProject, itemId: string, delta: number, sourceFrames: SourceFramesLookup = () => null) {
+  const found = findItem(project, itemId)
+  if (!found || (found.item.type !== 'video' && found.item.type !== 'audio')) return project
+  const { item } = found
+  const speed = item.type === 'video' ? item.speed : 1
+  const source = sourceFrames(item)
+  const latest = source === null ? Infinity : Math.max(0, source - Math.ceil(item.duration * speed))
+  const trimStart = Math.round(Math.min(latest, Math.max(0, item.trimStart - delta * speed)))
+  if (trimStart === item.trimStart) return project
+  return updateItem(project, itemId, (target) => {
+    if (target.type === 'video' || target.type === 'audio') target.trimStart = trimStart
+  })
+}
+
 export function splitItem(project: VideoProject, itemId: string, frame: number) {
   const found = findItem(project, itemId)
   if (!found) return { project, newItemId: null }
