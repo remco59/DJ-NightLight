@@ -4,11 +4,38 @@ export const POST_PRESETS = {
   story: { label: '9:16', width: 1080, height: 1920 },
 } as const
 
+export const POST_TEMPLATE_KEYS = [
+  'gradient',
+  'poster',
+  'minimal',
+  'gig-announcement',
+  'recap',
+  'upcoming-gigs',
+] as const
+
 export type PostPreset = keyof typeof POST_PRESETS
-export type PostTemplateKey = 'gradient' | 'poster' | 'minimal'
+export type PostTemplateKey = typeof POST_TEMPLATE_KEYS[number]
 export type PostBrandPreset = 'night' | 'mono' | 'warm'
 export type PostTextAlign = 'left' | 'center' | 'right'
 export type PostTextPosition = 'top' | 'middle' | 'bottom'
+
+export type PostFieldVisibility = {
+  logo: boolean
+  headline: boolean
+  subline: boolean
+  date: boolean
+  time: boolean
+  location: boolean
+  cta: boolean
+  gigList: boolean
+}
+
+export type PostGigItem = {
+  enabled: boolean
+  dateText: string
+  title: string
+  locationText: string
+}
 
 export type PostDesign = {
   preset: PostPreset
@@ -17,8 +44,12 @@ export type PostDesign = {
   headline: string
   subline: string
   dateText: string
+  timeText: string
   locationText: string
+  ctaText: string
   logoText: string
+  visibility: PostFieldVisibility
+  gigItems: PostGigItem[]
   imageX: number
   imageY: number
   zoom: number
@@ -26,6 +57,28 @@ export type PostDesign = {
   textAlign: PostTextAlign
   textPosition: PostTextPosition
   showSafeArea: boolean
+}
+
+export function defaultPostVisibility(): PostFieldVisibility {
+  return {
+    logo: true,
+    headline: true,
+    subline: true,
+    date: true,
+    time: true,
+    location: true,
+    cta: true,
+    gigList: true,
+  }
+}
+
+export function defaultPostGigItems(): PostGigItem[] {
+  return [
+    { enabled: true, dateText: '06 DEC', title: 'Eredivisie Dames', locationText: 'VC Sneek' },
+    { enabled: true, dateText: '10 DEC', title: 'Eredivisie Dames', locationText: 'VC Sneek' },
+    { enabled: true, dateText: '17 DEC', title: 'Tjas & Skeuvel', locationText: 'Collabo / Klobenstein' },
+    { enabled: true, dateText: '27 DEC', title: '’T Portiertje', locationText: 'Uitgeest' },
+  ]
 }
 
 export function postPresetSize(preset: PostPreset) {
