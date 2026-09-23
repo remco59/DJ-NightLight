@@ -1,10 +1,11 @@
 import type React from 'react'
-import { createElement as h } from 'react'
+import { createElement as h, Fragment } from 'react'
 import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 'remotion'
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import { MOTION_ACCENTS, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
+import { LucideIcon } from './lucide-icon'
 import { MediaFill } from './media'
 
 // NightLight motion templates. Every template lays out on a virtual canvas
@@ -100,8 +101,14 @@ const Kicker: React.FC<{
   children?: React.ReactNode
 }> = ({ children }) => h('div', { style: { ...body, fontSize: 26, fontWeight: 800, letterSpacing: 10, opacity: 0.85 } }, children)
 
-function ensureArrow(text: string) {
-  return /[→>]$/.test(text) ? text : `${text} →`
+/** CTA text followed by the website's arrow icon; a typed trailing arrow is replaced by it. */
+function ctaLabel(text: string) {
+  return h(
+    Fragment,
+    null,
+    text.replace(/\s*(?:->|[→>])$/, ''),
+    h(LucideIcon, { name: 'arrow-right', style: { marginLeft: '0.3em', verticalAlign: '-0.12em' } }),
+  )
 }
 
 const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
@@ -110,9 +117,9 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
   const headline = textProp(props, 'headline')
   const words = headline.split(/\s+/).filter(Boolean)
   const rows = [
-    { icon: '▦', text: textProp(props, 'date') },
-    { icon: '◷', text: textProp(props, 'time') },
-    { icon: '⌖', text: [textProp(props, 'venue'), textProp(props, 'location')].filter(Boolean).join('\n') },
+    { icon: 'calendar' as const, text: textProp(props, 'date') },
+    { icon: 'clock' as const, text: textProp(props, 'time') },
+    { icon: 'map-pin' as const, text: [textProp(props, 'venue'), textProp(props, 'location')].filter(Boolean).join('\n') },
   ].filter(row => row.text)
   const landscape = width > height
   const safe = safeInsets(width, height)
@@ -187,7 +194,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
                     transform: `translateY(${(1 - stagger(frame, index + 5)) * 30}px)`,
                   },
                 },
-                h('span', { style: { ...body, fontSize: 40, color: colors.soft, width: 44, textAlign: 'center' } }, row.icon),
+                h('span', { style: { display: 'flex', justifyContent: 'center', width: 44, color: colors.soft } }, h(LucideIcon, { name: row.icon, size: 40 })),
                 h('span', { style: { ...display, fontStyle: 'normal', fontSize: 42, whiteSpace: 'pre-line', lineHeight: 1.1 } }, row.text),
               ),
             ),
@@ -197,7 +204,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
         ? h(
             'div',
             { style: { opacity: stagger(frame, 9), transform: `scale(${interpolate(stagger(frame, 9), [0, 1], [1.4, 1])})` } },
-            h(Pill, { colors, style: { fontSize: 44, padding: '18px 56px' } }, ensureArrow(textProp(props, 'cta'))),
+            h(Pill, { colors, style: { fontSize: 44, padding: '18px 56px' } }, ctaLabel(textProp(props, 'cta'))),
           )
         : null,
     ),
@@ -298,7 +305,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
       ),
     ),
     textProp(props, 'cta')
-      ? h('div', { style: { marginTop: 'auto', opacity: stagger(frame, gigs.length + 3) } }, h(Pill, { colors }, ensureArrow(textProp(props, 'cta'))))
+      ? h('div', { style: { marginTop: 'auto', opacity: stagger(frame, gigs.length + 3) } }, h(Pill, { colors }, ctaLabel(textProp(props, 'cta'))))
       : null,
   )
 }
@@ -925,7 +932,7 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
       ? h(
           'div',
           { key: 'cta', style: { opacity: reveal(frame, 32, 10), transform: `scale(${interpolate(reveal(frame, 32, 10), [0, 1], [1.4, 1]) * k})` } },
-          h(Pill, { colors, style: { background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`, fontSize: 40 } }, ensureArrow(cta)),
+          h(Pill, { colors, style: { background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`, fontSize: 40 } }, ctaLabel(cta)),
         )
       : null,
   ]
