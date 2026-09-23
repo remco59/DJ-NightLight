@@ -6,7 +6,7 @@
 // only decoded again after the cache is cleared or WAVEFORM_VERSION changes.
 // The bass envelope also feeds beat detection, cached alongside.
 
-import { detectBeatGrid, type BeatGrid } from '~~/shared/beat-grid'
+import { detectBeatGrid, type BeatGrid } from '../../shared/beat-grid'
 
 export const WAVEFORM_RATE = 200
 const WAVEFORM_VERSION = 2
