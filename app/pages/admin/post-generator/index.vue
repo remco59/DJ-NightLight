@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { renderPostCanvas } from '~/utils/post-renderer'
 import {
+  defaultPostGigItems,
+  defaultPostVisibility,
   POST_PRESETS,
   type PostDesign,
   type PostPreset,
+  type PostTemplateKey,
 } from '~~/shared/post-generator'
 
 definePageMeta({ layout: 'admin' })
@@ -57,8 +60,12 @@ const design = reactive<PostDesign>({
   headline: 'YOUR NIGHT. YOUR SOUND.',
   subline: 'DJ NightLight · allround DJ',
   dateText: '',
+  timeText: '',
   locationText: '',
+  ctaText: '',
   logoText: 'NIGHTLIGHT',
+  visibility: defaultPostVisibility(),
+  gigItems: defaultPostGigItems(),
   imageX: 0,
   imageY: 0,
   zoom: 1,
@@ -70,10 +77,18 @@ const design = reactive<PostDesign>({
 
 const presetOptions = Object.entries(POST_PRESETS) as Array<[PostPreset, (typeof POST_PRESETS)[PostPreset]]>
 
-const templates = [
-  { key: 'gradient' as const, label: 'Gradient', description: 'Atmospheric photo with cinematic fade.' },
-  { key: 'poster' as const, label: 'Poster', description: 'Bold framed event poster.' },
-  { key: 'minimal' as const, label: 'Minimal', description: 'Clean editorial panel.' },
+const templates: Array<{
+  key: PostTemplateKey
+  label: string
+  description: string
+  category: string
+}> = [
+  { key: 'gradient', label: 'Gradient', description: 'Atmospheric photo with cinematic fade.', category: 'Flexible' },
+  { key: 'poster', label: 'Poster', description: 'Bold framed event poster.', category: 'Flexible' },
+  { key: 'minimal', label: 'Minimal', description: 'Clean editorial panel.', category: 'Flexible' },
+  { key: 'gig-announcement', label: 'Gig announcement', description: 'Bold event promo with date, time, location and CTA.', category: 'Gig' },
+  { key: 'recap', label: 'Recap', description: 'High-energy post-event recap inspired by Sneekweek.', category: 'Recap' },
+  { key: 'upcoming-gigs', label: 'Upcoming gigs', description: 'Planning layout with an editable list of upcoming dates.', category: 'Planning' },
 ]
 
 const brands = [
@@ -108,7 +123,10 @@ const filteredAssets = computed(() => {
     asset.originalFilename,
   ].some(value => value.toLowerCase().includes(q)))
 })
-const readyToGenerate = computed(() => Boolean(selectedAsset.value && design.headline.trim()))
+const readyToGenerate = computed(() => Boolean(
+  selectedAsset.value
+  && (!design.visibility.headline || design.headline.trim()),
+))
 
 function isSectionOpen(step: number) {
   return openSections.value.includes(step)
@@ -222,6 +240,78 @@ onBeforeUnmount(() => sourceBitmap?.close())
 
 function setPreset(preset: PostPreset) {
   design.preset = preset
+}
+
+function setAllVisibility(value: boolean) {
+  for (const key of Object.keys(design.visibility) as Array<keyof typeof design.visibility>) {
+    design.visibility[key] = value
+  }
+}
+
+function applyTemplate(templateKey: PostTemplateKey) {
+  design.templateKey = templateKey
+
+  if (templateKey === 'gig-announcement') {
+    design.preset = 'story'
+    design.headline = 'THIS FRIDAY'
+    design.subline = 'PARTY DJ'
+    design.dateText = '12 DEC'
+    design.timeText = '22:00 – 02:00'
+    design.locationText = 'Groningen'
+    design.ctaText = 'SEE YOU THERE!'
+    setAllVisibility(true)
+    design.visibility.gigList = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+    return
+  }
+
+  if (templateKey === 'recap') {
+    design.preset = 'story'
+    design.headline = 'LAST NIGHT WAS WILD'
+    design.subline = 'RECAP'
+    design.dateText = '05 AUG'
+    design.timeText = ''
+    design.locationText = 'Sneekweek · Sneek'
+    design.ctaText = 'SEE YOU AT THE NEXT ONE!'
+    setAllVisibility(true)
+    design.visibility.time = false
+    design.visibility.gigList = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+    return
+  }
+
+  if (templateKey === 'upcoming-gigs') {
+    design.preset = 'story'
+    design.headline = 'DECEMBER'
+    design.subline = 'PLANNING'
+    design.dateText = ''
+    design.timeText = ''
+    design.locationText = ''
+    design.ctaText = 'SEE YOU ON THE DANCEFLOOR!'
+    design.gigItems = defaultPostGigItems()
+    setAllVisibility(true)
+    design.visibility.date = false
+    design.visibility.time = false
+    design.visibility.location = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+  }
+}
+
+function addGigItem() {
+  if (design.gigItems.length >= 6) return
+  design.gigItems.push({
+    enabled: true,
+    dateText: '',
+    title: '',
+    locationText: '',
+  })
+}
+
+function removeGigItem(index: number) {
+  design.gigItems.splice(index, 1)
 }
 
 async function toggleFullscreen() {
@@ -435,18 +525,42 @@ function formatDate(value: string) {
                 type="button"
                 class="template-card"
                 :class="{ active: design.templateKey === template.key }"
-                @click="design.templateKey = template.key"
+                @click="applyTemplate(template.key)"
               >
                 <span
                   class="template-shot"
                   :class="'template-' + template.key"
                   :style="selectedAsset ? { backgroundImage: 'url(' + selectedAsset.thumbnailUrl + ')' } : undefined"
                 >
+                  <span class="template-category">{{ template.category }}</span>
                   <span class="template-logo">NIGHTLIGHT</span>
-                  <span class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
+
+                  <template v-if="template.key === 'gig-announcement'">
+                    <span class="template-display template-display-gig">THIS<br>FRIDAY</span>
+                    <span class="template-pill">PARTY DJ</span>
+                    <span class="template-mini-meta">12 DEC · 22:00</span>
+                  </template>
+
+                  <template v-else-if="template.key === 'recap'">
+                    <span class="template-display template-display-recap">LAST NIGHT<br>WAS WILD</span>
+                    <span class="template-pill">RECAP</span>
+                  </template>
+
+                  <template v-else-if="template.key === 'upcoming-gigs'">
+                    <span class="template-display template-display-planning">DECEMBER</span>
+                    <span class="template-pill">PLANNING</span>
+                    <span class="template-mini-list">
+                      <i v-for="row in 3" :key="row" />
+                    </span>
+                  </template>
+
+                  <span v-else class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
                 </span>
                 <span class="template-copy">
-                  <strong>{{ template.label }}</strong>
+                  <span class="template-copy-head">
+                    <strong>{{ template.label }}</strong>
+                    <em>{{ template.category }}</em>
+                  </span>
                   <small>{{ template.description }}</small>
                 </span>
               </button>
@@ -470,25 +584,136 @@ function formatDate(value: string) {
           </button>
 
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
-            <label>
-              <span class="label-row"><span>Headline</span><small>{{ design.headline.length }}/180</small></span>
-              <textarea v-model="design.headline" rows="2" maxlength="180" />
-            </label>
-            <label>
-              <span class="label-row"><span>Subline</span><small>{{ design.subline.length }}/260</small></span>
-              <textarea v-model="design.subline" rows="2" maxlength="260" />
-            </label>
-            <div class="two">
-              <label><span>Date text</span><input v-model="design.dateText" maxlength="160" placeholder="12 SEP · 20:00"></label>
-              <label><span>Location text</span><input v-model="design.locationText" maxlength="160" placeholder="GRONINGEN"></label>
+            <div class="field">
+              <div class="label-row">
+                <span>Headline</span>
+                <span class="field-actions">
+                  <small>{{ design.headline.length }}/180</small>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.headline" type="checkbox">
+                    <span>{{ design.visibility.headline ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </span>
+              </div>
+              <textarea v-model="design.headline" rows="2" maxlength="180" :disabled="!design.visibility.headline" />
             </div>
-            <label><span>Brand label</span><input v-model="design.logoText" maxlength="80"></label>
-            <label>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Subline</span>
+                <span class="field-actions">
+                  <small>{{ design.subline.length }}/260</small>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.subline" type="checkbox">
+                    <span>{{ design.visibility.subline ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </span>
+              </div>
+              <textarea v-model="design.subline" rows="2" maxlength="260" :disabled="!design.visibility.subline" />
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <div class="label-row">
+                  <span>Date</span>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.date" type="checkbox">
+                    <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </div>
+                <input v-model="design.dateText" maxlength="160" placeholder="12 DEC" :disabled="!design.visibility.date">
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <span>Time</span>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.time" type="checkbox">
+                    <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </div>
+                <input v-model="design.timeText" maxlength="80" placeholder="22:00 – 02:00" :disabled="!design.visibility.time">
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Location</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.location" type="checkbox">
+                  <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.locationText" maxlength="160" placeholder="Groningen" :disabled="!design.visibility.location">
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Call to action</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.cta" type="checkbox">
+                  <span>{{ design.visibility.cta ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.ctaText" maxlength="180" placeholder="SEE YOU THERE!" :disabled="!design.visibility.cta">
+            </div>
+
+            <div v-if="design.templateKey === 'upcoming-gigs'" class="gig-list-editor">
+              <div class="gig-list-head">
+                <div>
+                  <strong>Upcoming gigs</strong>
+                  <small>Edit up to six rows for the planning template.</small>
+                </div>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.gigList" type="checkbox">
+                  <span>{{ design.visibility.gigList ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+
+              <div class="gig-list-rows" :class="{ disabled: !design.visibility.gigList }">
+                <article v-for="(item, index) in design.gigItems" :key="index" class="gig-row">
+                  <div class="gig-row-head">
+                    <label class="row-toggle">
+                      <input v-model="item.enabled" type="checkbox" :disabled="!design.visibility.gigList">
+                      <span>Gig {{ index + 1 }}</span>
+                    </label>
+                    <button type="button" :disabled="design.gigItems.length <= 1" @click="removeGigItem(index)">Remove</button>
+                  </div>
+                  <div class="gig-row-fields">
+                    <input v-model="item.dateText" maxlength="40" placeholder="06 DEC" :disabled="!design.visibility.gigList || !item.enabled">
+                    <input v-model="item.title" maxlength="120" placeholder="Eredivisie Dames" :disabled="!design.visibility.gigList || !item.enabled">
+                    <input v-model="item.locationText" maxlength="120" placeholder="VC Sneek" :disabled="!design.visibility.gigList || !item.enabled">
+                  </div>
+                </article>
+              </div>
+
+              <button
+                class="add-gig"
+                type="button"
+                :disabled="design.gigItems.length >= 6"
+                @click="addGigItem"
+              >
+                + Add gig
+              </button>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Brand label</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.logo" type="checkbox">
+                  <span>{{ design.visibility.logo ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.logoText" maxlength="80" :disabled="!design.visibility.logo">
+            </div>
+
+            <div class="field">
               <span>Brand preset</span>
               <select v-model="design.brandPreset">
                 <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
               </select>
-            </label>
+            </div>
           </div>
         </section>
 
@@ -1113,8 +1338,8 @@ input[type='range'] {
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
 }
 
 .template-card {
@@ -1133,6 +1358,22 @@ input[type='range'] {
   background: linear-gradient(145deg, #2d1d3a, #08070a);
   background-size: cover;
   background-position: center;
+}
+
+.template-category {
+  position: absolute;
+  top: .4rem;
+  right: .4rem;
+  z-index: 3;
+  padding: .16rem .3rem;
+  border-radius: 999px;
+  background: rgba(8,6,11,.72);
+  color: #d9cde4;
+  font-size: .42rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
 }
 
 .template-shot::after {
@@ -1158,32 +1399,137 @@ input[type='range'] {
   background: linear-gradient(to right, rgba(9,8,11,.96) 0 52%, rgba(9,8,11,.2) 100%);
 }
 
+.template-gig-announcement::after,
+.template-recap::after,
+.template-upcoming-gigs::after {
+  background:
+    linear-gradient(to bottom, rgba(12,5,20,.2), rgba(7,3,11,.9)),
+    linear-gradient(145deg, rgba(116,30,190,.14), transparent 48%);
+}
+
+.template-gig-announcement,
+.template-recap,
+.template-upcoming-gigs {
+  box-shadow: inset 0 0 0 1px rgba(190,88,255,.35);
+}
+
 .template-logo,
-.template-headline {
+.template-headline,
+.template-display,
+.template-pill,
+.template-mini-meta,
+.template-mini-list {
   position: absolute;
-  left: .45rem;
   z-index: 2;
   color: #fff;
 }
 
 .template-logo {
   top: .45rem;
+  left: .45rem;
   font-size: .42rem;
   font-weight: 900;
   letter-spacing: .04em;
 }
 
 .template-headline {
+  left: .45rem;
   bottom: .48rem;
   font-size: .62rem;
   line-height: .92;
   font-weight: 950;
 }
 
+.template-display {
+  left: .45rem;
+  right: .45rem;
+  text-align: center;
+  font-weight: 950;
+  font-style: italic;
+  line-height: .88;
+  text-shadow: 0 2px 12px rgba(0,0,0,.85);
+}
+
+.template-display-gig {
+  top: 34%;
+  font-size: .8rem;
+}
+
+.template-display-recap {
+  top: 29%;
+  font-size: .72rem;
+}
+
+.template-display-planning {
+  top: 25%;
+  font-size: .72rem;
+}
+
+.template-pill {
+  left: 16%;
+  right: 16%;
+  top: 53%;
+  padding: .22rem .28rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #d000ff);
+  box-shadow: 0 0 12px rgba(190,40,255,.55);
+  text-align: center;
+  font-size: .56rem;
+  font-weight: 950;
+}
+
+.template-recap .template-pill {
+  top: 50%;
+}
+
+.template-upcoming-gigs .template-pill {
+  top: 39%;
+}
+
+.template-mini-meta {
+  left: .45rem;
+  right: .45rem;
+  bottom: .5rem;
+  text-align: center;
+  color: #d9b7ff;
+  font-size: .42rem;
+  font-weight: 800;
+}
+
+.template-mini-list {
+  left: .55rem;
+  right: .55rem;
+  top: 55%;
+  display: grid;
+  gap: .17rem;
+}
+
+.template-mini-list i {
+  height: .48rem;
+  border: 1px solid rgba(206,116,255,.68);
+  border-radius: .18rem;
+  background: rgba(8,5,12,.76);
+}
+
 .template-copy {
   display: grid;
   gap: .08rem;
   padding: .45rem .2rem .2rem;
+}
+
+.template-copy-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .3rem;
+}
+
+.template-copy-head em {
+  color: #9b82ad;
+  font-size: .54rem;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: .05em;
 }
 
 .template-copy small {
@@ -1193,12 +1539,115 @@ input[type='range'] {
   -webkit-box-orient: vertical;
 }
 
-.form-stack label {
+.form-stack > label,
+.form-stack .field {
   display: grid;
   gap: .35rem;
   margin-top: .75rem;
   color: #bcb2c4;
   font-size: .78rem;
+}
+
+.field-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.field-toggle,
+.row-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin: 0;
+  color: #aaa0b3;
+  font-size: .65rem;
+  cursor: pointer;
+}
+
+.field-toggle input,
+.row-toggle input {
+  width: auto;
+  margin: 0;
+  accent-color: #9d5cff;
+}
+
+.field input:disabled,
+.field textarea:disabled,
+.gig-row-fields input:disabled {
+  opacity: .45;
+}
+
+.gig-list-editor {
+  margin-top: .9rem;
+  padding: .75rem;
+  border: 1px solid #332b39;
+  border-radius: .75rem;
+  background: #0e0c11;
+}
+
+.gig-list-head,
+.gig-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+}
+
+.gig-list-head > div {
+  display: grid;
+  gap: .12rem;
+}
+
+.gig-list-head small {
+  color: #8e8496;
+}
+
+.gig-list-rows {
+  display: grid;
+  gap: .55rem;
+  margin-top: .7rem;
+}
+
+.gig-list-rows.disabled {
+  opacity: .62;
+}
+
+.gig-row {
+  padding: .58rem;
+  border: 1px solid #2e2734;
+  border-radius: .65rem;
+  background: #141117;
+}
+
+.gig-row-head button {
+  padding: .28rem .4rem;
+  border: 0;
+  background: transparent;
+  color: #8f8497;
+  font-size: .62rem;
+}
+
+.gig-row-fields {
+  display: grid;
+  grid-template-columns: .72fr 1.35fr 1.2fr;
+  gap: .35rem;
+  margin-top: .45rem;
+}
+
+.gig-row-fields input {
+  min-width: 0;
+  padding: .55rem;
+  font-size: .7rem;
+}
+
+.add-gig {
+  width: 100%;
+  margin-top: .6rem;
+  padding: .58rem;
+  border-style: dashed;
+  color: #c4abd8;
+  background: #15101b;
 }
 
 .two {
@@ -1638,8 +2087,11 @@ input[type='range'] {
   }
 
   .template-grid {
-    grid-template-columns: repeat(3, minmax(100px, 1fr));
-    overflow-x: auto;
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .gig-row-fields {
+    grid-template-columns: 1fr;
   }
 
   .format-grid,
