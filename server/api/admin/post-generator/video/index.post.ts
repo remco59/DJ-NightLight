@@ -51,7 +51,7 @@ const designSchema = z.object({
 }).superRefine((design, context) => {
   if (design.visibility.headline && !design.headline) {
     context.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['headline'],
       message: 'Headline is required while it is shown',
     })
