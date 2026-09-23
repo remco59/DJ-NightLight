@@ -239,7 +239,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     fields: [
       text('tagline', 'Tagline', 50),
     ],
-    defaults: { tagline: 'DJ · LIVE · ENERGY' },
+    defaults: { tagline: 'DJ · LIVE · ENERGIE' },
   },
   'lightning-banner': {
     key: 'lightning-banner',
@@ -254,7 +254,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('title', 'Title', 24),
       text('subtitle', 'Subtitle', 60),
     ],
-    defaults: { title: 'LIVE TONIGHT', subtitle: 'DJ NIGHTLIGHT ON THE DECKS' },
+    defaults: { title: 'VANAVOND LIVE', subtitle: 'DJ NIGHTLIGHT OP DE DECKS' },
   },
   'electric-gig-poster': {
     key: 'electric-gig-poster',
@@ -274,12 +274,12 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('cta', 'CTA', 40),
     ],
     defaults: {
-      headline: 'THIS SATURDAY',
+      headline: 'DEZE ZATERDAG',
       day: '26',
       month: 'APR',
       venue: 'CLUB NOVA · AMSTERDAM',
       time: '22:00 – 04:00',
-      cta: 'TICKETS IN BIO',
+      cta: 'TICKETS VIA BIO',
     },
   },
   'now-playing': {
@@ -296,7 +296,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('artist', 'Artist', 40),
       text('track', 'Track', 60),
     ],
-    defaults: { label: 'NOW PLAYING', artist: 'DJ NIGHTLIGHT', track: 'Midnight Voltage (Extended Mix)' },
+    defaults: { label: 'NU TE HOREN', artist: 'DJ NIGHTLIGHT', track: 'Midnight Voltage (Extended Mix)' },
   },
   'bolt-transition': {
     key: 'bolt-transition',
@@ -326,7 +326,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('handle', 'Handle', 40),
       text('website', 'Website / booking', 50),
     ],
-    defaults: { headline: 'STAY CHARGED', handle: '@dj_nightlight', website: 'BOOKINGS · DJNIGHTLIGHT.NL' },
+    defaults: { headline: 'BLIJF GELADEN', handle: '@dj_nightlight', website: 'BOEKINGEN · DJNIGHTLIGHT.NL' },
   },
 }
 
