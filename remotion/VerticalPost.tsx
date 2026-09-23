@@ -9,6 +9,7 @@ import {
   useVideoConfig,
 } from 'remotion'
 import type { VideoFieldVisibility } from '../shared/video-generator'
+import { BODY_FONT_FAMILY } from './fonts'
 import type { VerticalPostProps } from './Root'
 
 const palette = {
@@ -422,7 +423,7 @@ export const VerticalPost: React.FC<VerticalPostProps> = ({ imageSrc, audioSrc, 
   ) : null
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#09080b', fontFamily: 'Arial, Helvetica, sans-serif', overflow: 'hidden' }}>
+    <AbsoluteFill style={{ backgroundColor: '#09080b', fontFamily: BODY_FONT_FAMILY, overflow: 'hidden' }}>
       {imageSrc ? (
         <Img
           src={imageSrc}

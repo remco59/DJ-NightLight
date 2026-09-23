@@ -6,6 +6,7 @@ import type { LucideIconName } from '../shared/lucide-icons'
 import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
+import { BODY_FONT_FAMILY, DISPLAY_FONT_FAMILY } from './fonts'
 import { LucideIcon } from './lucide-icon'
 import { MediaFill } from './media'
 
@@ -28,7 +29,7 @@ export type TemplateRenderProps = {
 type Colors = (typeof MOTION_ACCENTS)[keyof typeof MOTION_ACCENTS]
 
 const display: React.CSSProperties = {
-  fontFamily: '"Arial Black", "Liberation Sans", Arial, Helvetica, sans-serif',
+  fontFamily: DISPLAY_FONT_FAMILY,
   fontWeight: 900,
   fontStyle: 'italic',
   textTransform: 'uppercase',
@@ -36,7 +37,7 @@ const display: React.CSSProperties = {
 }
 
 const body: React.CSSProperties = {
-  fontFamily: 'Arial, "Liberation Sans", Helvetica, sans-serif',
+  fontFamily: BODY_FONT_FAMILY,
   color: '#fff',
 }
 
@@ -151,7 +152,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
             key: `${word}-${index}`,
             style: {
               ...display,
-              fontSize: landscape ? 150 : Math.min(200, 1500 / Math.max(4, word.length)),
+              fontSize: landscape ? 150 : Math.min(180, 1350 / Math.max(4, word.length)),
               lineHeight: 0.86,
               letterSpacing: -4,
               color: index % 2 ? colors.accent : '#fff',
@@ -269,7 +270,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
       { style: { textAlign: 'center', opacity: stagger(frame, 0) } },
       h(
         'div',
-        { style: { ...display, fontSize: 150, lineHeight: 0.9, letterSpacing: -5, transform: 'rotate(-5deg)', textShadow: glow(colors) } },
+        { style: { ...display, fontSize: 135, lineHeight: 0.9, letterSpacing: -5, transform: 'rotate(-5deg)', textShadow: glow(colors) } },
         textProp(props, 'headline'),
       ),
       textProp(props, 'kicker') ? h('div', { style: { marginTop: 22 } }, h(Pill, { colors }, textProp(props, 'kicker'))) : null,
@@ -483,7 +484,7 @@ const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, assets }) => {
             bottom: 30,
             textAlign: 'center',
             color: '#15101c',
-            fontSize: 40,
+            fontSize: 35,
             transform: 'rotate(-2deg)',
           },
         },

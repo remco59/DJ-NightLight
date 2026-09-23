@@ -2,6 +2,7 @@ import type React from 'react'
 import { createElement as h } from 'react'
 import { AbsoluteFill, Img, OffthreadVideo } from 'remotion'
 import type { ProjectAsset } from '../shared/video-project'
+import { BODY_FONT_FAMILY } from './fonts'
 
 export { cropClipPath } from '../shared/video-canvas'
 
@@ -24,7 +25,7 @@ export const MediaFill: React.FC<{
           background: 'repeating-linear-gradient(45deg, #1a1224 0 24px, #120c19 24px 48px)',
           color: 'rgba(255,255,255,.5)',
           fontSize: 32,
-          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontFamily: BODY_FONT_FAMILY,
           ...style,
         },
       },
