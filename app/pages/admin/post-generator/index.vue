@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { renderPostCanvas } from '~/utils/post-renderer'
 import {
+  defaultPostGigItems,
+  defaultPostVisibility,
   POST_PRESETS,
   type PostDesign,
   type PostPreset,
+  type PostTemplateKey,
 } from '~~/shared/post-generator'
 
 definePageMeta({ layout: 'admin' })
@@ -57,8 +60,12 @@ const design = reactive<PostDesign>({
   headline: 'YOUR NIGHT. YOUR SOUND.',
   subline: 'DJ NightLight · allround DJ',
   dateText: '',
+  timeText: '',
   locationText: '',
+  ctaText: '',
   logoText: 'NIGHTLIGHT',
+  visibility: defaultPostVisibility(),
+  gigItems: defaultPostGigItems(),
   imageX: 0,
   imageY: 0,
   zoom: 1,
@@ -70,10 +77,18 @@ const design = reactive<PostDesign>({
 
 const presetOptions = Object.entries(POST_PRESETS) as Array<[PostPreset, (typeof POST_PRESETS)[PostPreset]]>
 
-const templates = [
-  { key: 'gradient' as const, label: 'Gradient', description: 'Atmospheric photo with cinematic fade.' },
-  { key: 'poster' as const, label: 'Poster', description: 'Bold framed event poster.' },
-  { key: 'minimal' as const, label: 'Minimal', description: 'Clean editorial panel.' },
+const templates: Array<{
+  key: PostTemplateKey
+  label: string
+  description: string
+  category: string
+}> = [
+  { key: 'gradient', label: 'Gradient', description: 'Atmospheric photo with cinematic fade.', category: 'Flexible' },
+  { key: 'poster', label: 'Poster', description: 'Bold framed event poster.', category: 'Flexible' },
+  { key: 'minimal', label: 'Minimal', description: 'Clean editorial panel.', category: 'Flexible' },
+  { key: 'gig-announcement', label: 'Gig announcement', description: 'Bold event promo with date, time, location and CTA.', category: 'Gig' },
+  { key: 'recap', label: 'Recap', description: 'High-energy post-event recap inspired by Sneekweek.', category: 'Recap' },
+  { key: 'upcoming-gigs', label: 'Upcoming gigs', description: 'Planning layout with an editable list of upcoming dates.', category: 'Planning' },
 ]
 
 const brands = [
@@ -108,7 +123,10 @@ const filteredAssets = computed(() => {
     asset.originalFilename,
   ].some(value => value.toLowerCase().includes(q)))
 })
-const readyToGenerate = computed(() => Boolean(selectedAsset.value && design.headline.trim()))
+const readyToGenerate = computed(() => Boolean(
+  selectedAsset.value
+  && (!design.visibility.headline || design.headline.trim()),
+))
 
 function isSectionOpen(step: number) {
   return openSections.value.includes(step)
@@ -222,6 +240,78 @@ onBeforeUnmount(() => sourceBitmap?.close())
 
 function setPreset(preset: PostPreset) {
   design.preset = preset
+}
+
+function setAllVisibility(value: boolean) {
+  for (const key of Object.keys(design.visibility) as Array<keyof typeof design.visibility>) {
+    design.visibility[key] = value
+  }
+}
+
+function applyTemplate(templateKey: PostTemplateKey) {
+  design.templateKey = templateKey
+
+  if (templateKey === 'gig-announcement') {
+    design.preset = 'story'
+    design.headline = 'THIS FRIDAY'
+    design.subline = 'PARTY DJ'
+    design.dateText = '12 DEC'
+    design.timeText = '22:00 – 02:00'
+    design.locationText = 'Groningen'
+    design.ctaText = 'SEE YOU THERE!'
+    setAllVisibility(true)
+    design.visibility.gigList = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+    return
+  }
+
+  if (templateKey === 'recap') {
+    design.preset = 'story'
+    design.headline = 'LAST NIGHT WAS WILD'
+    design.subline = 'RECAP'
+    design.dateText = '05 AUG'
+    design.timeText = ''
+    design.locationText = 'Sneekweek · Sneek'
+    design.ctaText = 'SEE YOU AT THE NEXT ONE!'
+    setAllVisibility(true)
+    design.visibility.time = false
+    design.visibility.gigList = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+    return
+  }
+
+  if (templateKey === 'upcoming-gigs') {
+    design.preset = 'story'
+    design.headline = 'DECEMBER'
+    design.subline = 'PLANNING'
+    design.dateText = ''
+    design.timeText = ''
+    design.locationText = ''
+    design.ctaText = 'SEE YOU ON THE DANCEFLOOR!'
+    design.gigItems = defaultPostGigItems()
+    setAllVisibility(true)
+    design.visibility.date = false
+    design.visibility.time = false
+    design.visibility.location = false
+    design.textAlign = 'center'
+    design.textPosition = 'middle'
+  }
+}
+
+function addGigItem() {
+  if (design.gigItems.length >= 6) return
+  design.gigItems.push({
+    enabled: true,
+    dateText: '',
+    title: '',
+    locationText: '',
+  })
+}
+
+function removeGigItem(index: number) {
+  design.gigItems.splice(index, 1)
 }
 
 async function toggleFullscreen() {
