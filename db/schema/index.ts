@@ -19,6 +19,7 @@ import type { QuestionnaireField } from '../../shared/questionnaire'
 import type { SitePublicCopy } from '../../shared/schemas/site-content'
 import type { MediaAssetMetadata } from '../../shared/media'
 import type { VideoProject } from '../../shared/video-project'
+import type { RenderEngineCapability } from '../../shared/render-engine'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
 export const clientType = pgEnum('client_type', ['person', 'company'])
@@ -409,6 +410,7 @@ export const videoRenderJobs = pgTable('video_render_jobs', {
   status: varchar('status', { length: 30 }).default('queued').notNull(),
   progress: integer('progress').default(0).notNull(),
   error: text('error'),
+  renderEngine: varchar('render_engine', { length: 20 }),
   startedAt: timestamp('started_at', { withTimezone: true }),
   finishedAt: timestamp('finished_at', { withTimezone: true }),
   ...timestamps,
@@ -417,6 +419,19 @@ export const videoRenderJobs = pgTable('video_render_jobs', {
   index('video_render_jobs_source_idx').on(table.sourceMediaAssetId),
   index('video_render_jobs_project_idx').on(table.projectId, table.createdAt),
 ])
+
+export const renderSettings = pgTable('render_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  engine: varchar('engine', { length: 20 }).default('auto').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const renderWorkerStatus = pgTable('render_worker_status', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  capabilities: jsonb('capabilities').$type<RenderEngineCapability[]>().default([]).notNull(),
+  detectedAt: timestamp('detected_at', { withTimezone: true }).defaultNow().notNull(),
+  heartbeatAt: timestamp('heartbeat_at', { withTimezone: true }).defaultNow().notNull(),
+})
 
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').defaultRandom().primaryKey(),

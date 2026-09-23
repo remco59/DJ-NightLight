@@ -10,6 +10,7 @@ import {
 } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
+import { loadRenderSettings } from '../../../utils/render-settings'
 import { requireStaff } from '../../../utils/require-staff'
 import { stripeStatus } from '../../../utils/stripe-settings'
 
@@ -53,10 +54,11 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-  const [calendar, email, stripe] = await Promise.all([
+  const [calendar, email, stripe, render] = await Promise.all([
     loadCalendarIntegration(),
     loadEmailIntegration(),
     stripeStatus(),
+    loadRenderSettings(),
   ])
 
   return {
@@ -79,6 +81,12 @@ export default defineEventHandler(async (event) => {
       calendarSource: calendar.status.source,
       emailConfigured: email.status.configured,
       emailSource: email.status.source,
+    },
+    renderWorker: {
+      online: render.workerOnline,
+      engine: render.engine,
+      activeEngine: render.activeEngine,
+      heartbeatAt: render.heartbeatAt,
     },
     backup,
   }

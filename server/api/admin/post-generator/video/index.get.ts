@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
       status: videoRenderJobs.status,
       progress: videoRenderJobs.progress,
       error: videoRenderJobs.error,
+      renderEngine: videoRenderJobs.renderEngine,
       outputKey: videoRenderJobs.outputKey,
       createdAt: videoRenderJobs.createdAt,
       updatedAt: videoRenderJobs.updatedAt,

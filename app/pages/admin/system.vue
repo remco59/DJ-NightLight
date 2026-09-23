@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RENDER_ENGINE_LABELS, type RenderEngine, type RenderEngineSetting } from '~~/shared/render-engine'
+
 definePageMeta({ layout: 'admin' })
 
 type StatusData = {
@@ -26,6 +28,12 @@ type StatusData = {
     calendarSource: 'settings' | 'environment' | 'none'
     emailConfigured: boolean
     emailSource: 'settings' | 'environment' | 'none'
+  }
+  renderWorker: {
+    online: boolean
+    engine: RenderEngineSetting
+    activeEngine: RenderEngine | null
+    heartbeatAt: string | null
   }
   backup: { name: string, updatedAt: string } | null
 }
@@ -107,6 +115,16 @@ function formatDate(value: string | null | undefined) {
             {{ data?.integrations.emailConfigured ? 'Configured' : 'Missing' }}
           </strong>
           <small>{{ data?.integrations.emailSource === 'settings' ? 'Settings' : data?.integrations.emailSource === 'environment' ? 'Server environment' : 'No provider settings' }}</small>
+        </div>
+        <div>
+          <span>Video render worker</span>
+          <strong :class="{ ok: data?.renderWorker.online }">
+            {{ data?.renderWorker.online ? `Online · ${data.renderWorker.activeEngine ? RENDER_ENGINE_LABELS[data.renderWorker.activeEngine] : 'engine unavailable'}` : 'Offline' }}
+          </strong>
+          <small>
+            {{ data?.renderWorker.heartbeatAt ? `Last seen ${formatDate(data.renderWorker.heartbeatAt)}` : 'Never reported' }}
+            · <NuxtLink to="/admin/settings#rendering">Rendering settings</NuxtLink>
+          </small>
         </div>
         <div>
           <span>Stripe payments</span>

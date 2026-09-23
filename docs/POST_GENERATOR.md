@@ -63,7 +63,32 @@ Interrupted renders that have not updated for 30 minutes are returned to the que
 
 ### Deployment
 
-Both `docker-compose.yml` and `docker-compose.unraid.yml` include `render-worker`. The worker mounts uploads read-only and generated output read/write. It uses Chromium and FFmpeg from `Dockerfile.render-worker`.
+Both `docker-compose.yml` and `docker-compose.unraid.yml` include `render-worker`. The worker mounts uploads read-only and generated output read/write. It uses Chromium and FFmpeg from `Dockerfile.render-worker`, and has access to the host's Intel GPU when one exists (see below).
+
+### Hardware-accelerated rendering (Intel GPU)
+
+The render worker can encode exports on an Intel GPU with VAAPI. Choose the engine under **Settings → Video rendering**:
+
+- **Automatic** (default) uses the Intel GPU when the worker detected a working one, otherwise the CPU.
+- **CPU (software)** always works.
+- **Intel GPU (VAAPI)** is only selectable when detected. If it later disappears, jobs fail with the reason instead of silently using the CPU.
+
+Every job records the engine it used; the export lists show "Intel GPU" or "CPU".
+
+How it works:
+
+- Both Compose files bind-mount `/dev/dri` into `render-worker` and allow DRM devices (`device_cgroup_rules: c 226:* rmw`). A bind mount, unlike `devices:`, still starts on hosts without a GPU. On Docker Desktop (macOS/Windows), set `NIGHTLIGHT_DRI_PATH` to an empty folder because `/dev` cannot be shared there.
+- The worker entrypoint starts as root, adds the group that owns `/dev/dri/renderD*`, then drops to the `nightlight` user. No GID configuration is needed.
+- At startup and every minute the worker checks: render device present, accessible, system FFmpeg has `h264_vaapi`, Remotion VAAPI binaries present, and a short real test encode. The result is stored in `render_worker_status` and shown in Settings and on the System page.
+- Remotion itself only supports NVENC/VideoToolbox. For Intel, the worker points Remotion's `binariesDirectory` at `/opt/nightlight-intel-ffmpeg` (Remotion's compositor with Debian's VAAPI-enabled `ffmpeg`/`ffprobe`) and rewrites the final encode to `h264_vaapi` with `format=nv12,hwupload`. VAAPI does not support CRF, so Intel exports use a fixed bitrate: `RENDER_VIDEO_BITRATE` (default `10M`).
+
+The Unraid host needs the Intel GPU driver loaded (`/dev/dri` exists on the host). Troubleshooting:
+
+```bash
+docker exec <render-worker> ls -la /dev/dri
+docker exec <render-worker> vainfo --display drm --device /dev/dri/renderD128
+docker logs <render-worker> | grep "Render engine"
+```
 
 The Remotion packages are deliberately pinned to exactly the same version. Review Remotion's current licensing terms before production use or if the team/automation usage changes.
 

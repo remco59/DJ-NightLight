@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// Stands in for Remotion's bundled ffmpeg when rendering with Intel VAAPI.
+// Debian's FFmpeg has h264_vaapi but not libfdk_aac, so AAC uses the native
+// encoder. Remotion's LD_LIBRARY_PATH points at its own libav builds, which
+// the system FFmpeg must not load.
+const { spawnSync } = require('node:child_process')
+
+const args = process.argv.slice(2).map(arg => arg === 'libfdk_aac' ? 'aac' : arg)
+const env = { ...process.env }
+delete env.LD_LIBRARY_PATH
+
+const result = spawnSync('/usr/bin/ffmpeg', args, { stdio: 'inherit', env })
+if (result.error) {
+  console.error(result.error)
+  process.exit(1)
+}
+process.exit(result.status ?? 1)

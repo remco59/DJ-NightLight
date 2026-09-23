@@ -24,6 +24,7 @@ type RenderJob = {
   width: number
   height: number
   durationSeconds: number
+  renderEngine: string | null
   videoUrl: string | null
   createdAt: string
 }
@@ -130,7 +131,7 @@ useSeoMeta({ title: 'Video editor — DJ NightLight', robots: 'noindex, nofollow
         <li v-for="job in queue?.jobs || []" :key="job.id">
           <span class="status" :class="job.status">{{ job.status }}{{ job.status === 'rendering' ? ` ${job.progress}%` : '' }}</span>
           <strong>{{ job.projectName || (job.projectId ? 'Video project' : 'Legacy video') }}</strong>
-          <small>{{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s · {{ new Date(job.createdAt).toLocaleString() }}</small>
+          <small>{{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s<template v-if="job.renderEngine"> · {{ job.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template> · {{ new Date(job.createdAt).toLocaleString() }}</small>
           <a v-if="job.videoUrl" class="with-icon" :href="job.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
         </li>
         <li v-if="!queue?.jobs.length" class="empty">Nothing rendered yet.</li>

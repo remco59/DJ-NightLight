@@ -93,9 +93,17 @@ services:
       STORAGE_UPLOADS: /app/storage/uploads
       STORAGE_GENERATED: /app/storage/generated
       REMOTION_BROWSER_EXECUTABLE: /usr/bin/chromium
+      RENDER_VIDEO_BITRATE: ${RENDER_VIDEO_BITRATE:-10M}
     volumes:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads:ro
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
+      # Intel GPU for VAAPI encoding. A bind mount (not `devices:`) keeps the
+      # worker starting on hosts without /dev/dri; the worker detects whether a
+      # usable GPU is present and offers it in Settings. Docker Desktop (macOS,
+      # Windows) cannot share /dev: set NIGHTLIGHT_DRI_PATH to an empty folder.
+      - ${NIGHTLIGHT_DRI_PATH:-/dev/dri}:/dev/dri
+    device_cgroup_rules:
+      - "c 226:* rmw"
     depends_on:
       db:
         condition: service_healthy

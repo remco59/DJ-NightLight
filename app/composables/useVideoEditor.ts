@@ -52,6 +52,7 @@ export type EditorRender = {
   status: 'queued' | 'rendering' | 'completed' | 'failed'
   progress: number
   error: string | null
+  renderEngine: string | null
   width: number
   height: number
   durationSeconds: number
