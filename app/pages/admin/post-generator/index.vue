@@ -525,18 +525,42 @@ function formatDate(value: string) {
                 type="button"
                 class="template-card"
                 :class="{ active: design.templateKey === template.key }"
-                @click="design.templateKey = template.key"
+                @click="applyTemplate(template.key)"
               >
                 <span
                   class="template-shot"
                   :class="'template-' + template.key"
                   :style="selectedAsset ? { backgroundImage: 'url(' + selectedAsset.thumbnailUrl + ')' } : undefined"
                 >
+                  <span class="template-category">{{ template.category }}</span>
                   <span class="template-logo">NIGHTLIGHT</span>
-                  <span class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
+
+                  <template v-if="template.key === 'gig-announcement'">
+                    <span class="template-display template-display-gig">THIS<br>FRIDAY</span>
+                    <span class="template-pill">PARTY DJ</span>
+                    <span class="template-mini-meta">12 DEC · 22:00</span>
+                  </template>
+
+                  <template v-else-if="template.key === 'recap'">
+                    <span class="template-display template-display-recap">LAST NIGHT<br>WAS WILD</span>
+                    <span class="template-pill">RECAP</span>
+                  </template>
+
+                  <template v-else-if="template.key === 'upcoming-gigs'">
+                    <span class="template-display template-display-planning">DECEMBER</span>
+                    <span class="template-pill">PLANNING</span>
+                    <span class="template-mini-list">
+                      <i v-for="row in 3" :key="row" />
+                    </span>
+                  </template>
+
+                  <span v-else class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
                 </span>
                 <span class="template-copy">
-                  <strong>{{ template.label }}</strong>
+                  <span class="template-copy-head">
+                    <strong>{{ template.label }}</strong>
+                    <em>{{ template.category }}</em>
+                  </span>
                   <small>{{ template.description }}</small>
                 </span>
               </button>
@@ -560,25 +584,136 @@ function formatDate(value: string) {
           </button>
 
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
-            <label>
-              <span class="label-row"><span>Headline</span><small>{{ design.headline.length }}/180</small></span>
-              <textarea v-model="design.headline" rows="2" maxlength="180" />
-            </label>
-            <label>
-              <span class="label-row"><span>Subline</span><small>{{ design.subline.length }}/260</small></span>
-              <textarea v-model="design.subline" rows="2" maxlength="260" />
-            </label>
-            <div class="two">
-              <label><span>Date text</span><input v-model="design.dateText" maxlength="160" placeholder="12 SEP · 20:00"></label>
-              <label><span>Location text</span><input v-model="design.locationText" maxlength="160" placeholder="GRONINGEN"></label>
+            <div class="field">
+              <div class="label-row">
+                <span>Headline</span>
+                <span class="field-actions">
+                  <small>{{ design.headline.length }}/180</small>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.headline" type="checkbox">
+                    <span>{{ design.visibility.headline ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </span>
+              </div>
+              <textarea v-model="design.headline" rows="2" maxlength="180" :disabled="!design.visibility.headline" />
             </div>
-            <label><span>Brand label</span><input v-model="design.logoText" maxlength="80"></label>
-            <label>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Subline</span>
+                <span class="field-actions">
+                  <small>{{ design.subline.length }}/260</small>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.subline" type="checkbox">
+                    <span>{{ design.visibility.subline ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </span>
+              </div>
+              <textarea v-model="design.subline" rows="2" maxlength="260" :disabled="!design.visibility.subline" />
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <div class="label-row">
+                  <span>Date</span>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.date" type="checkbox">
+                    <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </div>
+                <input v-model="design.dateText" maxlength="160" placeholder="12 DEC" :disabled="!design.visibility.date">
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <span>Time</span>
+                  <label class="field-toggle">
+                    <input v-model="design.visibility.time" type="checkbox">
+                    <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
+                  </label>
+                </div>
+                <input v-model="design.timeText" maxlength="80" placeholder="22:00 – 02:00" :disabled="!design.visibility.time">
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Location</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.location" type="checkbox">
+                  <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.locationText" maxlength="160" placeholder="Groningen" :disabled="!design.visibility.location">
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Call to action</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.cta" type="checkbox">
+                  <span>{{ design.visibility.cta ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.ctaText" maxlength="180" placeholder="SEE YOU THERE!" :disabled="!design.visibility.cta">
+            </div>
+
+            <div v-if="design.templateKey === 'upcoming-gigs'" class="gig-list-editor">
+              <div class="gig-list-head">
+                <div>
+                  <strong>Upcoming gigs</strong>
+                  <small>Edit up to six rows for the planning template.</small>
+                </div>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.gigList" type="checkbox">
+                  <span>{{ design.visibility.gigList ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+
+              <div class="gig-list-rows" :class="{ disabled: !design.visibility.gigList }">
+                <article v-for="(item, index) in design.gigItems" :key="index" class="gig-row">
+                  <div class="gig-row-head">
+                    <label class="row-toggle">
+                      <input v-model="item.enabled" type="checkbox" :disabled="!design.visibility.gigList">
+                      <span>Gig {{ index + 1 }}</span>
+                    </label>
+                    <button type="button" :disabled="design.gigItems.length <= 1" @click="removeGigItem(index)">Remove</button>
+                  </div>
+                  <div class="gig-row-fields">
+                    <input v-model="item.dateText" maxlength="40" placeholder="06 DEC" :disabled="!design.visibility.gigList || !item.enabled">
+                    <input v-model="item.title" maxlength="120" placeholder="Eredivisie Dames" :disabled="!design.visibility.gigList || !item.enabled">
+                    <input v-model="item.locationText" maxlength="120" placeholder="VC Sneek" :disabled="!design.visibility.gigList || !item.enabled">
+                  </div>
+                </article>
+              </div>
+
+              <button
+                class="add-gig"
+                type="button"
+                :disabled="design.gigItems.length >= 6"
+                @click="addGigItem"
+              >
+                + Add gig
+              </button>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <span>Brand label</span>
+                <label class="field-toggle">
+                  <input v-model="design.visibility.logo" type="checkbox">
+                  <span>{{ design.visibility.logo ? 'Shown' : 'Hidden' }}</span>
+                </label>
+              </div>
+              <input v-model="design.logoText" maxlength="80" :disabled="!design.visibility.logo">
+            </div>
+
+            <div class="field">
               <span>Brand preset</span>
               <select v-model="design.brandPreset">
                 <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
               </select>
-            </label>
+            </div>
           </div>
         </section>
 
