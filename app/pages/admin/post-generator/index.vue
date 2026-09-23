@@ -683,8 +683,8 @@ function formatDate(value: string) {
           >
             <span class="step-number">3</span>
             <span class="section-title">
-              <strong>Copy</strong>
-              <small>Add text and brand details</small>
+              <strong class="mobile-labelable" data-mobile-label="Tekst">Copy</strong>
+              <small class="mobile-labelable" data-mobile-label="Bewerk de tekst op je post.">Add text and brand details</small>
             </span>
             <span class="chevron">{{ isSectionOpen(3) ? '⌃' : '⌄' }}</span>
           </button>
@@ -692,7 +692,7 @@ function formatDate(value: string) {
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
             <div class="field">
               <div class="label-row">
-                <span>Headline</span>
+                <span class="mobile-labelable" data-mobile-label="Titel">Headline</span>
                 <span class="field-actions">
                   <small>{{ design.headline.length }}/180</small>
                   <label class="field-toggle">
@@ -706,7 +706,7 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Subline</span>
+                <span class="mobile-labelable" data-mobile-label="Subtitel">Subline</span>
                 <span class="field-actions">
                   <small>{{ design.subline.length }}/260</small>
                   <label class="field-toggle">
@@ -721,7 +721,7 @@ function formatDate(value: string) {
             <div class="two">
               <div class="field">
                 <div class="label-row">
-                  <span>Date</span>
+                  <span class="mobile-labelable" data-mobile-label="Datum">Date</span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.date" type="checkbox">
                     <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
@@ -732,7 +732,7 @@ function formatDate(value: string) {
 
               <div class="field">
                 <div class="label-row">
-                  <span>Time</span>
+                  <span class="mobile-labelable" data-mobile-label="Tijd">Time</span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.time" type="checkbox">
                     <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
@@ -744,7 +744,7 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Location</span>
+                <span class="mobile-labelable" data-mobile-label="Locatie">Location</span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.location" type="checkbox">
                   <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
@@ -2520,6 +2520,59 @@ input[type='range'] {
 
   .section-title strong {
     font-size: .95rem;
+  }
+
+  .controls.mobile-tool-text .section-heading {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .7rem;
+    padding: .72rem .8rem;
+  }
+
+  .controls.mobile-tool-text .step-number {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    font-size: 0;
+    background: linear-gradient(145deg, #c58cff, #8b5cf6);
+    box-shadow: 0 8px 22px rgba(139, 92, 246, .24);
+  }
+
+  .controls.mobile-tool-text .step-number::before {
+    content: 'T';
+    font-family: Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 900;
+  }
+
+  .controls.mobile-tool-text .section-title {
+    gap: .1rem;
+  }
+
+  .controls.mobile-tool-text .section-title small {
+    display: block;
+    color: #91899a;
+    line-height: 1.25;
+  }
+
+  .controls.mobile-tool-text .chevron {
+    display: block;
+  }
+
+  .controls.mobile-tool-text .mobile-labelable {
+    font-size: 0;
+  }
+
+  .controls.mobile-tool-text .mobile-labelable::after {
+    content: attr(data-mobile-label);
+    font-size: .72rem;
+  }
+
+  .controls.mobile-tool-text .section-title strong.mobile-labelable::after {
+    font-size: .95rem;
+  }
+
+  .controls.mobile-tool-text .section-title small.mobile-labelable::after {
+    font-size: .7rem;
   }
 
   .section-body {
