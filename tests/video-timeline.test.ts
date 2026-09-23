@@ -9,6 +9,7 @@ import {
   moveItem,
   recordHistory,
   redoHistory,
+  replaceItemAsset,
   snapFrame,
   snapTargets,
   splitItem,
@@ -33,6 +34,20 @@ const item = (project: VideoProject, id: string) => findItem(project, id)!.item
 const sourceFrames = (entry: TimelineItem) => entry.type === 'video' ? 300 : null
 
 describe('timeline operations', () => {
+  it('replaces clip media with the same kind and fits the new source', () => {
+    const { project, a } = projectWithClips()
+    const short = { id: '22222222-2222-4222-8222-222222222222', mimeType: 'video/mp4', durationMs: 2_000 }
+    const replaced = replaceItemAsset(project, a.id, short)
+    const clip = item(replaced, a.id)
+    expect(clip.type === 'video' && clip.assetId).toBe(short.id)
+    expect(clip.start).toBe(a.start)
+    expect(clip.duration).toBe(60)
+    expect(item(project, a.id).type === 'video' && (item(project, a.id) as { assetId: string }).assetId).toBe(clipAsset.id)
+    const photo = { id: '33333333-3333-4333-8333-333333333333', mimeType: 'image/jpeg', durationMs: null }
+    expect(replaceItemAsset(project, a.id, photo)).toBe(project)
+    expect(replaceItemAsset(project, a.id, clipAsset)).toBe(project)
+  })
+
   it('places new items in the nearest free gap instead of overlapping', () => {
     const { project, trackId } = projectWithClips()
     const track = project.tracks.find(entry => entry.id === trackId)!

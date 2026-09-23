@@ -3,6 +3,7 @@ import {
   MAX_PROJECT_SECONDS,
   findItem,
   itemEnd,
+  mediaKind,
   newId,
   trackAccepts,
   type TimelineItem,
@@ -165,6 +166,36 @@ export function updateItem(project: VideoProject, itemId: string, patch: (item: 
   if (!found) return project
   patch(found.item)
   return next
+}
+
+/**
+ * Swaps the media behind a clip while keeping its position, styling and timing.
+ * Only same-kind swaps are allowed; video/audio restart at the head of the new
+ * source and shrink when the new source is shorter than the clip.
+ */
+export function replaceItemAsset(
+  project: VideoProject,
+  itemId: string,
+  asset: { id: string, mimeType: string, durationMs: number | null },
+) {
+  const found = findItem(project, itemId)
+  if (!found || found.item.type === 'graphic' || found.item.type !== mediaKind(asset.mimeType)) return project
+  if (found.item.assetId === asset.id) return project
+  return updateItem(project, itemId, (item) => {
+    if (item.type === 'graphic') return
+    item.assetId = asset.id
+    if (item.type !== 'video' && item.type !== 'audio') return
+    item.trimStart = 0
+    if (asset.durationMs) {
+      const speed = item.type === 'video' ? item.speed : 1
+      const available = Math.floor(Math.floor(asset.durationMs / 1000 * project.fps) / speed)
+      item.duration = Math.max(MIN_ITEM_FRAMES, Math.min(item.duration, available))
+    }
+    if (item.type === 'audio') {
+      item.fadeIn = Math.min(item.fadeIn, item.duration)
+      item.fadeOut = Math.min(item.fadeOut, item.duration)
+    }
+  })
 }
 
 /** Frames that dragged edges should stick to: 0, the playhead and every clip edge. */

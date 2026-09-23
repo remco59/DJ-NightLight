@@ -3,6 +3,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 import type { MediaAssetMetadata } from '~~/shared/media'
 import {
   MIN_ITEM_FRAMES,
+  VIDEO_ASPECTS,
   createGraphicItem,
   createMediaItem,
   createTrack,
@@ -14,6 +15,7 @@ import {
   type TimelineItem,
   type TimelineItemType,
   type TrackKind,
+  type VideoAspect,
   type VideoProject,
 } from '~~/shared/video-project'
 import {
@@ -24,6 +26,7 @@ import {
   moveItem,
   recordHistory,
   redoHistory,
+  replaceItemAsset,
   splitItem,
   trimItem,
   undoHistory,
@@ -284,6 +287,14 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     state.selectedId = null
   }
 
+  function replaceSelectedAsset(asset: EditorMediaAsset) {
+    if (!state.selectedId) return false
+    const next = replaceItemAsset(state.project, state.selectedId, asset)
+    if (next === state.project) return false
+    commit(next)
+    return true
+  }
+
   function patchItem(itemId: string, patch: (item: TimelineItem) => void, coalesce = '') {
     commit(updateItem(state.project, itemId, patch), coalesce || `item:${itemId}`)
   }
@@ -292,6 +303,14 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     const next = snapshot()
     patch(next)
     commit(next, coalesce || 'project')
+  }
+
+  function setAspect(aspect: VideoAspect) {
+    patchProject((project) => {
+      project.aspect = aspect
+      project.width = VIDEO_ASPECTS[aspect].width
+      project.height = VIDEO_ASPECTS[aspect].height
+    })
   }
 
   function addTrack(kind: TrackKind) {
@@ -356,8 +375,10 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     splitSelected,
     duplicateSelected,
     deleteSelected,
+    replaceSelectedAsset,
     patchItem,
     patchProject,
+    setAspect,
     addTrack,
     removeTrack,
     toggleTrack,

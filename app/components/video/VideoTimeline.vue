@@ -2,14 +2,18 @@
 import { formatTimecode, itemEnd, type TimelineItem, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
 import { moveItem, snapFrame, snapTargets } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
+import { clampZoom, pinchZoom } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
+// `compact` is the touch-first mobile timeline: no toolbar, icon-only track
+// labels, bigger trim handles and tap-to-select so panning never moves clips.
+const props = defineProps<{ compact?: boolean }>()
 const emit = defineEmits<{ seek: [frame: number] }>()
 
 const editor = useVideoEditor()
 const { state } = editor
-const LABEL_WIDTH = 150
-const SNAP_PX = 8
+const LABEL_WIDTH = computed(() => props.compact ? 44 : 150)
+const SNAP_PX = computed(() => props.compact ? 12 : 8)
 
 const scroller = ref<HTMLElement | null>(null)
 const pxPerFrame = computed(() => state.zoom / state.project.fps)
@@ -55,6 +59,17 @@ function scrubStart(event: PointerEvent) {
 
 function laneClick(event: PointerEvent) {
   if (event.target !== event.currentTarget) return
+  // Touch lanes seek on tap (click) so a pan to scroll does not move the playhead.
+  if (props.compact && event.pointerType !== 'mouse') return
+  seekLane(event)
+}
+
+function laneTap(event: MouseEvent) {
+  if (!props.compact || event.target !== event.currentTarget) return
+  seekLane(event)
+}
+
+function seekLane(event: MouseEvent) {
   state.selectedId = null
   emit('seek', Math.min(editor.duration.value - 1, frameAt(event.clientX, event.currentTarget as Element)))
 }
@@ -66,12 +81,16 @@ const dragging = ref<{ id: string, mode: DragMode } | null>(null)
 
 function snapped(frame: number, base: VideoProject, itemId: string) {
   if (!state.snap) return frame
-  return snapFrame(frame, snapTargets(base, state.frame, itemId), SNAP_PX / pxPerFrame.value)
+  return snapFrame(frame, snapTargets(base, state.frame, itemId), SNAP_PX.value / pxPerFrame.value)
 }
 
 function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   if (event.button !== 0) return
   event.stopPropagation()
+  // On touch, only an already-selected clip can be dragged; the first tap selects
+  // it (see itemTap) and a pan over unselected clips scrolls the timeline.
+  if (props.compact && event.pointerType !== 'mouse' && state.selectedId !== item.id) return
+  if (pinching) return
   state.selectedId = item.id
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
@@ -124,6 +143,10 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   target.addEventListener('pointerup', end)
   target.addEventListener('pointercancel', end)
   window.addEventListener('keydown', cancel)
+}
+
+function itemTap(item: TimelineItem) {
+  if (props.compact) state.selectedId = item.id
 }
 
 // --- Drop from the media / template panels ----------------------------------
@@ -193,12 +216,49 @@ const kindIcon: Record<TrackKind, string> = { video: 'lucide:film', graphics: 'l
 watch(() => state.frame, (frame) => {
   const element = scroller.value
   if (!element || !state.playing) return
-  const position = LABEL_WIDTH + x(frame)
-  if (position > element.scrollLeft + element.clientWidth - 40) element.scrollLeft = position - LABEL_WIDTH - 40
+  const position = LABEL_WIDTH.value + x(frame)
+  if (position > element.scrollLeft + element.clientWidth - 40) element.scrollLeft = position - LABEL_WIDTH.value - 40
 })
 
 function zoomBy(factor: number) {
-  state.zoom = Math.min(400, Math.max(8, Math.round(state.zoom * factor)))
+  state.zoom = clampZoom(state.zoom * factor)
+}
+
+// --- Pinch to zoom (touch) -----------------------------------------------------
+
+let pinching: { distance: number, zoom: number, frame: number, offset: number } | null = null
+
+function touchDistance(touches: TouchList) {
+  const [a, b] = [touches[0]!, touches[1]!]
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+}
+
+function touchStart(event: TouchEvent) {
+  const element = scroller.value
+  if (event.touches.length !== 2 || !element) return
+  // A second finger turns any clip drag into a pinch.
+  if (dragging.value) {
+    editor.cancelTransient()
+    dragging.value = null
+  }
+  const midX = (event.touches[0]!.clientX + event.touches[1]!.clientX) / 2
+  const offset = midX - element.getBoundingClientRect().left - LABEL_WIDTH.value
+  pinching = { distance: touchDistance(event.touches), zoom: state.zoom, frame: (element.scrollLeft + offset) / pxPerFrame.value, offset }
+}
+
+function touchMove(event: TouchEvent) {
+  if (!pinching || event.touches.length !== 2) return
+  event.preventDefault()
+  state.zoom = pinchZoom(pinching.zoom, pinching.distance, touchDistance(event.touches))
+  const anchor = pinching
+  // Keep the frame between the fingers in place while the content resizes.
+  void nextTick(() => {
+    if (scroller.value) scroller.value.scrollLeft = anchor.frame * pxPerFrame.value - anchor.offset
+  })
+}
+
+function touchEnd(event: TouchEvent) {
+  if (event.touches.length < 2) pinching = null
 }
 
 function wheel(event: WheelEvent) {
@@ -209,8 +269,8 @@ function wheel(event: WheelEvent) {
 </script>
 
 <template>
-  <section class="timeline" :class="{ dragging: Boolean(dragging) }">
-    <div class="toolbar">
+  <section class="timeline" :class="{ dragging: Boolean(dragging), compact: props.compact }">
+    <div v-if="!props.compact" class="toolbar">
       <div class="group">
         <button type="button" title="Undo (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()"><Icon name="lucide:undo-2" aria-hidden="true" /></button>
         <button type="button" title="Redo (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()"><Icon name="lucide:redo-2" aria-hidden="true" /></button>
@@ -232,7 +292,15 @@ function wheel(event: WheelEvent) {
       </div>
     </div>
 
-    <div ref="scroller" class="scroller" @wheel="wheel">
+    <div
+      ref="scroller"
+      class="scroller"
+      @wheel="wheel"
+      @touchstart.passive="touchStart"
+      @touchmove="touchMove"
+      @touchend.passive="touchEnd"
+      @touchcancel.passive="touchEnd"
+    >
       <div class="grid" :style="{ width: `${LABEL_WIDTH + contentWidth}px` }">
         <div class="ruler-row">
           <div class="corner" :style="{ width: `${LABEL_WIDTH}px` }" />
@@ -243,7 +311,19 @@ function wheel(event: WheelEvent) {
         </div>
 
         <div v-for="track in state.project.tracks" :key="track.id" class="track-row" :class="[track.kind, { hidden: track.hidden, muted: track.muted }]">
-          <div class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
+          <div v-if="props.compact" class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
+            <button
+              type="button"
+              class="track-toggle"
+              :class="{ off: track.kind === 'audio' ? track.muted : track.hidden }"
+              :aria-label="`${track.name}: ${track.kind === 'audio' ? (track.muted ? 'unmute' : 'mute') : (track.hidden ? 'show' : 'hide')}`"
+              :aria-pressed="track.kind === 'audio' ? track.muted : track.hidden"
+              @click="editor.toggleTrack(track.id, track.kind === 'audio' ? 'muted' : 'hidden')"
+            >
+              <Icon :name="kindIcon[track.kind]" aria-hidden="true" />
+            </button>
+          </div>
+          <div v-else class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
             <Icon class="kind" :name="kindIcon[track.kind]" aria-hidden="true" />
             <span class="name">{{ track.name }}</span>
             <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
@@ -256,6 +336,7 @@ function wheel(event: WheelEvent) {
             :data-track-id="track.id"
             :style="{ width: `${contentWidth}px` }"
             @pointerdown="laneClick"
+            @click="laneTap"
             @dragover="dragOver($event, track)"
             @dragleave="dropTrackId = ''"
             @drop="drop($event, track)"
@@ -268,6 +349,7 @@ function wheel(event: WheelEvent) {
               :style="itemStyle(item)"
               :title="itemLabel(item)"
               @pointerdown="startDrag($event, item, 'move')"
+              @click.stop="itemTap(item)"
             >
               <span class="handle start" @pointerdown="startDrag($event, item, 'trim-start')" />
               <svg v-if="item.type === 'audio'" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
@@ -573,5 +655,93 @@ function wheel(event: WheelEvent) {
   height: 14px;
   border-radius: 3px 3px 7px 7px;
   background: #a78bfa;
+}
+/* --- Compact (mobile) --------------------------------------------------------- */
+
+.timeline.compact { border-top: 0; }
+
+.compact .scroller {
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+
+.compact .ruler-row {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ve-panel);
+}
+
+.compact .ruler {
+  height: 24px;
+  touch-action: none;
+}
+
+.compact .track-row, .compact .track-row.audio { height: 40px; }
+
+.compact .track-label {
+  justify-content: center;
+  padding: 0;
+}
+
+.track-toggle {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 8px;
+}
+
+.compact .track-label .track-toggle {
+  padding: 0;
+  color: var(--ve-text);
+}
+
+.compact .track-label .track-toggle.off { color: var(--ve-muted); opacity: .6; }
+
+.track-toggle svg { width: 16px; height: 16px; }
+
+.compact .item {
+  top: 3px;
+  bottom: 3px;
+  border-radius: 7px;
+  font-size: .7rem;
+}
+
+.compact .item.selected {
+  outline: 2px solid #c4b5fd;
+  box-shadow: 0 0 14px rgba(167, 139, 250, .55);
+  touch-action: none;
+}
+
+.compact .label { padding: 0 .5rem; }
+
+.compact .handle { display: none; }
+
+.compact .item.selected .handle {
+  display: grid;
+  width: 18px;
+  place-items: center;
+  background: #c4b5fd;
+  touch-action: none;
+}
+
+.compact .item.selected .handle::after {
+  width: 2px;
+  height: 45%;
+  border-radius: 1px;
+  background: #2e1065;
+  content: "";
+}
+
+.compact .item.selected .label { padding: 0 1.4rem; }
+
+.compact .playhead { width: 2px; background: #f5f3ff; box-shadow: 0 0 8px rgba(167, 139, 250, .9); }
+
+.compact .playhead i {
+  left: -7px;
+  width: 16px;
+  height: 16px;
+  background: #f5f3ff;
 }
 </style>

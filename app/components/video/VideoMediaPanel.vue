@@ -2,27 +2,69 @@
 import { apiErrorMessage } from '~/utils/api-error'
 import { uploadMediaFile } from '~/utils/media-upload'
 import { mediaKind, type MediaKind } from '~~/shared/video-project'
-import { MOTION_TEMPLATES, type MotionTemplateDefinition } from '~~/shared/video-templates'
+import { MOTION_TEMPLATES, type MotionTemplateDefinition, type MotionTemplateKey } from '~~/shared/video-templates'
+import { filterMediaAssets, formatMediaDuration, type MediaFilter } from '~~/shared/video-editor-ui'
 import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEditor'
 
-const props = defineProps<{ tab: 'media' | 'templates' | 'exports' }>()
-const emit = defineEmits<{ refreshMedia: [], refreshRenders: [] }>()
+// Desktop shows media / templates / exports in the side panel. The mobile
+// editor reuses this panel for its bottom tabs (plus an Audio tab) with
+// tap-first cards instead of drag and drop.
+const props = defineProps<{
+  tab: 'media' | 'templates' | 'exports' | 'audio'
+  mobile?: boolean
+  /** Mobile "Replace" flow: tapping an asset of this kind swaps the selected clip's media. */
+  replaceKind?: MediaKind | null
+}>()
+const emit = defineEmits<{
+  refreshMedia: []
+  refreshRenders: []
+  templateAdded: []
+  replaced: []
+  cancelReplace: []
+  openEdit: []
+}>()
 
 const editor = useVideoEditor()
 const { state } = editor
-const filter = ref<'all' | MediaKind>('all')
+const filter = ref<MediaFilter>('all')
 const search = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref('')
 const message = ref('')
 
-const filteredMedia = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  return state.media.filter((asset) => {
-    if (filter.value !== 'all' && mediaKind(asset.mimeType) !== filter.value) return false
-    return !q || `${asset.title} ${asset.originalFilename}`.toLowerCase().includes(q)
-  })
+const activeFilter = computed<MediaFilter>(() => props.replaceKind || filter.value)
+const filteredMedia = computed(() => filterMediaAssets(state.media, activeFilter.value, search.value))
+const audioMedia = computed(() => filterMediaAssets(state.media, 'audio', search.value))
+const selectedAudio = computed(() => {
+  const item = editor.selection.value?.item
+  return item?.type === 'audio' ? item : null
 })
+const panel = ref<HTMLElement | null>(null)
+watch(() => props.tab, () => {
+  if (panel.value) panel.value.scrollTop = 0
+})
+
+const templateCategory = ref<'all' | MotionTemplateDefinition['category']>('all')
+const templateCategories = computed(() => [...new Set(Object.values(MOTION_TEMPLATES).map(template => template.category))])
+const visibleTemplates = computed(() => Object.values(MOTION_TEMPLATES)
+  .filter(template => templateCategory.value === 'all' || template.category === templateCategory.value))
+
+function addAsset(asset: EditorMediaAsset) {
+  if (props.replaceKind) {
+    if (editor.replaceSelectedAsset(asset)) emit('replaced')
+    return
+  }
+  editor.addMedia(asset)
+}
+
+function addTemplate(key: MotionTemplateKey) {
+  editor.addTemplate(key)
+  emit('templateAdded')
+}
+
+function assetTitle(asset: EditorMediaAsset) {
+  return asset.title || asset.originalFilename
+}
 
 const templateGroups = computed(() => {
   const groups = new Map<string, MotionTemplateDefinition[]>()
@@ -37,6 +79,7 @@ function formatDuration(ms: number | null) {
   const seconds = Math.round(ms / 1000)
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
 }
+
 
 function waveformPath(peaks: number[] | undefined) {
   const values = peaks?.length ? peaks : Array.from({ length: 60 }, (_, index) => 0.3 + Math.abs(Math.sin(index * 1.7)) * 0.5)
@@ -93,8 +136,107 @@ async function deleteRender(id: string) {
 </script>
 
 <template>
-  <section class="panel">
-    <template v-if="props.tab === 'media'">
+  <section ref="panel" class="panel" :class="{ mobile: props.mobile }">
+    <input
+      ref="fileInput"
+      class="file-input"
+      type="file"
+      multiple
+      :accept="props.tab === 'audio' ? 'audio/mpeg,audio/mp4,audio/wav,audio/ogg' : 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg'"
+      @change="uploadFiles(($event.target as HTMLInputElement).files)"
+    >
+
+    <!-- Mobile: tap-first media library -->
+    <template v-if="props.mobile && props.tab === 'media'">
+      <header class="panel-head">
+        <h2>{{ props.replaceKind ? 'Replace media' : 'Media' }}</h2>
+        <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
+          <Icon name="lucide:upload" aria-hidden="true" /><span>{{ uploading ? 'Uploading…' : 'Upload media' }}</span>
+        </button>
+      </header>
+      <p v-if="props.replaceKind" class="replace-hint">
+        <span>Tap a {{ props.replaceKind }} to swap it into the selected clip.</span>
+        <button type="button" @click="emit('cancelReplace')">Cancel</button>
+      </p>
+      <div v-else class="chips scroll-x" role="group" aria-label="Filter media">
+        <button v-for="option in (['all', 'video', 'image', 'audio'] as const)" :key="option" type="button" :class="{ active: filter === option }" :aria-pressed="filter === option" @click="filter = option">
+          {{ option === 'all' ? 'All' : option === 'video' ? 'Video' : option === 'image' ? 'Images' : 'Audio' }}
+        </button>
+      </div>
+      <input v-model="search" class="search" type="search" placeholder="Search media…" aria-label="Search media">
+      <p v-if="uploading" class="hint">{{ uploading }}</p>
+      <p v-if="message" class="message">{{ message }}</p>
+      <div class="m-media-grid">
+        <article v-for="asset in filteredMedia" :key="asset.id" class="m-media-card" :class="mediaKind(asset.mimeType)">
+          <div v-if="mediaKind(asset.mimeType) === 'audio'" class="audio-thumb">
+            <Icon name="lucide:music" aria-hidden="true" />
+            <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
+          </div>
+          <div v-else class="thumb">
+            <img v-if="asset.thumbnailUrl" :src="asset.thumbnailUrl" :alt="assetTitle(asset)" loading="lazy">
+            <span v-else class="no-thumb"><Icon :name="mediaKind(asset.mimeType) === 'image' ? 'lucide:image' : 'lucide:film'" aria-hidden="true" /></span>
+          </div>
+          <span v-if="asset.durationMs" class="duration">{{ formatMediaDuration(asset.durationMs) }}</span>
+          <button
+            class="m-add"
+            type="button"
+            :aria-label="props.replaceKind ? `Replace with ${assetTitle(asset)}` : `Add ${assetTitle(asset)} at playhead`"
+            @click="addAsset(asset)"
+          >
+            <Icon :name="props.replaceKind ? 'lucide:replace' : 'lucide:plus'" aria-hidden="true" />
+          </button>
+          <span class="m-title">{{ assetTitle(asset) }}</span>
+        </article>
+        <p v-if="!filteredMedia.length" class="empty">No media found. Upload clips, photos or music to start.</p>
+      </div>
+    </template>
+
+    <!-- Mobile: swipeable template cards -->
+    <template v-else-if="props.mobile && props.tab === 'templates'">
+      <header class="panel-head">
+        <h2>Templates</h2>
+        <small class="hint">Tap to add at the playhead</small>
+      </header>
+      <div class="chips scroll-x" role="group" aria-label="Template category">
+        <button type="button" :class="{ active: templateCategory === 'all' }" :aria-pressed="templateCategory === 'all'" @click="templateCategory = 'all'">All</button>
+        <button v-for="category in templateCategories" :key="category" type="button" :class="{ active: templateCategory === category }" :aria-pressed="templateCategory === category" @click="templateCategory = category">{{ category }}</button>
+      </div>
+      <div class="m-template-rail">
+        <button v-for="template in visibleTemplates" :key="template.key" type="button" class="m-template-card" @click="addTemplate(template.key)">
+          <span class="template-art" :data-template="template.key"><i /><b>{{ template.label }}</b></span>
+          <strong>{{ template.label }}</strong>
+          <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s</small>
+        </button>
+      </div>
+    </template>
+
+    <!-- Mobile: audio library -->
+    <template v-else-if="props.tab === 'audio'">
+      <header class="panel-head">
+        <h2>Audio</h2>
+        <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
+          <Icon name="lucide:plus" aria-hidden="true" /><span>{{ uploading ? 'Uploading…' : 'Upload audio' }}</span>
+        </button>
+      </header>
+      <button v-if="selectedAudio" type="button" class="selected-audio" @click="emit('openEdit')">
+        <Icon name="lucide:sliders-horizontal" aria-hidden="true" />
+        <span><strong>{{ editor.mediaById.value.get(selectedAudio.assetId)?.title || 'Selected audio' }}</strong><small>Volume {{ Math.round(selectedAudio.volume * 100) }}% · adjust volume and fades</small></span>
+        <Icon name="lucide:chevron-right" aria-hidden="true" />
+      </button>
+      <input v-model="search" class="search" type="search" placeholder="Search audio…" aria-label="Search audio">
+      <p v-if="uploading" class="hint">{{ uploading }}</p>
+      <p v-if="message" class="message">{{ message }}</p>
+      <ul class="m-audio-list">
+        <li v-for="asset in audioMedia" :key="asset.id">
+          <button type="button" class="m-add round" :aria-label="`Add ${assetTitle(asset)} at playhead`" @click="addAsset(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
+          <span class="audio-copy"><strong>{{ assetTitle(asset) }}</strong><small>{{ formatMediaDuration(asset.durationMs) }}</small></span>
+          <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
+        </li>
+        <li v-if="!audioMedia.length" class="empty">No audio yet. Upload music, sound effects or a voice-over.</li>
+      </ul>
+    </template>
+
+    <template v-else-if="props.tab === 'media'">
       <header class="panel-head">
         <h2>Media Library</h2>
       </header>
@@ -104,14 +246,6 @@ async function deleteRender(id: string) {
         </button>
       </div>
       <input v-model="search" class="search" type="search" placeholder="Search media…">
-      <input
-        ref="fileInput"
-        class="file-input"
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg"
-        @change="uploadFiles(($event.target as HTMLInputElement).files)"
-      >
       <button
         class="upload"
         type="button"
@@ -201,7 +335,7 @@ async function deleteRender(id: string) {
             <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
             <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" download><Icon name="lucide:download" aria-hidden="true" />Download</a>
             <button v-if="render.status === 'failed'" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
-            <button v-if="render.status !== 'rendering'" class="with-icon" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+            <button v-if="render.status !== 'rendering'" class="with-icon danger" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
           </div>
         </li>
         <li v-if="!state.renders.length" class="empty">No exports yet.</li>
@@ -562,5 +696,311 @@ h3 {
   color: #c4b5fd;
   font-size: .78rem;
   cursor: pointer;
+}
+/* --- Mobile tabs ---------------------------------------------------------------- */
+
+.panel.mobile {
+  gap: .65rem;
+  padding: .75rem 1rem 1rem;
+  overscroll-behavior: contain;
+}
+
+.mobile .panel-head { gap: .75rem; min-height: 44px; }
+.mobile .panel-head .hint { font-size: .75rem; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 40px;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ve-accent);
+  box-shadow: 0 0 18px rgba(124, 58, 237, .45);
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pill:disabled { opacity: .7; cursor: progress; }
+
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scroll-x::-webkit-scrollbar { display: none; }
+
+.mobile .chips { gap: .4rem; }
+
+.mobile .chips button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 .95rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 999px;
+  font-size: .8rem;
+}
+
+.mobile .chips button.active {
+  border-color: var(--ve-accent);
+  background: rgba(124, 58, 237, .28);
+}
+
+.mobile .search { min-height: 44px; font-size: 16px; }
+
+.replace-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  margin: 0;
+  padding: .55rem .75rem;
+  border: 1px solid rgba(167, 139, 250, .4);
+  border-radius: 10px;
+  background: rgba(124, 58, 237, .16);
+  font-size: .8rem;
+}
+
+.replace-hint button {
+  min-height: 36px;
+  padding: 0 .8rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 8px;
+  background: var(--ve-raised);
+  color: var(--ve-text);
+  cursor: pointer;
+}
+
+.m-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.m-media-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  min-width: 0;
+}
+
+.m-media-card .thumb, .m-media-card .audio-thumb {
+  aspect-ratio: 1;
+  border-radius: 10px;
+}
+
+.m-media-card .audio-thumb {
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  color: #4ade80;
+}
+
+.m-media-card .duration {
+  top: auto;
+  right: auto;
+  bottom: 1.6rem;
+  left: .35rem;
+}
+
+.m-title {
+  overflow: hidden;
+  color: var(--ve-muted);
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-add {
+  position: absolute;
+  top: .3rem;
+  right: .3rem;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ve-accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .5), 0 0 12px rgba(124, 58, 237, .6);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Extend the tap area to the whole thumbnail. */
+.m-media-card .m-add::before {
+  position: absolute;
+  inset: -.3rem -.3rem auto auto;
+  width: 44px;
+  height: 44px;
+  content: "";
+}
+
+.m-add svg { width: 18px; height: 18px; }
+
+.m-add.round {
+  position: static;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  box-shadow: none;
+}
+
+.m-template-rail {
+  display: flex;
+  gap: .7rem;
+  margin: 0 -1rem;
+  padding: 0 1rem .3rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 1rem;
+  scrollbar-width: none;
+}
+
+.m-template-rail::-webkit-scrollbar { display: none; }
+
+.m-template-card {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: .3rem;
+  width: 30%;
+  min-width: 104px;
+  max-width: 150px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ve-text);
+  text-align: left;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+
+.m-template-card .template-art {
+  height: auto;
+  aspect-ratio: 4 / 5;
+  border: 2px solid var(--ve-border);
+  border-radius: 12px;
+}
+
+.m-template-card:focus-visible .template-art,
+.m-template-card:active .template-art {
+  border-color: var(--ve-accent);
+  box-shadow: 0 0 16px rgba(124, 58, 237, .5);
+}
+
+.m-template-card .template-art b {
+  max-width: 100%;
+  padding: 0 .5rem;
+  overflow-wrap: anywhere;
+  font-size: .72rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.m-template-card strong { font-size: .8rem; }
+.m-template-card small { color: var(--ve-muted); font-size: .7rem; }
+
+.selected-audio {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  min-height: 52px;
+  padding: .5rem .75rem;
+  border: 1px solid rgba(167, 139, 250, .45);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, .16);
+  color: var(--ve-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.selected-audio span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.selected-audio strong, .audio-copy strong {
+  overflow: hidden;
+  font-size: .82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-audio small, .audio-copy small { color: var(--ve-muted); font-size: .72rem; }
+
+.m-audio-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.m-audio-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: .7rem;
+  min-height: 56px;
+  padding: .45rem .7rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 12px;
+  background: var(--ve-raised);
+}
+
+.m-audio-list li.empty {
+  display: block;
+  border: 0;
+  background: none;
+}
+
+.audio-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.m-audio-list .wave {
+  width: 100%;
+  height: 32px;
+}
+
+.m-audio-list .wave path {
+  stroke: #a78bfa;
+  stroke-width: .8;
+  vector-effect: non-scaling-stroke;
+}
+
+.mobile .renders li { padding: .85rem; }
+
+.mobile .render-actions { gap: .4rem; }
+
+.mobile .render-actions a, .mobile .render-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 40px;
+  padding: 0 .8rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 9px;
+  background: var(--ve-panel);
+  text-decoration: none;
+}
+
+.mobile .render-actions .danger { color: #fca5a5; }
+
+.mobile .ghost { min-height: 40px; padding: 0 .8rem; }
+
+.mobile button:focus-visible, .mobile a:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
 }
 </style>
