@@ -67,7 +67,7 @@ const design = reactive<PostDesign>({
   preset: 'square',
   templateKey: 'gradient',
   brandPreset: 'night',
-  headline: 'YOUR NIGHT. YOUR SOUND.',
+  headline: 'JOUW AVOND. JOUW SOUND.',
   subline: 'DJ NightLight · allround DJ',
   dateText: '',
   timeText: '',
@@ -323,12 +323,12 @@ function applyTemplate(templateKey: PostTemplateKey) {
 
   if (templateKey === 'gig-announcement') {
     design.preset = 'story'
-    design.headline = 'THIS FRIDAY'
-    design.subline = 'PARTY DJ'
+    design.headline = 'DIT WEEKEND'
+    design.subline = 'DJ NIGHTLIGHT'
     design.dateText = '12 DEC'
     design.timeText = '22:00 – 02:00'
     design.locationText = 'Groningen'
-    design.ctaText = 'SEE YOU THERE!'
+    design.ctaText = 'TOT DAN!'
     setAllVisibility(true)
     design.visibility.gigList = false
     design.textAlign = 'center'
@@ -338,12 +338,12 @@ function applyTemplate(templateKey: PostTemplateKey) {
 
   if (templateKey === 'recap') {
     design.preset = 'story'
-    design.headline = 'LAST NIGHT WAS WILD'
-    design.subline = 'RECAP'
+    design.headline = 'WAT EEN AVOND'
+    design.subline = 'TERUGBLIK'
     design.dateText = '05 AUG'
     design.timeText = ''
     design.locationText = 'Sneekweek · Sneek'
-    design.ctaText = 'SEE YOU AT THE NEXT ONE!'
+    design.ctaText = 'TOT DE VOLGENDE!'
     setAllVisibility(true)
     design.visibility.time = false
     design.visibility.gigList = false
@@ -359,7 +359,7 @@ function applyTemplate(templateKey: PostTemplateKey) {
     design.dateText = ''
     design.timeText = ''
     design.locationText = ''
-    design.ctaText = 'SEE YOU ON THE DANCEFLOOR!'
+    design.ctaText = 'TOT OP DE DANSVLOER!'
     design.gigItems = defaultPostGigItems()
     setAllVisibility(true)
     design.visibility.date = false
@@ -606,14 +606,14 @@ function formatDate(value: string) {
                   <span class="template-logo">NIGHTLIGHT</span>
 
                   <template v-if="template.key === 'gig-announcement'">
-                    <span class="template-display template-display-gig">THIS<br>FRIDAY</span>
-                    <span class="template-pill">PARTY DJ</span>
+                    <span class="template-display template-display-gig">DIT<br>WEEKEND</span>
+                    <span class="template-pill">DJ NIGHTLIGHT</span>
                     <span class="template-mini-meta">12 DEC · 22:00</span>
                   </template>
 
                   <template v-else-if="template.key === 'recap'">
-                    <span class="template-display template-display-recap">LAST NIGHT<br>WAS WILD</span>
-                    <span class="template-pill">RECAP</span>
+                    <span class="template-display template-display-recap">WAT EEN<br>AVOND</span>
+                    <span class="template-pill">TERUGBLIK</span>
                   </template>
 
                   <template v-else-if="template.key === 'upcoming-gigs'">
@@ -624,7 +624,7 @@ function formatDate(value: string) {
                     </span>
                   </template>
 
-                  <span v-else class="template-headline">YOUR NIGHT.<br>YOUR SOUND.</span>
+                  <span v-else class="template-headline">JOUW AVOND.<br>JOUW SOUND.</span>
                 </span>
                 <span class="template-copy">
                   <span class="template-copy-head">
@@ -1487,14 +1487,18 @@ input[type='range'] {
 .template-recap::after,
 .template-upcoming-gigs::after {
   background:
-    linear-gradient(to bottom, rgba(12,5,20,.2), rgba(7,3,11,.9)),
-    linear-gradient(145deg, rgba(116,30,190,.14), transparent 48%);
+    linear-gradient(128deg, transparent 0 17%, rgba(198,145,255,.7) 17.5% 18%, transparent 18.5% 100%),
+    linear-gradient(48deg, transparent 0 72%, rgba(135,48,255,.75) 72.4% 72.9%, transparent 73.4% 100%),
+    linear-gradient(to bottom, rgba(6,2,11,.22), rgba(5,2,9,.92)),
+    linear-gradient(145deg, rgba(116,30,190,.2), transparent 48%);
 }
 
 .template-gig-announcement,
 .template-recap,
 .template-upcoming-gigs {
-  box-shadow: inset 0 0 0 1px rgba(190,88,255,.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(216,168,255,.46),
+    inset 0 0 32px rgba(119,38,190,.24);
 }
 
 .template-logo,
