@@ -85,6 +85,28 @@ export function postPresetSize(preset: PostPreset) {
   return POST_PRESETS[preset]
 }
 
+
+export function postImageDragDelta(input: {
+  deltaX: number
+  deltaY: number
+  displayWidth: number
+  displayHeight: number
+  targetWidth: number
+  targetHeight: number
+  renderedWidth: number
+  renderedHeight: number
+}) {
+  const scaleX = input.targetWidth > 0 ? input.displayWidth / input.targetWidth : 0
+  const scaleY = input.targetHeight > 0 ? input.displayHeight / input.targetHeight : 0
+  const overflowX = Math.max(0, input.renderedWidth - input.targetWidth)
+  const overflowY = Math.max(0, input.renderedHeight - input.targetHeight)
+
+  return {
+    x: overflowX > 0 && scaleX > 0 ? (input.deltaX * 2) / (overflowX * scaleX) : 0,
+    y: overflowY > 0 && scaleY > 0 ? (input.deltaY * 2) / (overflowY * scaleY) : 0,
+  }
+}
+
 export function coverImageRect(input: {
   sourceWidth: number
   sourceHeight: number

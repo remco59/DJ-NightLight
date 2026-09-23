@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { renderPostCanvas } from '~/utils/post-renderer'
 import {
+  coverImageRect,
   defaultPostGigItems,
   defaultPostVisibility,
+  postImageDragDelta,
   POST_PRESETS,
   type PostDesign,
   type PostPreset,
@@ -51,6 +53,14 @@ const busy = ref('')
 const message = ref('')
 const lastRenderedUrl = ref('')
 const openSections = ref<number[]>([1, 2, 3])
+const dragState = reactive({
+  active: false,
+  pointerId: -1,
+  startX: 0,
+  startY: 0,
+  startImageX: 0,
+  startImageY: 0,
+})
 let sourceBitmap: ImageBitmap | null = null
 
 const design = reactive<PostDesign>({
@@ -223,6 +233,66 @@ async function renderPreview() {
   await nextTick()
   if (!canvasRef.value || !sourceBitmap) return
   renderPostCanvas(canvasRef.value, sourceBitmap, design, true)
+}
+
+
+function clampCropPosition(value: number) {
+  return Math.max(-1, Math.min(1, value))
+}
+
+function startPreviewDrag(event: PointerEvent) {
+  if (!canvasRef.value || !sourceBitmap) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+
+  event.preventDefault()
+  dragState.active = true
+  dragState.pointerId = event.pointerId
+  dragState.startX = event.clientX
+  dragState.startY = event.clientY
+  dragState.startImageX = design.imageX
+  dragState.startImageY = design.imageY
+  canvasRef.value.setPointerCapture(event.pointerId)
+}
+
+function movePreviewDrag(event: PointerEvent) {
+  if (!dragState.active || event.pointerId !== dragState.pointerId || !canvasRef.value || !sourceBitmap) return
+
+  event.preventDefault()
+  const canvasBounds = canvasRef.value.getBoundingClientRect()
+  if (!canvasBounds.width || !canvasBounds.height) return
+
+  const target = POST_PRESETS[design.preset]
+  const rendered = coverImageRect({
+    sourceWidth: sourceBitmap.width,
+    sourceHeight: sourceBitmap.height,
+    targetWidth: target.width,
+    targetHeight: target.height,
+    zoom: design.zoom,
+    imageX: 0,
+    imageY: 0,
+  })
+  const delta = postImageDragDelta({
+    deltaX: event.clientX - dragState.startX,
+    deltaY: event.clientY - dragState.startY,
+    displayWidth: canvasBounds.width,
+    displayHeight: canvasBounds.height,
+    targetWidth: target.width,
+    targetHeight: target.height,
+    renderedWidth: rendered.width,
+    renderedHeight: rendered.height,
+  })
+
+  design.imageX = clampCropPosition(dragState.startImageX + delta.x)
+  design.imageY = clampCropPosition(dragState.startImageY + delta.y)
+}
+
+function endPreviewDrag(event: PointerEvent) {
+  if (event.pointerId !== dragState.pointerId) return
+  if (canvasRef.value?.hasPointerCapture(event.pointerId)) {
+    canvasRef.value.releasePointerCapture(event.pointerId)
+  }
+  dragState.active = false
+  dragState.pointerId = -1
 }
 
 watch(sourceAssetId, () => {
@@ -825,7 +895,21 @@ function formatDate(value: string) {
 
           <div class="preview-stage">
             <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset">
-              <canvas ref="canvasRef" class="preview-canvas" />
+              <canvas
+                ref="canvasRef"
+                class="preview-canvas"
+                :class="{ dragging: dragState.active }"
+                title="Drag the photo to reposition it"
+                @pointerdown="startPreviewDrag"
+                @pointermove="movePreviewDrag"
+                @pointerup="endPreviewDrag"
+                @pointercancel="endPreviewDrag"
+                @lostpointercapture="endPreviewDrag"
+              />
+              <span class="drag-hint" :class="{ active: dragState.active }">
+                <span aria-hidden="true">✥</span>
+                {{ dragState.active ? 'Repositioning photo' : 'Drag photo to reposition' }}
+              </span>
             </div>
             <div v-else class="no-source">
               <span class="empty-icon">▧</span>
@@ -1771,6 +1855,7 @@ input[type='range'] {
 }
 
 .canvas-frame {
+  position: relative;
   display: grid;
   place-items: center;
   width: min(100%, 720px);
@@ -1784,6 +1869,40 @@ input[type='range'] {
   max-height: 70vh;
   border-radius: .4rem;
   box-shadow: 0 28px 76px rgba(0,0,0,.55);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.preview-canvas.dragging {
+  cursor: grabbing;
+}
+
+.drag-hint {
+  position: absolute;
+  left: 50%;
+  bottom: .85rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  padding: .42rem .62rem;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  background: rgba(10,8,13,.76);
+  color: #d9d0df;
+  font-size: .68rem;
+  font-weight: 700;
+  pointer-events: none;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.24);
+  transition: opacity .16s ease, background .16s ease;
+}
+
+.drag-hint.active {
+  background: rgba(94,49,139,.86);
+  color: #fff;
 }
 
 .no-source {
