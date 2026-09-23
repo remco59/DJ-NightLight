@@ -8,7 +8,6 @@ import {
   defaultCrop,
   defaultTransform,
   graphicBackdrop,
-  mediaKind,
   type ItemCrop,
   type ItemTransform,
   type TimelineItem,
@@ -36,7 +35,6 @@ const sectionTag = computed(() => props.mobile ? 'details' : 'section')
 const headingTag = computed(() => props.mobile ? 'summary' : 'h3')
 const item = computed(() => editor.selection.value?.item || null)
 const template = computed(() => item.value?.type === 'graphic' ? MOTION_TEMPLATES[item.value.templateKey] : null)
-const visualMedia = computed(() => state.media.filter(asset => mediaKind(asset.mimeType) !== 'audio'))
 const fps = computed(() => state.project.fps)
 
 function patch(mutator: (target: TimelineItem) => void, key = '') {
@@ -90,6 +88,18 @@ function listValue(field: TemplateField) {
 
 function textValue(field: TemplateField) {
   return item.value?.type === 'graphic' ? textProp(item.value.templateProps, field.key) : ''
+}
+
+function assetUrl(assetId: string) {
+  return editor.mediaById.value.get(assetId)?.url || null
+}
+
+function clearAssetField(field: TemplateField, value: string | null) {
+  if (!value) setField(field, '')
+}
+
+function clearListAssetField(field: TemplateField, index: number, value: string | null) {
+  if (!value) setListRow(field, index, '')
 }
 
 function setListRow(field: TemplateField, index: number, value: string) {
@@ -225,21 +235,28 @@ const assetTitle = computed(() => {
             </div>
             <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
           </div>
-          <label v-else-if="field.kind === 'asset'" class="row"><span>{{ field.label }}</span>
-            <select :value="textValue(field)" @change="setField(field, ($event.target as HTMLSelectElement).value)">
-              <option value="">Choose media…</option>
-              <option v-for="asset in visualMedia" :key="asset.id" :value="asset.id">{{ asset.title || asset.originalFilename }}</option>
-            </select>
-          </label>
-          <div v-else-if="field.kind === 'assets'" class="stack">
+          <AdminMediaPicker
+            v-else-if="field.kind === 'asset'"
+            :model-value="assetUrl(textValue(field))"
+            :label="field.label"
+            :allow-external="false"
+            @selected="setField(field, $event.id)"
+            @update:model-value="clearAssetField(field, $event)"
+          />
+          <div v-else-if="field.kind === 'assets'" class="stack media-list">
             <span>{{ field.label }}</span>
-            <div v-for="(assetId, index) in listValue(field)" :key="index" class="list-row">
-              <select :value="assetId" @change="setListRow(field, index, ($event.target as HTMLSelectElement).value)">
-                <option v-for="asset in visualMedia" :key="asset.id" :value="asset.id">{{ asset.title || asset.originalFilename }}</option>
-              </select>
-              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <div v-for="(assetId, index) in listValue(field)" :key="index" class="media-list-row">
+              <AdminMediaPicker
+                :model-value="assetUrl(assetId)"
+                :label="`Media ${index + 1}`"
+                kind="all"
+                :allow-external="false"
+                @selected="setListRow(field, index, $event.id)"
+                @update:model-value="clearListAssetField(field, index, $event)"
+              />
+              <button type="button" class="ghost remove-media" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Remove</button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 5) && visualMedia.length" type="button" class="ghost" @click="addListRow(field, visualMedia[0]!.id)"><Icon name="lucide:plus" aria-hidden="true" />Add media</button>
+            <button v-if="listValue(field).length < (field.maxItems || 5)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add media</button>
           </div>
         </template>
       </component>
@@ -486,6 +503,24 @@ output {
 .list-row {
   display: flex;
   gap: .3rem;
+}
+
+.media-list {
+  gap: .7rem;
+}
+
+.media-list-row {
+  display: grid;
+  gap: .4rem;
+  padding: .55rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 10px;
+  background: var(--ve-bg);
+}
+
+.media-list-row .remove-media {
+  justify-self: end;
+  color: var(--ve-muted);
 }
 
 .ghost {
