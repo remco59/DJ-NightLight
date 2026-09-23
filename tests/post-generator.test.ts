@@ -3,6 +3,7 @@ import {
   coverImageRect,
   defaultPostGigItems,
   defaultPostVisibility,
+  postImageDragDelta,
   POST_PRESETS,
   POST_TEMPLATE_KEYS,
   safeAreaInsets,
@@ -74,5 +75,35 @@ describe('post generator', () => {
     const gigs = defaultPostGigItems()
     expect(gigs).toHaveLength(4)
     expect(gigs.every(item => item.enabled)).toBe(true)
+  })
+
+  it('maps preview drag distance to normalized image positioning', () => {
+    const delta = postImageDragDelta({
+      deltaX: 50,
+      deltaY: -25,
+      displayWidth: 540,
+      displayHeight: 960,
+      targetWidth: 1080,
+      targetHeight: 1920,
+      renderedWidth: 2160,
+      renderedHeight: 2400,
+    })
+    expect(delta.x).toBeCloseTo(50 * 2 / (1080 * .5))
+    expect(delta.y).toBeCloseTo(-25 * 2 / (480 * .5))
+  })
+
+  it('does not move on an axis without crop overflow', () => {
+    const delta = postImageDragDelta({
+      deltaX: 80,
+      deltaY: 80,
+      displayWidth: 540,
+      displayHeight: 540,
+      targetWidth: 1080,
+      targetHeight: 1080,
+      renderedWidth: 1080,
+      renderedHeight: 1600,
+    })
+    expect(delta.x).toBe(0)
+    expect(delta.y).toBeGreaterThan(0)
   })
 })
