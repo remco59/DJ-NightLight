@@ -4,6 +4,8 @@ import { moveItem, snapFrame, snapTargets } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
 import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
+import WaveformCanvas from '~/components/video/WaveformCanvas.vue'
+import { MAX_DETAILED_SECONDS, loadWaveform, type Waveform } from '~/utils/audio-waveform'
 
 // `compact` is the touch-first mobile timeline: no toolbar, icon-only track
 // labels, bigger trim handles and tap-to-select so panning never moves clips.
@@ -213,6 +215,51 @@ function waveform(item: TimelineItem) {
   return slice.map((value, index) => `M${(index * step + step / 2).toFixed(2)} ${(50 - value * 45).toFixed(1)}V${(50 + value * 45).toFixed(1)}`).join('')
 }
 
+// --- Detailed waveforms --------------------------------------------------------
+// Decoded once per asset (cached in IndexedDB); until then the coarse stored
+// peaks are drawn. Only the on-screen slice of each clip is painted.
+
+const waveforms = shallowReactive(new Map<string, Waveform>())
+const view = reactive({ left: 0, width: 0 })
+
+watchEffect(() => {
+  for (const track of state.project.tracks) {
+    for (const item of track.items) {
+      if (item.type !== 'audio' || waveforms.has(item.assetId)) continue
+      const asset = editor.mediaById.value.get(item.assetId)
+      if (!asset || (asset.durationMs ?? 0) > MAX_DETAILED_SECONDS * 1000) continue
+      loadWaveform(asset.id, asset.url)
+        .then(waveform => waveforms.set(asset.id, waveform))
+        .catch(() => {
+          // Undecodable in this browser: keep the stored overview peaks.
+        })
+    }
+  }
+})
+
+function syncView() {
+  const element = scroller.value
+  if (!element) return
+  view.left = element.scrollLeft
+  view.width = element.clientWidth
+}
+
+/** Visible pixel range of a clip in its own coordinates, or null when off screen. */
+function visibleSlice(item: TimelineItem) {
+  const left = x(item.start)
+  const from = Math.max(0, view.left - LABEL_WIDTH.value - left)
+  const to = Math.min(x(item.duration), view.left + view.width - left)
+  return to > from ? { from, to } : null
+}
+
+let viewObserver: ResizeObserver | null = null
+onMounted(() => {
+  syncView()
+  viewObserver = new ResizeObserver(syncView)
+  if (scroller.value) viewObserver.observe(scroller.value)
+})
+onBeforeUnmount(() => viewObserver?.disconnect())
+
 const kindIcon: Record<TrackKind, string> = { video: 'lucide:film', graphics: 'lucide:type', audio: 'lucide:music' }
 
 // Keep the playhead in view while playing.
@@ -298,6 +345,7 @@ function wheel(event: WheelEvent) {
     <div
       ref="scroller"
       class="scroller"
+      @scroll.passive="syncView"
       @wheel="wheel"
       @touchstart.passive="touchStart"
       @touchmove="touchMove"
@@ -355,7 +403,17 @@ function wheel(event: WheelEvent) {
               @click.stop="itemTap(item)"
             >
               <span class="handle start" @pointerdown="startDrag($event, item, 'trim-start')" />
-              <svg v-if="item.type === 'audio'" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
+              <template v-if="item.type === 'audio'">
+                <WaveformCanvas
+                  v-if="waveforms.get(item.assetId) && visibleSlice(item)"
+                  :waveform="waveforms.get(item.assetId)!"
+                  :offset="item.trimStart / state.project.fps"
+                  :pixels-per-second="state.zoom"
+                  :from="visibleSlice(item)!.from"
+                  :to="visibleSlice(item)!.to"
+                />
+                <svg v-else-if="!waveforms.get(item.assetId)" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
+              </template>
               <span class="label">
                 <b v-if="item.type === 'graphic'"><Icon name="lucide:type" aria-hidden="true" /></b>
                 <b v-else-if="item.type === 'audio'"><Icon name="lucide:music" aria-hidden="true" /></b>
