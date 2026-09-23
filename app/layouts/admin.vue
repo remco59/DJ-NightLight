@@ -5,31 +5,31 @@ const route = useRoute()
 const { user, clear } = useUserSession()
 const mobileOpen = ref(false)
 
-type NavItem = { label:string;to:string;roles:readonly StaffRole[] }
+type NavItem = { label:string;to:string;icon:string;roles:readonly StaffRole[] }
 type NavGroup = { label:string;items:NavItem[] }
 
 const allRoles: readonly StaffRole[] = ['owner','manager','dj','content_editor']
 const groups: NavGroup[] = [
-  { label:'Overview', items:[{label:'Dashboard',to:'/admin',roles:allRoles}] },
+  { label:'Overview', items:[{label:'Dashboard',to:'/admin',icon:'lucide:layout-dashboard',roles:allRoles}] },
   { label:'Operations', items:[
-    {label:'Gigs',to:'/admin/gigs',roles:['owner','manager','dj']},
-    {label:'Clients',to:'/admin/clients',roles:['owner','manager']},
-    {label:'Venues',to:'/admin/venues',roles:['owner','manager']},
-    {label:'Calendar',to:'/admin/calendar',roles:['owner','manager']},
-    {label:'Email',to:'/admin/email',roles:['owner','manager']},
-    {label:'Client portal',to:'/admin/questionnaire',roles:['owner','manager']},
+    {label:'Gigs',to:'/admin/gigs',icon:'lucide:disc-3',roles:['owner','manager','dj']},
+    {label:'Clients',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
+    {label:'Venues',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
+    {label:'Calendar',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
+    {label:'Email',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
+    {label:'Client portal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
   ]},
   { label:'Content', items:[
-    {label:'Media',to:'/admin/media',roles:['owner','content_editor']},
-    {label:'Website',to:'/admin/content',roles:['owner','content_editor']},
-    {label:'Landing pages',to:'/admin/landing-pages',roles:['owner','content_editor']},
-    {label:'Post generator',to:'/admin/post-generator',roles:['owner','content_editor']},
+    {label:'Media',to:'/admin/media',icon:'lucide:images',roles:['owner','content_editor']},
+    {label:'Website',to:'/admin/content',icon:'lucide:globe',roles:['owner','content_editor']},
+    {label:'Landing pages',to:'/admin/landing-pages',icon:'lucide:panels-top-left',roles:['owner','content_editor']},
+    {label:'Post generator',to:'/admin/post-generator',icon:'lucide:sparkles',roles:['owner','content_editor']},
   ]},
   { label:'System', items:[
-    {label:'Production status',to:'/admin/system',roles:['owner']},
-    {label:'Users',to:'/admin/users',roles:['owner']},
-    {label:'Settings',to:'/admin/settings',roles:['owner']},
-    {label:'My account',to:'/admin/account',roles:allRoles},
+    {label:'Production status',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
+    {label:'Users',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
+    {label:'Settings',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
+    {label:'My account',to:'/admin/account',icon:'lucide:circle-user',roles:allRoles},
   ]},
 ]
 
@@ -51,6 +51,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     <header class="mobile-header">
       <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
       <button class="menu-button" type="button" :aria-expanded="mobileOpen" aria-label="Menu openen" @click="mobileOpen = !mobileOpen">
+        <Icon :name="mobileOpen ? 'lucide:x' : 'lucide:menu'" aria-hidden="true" />
         {{ mobileOpen ? 'Sluiten' : 'Menu' }}
       </button>
     </header>
@@ -76,6 +77,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
             class="nav-link"
             :class="{ active: isActive(item.to) }"
           >
+            <Icon :name="item.icon" aria-hidden="true" />
             {{ item.label }}
           </NuxtLink>
         </section>
@@ -86,7 +88,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
           <strong>{{ user?.name || 'DJ NightLight' }}</strong>
           <small>{{ user?.email }}</small>
         </div>
-        <button type="button" @click="logout">Uitloggen</button>
+        <button type="button" @click="logout"><Icon name="lucide:log-out" aria-hidden="true" /> Uitloggen</button>
       </div>
     </aside>
 
@@ -155,7 +157,9 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   text-transform: uppercase;
 }
 .nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
   margin: .12rem 0;
   padding: .62rem .7rem;
   border-radius: .65rem;
@@ -163,8 +167,10 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   text-decoration: none;
   font-size: .9rem;
 }
+.nav-link svg { width: 1.05rem; height: 1.05rem; color: #7f7889; }
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }
+.nav-link:hover svg, .nav-link.active svg { color: #c7b5de; }
 .account {
   display: grid;
   gap: .7rem;
@@ -203,6 +209,9 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .mobile-header .brand { font-weight: 800; }
   .menu-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
     border: 1px solid #302b38;
     border-radius: .6rem;
     padding: .5rem .7rem;

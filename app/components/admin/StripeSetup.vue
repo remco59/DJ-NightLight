@@ -110,7 +110,7 @@ async function copyUrl() {
 
     <ol class="steps">
       <li v-for="(label, i) in steps" :key="label" :class="{ active: step === i + 1, done: step > i + 1 }">
-        <span>{{ step > i + 1 ? '✓' : i + 1 }}</span>{{ label }}
+        <span><Icon v-if="step > i + 1" name="lucide:check" aria-hidden="true" /><template v-else>{{ i + 1 }}</template></span>{{ label }}
       </li>
     </ol>
 
@@ -167,7 +167,7 @@ async function copyUrl() {
         <button :disabled="busy === 'test'" @click="runTest">{{ busy === 'test' ? 'Checking…' : 'Run connection check' }}</button>
       </div>
       <ul v-if="checks.length" class="checks">
-        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong>{{ c.ok ? '✓' : '✕' }} {{ c.label }}</strong> {{ c.detail }}</li>
+        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong><Icon :name="c.ok ? 'lucide:circle-check' : 'lucide:circle-x'" aria-hidden="true" /> {{ c.label }}</strong> {{ c.detail }}</li>
       </ul>
       <p v-if="!status.livemode" class="hint">You’re in test mode. When ready to take real payments, repeat these steps with a <strong>live</strong> key (<code>rk_live_…</code>) — toggle “Test mode” off in the Stripe Dashboard first.</p>
     </div>

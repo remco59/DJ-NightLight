@@ -8,7 +8,7 @@ const emit = defineEmits<{ seek: [frame: number] }>()
 
 const editor = useVideoEditor()
 const { state } = editor
-const LABEL_WIDTH = 132
+const LABEL_WIDTH = 150
 const SNAP_PX = 8
 
 const scroller = ref<HTMLElement | null>(null)
@@ -187,7 +187,7 @@ function waveform(item: TimelineItem) {
   return slice.map((value, index) => `M${(index * step + step / 2).toFixed(2)} ${(50 - value * 45).toFixed(1)}V${(50 + value * 45).toFixed(1)}`).join('')
 }
 
-const kindIcon: Record<TrackKind, string> = { video: '▶', graphics: 'Tт', audio: '♫' }
+const kindIcon: Record<TrackKind, string> = { video: 'lucide:film', graphics: 'lucide:type', audio: 'lucide:music' }
 
 // Keep the playhead in view while playing.
 watch(() => state.frame, (frame) => {
@@ -212,22 +212,22 @@ function wheel(event: WheelEvent) {
   <section class="timeline" :class="{ dragging: Boolean(dragging) }">
     <div class="toolbar">
       <div class="group">
-        <button type="button" title="Undo (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()">↶</button>
-        <button type="button" title="Redo (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()">↷</button>
+        <button type="button" title="Undo (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()"><Icon name="lucide:undo-2" aria-hidden="true" /></button>
+        <button type="button" title="Redo (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()"><Icon name="lucide:redo-2" aria-hidden="true" /></button>
         <span class="divider" />
-        <button type="button" title="Delete (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()">🗑</button>
-        <button type="button" title="Split at playhead (S)" @click="editor.splitSelected()">✂</button>
-        <button type="button" title="Duplicate (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()">⧉</button>
+        <button type="button" title="Delete (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+        <button type="button" title="Split at playhead (S)" @click="editor.splitSelected()"><Icon name="lucide:scissors" aria-hidden="true" /></button>
+        <button type="button" title="Duplicate (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()"><Icon name="lucide:copy" aria-hidden="true" /></button>
         <span class="divider" />
-        <button type="button" title="Add video track" @click="editor.addTrack('video')">+ Video</button>
-        <button type="button" title="Add graphics track" @click="editor.addTrack('graphics')">+ Graphics</button>
-        <button type="button" title="Add audio track" @click="editor.addTrack('audio')">+ Audio</button>
+        <button type="button" title="Add video track" @click="editor.addTrack('video')"><Icon name="lucide:plus" aria-hidden="true" />Video</button>
+        <button type="button" title="Add graphics track" @click="editor.addTrack('graphics')"><Icon name="lucide:plus" aria-hidden="true" />Graphics</button>
+        <button type="button" title="Add audio track" @click="editor.addTrack('audio')"><Icon name="lucide:plus" aria-hidden="true" />Audio</button>
       </div>
       <div class="group">
         <span class="timecode">{{ formatTimecode(state.frame, state.project.fps) }}:{{ String(state.frame % state.project.fps).padStart(2, '0') }}</span>
-        <button type="button" title="Zoom out" @click="zoomBy(0.8)">−</button>
+        <button type="button" title="Zoom out" @click="zoomBy(0.8)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
         <input v-model.number="state.zoom" class="zoom" type="range" min="8" max="400" aria-label="Timeline zoom">
-        <button type="button" title="Zoom in" @click="zoomBy(1.25)">+</button>
+        <button type="button" title="Zoom in" @click="zoomBy(1.25)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
         <label class="snap"><input v-model="state.snap" type="checkbox"> Snap</label>
       </div>
     </div>
@@ -244,11 +244,11 @@ function wheel(event: WheelEvent) {
 
         <div v-for="track in state.project.tracks" :key="track.id" class="track-row" :class="[track.kind, { hidden: track.hidden, muted: track.muted }]">
           <div class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
-            <span class="kind">{{ kindIcon[track.kind] }}</span>
+            <Icon class="kind" :name="kindIcon[track.kind]" aria-hidden="true" />
             <span class="name">{{ track.name }}</span>
-            <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')">{{ track.hidden ? '◌' : '◉' }}</button>
-            <button v-if="track.kind !== 'graphics'" type="button" :title="track.muted ? 'Unmute track' : 'Mute track'" @click="editor.toggleTrack(track.id, 'muted')">{{ track.muted ? '🔇' : '🔈' }}</button>
-            <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Remove empty track" @click="editor.removeTrack(track.id)">×</button>
+            <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
+            <button v-if="track.kind !== 'graphics'" type="button" :title="track.muted ? 'Unmute track' : 'Mute track'" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
+            <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Remove empty track" @click="editor.removeTrack(track.id)"><Icon name="lucide:x" aria-hidden="true" /></button>
           </div>
           <div
             class="lane"
@@ -272,8 +272,8 @@ function wheel(event: WheelEvent) {
               <span class="handle start" @pointerdown="startDrag($event, item, 'trim-start')" />
               <svg v-if="item.type === 'audio'" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
               <span class="label">
-                <b v-if="item.type === 'graphic'">Tт</b>
-                <b v-else-if="item.type === 'audio'">♫</b>
+                <b v-if="item.type === 'graphic'"><Icon name="lucide:type" aria-hidden="true" /></b>
+                <b v-else-if="item.type === 'audio'"><Icon name="lucide:music" aria-hidden="true" /></b>
                 {{ itemLabel(item) }}
               </span>
               <span class="handle end" @pointerdown="startDrag($event, item, 'trim-end')" />
@@ -314,6 +314,10 @@ function wheel(event: WheelEvent) {
 }
 
 .toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
   min-width: 30px;
   height: 30px;
   padding: 0 .5rem;
@@ -324,6 +328,8 @@ function wheel(event: WheelEvent) {
   font-size: .82rem;
   cursor: pointer;
 }
+
+.toolbar button svg { width: 16px; height: 16px; }
 
 .toolbar button:hover:not(:disabled) { background: var(--ve-raised); }
 .toolbar button:disabled { opacity: .35; cursor: default; }
@@ -426,9 +432,10 @@ function wheel(event: WheelEvent) {
 }
 
 .track-label .kind {
-  width: 20px;
+  flex: none;
+  width: 14px;
+  height: 14px;
   color: var(--ve-muted);
-  text-align: center;
 }
 
 .track-label .name {
@@ -439,7 +446,8 @@ function wheel(event: WheelEvent) {
 }
 
 .track-label button {
-  padding: 0 .15rem;
+  display: inline-flex;
+  padding: .1rem;
   border: 0;
   background: none;
   color: var(--ve-muted);
@@ -509,7 +517,8 @@ function wheel(event: WheelEvent) {
 }
 
 .label b {
-  padding: .05rem .25rem;
+  display: inline-flex;
+  padding: .15rem .2rem;
   border-radius: 3px;
   background: rgba(0, 0, 0, .25);
   font-size: .7rem;

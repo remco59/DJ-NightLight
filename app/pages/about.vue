@@ -93,7 +93,7 @@ useSeoMeta({
         <p class="eyebrow">{{ content.publicCopy.about.ctaEyebrow }}</p>
         <div>
           <h2>{{ content.publicCopy.about.ctaTitle }}</h2>
-          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.about.ctaLabel }}</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.about.ctaLabel }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
         </div>
       </section>
     </div>

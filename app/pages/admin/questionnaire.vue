@@ -49,11 +49,11 @@ useSeoMeta({ title: 'Client portal — DJ NightLight', robots: 'noindex, nofollo
     <section class="card meta"><label>Template name<input v-model="name"></label><span>Current version {{ data?.template.version }}</span></section>
     <section class="field-list">
       <article v-for="(field,index) in fields" :key="field.id" class="card field-card">
-        <div class="field-heading"><strong>Question {{ index + 1 }}</strong><div><button @click="move(index,-1)">↑</button><button @click="move(index,1)">↓</button><button class="remove" @click="fields.splice(index,1)">Remove</button></div></div>
+        <div class="field-heading"><strong>Question {{ index + 1 }}</strong><div><button aria-label="Move up" title="Move up" @click="move(index,-1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button><button aria-label="Move down" title="Move down" @click="move(index,1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button><button class="remove" @click="fields.splice(index,1)">Remove</button></div></div>
         <div class="grid"><label class="wide">Label<input v-model="field.label" required></label><label>Field type<select v-model="field.type"><option v-for="type in questionnaireFieldTypes" :key="type" :value="type">{{ typeLabels[type] }}</option></select></label><label>Stable field id<input v-model="field.id" pattern="[a-z0-9_]+"></label><label class="wide">Help text<input v-model="field.helpText"></label><label v-if="field.type==='select'||field.type==='multi_select'" class="wide">Options (one per line)<textarea v-model="field.optionsText" rows="4"/></label><label class="check"><input v-model="field.required" type="checkbox"> Required</label></div>
       </article>
     </section>
-    <button class="add" @click="addField">+ Add question</button><p v-if="message" class="message">{{ message }}</p>
+    <button class="add" @click="addField"><Icon name="lucide:plus" aria-hidden="true" /> Add question</button><p v-if="message" class="message">{{ message }}</p>
   </div>
 </template>
 

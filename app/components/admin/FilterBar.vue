@@ -38,12 +38,10 @@ const hasToolbar = computed(() => Boolean(slots.toolbar))
           :aria-expanded="props.advancedOpen"
           @click="emit('toggleAdvanced')"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 5h16M7 12h10M10 19h4" />
-          </svg>
+          <Icon name="lucide:list-filter" aria-hidden="true" />
           <span>More filters</span>
           <span v-if="props.activeAdvancedCount" class="count-badge">{{ props.activeAdvancedCount }}</span>
-          <span class="caret" aria-hidden="true">{{ props.advancedOpen ? '⌃' : '⌄' }}</span>
+          <Icon class="caret" :name="props.advancedOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
         </button>
       </div>
 
@@ -78,7 +76,7 @@ const hasToolbar = computed(() => Boolean(slots.toolbar))
 .primary-controls :deep(input:focus),.primary-controls :deep(select:focus),.advanced-row :deep(input:focus),.advanced-row :deep(select:focus),.more-filters:focus-visible,.clear-all:focus-visible{outline:2px solid #9c82d9;outline-offset:2px}
 .more-filters{display:flex;align-self:flex-start;align-items:center;justify-content:center;gap:.5rem;min-width:10.8rem;border:1px solid #4a4056;border-radius:.72rem;padding:.72rem .9rem;background:#15121a;color:#f5f1f8;font:inherit;font-weight:700;cursor:pointer}
 .more-filters:hover{background:#1c1722;border-color:#655577}
-.more-filters svg{width:1.1rem;height:1.1rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.more-filters svg{width:1.1rem;height:1.1rem}
 .count-badge{display:grid;min-width:1.45rem;height:1.45rem;place-items:center;border-radius:999px;background:#8770d4;color:#fff;font-size:.72rem;font-weight:900}
 .caret{color:#9f96a8}
 .advanced-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;padding:.8rem;border-top:1px solid #27222e;background:#100e14}

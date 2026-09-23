@@ -54,7 +54,7 @@ useSeoMeta({title:'Users — DJ NightLight',robots:'noindex, nofollow'})
 
 <template>
 <div class="users-page">
-<header class="page-header"><div><p class="eyebrow">System</p><h1>Users</h1><p>Create staff accounts, assign roles and revoke access without deleting history.</p></div><button class="primary" @click="showCreate=!showCreate">{{showCreate?'Close':'New user'}}</button></header>
+<header class="page-header"><div><p class="eyebrow">System</p><h1>Users</h1><p>Create staff accounts, assign roles and revoke access without deleting history.</p></div><button class="with-icon primary" @click="showCreate=!showCreate"><Icon :name="showCreate?'lucide:x':'lucide:plus'" aria-hidden="true" />{{showCreate?'Close':'New user'}}</button></header>
 
 <form v-if="showCreate" class="card create" @submit.prevent="createUser">
 <h2>New staff account</h2>

@@ -120,7 +120,8 @@ async function deleteRender(id: string) {
         @dragover.prevent
         @drop.prevent="uploadFiles($event.dataTransfer?.files)"
       >
-        ⇪ {{ uploading || 'Upload media' }}
+        <Icon name="lucide:upload" aria-hidden="true" />
+        <span>{{ uploading || 'Upload media' }}</span>
       </button>
       <p v-if="message" class="message">{{ message }}</p>
 
@@ -136,17 +137,17 @@ async function deleteRender(id: string) {
           @dblclick="editor.addMedia(asset)"
         >
           <div v-if="mediaKind(asset.mimeType) === 'audio'" class="audio-thumb">
-            <strong>♫ {{ asset.title || asset.originalFilename }}</strong>
-            <svg viewBox="0 0 100 40" preserveAspectRatio="none"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
+            <strong><Icon name="lucide:music" aria-hidden="true" /> {{ asset.title || asset.originalFilename }}</strong>
+            <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
           </div>
           <div v-else class="thumb">
             <img v-if="asset.thumbnailUrl" :src="asset.thumbnailUrl" :alt="asset.title" loading="lazy">
-            <span v-else class="no-thumb">▶</span>
+            <span v-else class="no-thumb"><Icon :name="mediaKind(asset.mimeType) === 'image' ? 'lucide:image' : 'lucide:film'" aria-hidden="true" /></span>
           </div>
           <span v-if="asset.durationMs" class="duration">{{ formatDuration(asset.durationMs) }}</span>
           <footer>
             <span>{{ asset.title || asset.originalFilename }}</span>
-            <button type="button" title="Add at playhead" @click="editor.addMedia(asset)">＋</button>
+            <button type="button" title="Add at playhead" @click="editor.addMedia(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
           </footer>
         </article>
         <p v-if="!filteredMedia.length" class="empty">No media yet. Upload clips, photos or music to start.</p>
@@ -183,7 +184,7 @@ async function deleteRender(id: string) {
     <template v-else>
       <header class="panel-head">
         <h2>Exports</h2>
-        <button type="button" class="ghost" @click="emit('refreshRenders')">Refresh</button>
+        <button type="button" class="with-icon ghost" @click="emit('refreshRenders')"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
       </header>
       <p class="hint">Every export renders a saved snapshot of this project with the render worker.</p>
       <p v-if="message" class="message">{{ message }}</p>
@@ -197,10 +198,10 @@ async function deleteRender(id: string) {
           <div v-if="render.status === 'rendering' || render.status === 'queued'" class="progress"><span :style="{ width: `${render.progress}%` }" /></div>
           <p v-if="render.error && render.status === 'failed'" class="message">{{ render.error }}</p>
           <div class="render-actions">
-            <a v-if="render.videoUrl" :href="render.videoUrl" target="_blank" rel="noopener">Open MP4</a>
-            <a v-if="render.videoUrl" :href="render.videoUrl" download>Download</a>
-            <button v-if="render.status === 'failed'" type="button" @click="retryRender(render.id)">Retry</button>
-            <button v-if="render.status !== 'rendering'" type="button" @click="deleteRender(render.id)">Delete</button>
+            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
+            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" download><Icon name="lucide:download" aria-hidden="true" />Download</a>
+            <button v-if="render.status === 'failed'" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
+            <button v-if="render.status !== 'rendering'" class="with-icon" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
           </div>
         </li>
         <li v-if="!state.renders.length" class="empty">No exports yet.</li>
@@ -279,6 +280,10 @@ h3 {
 .file-input { display: none; }
 
 .upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
   padding: .65rem;
   border: 0;
   border-radius: 8px;
@@ -333,6 +338,7 @@ h3 {
   height: 100%;
   place-items: center;
   color: var(--ve-muted);
+  font-size: 1.4rem;
 }
 
 .audio-thumb {
@@ -349,12 +355,12 @@ h3 {
   white-space: nowrap;
 }
 
-.audio-thumb svg {
+.audio-thumb .wave {
   width: 100%;
   height: 40%;
 }
 
-.audio-thumb path {
+.audio-thumb .wave path {
   stroke: #4ade80;
   stroke-width: .8;
   vector-effect: non-scaling-stroke;
@@ -386,6 +392,7 @@ h3 {
 }
 
 .media-card footer button {
+  display: inline-flex;
   border: 0;
   background: none;
   color: var(--ve-muted);

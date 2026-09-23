@@ -66,7 +66,8 @@ useSeoMeta({ title: 'Clients — DJ NightLight', robots: 'noindex, nofollow' })
         <h1>Clients</h1>
         <p>People and companies that book NightLight.</p>
       </div>
-      <button class="primary" type="button" @click="showCreate = !showCreate">
+      <button class="with-icon primary" type="button" @click="showCreate = !showCreate">
+        <Icon :name="showCreate ? 'lucide:x' : 'lucide:plus'" aria-hidden="true" />
         {{ showCreate ? 'Close' : 'New client' }}
       </button>
     </header>

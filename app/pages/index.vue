@@ -91,7 +91,7 @@ useSeoMeta({
         <h1>{{ content.heroTitle }}</h1>
         <p class="hero-copy">{{ content.heroBody }}</p>
         <div class="hero-actions">
-          <NuxtLink class="public-button" to="/boeken">{{ content.heroCtaLabel }}</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.heroCtaLabel }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
           <NuxtLink class="public-button secondary" to="/media">{{ content.publicCopy.home.secondaryCta }}</NuxtLink>
         </div>
       </div>
@@ -186,7 +186,7 @@ useSeoMeta({
         </div>
         <div class="cta-copy">
           <p>{{ content.bookingBody }}</p>
-          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.home.bookingCta }}</NuxtLink>
+          <NuxtLink class="public-button" to="/boeken">{{ content.publicCopy.home.bookingCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
         </div>
       </div>
     </section>

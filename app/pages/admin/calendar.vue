@@ -96,7 +96,7 @@ function formatDate(value: string | null) {
           <h2>Synchronization status</h2>
           <p>Failed jobs are retried in the background with exponential backoff and can be retried manually.</p>
         </div>
-        <button class="quiet" type="button" :disabled="pending" @click="refresh()">Refresh</button>
+        <button class="with-icon quiet" type="button" :disabled="pending" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
       </div>
 
       <div v-if="!data?.items.length" class="empty">No gigs have been queued for Calendar sync yet.</div>

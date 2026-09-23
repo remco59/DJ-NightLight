@@ -256,7 +256,7 @@ function formatBytes(bytes: number) {
         </label>
         <div class="actions">
           <button class="primary" type="button" :disabled="busy === 'save'" @click="save">Save metadata</button>
-          <button class="danger" type="button" :disabled="busy === 'delete'" @click="remove">Delete</button>
+          <button class="with-icon danger" type="button" :disabled="busy === 'delete'" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
         </div>
         <small>Deletion is blocked when the image is associated with a gig/venue or referenced by website/landing-page content.</small>
       </aside>

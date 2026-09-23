@@ -218,22 +218,22 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         <span><strong>DJ NightLight</strong><small>CREATE · PLAY · SHARE</small></span>
       </NuxtLink>
       <input v-model="nameDraft" class="name" type="text" maxlength="160" aria-label="Project name" @blur="commitName" @keydown.enter="($event.target as HTMLInputElement).blur()">
-      <span class="format">▯ {{ VIDEO_ASPECTS[state.project.aspect].label }}</span>
+      <span class="format"><Icon name="lucide:rectangle-vertical" aria-hidden="true" /> {{ VIDEO_ASPECTS[state.project.aspect].label }}</span>
       <span class="save" :class="state.saveState" :title="state.saveError">
         <i />{{ saveLabel }}
-        <button v-if="state.saveState === 'error'" type="button" @click="editor.save()">Retry</button>
+        <button v-if="state.saveState === 'error'" class="with-icon" type="button" @click="editor.save()"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
       </span>
-      <button class="export" type="button" :disabled="exporting" @click="exportVideo">⇪ {{ exporting ? 'Queueing…' : 'Export MP4' }}</button>
+      <button class="export" type="button" :disabled="exporting" @click="exportVideo"><Icon name="lucide:download" aria-hidden="true" /> {{ exporting ? 'Queueing…' : 'Export MP4' }}</button>
     </header>
 
-    <p v-if="message" class="banner">{{ message }} <button type="button" @click="message = ''">✕</button></p>
+    <p v-if="message" class="banner">{{ message }} <button type="button" aria-label="Dismiss" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button></p>
 
     <div class="workspace">
       <nav class="rail" aria-label="Editor panels">
-        <button type="button" :class="{ active: tab === 'media' }" @click="tab = 'media'"><span>▣</span>Media</button>
-        <button type="button" :class="{ active: tab === 'templates' }" @click="tab = 'templates'"><span>◫</span>Templates</button>
-        <button type="button" :class="{ active: tab === 'exports' }" @click="tab = 'exports'"><span>⇪</span>Exports</button>
-        <NuxtLink to="/admin/post-generator/video"><span>▤</span>Projects</NuxtLink>
+        <button type="button" :class="{ active: tab === 'media' }" @click="tab = 'media'"><Icon name="lucide:images" aria-hidden="true" />Media</button>
+        <button type="button" :class="{ active: tab === 'templates' }" @click="tab = 'templates'"><Icon name="lucide:layout-template" aria-hidden="true" />Templates</button>
+        <button type="button" :class="{ active: tab === 'exports' }" @click="tab = 'exports'"><Icon name="lucide:clapperboard" aria-hidden="true" />Exports</button>
+        <NuxtLink to="/admin/post-generator/video"><Icon name="lucide:folder-open" aria-hidden="true" />Projects</NuxtLink>
       </nav>
 
       <VideoMediaPanel class="side" :tab="tab" @refresh-media="refreshMedia" @refresh-renders="refreshRenders" />
@@ -262,7 +262,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
           </div>
         </div>
         <div class="transport">
-          <button type="button" :title="state.playing ? 'Pause (Space)' : 'Play (Space)'" @click="togglePlay">{{ state.playing ? '❚❚' : '▶' }}</button>
+          <button type="button" :title="state.playing ? 'Pause (Space)' : 'Play (Space)'" @click="togglePlay"><Icon :name="state.playing ? 'lucide:pause' : 'lucide:play'" aria-hidden="true" /></button>
           <span class="time">{{ formatTimecode(state.frame, state.project.fps) }} / {{ formatTimecode(editor.duration.value, state.project.fps) }}</span>
           <input
             class="scrub"
@@ -273,8 +273,8 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
             aria-label="Playhead"
             @input="seek(Number(($event.target as HTMLInputElement).value))"
           >
-          <label class="volume" title="Preview volume">🔈 <input v-model.number="volume" type="range" min="0" max="1" step="0.05"></label>
-          <button type="button" title="Fullscreen" @click="preview?.requestFullscreen()">⛶</button>
+          <label class="volume" title="Preview volume"><Icon :name="volume > 0 ? 'lucide:volume-2' : 'lucide:volume-x'" aria-hidden="true" /> <input v-model.number="volume" type="range" min="0" max="1" step="0.05"></label>
+          <button type="button" title="Fullscreen" aria-label="Fullscreen" @click="preview?.requestFullscreen()"><Icon name="lucide:maximize" aria-hidden="true" /></button>
         </div>
       </main>
 
@@ -426,6 +426,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 }
 
 .banner button {
+  display: flex;
   border: 0;
   background: none;
   color: inherit;
@@ -462,7 +463,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
   cursor: pointer;
 }
 
-.rail span { font-size: 1.15rem; }
+.rail svg { width: 20px; height: 20px; }
 
 .rail .active {
   background: rgba(124, 58, 237, .22);
@@ -513,6 +514,9 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
 }
 
 .transport button {
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
   width: 34px;
   height: 34px;
   border: 0;

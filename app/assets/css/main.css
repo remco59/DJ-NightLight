@@ -109,6 +109,7 @@ img { max-width: 100%; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: .5rem;
   min-height: 2.9rem;
   border: 1px solid #fff;
   border-radius: 999px;
@@ -173,4 +174,19 @@ img { max-width: 100%; }
   .public-button:hover {
     transform: none;
   }
+}
+
+/* Lucide icons rendered by <Icon> (@nuxt/icon). They size with the text (1em)
+   and sit on the text baseline, so they work inline and inside flex rows. */
+.iconify {
+  flex: none;
+  vertical-align: -.14em;
+}
+
+/* Buttons and links that lead with an icon. */
+.with-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45em;
 }

@@ -30,3 +30,17 @@ npm run build
 - `/api/health` — basic service health endpoint
 
 Do not commit secrets. Add new environment keys to `.env.example` with safe placeholder values.
+
+## Icons
+
+The whole site (public pages and back office) uses [Lucide](https://lucide.dev/icons) through `@nuxt/icon`:
+
+```vue
+<Icon name="lucide:calendar-days" aria-hidden="true" />
+```
+
+- Icons are bundled with the app (`@iconify-json/lucide`); nothing is loaded from the Iconify CDN.
+- Icons size with the surrounding text (`1em`) and use `currentColor`, so style them with `font-size` and `color`.
+- Decorative icons get `aria-hidden="true"`. Icon-only buttons need an `aria-label` (and usually a `title`).
+- For a button or link that leads with an icon, add the global `with-icon` class to space and align it.
+- Don't use Unicode glyphs or emoji (`▶ ✕ ↗ 🗑`) as icons.

@@ -303,7 +303,7 @@ function offsetLabel(template: Template) {
           <h2>Delivery jobs</h2>
           <p>Jobs survive restarts. Failed jobs keep their error and can be retried.</p>
         </div>
-        <button type="button" @click="refresh()">Refresh</button>
+        <button class="with-icon" type="button" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
       </div>
       <div class="history">
         <article v-for="job in data?.jobs" :key="job.id" class="history-row">
@@ -316,7 +316,7 @@ function offsetLabel(template: Template) {
             <small>{{ job.attemptCount }} attempt(s) · run {{ formatDate(job.runAt) }}</small>
             <small v-if="job.lastError" class="error">{{ job.lastError }}</small>
           </div>
-          <button v-if="job.status === 'failed'" type="button" :disabled="busy === job.id" @click="retry(job.id)">Retry</button>
+          <button v-if="job.status === 'failed'" class="with-icon" type="button" :disabled="busy === job.id" @click="retry(job.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
         </article>
         <p v-if="!data?.jobs.length" class="empty">No email jobs yet.</p>
       </div>
