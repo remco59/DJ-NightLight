@@ -96,7 +96,7 @@ useSeoMeta({
         </div>
       </div>
       <p class="hero-caption">{{ content.publicCopy.home.heroCaption }}</p>
-      <div class="scroll-cue">{{ content.publicCopy.home.scrollLabel }}</div>
+      <div class="scroll-cue">{{ content.publicCopy.home.scrollLabel }} <Icon name="lucide:arrow-down" aria-hidden="true" /></div>
     </section>
 
     <section class="visual-beat" :aria-label="content.publicCopy.home.visualEyebrow">
@@ -116,7 +116,7 @@ useSeoMeta({
       <div class="statement-copy">
         <h2>{{ content.aboutTitle }}</h2>
         <p>{{ content.aboutBody }}</p>
-        <NuxtLink to="/about">{{ content.publicCopy.home.aboutCta }}</NuxtLink>
+        <NuxtLink to="/about">{{ content.publicCopy.home.aboutCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </div>
       <figure class="statement-visual">
         <img :src="aboutVisual.url" :alt="aboutVisual.alt" loading="lazy">

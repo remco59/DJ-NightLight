@@ -579,7 +579,7 @@ function formatDate(value: string) {
                 <span>
                   <strong>{{ preset.label }}</strong>
                   <small>{{ key === 'square' ? 'Square' : key === 'portrait' ? 'Portrait' : 'Story' }}</small>
-                  <em>{{ preset.width }}×{{ preset.height }}</em>
+                  <em>{{ preset.width }}<IconTimes />{{ preset.height }}</em>
                 </span>
               </button>
             </div>
@@ -805,7 +805,7 @@ function formatDate(value: string) {
 
           <div v-if="isSectionOpen(4)" class="section-body form-stack">
             <label>
-              <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}×</small></span>
+              <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}<IconTimes /></small></span>
               <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
             </label>
             <label>
@@ -857,7 +857,7 @@ function formatDate(value: string) {
           </button>
 
           <div v-if="isSectionOpen(5)" class="section-body export-panel">
-            <p>Generate a full-resolution {{ POST_PRESETS[design.preset].width }}×{{ POST_PRESETS[design.preset].height }} PNG and keep it in your reusable output history.</p>
+            <p>Generate a full-resolution {{ POST_PRESETS[design.preset].width }}<IconTimes />{{ POST_PRESETS[design.preset].height }} PNG and keep it in your reusable output history.</p>
             <button
               class="primary full"
               type="button"
@@ -940,7 +940,7 @@ function formatDate(value: string) {
               </div>
               <div class="history-card-copy">
                 <strong>{{ post.templateKey }}</strong>
-                <small>{{ post.width }}×{{ post.height }}</small>
+                <small>{{ post.width }}<IconTimes />{{ post.height }}</small>
                 <small>{{ formatDate(post.createdAt) }}</small>
                 <div class="history-actions">
                   <a class="with-icon" :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'"><Icon name="lucide:download" aria-hidden="true" />Download</a>

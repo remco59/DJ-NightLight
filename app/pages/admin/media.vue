@@ -224,7 +224,7 @@ function formatBytes(bytes: number) {
           <img :src="asset.thumbnailUrl" :alt="asset.altText || asset.title || asset.originalFilename" loading="lazy">
           <span class="card-body">
             <strong>{{ asset.title || asset.originalFilename }}</strong>
-            <small>{{ asset.width }}×{{ asset.height }} · {{ formatBytes(asset.byteSize) }}</small>
+            <small>{{ asset.width }}<IconTimes />{{ asset.height }} · {{ formatBytes(asset.byteSize) }}</small>
             <span v-if="asset.tags.length" class="tags">
               <i v-for="tag in asset.tags.slice(0, 4)" :key="tag">{{ tag }}</i>
             </span>
@@ -236,7 +236,7 @@ function formatBytes(bytes: number) {
       <aside v-if="selected" class="panel inspector">
         <img :src="selected.url" :alt="selected.altText || selected.title" class="preview">
         <h2>{{ selected.title || selected.originalFilename }}</h2>
-        <p>{{ selected.mimeType }} · {{ selected.width }}×{{ selected.height }} · {{ formatBytes(selected.byteSize) }}</p>
+        <p>{{ selected.mimeType }} · {{ selected.width }}<IconTimes />{{ selected.height }} · {{ formatBytes(selected.byteSize) }}</p>
         <label><span>Title</span><input v-model="edit.title"></label>
         <label><span>Alt text</span><textarea v-model="edit.altText" rows="3" /></label>
         <label><span>Tags</span><input v-model="edit.tags"></label>

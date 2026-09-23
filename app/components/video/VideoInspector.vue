@@ -175,7 +175,7 @@ const assetTitle = computed(() => {
         <label v-if="!state.project.autoDuration" class="row"><span>Duration (s)</span>
           <input type="number" min="1" :max="MAX_PROJECT_SECONDS" step="0.5" :value="seconds(state.project.durationFrames)" @change="setProjectDuration(Number(($event.target as HTMLInputElement).value))">
         </label>
-        <p class="note">{{ state.project.width }}×{{ state.project.height }} · length {{ seconds(editor.duration.value) }}s</p>
+        <p class="note">{{ state.project.width }}<IconTimes />{{ state.project.height }} · length {{ seconds(editor.duration.value) }}s</p>
         <label class="row check"><span>Show Reels / Stories safe zones</span>
           <input type="checkbox" :checked="state.project.showSafeZones" @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })">
         </label>
@@ -186,9 +186,9 @@ const assetTitle = computed(() => {
           <dt>Space</dt><dd>Play / pause</dd>
           <dt>S</dt><dd>Split at playhead</dd>
           <dt>Delete</dt><dd>Delete selection</dd>
-          <dt>Ctrl/⌘ D</dt><dd>Duplicate</dd>
-          <dt>Ctrl/⌘ Z</dt><dd>Undo (⇧ to redo)</dd>
-          <dt>← →</dt><dd>Step one frame (⇧ one second)</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> D</dt><dd>Duplicate</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> Z</dt><dd>Undo (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> to redo)</dd>
+          <dt><Icon name="lucide:arrow-left" role="img" aria-label="Left" /> <Icon name="lucide:arrow-right" role="img" aria-label="Right" /></dt><dd>Step one frame (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> one second)</dd>
         </dl>
       </section>
     </template>

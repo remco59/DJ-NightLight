@@ -742,7 +742,7 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
               <b>05</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">Individual landing-page content stays in Admin → Landing pages. This is only the panel shared by all of them.</p>
+              <p class="section-note">Individual landing-page content stays in Admin <Icon name="lucide:chevron-right" aria-hidden="true" /> Landing pages. This is only the panel shared by all of them.</p>
               <label>Eyebrow<input v-model="form.publicCopy.landing.asideEyebrow"></label>
               <label>Title<input v-model="form.publicCopy.landing.asideTitle"></label>
               <label>Body<textarea v-model="form.publicCopy.landing.asideBody" rows="4" /></label>

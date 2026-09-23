@@ -59,7 +59,7 @@ watch(() => route.path, () => {
         </div>
         <NuxtLink class="mobile-book" to="/boeken">
           <span>{{ data?.content.publicCopy.navigation.mobileEyebrow }}</span>
-          <strong>{{ data?.content.publicCopy.navigation.mobileBooking }}</strong>
+          <strong>{{ data?.content.publicCopy.navigation.mobileBooking }} <Icon name="lucide:arrow-right" aria-hidden="true" /></strong>
         </NuxtLink>
       </nav>
     </Transition>

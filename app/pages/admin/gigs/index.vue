@@ -73,7 +73,7 @@ const hasActiveFilters=computed(()=>Object.values(filters).some(Boolean))
 const dateFilterLabel=computed(()=>{
   if(filters.timing==='upcoming')return 'Date: Upcoming'
   if(filters.timing==='past')return 'Date: Past'
-  if(filters.startDate||filters.endDate)return `Date: ${filters.startDate||'Any'} → ${filters.endDate||'Any'}`
+  if(filters.startDate||filters.endDate)return `Date: ${filters.startDate||'Any'} – ${filters.endDate||'Any'}`
   return ''
 })
 

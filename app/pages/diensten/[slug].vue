@@ -66,7 +66,7 @@ useSeoMeta({
         <span>{{ siteContent?.publicCopy.landing.asideEyebrow }}</span>
         <strong>{{ siteContent?.publicCopy.landing.asideTitle }}</strong>
         <p>{{ siteContent?.publicCopy.landing.asideBody }}</p>
-        <NuxtLink to="/boeken">{{ siteContent?.publicCopy.landing.asideCta }}</NuxtLink>
+        <NuxtLink to="/boeken">{{ siteContent?.publicCopy.landing.asideCta }} <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </aside>
     </section>
   </main>

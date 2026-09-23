@@ -77,7 +77,7 @@ useSeoMeta({
       >
         <div class="showreel-top">
           <span>{{ content.publicCopy.media.showreelEyebrow }}</span>
-          <span>{{ content.publicCopy.media.showreelExternalLabel }}</span>
+          <span>{{ content.publicCopy.media.showreelExternalLabel }} <Icon name="lucide:arrow-up-right" aria-hidden="true" /></span>
         </div>
         <div class="showreel-bottom">
           <span class="play" aria-hidden="true"><Icon name="lucide:play" /></span>

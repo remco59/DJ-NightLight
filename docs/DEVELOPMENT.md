@@ -43,4 +43,5 @@ The whole site (public pages and back office) uses [Lucide](https://lucide.dev/i
 - Icons size with the surrounding text (`1em`) and use `currentColor`, so style them with `font-size` and `color`.
 - Decorative icons get `aria-hidden="true"`. Icon-only buttons need an `aria-label` (and usually a `title`).
 - For a button or link that leads with an icon, add the global `with-icon` class to space and align it.
-- Don't use Unicode glyphs or emoji (`▶ ✕ ↗ 🗑`) as icons.
+- Use `<IconTimes />` for the "×" in dimensions and multipliers (`1080<IconTimes />1920`).
+- Don't use Unicode glyphs or emoji (`▶ ✕ ↗ 🗑`) as icons, and don't put arrows in editable site copy: the templates add them.

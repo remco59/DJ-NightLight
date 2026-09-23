@@ -86,7 +86,7 @@ function formatDate(value: string | null) {
           <strong>{{ data?.settings.cancellationBehavior === 'delete' ? 'Delete mapped event' : data?.settings.cancellationBehavior === 'mark_cancelled' ? 'Keep and mark cancelled' : 'Leave event unchanged' }}</strong>
         </div>
       </div>
-      <NuxtLink class="settings-link" to="/admin/settings#integrations">Manage Google Calendar in Settings → Integrations</NuxtLink>
+      <NuxtLink class="settings-link" to="/admin/settings#integrations">Manage Google Calendar in Settings <Icon name="lucide:chevron-right" aria-hidden="true" /> Integrations</NuxtLink>
       <p v-if="message" class="message">{{ message }}</p>
     </section>
 

@@ -190,3 +190,10 @@ img { max-width: 100%; }
   justify-content: center;
   gap: .45em;
 }
+
+.icon-times {
+  width: .78em;
+  height: .78em;
+  margin-inline: .06em;
+  vertical-align: -.04em;
+}

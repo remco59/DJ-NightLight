@@ -194,7 +194,7 @@ async function deleteRender(id: string) {
             <strong>{{ new Date(render.createdAt).toLocaleString() }}</strong>
             <span class="status">{{ render.status }}</span>
           </div>
-          <small>{{ render.width }}×{{ render.height }} · {{ render.durationSeconds }}s</small>
+          <small>{{ render.width }}<IconTimes />{{ render.height }} · {{ render.durationSeconds }}s</small>
           <div v-if="render.status === 'rendering' || render.status === 'queued'" class="progress"><span :style="{ width: `${render.progress}%` }" /></div>
           <p v-if="render.error && render.status === 'failed'" class="message">{{ render.error }}</p>
           <div class="render-actions">

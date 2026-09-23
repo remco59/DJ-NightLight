@@ -145,7 +145,7 @@ async function upload() {
       <img :src="modelValue" :alt="selectedAsset?.altText || selectedAsset?.title || label">
       <div class="selected-copy">
         <strong>{{ selectedAsset?.title || selectedAsset?.originalFilename || 'External image' }}</strong>
-        <span v-if="selectedAsset">{{ selectedAsset.width }}×{{ selectedAsset.height }} · Media library</span>
+        <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Media library</span>
         <span v-else>External URL</span>
         <button type="button" class="remove" @click="clearSelection">Remove</button>
       </div>
@@ -193,7 +193,7 @@ async function upload() {
                 <img :src="asset.thumbnailUrl" :alt="asset.altText || asset.title || asset.originalFilename" loading="lazy">
                 <span>
                   <strong>{{ asset.title || asset.originalFilename }}</strong>
-                  <small>{{ asset.width }}×{{ asset.height }}</small>
+                  <small>{{ asset.width }}<IconTimes />{{ asset.height }}</small>
                 </span>
               </button>
               <p v-if="!filteredAssets.length" class="no-results">No images match your search.</p>
