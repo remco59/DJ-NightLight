@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminNav from '~/components/admin/AdminNav.vue'
+import CanvasTransformOverlay from '~/components/video/CanvasTransformOverlay.vue'
 import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.vue'
 import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
 import MobileVideoToolbar from '~/components/video/MobileVideoToolbar.vue'
@@ -439,6 +440,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
                 @playing="state.playing = $event"
               />
             </ClientOnly>
+            <CanvasTransformOverlay v-if="!state.playing" :scale="previewSize.scale" />
             <div
               v-if="safeZone"
               class="safe-zone"
