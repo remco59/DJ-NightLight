@@ -42,14 +42,14 @@ Admin → Post generator → Video editor is a lightweight, template-first NLE f
 - **Projects** (`video_projects`) persist a JSON `VideoProject`: output settings (9:16, 4:5, 1:1 or 16:9; 24/25/30/60 fps; background; fixed or timeline-driven duration) and ordered Video, Graphics and Audio tracks. Projects autosave with optimistic revision checks, and can be renamed, duplicated and deleted.
 - **Media library** accepts images plus video (MP4, MOV, WebM, max 250 MB) and audio (MP3, M4A, WAV, OGG, max 50 MB). The browser probes duration, dimensions, a poster thumbnail and waveform peaks before upload; the server re-validates the container from its magic bytes. `/api/media/:id` streams video/audio with HTTP range support so players can seek. Existing image pickers keep receiving images only; the editor asks for `?kind=all`.
 - **Timeline**: drag media or templates onto tracks, move and reorder clips, trim either edge (bounded by the source length), split at the playhead, duplicate, delete, snap to clip edges and the playhead, zoom, and scrub. Undo/redo covers every edit.
-- **Motion templates** are timeline items, like Premiere MOGRTs: a locked animated layout with editable fields, an accent style, entrance/exit variants and timing. The library: Gig Announcement, Recap Intro, Upcoming Gigs, Logo Sting, Lower Third, Hype Title, Photo Drop and Clip Recap (3–5 clips). Definitions live in `shared/video-templates.ts`, React implementations in `remotion/motion-templates.tsx`.
+- **Motion templates** are timeline items, like Premiere MOGRTs: a locked animated layout with editable fields, an accent style, entrance/exit variants and timing. The library: Gig Announcement, Recap Intro, Upcoming Gigs, Logo Sting, Lower Third, Hype Title, Photo Drop and Clip Recap (3–5 clips). Definitions live in `shared/video-templates.ts`, React implementations in `remotion/motion-templates.ts`.
 - **Inspector** follows the selection: transform, crop, opacity, speed, volume/mute for clips; volume and fades for audio; content, style and animation for graphics; output settings when nothing is selected.
 - **Shortcuts**: Space play/pause, S split, Delete delete, Ctrl/⌘ D duplicate, Ctrl/⌘ Z undo (Shift to redo), arrows step a frame (Shift for a second).
 - **Safe zones** for Reels/Stories are drawn over the 9:16 preview; templates keep text inside them.
 
 ### One composition for preview and export
 
-`remotion/ProjectComposition.tsx` renders a `VideoProject`. The editor mounts it through `@remotion/player`, and the render worker renders the same component (`NightLightProject`) with `@remotion/renderer`, so the preview is the export. The `remotion/` directory is React: `nuxt.config.ts` excludes it from Vue JSX and compiles it with the React JSX runtime.
+`remotion/ProjectComposition.ts` renders a `VideoProject`. The editor mounts it through `@remotion/player`, and the render worker renders the same component (`NightLightProject`) with `@remotion/renderer`, so the preview is the export. The files the editor imports use `React.createElement` instead of JSX: Nuxt configures Vite for Vue JSX, so React JSX there would depend on build-tool settings that differ between Vite versions.
 
 Timeline edits are pure functions in `shared/video-timeline.ts`, and project validation lives in `shared/video-project.ts`; both are unit tested.
 
