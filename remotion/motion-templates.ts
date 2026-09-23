@@ -888,7 +888,10 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
   // Shrink the stack on short canvases (square) so nothing collides.
   const k = landscape ? 1 : Math.min(1, (height - padding.top - padding.bottom) / 1260)
   const headline = textProp(props, 'headline')
-  const info = [textProp(props, 'venue'), textProp(props, 'time')].filter(Boolean)
+  const info = [
+    { icon: 'map-pin' as const, text: textProp(props, 'venue') },
+    { icon: 'clock' as const, text: textProp(props, 'time') },
+  ].filter(row => row.text)
   const cta = textProp(props, 'cta')
   const badgeWidth = (landscape ? 640 : 520) * k
   const ringSize = (2 * EMBLEM_RING.radius * badgeWidth) / BRAND_LOGOS.emblem.width
@@ -922,8 +925,13 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
           h(
             'div',
             { style: { transform: 'skewX(12deg)', display: 'flex', flexDirection: 'column', gap: 8 } },
-            info.map((line, index) =>
-              h('div', { key: `${line}-${index}`, style: { ...display, fontStyle: 'normal', fontSize: index ? 34 : 40, color: index ? colors.soft : '#fff' } }, line),
+            info.map((row, index) =>
+              h(
+                'div',
+                { key: row.icon, style: { ...display, fontStyle: 'normal', fontSize: index ? 34 : 40, color: index ? colors.soft : '#fff', display: 'flex', alignItems: 'center', gap: 16 } },
+                h(LucideIcon, { name: row.icon, size: 38, style: { color: colors.soft } }),
+                row.text,
+              ),
             ),
           ),
         )
@@ -1107,10 +1115,20 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
       ? h(RuleFrame, { colors, width: Math.min(width - 80, 900), frame, start: 14, seed: `outro-rules-${item.id}`, bolt: false, arcs: false, content: band => bandText(colors, band, headline, reveal(frame, 18, 12)) })
       : null,
     textProp(props, 'handle')
-      ? h('div', { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10) } }, textProp(props, 'handle'))
+      ? h(
+          'div',
+          { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10), display: 'flex', alignItems: 'center', gap: 20 } },
+          h(LucideIcon, { name: 'instagram', size: '0.85em', style: { filter: `drop-shadow(0 0 14px ${colors.glow})` } }),
+          textProp(props, 'handle'),
+        )
       : null,
     textProp(props, 'website')
-      ? h('div', { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: reveal(frame, 30, 10) } }, textProp(props, 'website'))
+      ? h(
+          'div',
+          { style: { ...body, fontSize: 30, fontWeight: 800, letterSpacing: 10, color: colors.soft, opacity: reveal(frame, 30, 10), display: 'flex', alignItems: 'center', gap: 14 } },
+          h(LucideIcon, { name: 'globe' }),
+          textProp(props, 'website'),
+        )
       : null,
   )
 }
