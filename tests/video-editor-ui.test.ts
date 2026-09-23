@@ -63,10 +63,10 @@ describe('quick actions', () => {
     expect(quickActionsFor(null)).toEqual(['split'])
   })
 
-  it('offers mute only for video clips and replace only for media', () => {
-    expect(quickActionsFor(createMediaItem(video, 0, 30))).toEqual(['split', 'duplicate', 'mute', 'replace', 'delete'])
+  it('offers mute only for video clips, slip for timed media and replace only for media', () => {
+    expect(quickActionsFor(createMediaItem(video, 0, 30))).toEqual(['split', 'duplicate', 'mute', 'slip', 'replace', 'delete'])
     expect(quickActionsFor(createMediaItem(image, 0, 30))).toEqual(['split', 'duplicate', 'replace', 'delete'])
-    expect(quickActionsFor(createMediaItem(audio, 0, 30))).toEqual(['split', 'duplicate', 'replace', 'delete'])
+    expect(quickActionsFor(createMediaItem(audio, 0, 30))).toEqual(['split', 'duplicate', 'slip', 'replace', 'delete'])
     expect(quickActionsFor(createGraphicItem('hype-title', 0, 30))).toEqual(['split', 'duplicate', 'delete'])
   })
 })

@@ -28,6 +28,7 @@ import {
   recordHistory,
   redoHistory,
   replaceItemAsset,
+  slipItem,
   splitItem,
   trimItem,
   undoHistory,
@@ -80,6 +81,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     snap: true,
     /** Snapping also catches the beat grid of the audio clips. */
     beatSnap: 'beats' as 'beats' | 'bars' | 'off',
+    /** Touch alternative to Alt-drag: dragging a video/audio clip slips its source. */
+    slipMode: false,
     saveState: 'saved' as SaveState,
     saveError: '',
     lastSavedAt: Date.now(),
@@ -275,6 +278,10 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     return trimItem(base, itemId, edge, delta, sourceFrames)
   }
 
+  function slip(base: VideoProject, itemId: string, delta: number) {
+    return slipItem(base, itemId, delta, sourceFrames)
+  }
+
   function splitSelected() {
     const target = state.selectedId || itemAtPlayhead()
     if (!target) return
@@ -383,6 +390,7 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     addTemplate,
     move,
     trim,
+    slip,
     splitSelected,
     duplicateSelected,
     deleteSelected,
