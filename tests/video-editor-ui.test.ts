@@ -6,6 +6,7 @@ import {
   MIN_PREVIEW_WIDTH,
   clampPanelSizes,
   clampZoom,
+  fitZoom,
   defaultPanelSizes,
   filterMediaAssets,
   formatMediaDuration,
@@ -18,6 +19,20 @@ import {
 const video = { id: '11111111-1111-4111-8111-111111111111', mimeType: 'video/mp4', durationMs: 10_000 }
 const image = { id: '22222222-2222-4222-8222-222222222222', mimeType: 'image/jpeg', durationMs: null }
 const audio = { id: '33333333-3333-4333-8333-333333333333', mimeType: 'audio/mpeg', durationMs: 60_000 }
+
+describe('zoom to fit', () => {
+  it('fits the duration into the width without overflowing', () => {
+    // 60s into 1200px = 20 px/s; 7s into 1000px = 142.86 → 142.
+    expect(fitZoom(1800, 30, 1200)).toBe(20)
+    expect(fitZoom(210, 30, 1000)).toBe(142)
+    expect(fitZoom(210, 30, 1000) * 7).toBeLessThanOrEqual(1000)
+  })
+
+  it('stays within the zoom range', () => {
+    expect(fitZoom(30 * 180, 30, 500)).toBe(MIN_TIMELINE_ZOOM)
+    expect(fitZoom(3, 30, 2000)).toBe(MAX_TIMELINE_ZOOM)
+  })
+})
 
 describe('timeline zoom', () => {
   it('clamps zoom to the supported range', () => {
