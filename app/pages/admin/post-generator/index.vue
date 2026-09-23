@@ -10,6 +10,13 @@ import {
   type PostPreset,
   type PostTemplateKey,
 } from '~~/shared/post-generator'
+import {
+  fitPreviewSize,
+  pinchPostZoom,
+  resolveSheetSnap,
+  sheetSnapHeights,
+  type PostEditorSheetSnap,
+} from '~~/shared/post-editor-ui'
 
 definePageMeta({ layout: 'admin' })
 
@@ -56,15 +63,75 @@ const lastRenderedUrl = ref('')
 const openSections = ref<number[]>([1, 2, 3])
 
 type MobileTool = 'photo' | 'template' | 'text' | 'style' | 'export'
+type MobileSheetTool = Exclude<MobileTool, 'export'>
 
-const mobileTool = ref<MobileTool>('text')
-const mobileTabs: Array<{ key: MobileTool, label: string, icon: string, step: number }> = [
-  { key: 'photo', label: 'Foto', icon: '▧', step: 1 },
-  { key: 'template', label: 'Template', icon: '▦', step: 2 },
-  { key: 'text', label: 'Tekst', icon: 'T', step: 3 },
-  { key: 'style', label: 'Stijl', icon: '◉', step: 4 },
-  { key: 'export', label: 'Export', icon: '⇧', step: 5 },
+const mobileTool = ref<MobileSheetTool>('text')
+const mobileTabs: Array<{ key: MobileTool, label: string, title: string, icon: string, step: number }> = [
+  { key: 'photo', label: 'Foto', title: 'Foto', icon: 'lucide:image', step: 1 },
+  { key: 'template', label: 'Template', title: 'Templates', icon: 'lucide:layout-grid', step: 2 },
+  { key: 'text', label: 'Tekst', title: 'Tekst', icon: 'lucide:type', step: 3 },
+  { key: 'style', label: 'Stijl', title: 'Stijl', icon: 'lucide:palette', step: 4 },
+  { key: 'export', label: 'Export', title: 'Export', icon: 'lucide:share', step: 5 },
 ]
+
+// Mobile editor: preview-first canvas with a bottom sheet per tool.
+const isMobile = ref(false)
+const workspaceRef = ref<HTMLElement | null>(null)
+const previewStageRef = ref<HTMLElement | null>(null)
+const previewToolbarRef = ref<HTMLElement | null>(null)
+const sheetScrollRef = ref<HTMLElement | null>(null)
+const sheetSnap = ref<PostEditorSheetSnap>('closed')
+const lastOpenSnap = ref<Exclude<PostEditorSheetSnap, 'closed'>>('normal')
+// Height a sheet keeps while sliding away after being dragged closed.
+const closedHeight = ref<number | null>(null)
+const workspaceHeight = ref(0)
+const toolbarHeight = ref(0)
+const viewportHeight = ref(0)
+const stageSize = reactive({ width: 0, height: 0 })
+const templateCategory = ref('all')
+const sheetDrag = reactive({
+  active: false,
+  moved: false,
+  pointerId: -1,
+  startY: 0,
+  startHeight: 0,
+  height: 0,
+  lastY: 0,
+  lastTime: 0,
+  velocity: 0,
+})
+let suppressHandleClick = false
+let resizeObserver: ResizeObserver | null = null
+let mobileQuery: MediaQueryList | null = null
+
+const sheetOpen = computed(() => sheetSnap.value !== 'closed')
+const sheetSnaps = computed(() => sheetSnapHeights({
+  viewportHeight: viewportHeight.value,
+  // The format controls stay reachable above even an expanded sheet.
+  workspaceHeight: workspaceHeight.value - toolbarHeight.value,
+}))
+const sheetHeight = computed(() => {
+  if (sheetDrag.active) return sheetDrag.height
+  if (!sheetOpen.value && closedHeight.value !== null) return closedHeight.value
+  return sheetSnaps.value[sheetOpen.value ? sheetSnap.value : lastOpenSnap.value]
+})
+const mobileEditorStyle = computed(() => ({
+  '--sheet-height': sheetHeight.value + 'px',
+  '--sheet-inset': (sheetOpen.value ? sheetSnaps.value[sheetSnap.value] : 0) + 'px',
+}))
+const activeToolTitle = computed(() => mobileTabs.find(tab => tab.key === mobileTool.value)?.title || '')
+const templateCategories = computed(() => [...new Set(templates.map(template => template.category))])
+const canvasFrameStyle = computed(() => {
+  if (!isMobile.value) return undefined
+  const target = POST_PRESETS[design.preset]
+  const fit = fitPreviewSize({
+    availableWidth: stageSize.width,
+    availableHeight: stageSize.height,
+    designWidth: target.width,
+    designHeight: target.height,
+  })
+  return { width: fit.width + 'px', height: fit.height + 'px' }
+})
 
 const dragState = reactive({
   active: false,
@@ -74,6 +141,12 @@ const dragState = reactive({
   startImageX: 0,
   startImageY: 0,
 })
+const pinchState = reactive({
+  active: false,
+  startDistance: 0,
+  startZoom: 1,
+})
+const activePointers = new Map<number, { x: number, y: number }>()
 let sourceBitmap: ImageBitmap | null = null
 
 const design = reactive<PostDesign>({
@@ -167,8 +240,114 @@ function toggleSection(step: number) {
 }
 
 function selectMobileTool(tool: MobileTool, step: number) {
+  // Export is an action, not an editing sheet.
+  if (tool === 'export') {
+    void renderAndSave()
+    return
+  }
+
+  if (sheetOpen.value && mobileTool.value === tool) {
+    closeSheet()
+    return
+  }
+
+  if (mobileTool.value !== tool && sheetScrollRef.value) sheetScrollRef.value.scrollTop = 0
   mobileTool.value = tool
   if (!isSectionOpen(step)) openSections.value = [...openSections.value, step]
+  if (!sheetOpen.value) sheetSnap.value = 'normal'
+}
+
+function setSheetSnap(snap: PostEditorSheetSnap) {
+  sheetSnap.value = snap
+  if (snap !== 'closed') {
+    lastOpenSnap.value = snap
+    closedHeight.value = null
+  }
+}
+
+function closeSheet() {
+  setSheetSnap('closed')
+}
+
+function toggleSheetSize() {
+  if (suppressHandleClick) {
+    suppressHandleClick = false
+    return
+  }
+  setSheetSnap(sheetSnap.value === 'expanded' ? 'normal' : 'expanded')
+}
+
+function startSheetDrag(event: PointerEvent) {
+  if ((event.target as HTMLElement).closest('.sheet-close')) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+
+  const now = performance.now()
+  Object.assign(sheetDrag, {
+    active: true,
+    moved: false,
+    pointerId: event.pointerId,
+    startY: event.clientY,
+    startHeight: sheetHeight.value,
+    height: sheetHeight.value,
+    lastY: event.clientY,
+    lastTime: now,
+    velocity: 0,
+  })
+  suppressHandleClick = false
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+}
+
+function moveSheetDrag(event: PointerEvent) {
+  if (!sheetDrag.active || event.pointerId !== sheetDrag.pointerId) return
+
+  const now = performance.now()
+  const deltaY = sheetDrag.startY - event.clientY
+  if (Math.abs(deltaY) > 6) sheetDrag.moved = true
+  sheetDrag.height = Math.max(0, Math.min(sheetSnaps.value.expanded, sheetDrag.startHeight + deltaY))
+  // Positive velocity means the sheet is growing (finger moving up), in px/ms.
+  if (now > sheetDrag.lastTime) sheetDrag.velocity = (sheetDrag.lastY - event.clientY) / (now - sheetDrag.lastTime)
+  sheetDrag.lastY = event.clientY
+  sheetDrag.lastTime = now
+}
+
+function endSheetDrag(event: PointerEvent) {
+  if (!sheetDrag.active || event.pointerId !== sheetDrag.pointerId) return
+
+  const target = event.currentTarget as HTMLElement
+  if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
+  if (sheetDrag.moved) {
+    suppressHandleClick = true
+    const snap = resolveSheetSnap({
+      height: sheetDrag.height,
+      velocity: sheetDrag.velocity,
+      snaps: sheetSnaps.value,
+    })
+    if (snap === 'closed') closedHeight.value = sheetDrag.height
+    setSheetSnap(snap)
+  }
+  sheetDrag.active = false
+  sheetDrag.pointerId = -1
+}
+
+function updateViewportHeight() {
+  viewportHeight.value = window.visualViewport?.height || window.innerHeight
+}
+
+function updateMobile() {
+  isMobile.value = Boolean(mobileQuery?.matches)
+}
+
+function measureLayout(entries: ResizeObserverEntry[]) {
+  for (const entry of entries) {
+    if (entry.target === workspaceRef.value) {
+      workspaceHeight.value = entry.contentRect.height
+    } else if (entry.target === previewToolbarRef.value) {
+      toolbarHeight.value = (entry.target as HTMLElement).offsetHeight
+    } else if (entry.target === previewStageRef.value) {
+      stageSize.width = entry.contentRect.width
+      stageSize.height = entry.contentRect.height
+    }
+  }
 }
 
 function chooseFreshFile(event: Event) {
@@ -263,21 +442,55 @@ function clampCropPosition(value: number) {
   return Math.max(-1, Math.min(1, value))
 }
 
+function pointerDistance() {
+  const [a, b] = [...activePointers.values()]
+  if (!a || !b) return 0
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function beginDrag(pointerId: number, x: number, y: number) {
+  dragState.active = true
+  dragState.pointerId = pointerId
+  dragState.startX = x
+  dragState.startY = y
+  dragState.startImageX = design.imageX
+  dragState.startImageY = design.imageY
+}
+
 function startPreviewDrag(event: PointerEvent) {
   if (!canvasRef.value || !sourceBitmap) return
   if (event.pointerType === 'mouse' && event.button !== 0) return
 
   event.preventDefault()
-  dragState.active = true
-  dragState.pointerId = event.pointerId
-  dragState.startX = event.clientX
-  dragState.startY = event.clientY
-  dragState.startImageX = design.imageX
-  dragState.startImageY = design.imageY
+  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
   canvasRef.value.setPointerCapture(event.pointerId)
+
+  // A second finger turns the drag into a pinch-to-zoom.
+  if (activePointers.size === 2) {
+    dragState.active = false
+    dragState.pointerId = -1
+    pinchState.active = true
+    pinchState.startDistance = pointerDistance()
+    pinchState.startZoom = design.zoom
+    return
+  }
+
+  if (activePointers.size === 1) beginDrag(event.pointerId, event.clientX, event.clientY)
 }
 
 function movePreviewDrag(event: PointerEvent) {
+  const pointer = activePointers.get(event.pointerId)
+  if (pointer) {
+    pointer.x = event.clientX
+    pointer.y = event.clientY
+  }
+
+  if (pinchState.active && pointer) {
+    event.preventDefault()
+    design.zoom = pinchPostZoom(pinchState.startZoom, pinchState.startDistance, pointerDistance())
+    return
+  }
+
   if (!dragState.active || event.pointerId !== dragState.pointerId || !canvasRef.value || !sourceBitmap) return
 
   event.preventDefault()
@@ -310,12 +523,29 @@ function movePreviewDrag(event: PointerEvent) {
 }
 
 function endPreviewDrag(event: PointerEvent) {
-  if (event.pointerId !== dragState.pointerId) return
+  if (!activePointers.delete(event.pointerId)) return
   if (canvasRef.value?.hasPointerCapture(event.pointerId)) {
     canvasRef.value.releasePointerCapture(event.pointerId)
   }
+
+  if (pinchState.active) {
+    if (activePointers.size >= 2) return
+    pinchState.active = false
+    // Continue dragging with the finger that stays down, without a jump.
+    const [remaining] = [...activePointers.entries()]
+    if (remaining) beginDrag(remaining[0], remaining[1].x, remaining[1].y)
+    return
+  }
+
+  if (event.pointerId !== dragState.pointerId) return
   dragState.active = false
   dragState.pointerId = -1
+}
+
+function resetImagePosition() {
+  design.imageX = 0
+  design.imageY = 0
+  design.zoom = 1
 }
 
 watch(sourceAssetId, () => {
@@ -328,8 +558,26 @@ watch(design, () => void renderPreview(), { deep: true })
 onMounted(() => {
   if (!sourceAssetId.value && data.value?.assets[0]) sourceAssetId.value = data.value.assets[0].id
   else void loadSelectedSource()
+
+  mobileQuery = window.matchMedia('(max-width: 720px)')
+  updateMobile()
+  mobileQuery.addEventListener('change', updateMobile)
+  updateViewportHeight()
+  window.visualViewport?.addEventListener('resize', updateViewportHeight)
+  window.addEventListener('resize', updateViewportHeight)
+  resizeObserver = new ResizeObserver(measureLayout)
+  if (workspaceRef.value) resizeObserver.observe(workspaceRef.value)
+  if (previewStageRef.value) resizeObserver.observe(previewStageRef.value)
+  if (previewToolbarRef.value) resizeObserver.observe(previewToolbarRef.value)
 })
-onBeforeUnmount(() => sourceBitmap?.close())
+
+onBeforeUnmount(() => {
+  sourceBitmap?.close()
+  resizeObserver?.disconnect()
+  mobileQuery?.removeEventListener('change', updateMobile)
+  window.visualViewport?.removeEventListener('resize', updateViewportHeight)
+  window.removeEventListener('resize', updateViewportHeight)
+})
 
 function setPreset(preset: PostPreset) {
   design.preset = preset
@@ -470,7 +718,7 @@ function formatDate(value: string) {
 </script>
 
 <template>
-  <div class="page">
+  <div class="page" :class="{ 'sheet-open': sheetOpen }" :style="mobileEditorStyle">
     <header class="mobile-editor-header">
       <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()">←</button>
       <strong>Post editor</strong>
@@ -506,10 +754,41 @@ function formatDate(value: string) {
       </div>
     </header>
 
-    <p v-if="message" class="message">{{ message }}</p>
+    <p v-if="message" class="message">
+      {{ message }}
+      <a v-if="lastRenderedUrl" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">Download PNG</a>
+    </p>
 
-    <div class="workspace">
-      <aside class="controls" :class="'mobile-tool-' + mobileTool">
+    <div ref="workspaceRef" class="workspace">
+      <aside
+        class="controls"
+        :class="['mobile-tool-' + mobileTool, 'sheet-' + sheetSnap, { 'sheet-dragging': sheetDrag.active }]"
+        :aria-label="isMobile ? activeToolTitle : undefined"
+      >
+        <div
+          class="mobile-sheet-head"
+          @pointerdown="startSheetDrag"
+          @pointermove="moveSheetDrag"
+          @pointerup="endSheetDrag"
+          @pointercancel="endSheetDrag"
+        >
+          <button
+            class="sheet-handle"
+            type="button"
+            :aria-label="sheetSnap === 'expanded' ? 'Paneel verkleinen' : 'Paneel vergroten'"
+            @click="toggleSheetSize"
+          >
+            <span />
+          </button>
+          <div class="sheet-title-row">
+            <strong>{{ activeToolTitle }}</strong>
+            <button class="sheet-close" type="button" aria-label="Paneel sluiten" @click="closeSheet">
+              <Icon name="lucide:x" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div ref="sheetScrollRef" class="controls-scroll">
         <section class="workflow-card">
           <button
             class="section-heading"
@@ -583,6 +862,28 @@ function formatDate(value: string) {
                 <span v-if="sourceAssetId === asset.id" class="selected-mark"><Icon name="lucide:check" aria-hidden="true" /></span>
               </button>
             </div>
+
+            <div class="mobile-only photo-adjust">
+              <div class="subheading-row">
+                <strong>Positie</strong>
+                <button class="with-icon reset-position" type="button" @click="resetImagePosition">
+                  <Icon name="lucide:rotate-ccw" aria-hidden="true" />Reset
+                </button>
+              </div>
+              <p class="photo-adjust-hint"><Icon name="lucide:move" aria-hidden="true" /> Sleep de foto om te verplaatsen, knijp om te zoomen.</p>
+              <label>
+                <span class="label-row"><span>Schaal</span><small>{{ design.zoom.toFixed(2) }}<IconTimes /></small></span>
+                <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
+              </label>
+              <label>
+                <span>Horizontaal</span>
+                <input v-model.number="design.imageX" type="range" min="-1" max="1" step=".02">
+              </label>
+              <label>
+                <span>Verticaal</span>
+                <input v-model.number="design.imageY" type="range" min="-1" max="1" step=".02">
+              </label>
+            </div>
           </div>
         </section>
 
@@ -625,13 +926,39 @@ function formatDate(value: string) {
               <small>Visual style</small>
             </div>
 
+            <div class="mobile-only template-chips" role="group" aria-label="Template categorie">
+              <button
+                type="button"
+                class="chip"
+                :class="{ active: templateCategory === 'all' }"
+                :aria-pressed="templateCategory === 'all'"
+                @click="templateCategory = 'all'"
+              >
+                Alle
+              </button>
+              <button
+                v-for="category in templateCategories"
+                :key="category"
+                type="button"
+                class="chip"
+                :class="{ active: templateCategory === category }"
+                :aria-pressed="templateCategory === category"
+                @click="templateCategory = category"
+              >
+                {{ category }}
+              </button>
+            </div>
+
             <div class="template-grid">
               <button
                 v-for="template in templates"
                 :key="template.key"
                 type="button"
                 class="template-card"
-                :class="{ active: design.templateKey === template.key }"
+                :class="{
+                  active: design.templateKey === template.key,
+                  'mobile-filtered-out': templateCategory !== 'all' && template.category !== templateCategory,
+                }"
                 @click="applyTemplate(template.key)"
               >
                 <span
@@ -693,7 +1020,11 @@ function formatDate(value: string) {
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
             <div class="field">
               <div class="label-row">
-                <span class="mobile-labelable" data-mobile-label="Titel">Headline</span>
+                <span class="mobile-only field-icon"><Icon name="lucide:type" aria-hidden="true" /></span>
+                <span class="field-name">
+                  <span class="field-label mobile-labelable" data-mobile-label="Titel">Headline</span>
+                  <small class="mobile-only field-hint">De hoofdtekst op je post.</small>
+                </span>
                 <span class="field-actions">
                   <small>{{ design.headline.length }}/180</small>
                   <label class="field-toggle">
@@ -707,7 +1038,11 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span class="mobile-labelable" data-mobile-label="Subtitel">Subline</span>
+                <span class="mobile-only field-icon"><Icon name="lucide:align-left" aria-hidden="true" /></span>
+                <span class="field-name">
+                  <span class="field-label mobile-labelable" data-mobile-label="Subtitel">Subline</span>
+                  <small class="mobile-only field-hint">Een extra regel onder de headline.</small>
+                </span>
                 <span class="field-actions">
                   <small>{{ design.subline.length }}/260</small>
                   <label class="field-toggle">
@@ -722,7 +1057,11 @@ function formatDate(value: string) {
             <div class="two">
               <div class="field">
                 <div class="label-row">
-                  <span class="mobile-labelable" data-mobile-label="Datum">Date</span>
+                  <span class="mobile-only field-icon"><Icon name="lucide:calendar" aria-hidden="true" /></span>
+                  <span class="field-name">
+                    <span class="field-label mobile-labelable" data-mobile-label="Datum">Date</span>
+                    <small class="mobile-only field-hint">Wanneer het is.</small>
+                  </span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.date" type="checkbox">
                     <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
@@ -733,7 +1072,11 @@ function formatDate(value: string) {
 
               <div class="field">
                 <div class="label-row">
-                  <span class="mobile-labelable" data-mobile-label="Tijd">Time</span>
+                  <span class="mobile-only field-icon"><Icon name="lucide:clock" aria-hidden="true" /></span>
+                  <span class="field-name">
+                    <span class="field-label mobile-labelable" data-mobile-label="Tijd">Time</span>
+                    <small class="mobile-only field-hint">Begin- en eindtijd.</small>
+                  </span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.time" type="checkbox">
                     <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
@@ -745,7 +1088,11 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span class="mobile-labelable" data-mobile-label="Locatie">Location</span>
+                <span class="mobile-only field-icon"><Icon name="lucide:map-pin" aria-hidden="true" /></span>
+                <span class="field-name">
+                  <span class="field-label mobile-labelable" data-mobile-label="Locatie">Location</span>
+                  <small class="mobile-only field-hint">Laat zien waar het is.</small>
+                </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.location" type="checkbox">
                   <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
@@ -756,7 +1103,11 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Call to action</span>
+                <span class="mobile-only field-icon"><Icon name="lucide:megaphone" aria-hidden="true" /></span>
+                <span class="field-name">
+                  <span class="field-label">Call to action</span>
+                  <small class="mobile-only field-hint">Een afsluitende oproep.</small>
+                </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.cta" type="checkbox">
                   <span>{{ design.visibility.cta ? 'Shown' : 'Hidden' }}</span>
@@ -806,7 +1157,11 @@ function formatDate(value: string) {
 
             <div class="field">
               <div class="label-row">
-                <span>Brand label</span>
+                <span class="mobile-only field-icon"><Icon name="lucide:tag" aria-hidden="true" /></span>
+                <span class="field-name">
+                  <span class="field-label">Brand label</span>
+                  <small class="mobile-only field-hint">Het merklabel bovenin.</small>
+                </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.logo" type="checkbox">
                   <span>{{ design.visibility.logo ? 'Shown' : 'Hidden' }}</span>
@@ -815,7 +1170,7 @@ function formatDate(value: string) {
               <input v-model="design.logoText" maxlength="80" :disabled="!design.visibility.logo">
             </div>
 
-            <div class="field">
+            <div class="field brand-field">
               <span>Brand preset</span>
               <select v-model="design.brandPreset">
                 <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
@@ -840,15 +1195,15 @@ function formatDate(value: string) {
           </button>
 
           <div v-if="isSectionOpen(4)" class="section-body form-stack">
-            <label>
+            <label class="crop-control">
               <span class="label-row"><span>Zoom</span><small>{{ design.zoom.toFixed(2) }}<IconTimes /></small></span>
               <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
             </label>
-            <label>
+            <label class="crop-control">
               <span>Horizontal position</span>
               <input v-model.number="design.imageX" type="range" min="-1" max="1" step=".02">
             </label>
-            <label>
+            <label class="crop-control">
               <span>Vertical position</span>
               <input v-model.number="design.imageY" type="range" min="-1" max="1" step=".02">
             </label>
@@ -856,7 +1211,55 @@ function formatDate(value: string) {
               <span class="label-row"><span>Overlay</span><small>{{ Math.round(design.overlayOpacity * 100) }}%</small></span>
               <input v-model.number="design.overlayOpacity" type="range" min="0" max=".9" step=".02">
             </label>
-            <div class="two">
+            <div class="mobile-only style-group">
+              <span>Merk</span>
+              <div class="chip-row">
+                <button
+                  v-for="brand in brands"
+                  :key="brand.key"
+                  type="button"
+                  class="chip brand-chip"
+                  :class="{ active: design.brandPreset === brand.key }"
+                  :aria-pressed="design.brandPreset === brand.key"
+                  @click="design.brandPreset = brand.key"
+                >
+                  <i :style="{ background: brand.colors[0] }" />{{ brand.label }}
+                </button>
+              </div>
+            </div>
+            <div class="mobile-only style-group">
+              <span>Uitlijning</span>
+              <div class="chip-row segmented">
+                <button
+                  v-for="option in [{ key: 'left', label: 'Links', icon: 'lucide:align-left' }, { key: 'center', label: 'Midden', icon: 'lucide:align-center' }, { key: 'right', label: 'Rechts', icon: 'lucide:align-right' }] as const"
+                  :key="option.key"
+                  type="button"
+                  class="chip"
+                  :class="{ active: design.textAlign === option.key }"
+                  :aria-pressed="design.textAlign === option.key"
+                  @click="design.textAlign = option.key"
+                >
+                  <Icon :name="option.icon" aria-hidden="true" />{{ option.label }}
+                </button>
+              </div>
+            </div>
+            <div class="mobile-only style-group">
+              <span>Tekstpositie</span>
+              <div class="chip-row segmented">
+                <button
+                  v-for="option in [{ key: 'top', label: 'Boven' }, { key: 'middle', label: 'Midden' }, { key: 'bottom', label: 'Onder' }] as const"
+                  :key="option.key"
+                  type="button"
+                  class="chip"
+                  :class="{ active: design.textPosition === option.key }"
+                  :aria-pressed="design.textPosition === option.key"
+                  @click="design.textPosition = option.key"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+            <div class="two text-layout">
               <label>
                 <span>Text alignment</span>
                 <select v-model="design.textAlign">
@@ -905,11 +1308,12 @@ function formatDate(value: string) {
             <a v-if="lastRenderedUrl" class="download-link" :href="lastRenderedUrl" download="nightlight-post.png">Download latest PNG</a>
           </div>
         </section>
+        </div>
       </aside>
 
       <main class="stage-stack">
         <section ref="previewShellRef" class="preview-shell">
-          <div class="preview-toolbar">
+          <div ref="previewToolbarRef" class="preview-toolbar">
             <div>
               <strong>Preview</strong>
               <small>See how your post will look on Instagram.</small>
@@ -930,8 +1334,8 @@ function formatDate(value: string) {
             </div>
           </div>
 
-          <div class="preview-stage">
-            <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset">
+          <div ref="previewStageRef" class="preview-stage">
+            <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset" :style="canvasFrameStyle">
               <canvas
                 ref="canvasRef"
                 class="preview-canvas"
@@ -1000,13 +1404,14 @@ function formatDate(value: string) {
         v-for="tab in mobileTabs"
         :key="tab.key"
         class="mobile-tool-tab"
-        :class="{ active: mobileTool === tab.key }"
+        :class="{ active: sheetOpen && mobileTool === tab.key }"
         type="button"
-        :aria-current="mobileTool === tab.key ? 'page' : undefined"
+        :aria-expanded="tab.key === 'export' ? undefined : sheetOpen && mobileTool === tab.key"
+        :disabled="tab.key === 'export' && (busy === 'render' || !readyToGenerate)"
         @click="selectMobileTool(tab.key, tab.step)"
       >
-        <span class="mobile-tab-icon" aria-hidden="true">{{ tab.icon }}</span>
-        <span>{{ tab.label }}</span>
+        <span class="mobile-tab-icon" aria-hidden="true"><Icon :name="tab.icon" /></span>
+        <span>{{ tab.key === 'export' && busy === 'render' ? 'Bezig…' : tab.label }}</span>
       </button>
     </nav>
   </div>
@@ -1024,6 +1429,17 @@ function formatDate(value: string) {
 .mobile-editor-header,
 .mobile-tool-tabs {
   display: none;
+}
+
+/* Mobile sheet chrome and mobile-only controls; the desktop layout ignores the
+   sheet wrapper so the accordion cards stay direct grid items. */
+.mobile-sheet-head,
+.mobile-only {
+  display: none;
+}
+
+.controls-scroll {
+  display: contents;
 }
 
 .page-header,
@@ -2271,8 +2687,13 @@ input[type='range'] {
 }
 
 @media (max-width: 720px) {
+  /* Preview-first canvas with a bottom sheet per tool. The sheet height and
+     the space it takes from the preview come from the script as
+     --sheet-height and --sheet-inset. */
   .page {
     --mobile-editor-tabs-height: 4.6rem;
+    --sheet-ease: cubic-bezier(.22, .8, .24, 1);
+    --sheet-duration: .22s;
     width: 100%;
     max-width: 100%;
     height: 100%;
@@ -2296,7 +2717,7 @@ input[type='range'] {
     align-items: center;
     gap: .55rem;
     min-height: 3.7rem;
-    margin: 0 0 .5rem;
+    margin: 0;
     padding: .35rem .15rem;
     border-bottom: 1px solid rgba(74, 62, 84, .72);
     background: rgba(10, 8, 13, .96);
@@ -2340,55 +2761,68 @@ input[type='range'] {
     top: .75rem;
     left: .75rem;
     right: .75rem;
-    z-index: 55;
+    z-index: 70;
     margin: 0;
     box-shadow: 0 16px 42px rgba(0, 0, 0, .42);
   }
 
-  .workspace {
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    gap: .55rem;
-    overflow: hidden;
+  .message-download {
+    display: inline-block;
+    margin-left: .35rem;
+    color: #c9a5ff;
+    font-weight: 800;
   }
 
-  .stage-stack {
-    order: 1;
-    flex: 0 0 auto;
+  .workspace {
+    position: relative;
+    flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     min-height: 0;
     display: block;
     overflow: hidden;
+  }
+
+  /* Canvas */
+
+  .stage-stack {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     scrollbar-gutter: auto;
   }
 
-  .history {
+  .history,
+  .preview-note {
     display: none;
   }
 
   .preview-shell {
+    flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
-    height: auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: .9rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     box-shadow: none;
   }
 
   .preview-toolbar {
     flex: 0 0 auto;
     gap: .4rem;
-    padding: .42rem .52rem;
-    border-bottom-color: #27212d;
+    padding: .55rem 0;
+    border-bottom: 0;
   }
 
   .preview-toolbar > div:first-child {
@@ -2414,7 +2848,7 @@ input[type='range'] {
 
   .toggle-control {
     min-height: 2.75rem;
-    padding: 0 .5rem;
+    padding: 0 .6rem;
     border: 1px solid #39313f;
     border-radius: .68rem;
     background: #17141b;
@@ -2431,154 +2865,189 @@ input[type='range'] {
   }
 
   .preview-stage {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: 100%;
-    height: min(42dvh, calc(100vw - 2rem));
-    min-height: min(16rem, calc(100vw - 2rem));
-    max-height: 27rem;
-    padding: .45rem;
+    min-height: 0;
+    padding: .35rem 0 calc(var(--sheet-inset, 0px) + .75rem);
     overflow: hidden;
+    background: transparent;
+    transition: padding-bottom var(--sheet-duration) var(--sheet-ease);
   }
 
+  .page:not(.sheet-open) .preview-stage {
+    padding-bottom: 1rem;
+  }
+
+  /* Sized by the script so the whole post always fits the free space. */
   .canvas-frame {
-    width: 100%;
+    width: 0;
+    height: 0;
     max-width: 100%;
-    height: 100%;
     max-height: 100%;
+    overflow: hidden;
+    border-radius: .55rem;
+    box-shadow:
+      0 0 0 1px rgba(157, 92, 255, .55),
+      0 0 34px rgba(124, 58, 237, .32);
   }
 
   .preview-canvas {
-    width: auto;
-    max-width: 100%;
-    height: auto;
-    max-height: 100%;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .drag-hint {
     bottom: .45rem;
     max-width: calc(100% - 1rem);
     white-space: nowrap;
+    opacity: 0;
   }
 
-  .preview-note {
-    display: none;
+  .drag-hint.active {
+    opacity: 1;
   }
+
+  /* Bottom sheet */
 
   .controls {
-    order: 2;
-    flex: 1 1 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    order: initial;
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    height: var(--sheet-height, 0px);
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #3a2d4a;
+    border-bottom: 0;
+    border-radius: 1.35rem 1.35rem 0 0;
+    background: linear-gradient(180deg, #1a1422, #121016 5rem);
+    box-shadow: 0 -18px 48px rgba(0, 0, 0, .5), 0 -1px 0 rgba(157, 92, 255, .22);
+    scrollbar-gutter: auto;
+    transform: translateY(0);
+    transition:
+      height var(--sheet-duration) var(--sheet-ease),
+      transform var(--sheet-duration) var(--sheet-ease),
+      visibility 0s linear 0s;
+  }
+
+  .controls.sheet-closed {
+    visibility: hidden;
+    transform: translateY(calc(100% + 1rem));
+    transition:
+      height var(--sheet-duration) var(--sheet-ease),
+      transform var(--sheet-duration) var(--sheet-ease),
+      visibility 0s linear var(--sheet-duration);
+  }
+
+  .controls.sheet-dragging {
+    transition: none;
+  }
+
+  .mobile-sheet-head {
+    flex: 0 0 auto;
+    display: grid;
+    padding: 0 1rem .35rem 1.15rem;
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+  }
+
+  .sheet-handle {
+    justify-self: center;
+    width: 4rem;
+    min-height: 1.4rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: grab;
+  }
+
+  .sheet-handle span {
+    width: 2.6rem;
+    height: .3rem;
+    border-radius: 999px;
+    background: #4a4252;
+  }
+
+  .sheet-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+
+  .sheet-title-row strong {
+    font-size: 1.35rem;
+    letter-spacing: -.03em;
+  }
+
+  .sheet-close {
+    width: 2.6rem;
+    height: 2.6rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-color: #3a3241;
+    border-radius: 50%;
+    background: transparent;
+    color: #e8e1ed;
+    font-size: 1.15rem;
+  }
+
+  .controls-scroll {
+    flex: 1 1 auto;
     min-height: 0;
-    height: auto;
-    max-height: none;
+    display: block;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 0 0 .35rem;
-    scrollbar-gutter: auto;
+    padding: 0 0 .75rem;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
 
-  .controls > .workflow-card {
+  .controls-scroll > .workflow-card {
     display: none;
   }
 
-  .controls.mobile-tool-photo > .workflow-card:nth-child(1),
-  .controls.mobile-tool-template > .workflow-card:nth-child(2),
-  .controls.mobile-tool-text > .workflow-card:nth-child(3),
-  .controls.mobile-tool-style > .workflow-card:nth-child(4),
-  .controls.mobile-tool-export > .workflow-card:nth-child(5) {
+  .controls.mobile-tool-photo .workflow-card:nth-child(1),
+  .controls.mobile-tool-template .workflow-card:nth-child(2),
+  .controls.mobile-tool-text .workflow-card:nth-child(3),
+  .controls.mobile-tool-style .workflow-card:nth-child(4) {
     display: block;
   }
 
   .workflow-card {
     width: 100%;
     max-width: 100%;
-    min-height: 100%;
-    overflow: hidden;
-    border-radius: .9rem;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     box-shadow: none;
   }
 
+  /* The sheet has its own title; the accordion headings are desktop-only. */
   .section-heading {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 3rem;
-    padding: .72rem .85rem;
-    border-bottom: 1px solid #29232f;
-    background: rgba(17, 16, 20, .98);
-    backdrop-filter: blur(14px);
-  }
-
-  .step-number,
-  .chevron,
-  .section-title small {
     display: none;
   }
 
-  .section-title strong {
-    font-size: .95rem;
-  }
-
-  .controls.mobile-tool-text .section-heading {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: .7rem;
-    padding: .72rem .8rem;
-  }
-
-  .controls.mobile-tool-text .step-number {
-    width: 2.35rem;
-    height: 2.35rem;
-    display: grid;
-    font-size: 0;
-    background: linear-gradient(145deg, #c58cff, #8b5cf6);
-    box-shadow: 0 8px 22px rgba(139, 92, 246, .24);
-  }
-
-  .controls.mobile-tool-text .step-number::before {
-    content: 'T';
-    font-family: Georgia, serif;
-    font-size: 1.15rem;
-    font-weight: 900;
-  }
-
-  .controls.mobile-tool-text .section-title {
-    gap: .1rem;
-  }
-
-  .controls.mobile-tool-text .section-title small {
-    display: block;
-    color: #91899a;
-    line-height: 1.25;
-  }
-
-  .controls.mobile-tool-text .chevron {
-    display: block;
-  }
-
-  .controls.mobile-tool-text .mobile-labelable {
-    font-size: 0;
-  }
-
-  .controls.mobile-tool-text .mobile-labelable::after {
-    content: attr(data-mobile-label);
-    font-size: .72rem;
-  }
-
-  .controls.mobile-tool-text .section-title strong.mobile-labelable::after {
-    font-size: .95rem;
-  }
-
-  .controls.mobile-tool-text .section-title small.mobile-labelable::after {
-    font-size: .7rem;
-  }
-
   .section-body {
-    padding: .55rem .75rem .9rem;
+    padding: .25rem 1rem .5rem;
     border-top: 0;
   }
 
@@ -2588,6 +3057,54 @@ input[type='range'] {
   .controls button {
     min-height: 2.75rem;
   }
+
+  .controls .sheet-handle {
+    min-height: 1.4rem;
+  }
+
+  .mobile-only {
+    display: revert;
+  }
+
+  .subheading-row {
+    justify-content: space-between;
+    gap: .6rem;
+  }
+
+  .chip-row,
+  .template-chips {
+    display: flex;
+    gap: .45rem;
+    max-width: 100%;
+    overflow-x: auto;
+    padding: .1rem 0;
+    scrollbar-width: none;
+  }
+
+  .chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    min-height: 2.6rem;
+    padding: 0 1.05rem;
+    border-color: #3a3241;
+    border-radius: 999px;
+    background: transparent;
+    color: #d8d0de;
+    font-size: .82rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .chip.active {
+    border-color: #9d5cff;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+  }
+
+  /* Foto */
 
   .upload-zone {
     min-height: 3.4rem;
@@ -2621,79 +3138,171 @@ input[type='range'] {
     scroll-snap-align: start;
   }
 
-  .format-grid {
-    display: flex;
-    gap: .48rem;
-    max-width: 100%;
-    margin-top: .1rem;
-    overflow-x: auto;
-    padding-bottom: .3rem;
-    scroll-snap-type: x proximity;
+  .photo-adjust {
+    display: grid;
+    gap: .55rem;
+    margin-top: .9rem;
+    padding-top: .8rem;
+    border-top: 1px solid #29232f;
+    color: #bcb2c4;
+    font-size: .78rem;
   }
 
-  .format-card {
-    flex: 0 0 9.4rem;
-    min-height: 4rem;
-    scroll-snap-align: start;
+  .photo-adjust label {
+    display: grid;
+    gap: .3rem;
+  }
+
+  .reset-position {
+    min-height: 2.3rem !important;
+    padding: 0 .75rem;
+    font-size: .75rem;
+  }
+
+  .photo-adjust-hint {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    color: #8f8797;
+    font-size: .72rem;
+  }
+
+  /* Template */
+
+  .format-grid,
+  .section-body > .subheading-row {
+    display: none;
+  }
+
+  .template-chips {
+    margin-bottom: .85rem;
   }
 
   .template-grid {
     display: flex;
-    gap: .65rem;
+    gap: .6rem;
     max-width: 100%;
     overflow-x: auto;
     padding-bottom: .35rem;
-    scroll-snap-type: x mandatory;
+    scroll-snap-type: x proximity;
   }
 
   .template-card {
-    flex: 0 0 min(68vw, 15rem);
+    flex: 0 0 min(30vw, 9.5rem);
+    padding: 0;
+    border: 0;
+    background: transparent;
     scroll-snap-align: start;
   }
 
+  .template-card.mobile-filtered-out {
+    display: none;
+  }
+
+  .template-card .template-shot {
+    border: 2px solid #2f2836;
+    border-radius: .8rem;
+  }
+
+  .template-card.active .template-shot {
+    border-color: #a66bff;
+    box-shadow: 0 0 0 2px rgba(166, 107, 255, .25), 0 10px 26px rgba(124, 58, 237, .28);
+  }
+
+  .template-card.active {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .template-category {
+    display: none;
+  }
+
+  .template-copy {
+    padding: .45rem .1rem 0;
+  }
+
+  .template-copy-head em,
+  .template-copy small {
+    display: none;
+  }
+
+  .template-copy-head strong {
+    color: #cfc7d5;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+
+  /* Tekst */
+
   .controls.mobile-tool-text .form-stack {
     display: grid;
-    gap: .42rem;
-    padding-top: .55rem;
+    gap: .95rem;
   }
 
   .controls.mobile-tool-text .form-stack > .two {
     display: grid;
     grid-template-columns: 1fr;
-    gap: .42rem;
+    gap: .95rem;
   }
 
-  .controls.mobile-tool-text .form-stack > .field,
-  .controls.mobile-tool-text .form-stack > .two > .field {
-    display: grid;
-    grid-template-columns: minmax(4.7rem, .34fr) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: .48rem;
+  .form-stack .field {
     margin: 0;
-    padding: .48rem .58rem;
-    border: 1px solid #302936;
-    border-radius: .72rem;
-    background: #151219;
+  }
+
+  .controls.mobile-tool-text .field:not(.brand-field) {
+    display: grid;
+    grid-template-columns: 2.9rem minmax(0, 1fr);
+    column-gap: .8rem;
+    row-gap: .45rem;
   }
 
   .controls.mobile-tool-text .field > .label-row {
     display: contents;
   }
 
-  .controls.mobile-tool-text .field > .label-row > span:first-child,
-  .controls.mobile-tool-text .field > span:first-child {
+  .field-icon {
     grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
-    margin: 0;
-    color: #a79dad;
-    font-size: .72rem;
+    grid-row: 1 / span 2;
+    align-self: start;
+    width: 2.9rem;
+    height: 2.9rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid #3a3241;
+    border-radius: .75rem;
+    background: #151219;
+    color: #e8e1ed;
+    font-size: 1.15rem;
   }
 
-  .controls.mobile-tool-text .field-actions,
-  .controls.mobile-tool-text .field > .label-row > .field-toggle {
-    grid-column: 3;
+  .controls.mobile-tool-text .field-name {
+    grid-column: 2;
     grid-row: 1;
+    display: grid;
+    gap: .1rem;
+    min-width: 0;
+    padding-right: 7.5rem;
+  }
+
+  .field-label {
+    color: #f3eef7;
+    font-size: .88rem;
+    font-weight: 800;
+  }
+
+  .field-hint {
+    color: #8f8797;
+    font-size: .74rem;
+  }
+
+  .controls.mobile-tool-text .field > .label-row > .field-toggle,
+  .controls.mobile-tool-text .field-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
   }
 
   .controls.mobile-tool-text .field-actions > small {
@@ -2701,37 +3310,46 @@ input[type='range'] {
   }
 
   .controls.mobile-tool-text .field > input,
-  .controls.mobile-tool-text .field > textarea,
-  .controls.mobile-tool-text .field > select {
+  .controls.mobile-tool-text .field > textarea {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 2;
     min-width: 0;
-    min-height: 2.6rem;
-    padding: .42rem .5rem;
-    border-color: #28222e;
+    min-height: 2.9rem;
+    padding: .6rem .75rem;
+    border-color: #3a3241;
     background: #0f0d12;
-    font-size: .78rem;
+    font-size: .88rem;
   }
 
   .controls.mobile-tool-text textarea {
-    height: 2.6rem;
-    min-height: 2.6rem;
+    height: 2.9rem;
     resize: none;
   }
 
-  .controls.mobile-tool-text .field-toggle {
-    gap: 0;
+  .brand-field {
+    display: none !important;
   }
 
-  .controls.mobile-tool-text .field-toggle span {
+  .field-toggle {
+    gap: .5rem;
+    color: #d8d0de;
+    font-size: .8rem;
+  }
+
+  .field-toggle span {
     display: none;
   }
 
-  .controls.mobile-tool-text .field-toggle input {
+  .field-toggle::after {
+    content: 'Weergeven';
+  }
+
+  .field-toggle input,
+  .row-toggle input {
     position: relative;
-    width: 2.15rem;
-    height: 1.2rem;
-    min-height: 1.2rem;
+    width: 2.6rem;
+    height: 1.45rem;
+    min-height: 1.45rem !important;
     margin: 0;
     padding: 0;
     appearance: none;
@@ -2742,31 +3360,75 @@ input[type='range'] {
     transition: background .16s ease;
   }
 
-  .controls.mobile-tool-text .field-toggle input::after {
+  .field-toggle input::after,
+  .row-toggle input::after {
     content: '';
     position: absolute;
-    top: .15rem;
-    left: .15rem;
-    width: .9rem;
-    height: .9rem;
+    top: .2rem;
+    left: .2rem;
+    width: 1.05rem;
+    height: 1.05rem;
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
     transition: transform .16s ease;
   }
 
-  .controls.mobile-tool-text .field-toggle input:checked {
+  .field-toggle input:checked,
+  .row-toggle input:checked {
     background: #8b5cf6;
   }
 
-  .controls.mobile-tool-text .field-toggle input:checked::after {
-    transform: translateX(.95rem);
+  .field-toggle input:checked::after,
+  .row-toggle input:checked::after {
+    transform: translateX(1.15rem);
+  }
+
+  .gig-list-editor {
+    margin-top: 0;
   }
 
   .gig-row-fields,
   .two {
     grid-template-columns: 1fr;
   }
+
+  /* Stijl: position moves to Foto, selects become chips. */
+
+  .crop-control,
+  .text-layout {
+    display: none !important;
+  }
+
+  .style-group {
+    display: grid;
+    gap: .45rem;
+    color: #bcb2c4;
+    font-size: .78rem;
+  }
+
+  .form-stack > .style-group,
+  .form-stack > label {
+    margin-top: .9rem;
+  }
+
+  .form-stack > .crop-control + label:not(.crop-control) {
+    margin-top: 0;
+  }
+
+  .segmented .chip {
+    flex: 1 1 0;
+    padding: 0 .6rem;
+  }
+
+  .brand-chip i {
+    width: .8rem;
+    height: .8rem;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .18);
+  }
+
+  /* Bottom toolbar */
 
   .mobile-tool-tabs {
     position: relative;
@@ -2778,8 +3440,9 @@ input[type='range'] {
     min-width: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: .2rem;
     min-height: calc(var(--mobile-editor-tabs-height) + env(safe-area-inset-bottom));
-    padding: .38rem .15rem calc(.38rem + env(safe-area-inset-bottom));
+    padding: .45rem .3rem calc(.45rem + env(safe-area-inset-bottom));
     overflow: hidden;
     border-top: 1px solid rgba(68, 57, 77, .9);
     background: rgba(11, 9, 14, .98);
@@ -2789,17 +3452,19 @@ input[type='range'] {
 
   .mobile-tool-tab {
     min-width: 0;
-    min-height: 3.45rem;
+    min-height: 3.6rem;
     display: grid;
     grid-template-rows: 1.8rem auto;
     place-items: center;
-    gap: .08rem;
-    padding: .18rem .05rem;
+    gap: .15rem;
+    padding: .25rem .05rem;
     overflow: hidden;
-    border: 0;
+    border: 1px solid transparent;
+    border-radius: .9rem;
     background: transparent;
-    color: #8f8797;
-    font-size: .62rem;
+    color: #a79dad;
+    font-size: .72rem;
+    transition: background .16s ease, color .16s ease, border-color .16s ease;
   }
 
   .mobile-tool-tab > span:last-child {
@@ -2810,42 +3475,32 @@ input[type='range'] {
   }
 
   .mobile-tab-icon {
-    width: 1.85rem;
-    height: 1.85rem;
     display: grid;
     place-items: center;
-    border-radius: .65rem;
-    color: #b8aebe;
-    font-size: .9rem;
-    font-weight: 900;
-    transition: background .16s ease, color .16s ease, transform .16s ease;
+    color: #d8d0de;
+    font-size: 1.35rem;
   }
 
   .mobile-tool-tab.active {
-    color: #f7f3fb;
+    border-color: rgba(157, 92, 255, .55);
+    background: rgba(124, 58, 237, .18);
+    color: #c9a5ff;
   }
 
   .mobile-tool-tab.active .mobile-tab-icon {
-    background: linear-gradient(145deg, #bb8cff, #8b5cf6);
-    color: #130b1d;
-    box-shadow: 0 7px 18px rgba(139, 92, 246, .32);
-    transform: translateY(-1px);
+    color: #c9a5ff;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .page {
+    --sheet-duration: 0s;
   }
 }
 
 @media (max-width: 520px) {
-  .preview-stage {
-    height: min(40dvh, calc(100vw - 1.5rem));
-    min-height: min(14.5rem, calc(100vw - 1.5rem));
-  }
-
-  .template-card {
-    flex-basis: min(72vw, 14.5rem);
-  }
-
   .drag-hint {
     font-size: .62rem;
   }
 }
-
 </style>
