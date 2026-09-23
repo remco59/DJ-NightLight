@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   coverImageRect,
+  defaultPostGigItems,
+  defaultPostVisibility,
   POST_PRESETS,
+  POST_TEMPLATE_KEYS,
   safeAreaInsets,
 } from '../shared/post-generator'
 
@@ -49,5 +52,27 @@ describe('post generator', () => {
     const story = safeAreaInsets('story')
     expect(story.top).toBeGreaterThan(square.top)
     expect(story.bottom).toBeGreaterThan(square.bottom)
+  })
+
+  it('includes the editable NightLight campaign templates', () => {
+    expect(POST_TEMPLATE_KEYS).toContain('gig-announcement')
+    expect(POST_TEMPLATE_KEYS).toContain('recap')
+    expect(POST_TEMPLATE_KEYS).toContain('upcoming-gigs')
+  })
+
+  it('starts editable fields visible and provides planning rows', () => {
+    expect(defaultPostVisibility()).toMatchObject({
+      logo: true,
+      headline: true,
+      subline: true,
+      date: true,
+      time: true,
+      location: true,
+      cta: true,
+      gigList: true,
+    })
+    const gigs = defaultPostGigItems()
+    expect(gigs).toHaveLength(4)
+    expect(gigs.every(item => item.enabled)).toBe(true)
   })
 })
