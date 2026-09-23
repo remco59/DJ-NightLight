@@ -5,10 +5,7 @@ import {
   postImageDragDelta,
 } from '~~/shared/post-generator'
 import {
-  VIDEO_BRAND_PRESETS,
-  VIDEO_MOTION_PRESETS,
   VIDEO_OUTPUT,
-  VIDEO_TEMPLATES,
   defaultVideoGigItems,
   defaultVideoVisibility,
   type VideoBrandPreset,
