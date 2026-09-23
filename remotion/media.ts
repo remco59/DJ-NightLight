@@ -1,12 +1,9 @@
 import type React from 'react'
 import { createElement as h } from 'react'
 import { AbsoluteFill, Img, OffthreadVideo } from 'remotion'
-import type { ItemCrop, ProjectAsset } from '../shared/video-project'
+import type { ProjectAsset } from '../shared/video-project'
 
-export function cropClipPath(crop?: ItemCrop) {
-  if (!crop || (!crop.top && !crop.right && !crop.bottom && !crop.left)) return undefined
-  return `inset(${crop.top * 100}% ${crop.right * 100}% ${crop.bottom * 100}% ${crop.left * 100}%)`
-}
+export { cropClipPath } from '../shared/video-canvas'
 
 /** Full-frame image or video source, object-fit cover. */
 export const MediaFill: React.FC<{
