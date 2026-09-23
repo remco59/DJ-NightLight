@@ -548,6 +548,7 @@ defineExpose({ zoomToFit, zoomToSelection })
         <button type="button" title="Redo (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()"><Icon name="lucide:redo-2" aria-hidden="true" /></button>
         <span class="divider" />
         <button type="button" title="Delete (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+        <button type="button" title="Ripple delete: delete and pull later clips left (Shift+Delete)" :disabled="!state.selectedId" @click="editor.rippleDeleteSelected()"><Icon name="lucide:arrow-left-to-line" aria-hidden="true" /></button>
         <button type="button" title="Split at playhead (S)" @click="editor.splitSelected()"><Icon name="lucide:scissors" aria-hidden="true" /></button>
         <button type="button" title="Duplicate (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()"><Icon name="lucide:copy" aria-hidden="true" /></button>
         <button type="button" title="Add marker at playhead (M)" @click="addMarker"><Icon name="lucide:bookmark-plus" aria-hidden="true" /></button>
@@ -668,6 +669,7 @@ defineExpose({ zoomToFit, zoomToSelection })
             <span class="name">{{ track.name }}</span>
             <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
             <button v-if="track.kind !== 'graphics'" type="button" :title="track.muted ? 'Unmute track' : 'Mute track'" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
+            <button v-if="track.items.length > 1" type="button" title="Close gaps between clips" @click="editor.closeTrackGaps(track.id)"><Icon name="lucide:fold-horizontal" aria-hidden="true" /></button>
             <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Remove empty track" @click="editor.removeTrack(track.id)"><Icon name="lucide:x" aria-hidden="true" /></button>
           </div>
           <div
@@ -675,8 +677,10 @@ defineExpose({ zoomToFit, zoomToSelection })
             :class="{ 'drop-target': dropTrackId === track.id }"
             :data-track-id="track.id"
             :style="{ width: `${contentWidth}px` }"
+            title="Double-click a gap between clips to close it"
             @pointerdown="laneClick"
             @click="laneTap"
+            @dblclick.self="editor.closeGapAtFrame(track.id, frameAt($event.clientX, $event.currentTarget as Element))"
             @dragover="dragOver($event, track)"
             @dragleave="dropTrackId = ''"
             @drop="drop($event, track)"

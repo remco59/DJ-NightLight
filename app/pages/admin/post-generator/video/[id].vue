@@ -326,7 +326,8 @@ function onKey(event: KeyboardEvent) {
     }
     if (!state.selectedId) return
     event.preventDefault()
-    editor.deleteSelected()
+    if (event.shiftKey) editor.rippleDeleteSelected()
+    else editor.deleteSelected()
   } else if (key.startsWith('arrow') && nudgeSelected(key, event.shiftKey)) {
     event.preventDefault()
   } else if (key === 'arrowleft' || key === 'arrowright') {

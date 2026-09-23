@@ -23,6 +23,8 @@ import {
   addItem,
   addMarker,
   adjacentMarker,
+  closeGapAt,
+  closeGaps,
   deleteMarker,
   updateMarker,
   createHistory,
@@ -32,6 +34,7 @@ import {
   recordHistory,
   redoHistory,
   replaceItemAsset,
+  rippleDelete,
   slipItem,
   splitItem,
   trimItem,
@@ -348,6 +351,21 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     return adjacentMarker(state.project, frame, direction)
   }
 
+  /** Deletes the selection and pulls later clips on its track left. */
+  function rippleDeleteSelected() {
+    if (!state.selectedId) return
+    commit(rippleDelete(state.project, state.selectedId))
+    state.selectedId = null
+  }
+
+  function closeTrackGaps(trackId: string) {
+    commit(closeGaps(state.project, trackId))
+  }
+
+  function closeGapAtFrame(trackId: string, frame: number) {
+    commit(closeGapAt(state.project, trackId, frame))
+  }
+
   function replaceSelectedAsset(asset: EditorMediaAsset) {
     if (!state.selectedId) return false
     const next = replaceItemAsset(state.project, state.selectedId, asset)
@@ -438,6 +456,9 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     duplicateSelected,
     deleteSelected,
     replaceSelectedAsset,
+    rippleDeleteSelected,
+    closeTrackGaps,
+    closeGapAtFrame,
     addMarkerAtPlayhead,
     patchMarker,
     deleteSelectedMarker,
