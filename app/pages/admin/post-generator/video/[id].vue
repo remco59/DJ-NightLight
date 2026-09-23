@@ -260,6 +260,25 @@ function isTyping(target: EventTarget | null) {
   return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
+/**
+ * With the preview focused (clicked) and a visual clip selected, the arrow keys
+ * move the clip 1px (Shift: 10px); elsewhere they keep moving the playhead.
+ * Repeated nudges on one clip become one undo step.
+ */
+function nudgeSelected(key: string, large: boolean) {
+  const item = editor.selection.value?.item
+  if (!item || !('transform' in item) || !document.activeElement?.closest('.canvas-layer')) return false
+  const step = large ? 10 : 1
+  const dx = key === 'arrowleft' ? -step : key === 'arrowright' ? step : 0
+  const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0
+  editor.patchItem(item.id, (target) => {
+    if (!('transform' in target)) return
+    target.transform.x = Math.max(-5000, Math.min(5000, target.transform.x + dx))
+    target.transform.y = Math.max(-5000, Math.min(5000, target.transform.y + dy))
+  }, `nudge:${item.id}`)
+  return true
+}
+
 function onKey(event: KeyboardEvent) {
   if (navOpen.value) {
     if (event.key === 'Escape') navOpen.value = false
@@ -308,6 +327,8 @@ function onKey(event: KeyboardEvent) {
     if (!state.selectedId) return
     event.preventDefault()
     editor.deleteSelected()
+  } else if (key.startsWith('arrow') && nudgeSelected(key, event.shiftKey)) {
+    event.preventDefault()
   } else if (key === 'arrowleft' || key === 'arrowright') {
     event.preventDefault()
     const step = event.shiftKey ? state.project.fps : 1

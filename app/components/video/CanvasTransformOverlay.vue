@@ -90,6 +90,8 @@ function track(event: PointerEvent, onMove: (moveEvent: PointerEvent) => void) {
 
 function pointerDown(event: PointerEvent) {
   if (event.button !== 0) return
+  // Focus decides what the arrow keys do: on the preview they nudge the clip.
+  layer.value?.focus({ preventScroll: true })
   const origin = canvasPoint(event)
   const entry = entryAt(origin)
   const item = entry?.item
@@ -149,7 +151,15 @@ function handleDown(event: PointerEvent) {
 </script>
 
 <template>
-  <div ref="layer" class="canvas-layer" :class="{ dragging }" @pointerdown="pointerDown">
+  <div
+    ref="layer"
+    class="canvas-layer"
+    :class="{ dragging }"
+    tabindex="0"
+    role="application"
+    aria-label="Preview. Click a clip to select it; arrow keys move the selected clip."
+    @pointerdown="pointerDown"
+  >
     <div v-if="outline" class="outline" :style="outline">
       <span
         v-for="corner in ['nw', 'ne', 'sw', 'se']"
@@ -160,6 +170,7 @@ function handleDown(event: PointerEvent) {
         @pointerdown="handleDown"
       />
     </div>
+    <span v-if="outline" class="nudge-hint">Arrow keys move · Shift ×10</span>
     <i v-for="line in guides.vertical" :key="`v${line}`" class="guide vertical" :style="{ left: `${line * props.scale}px` }" />
     <i v-for="line in guides.horizontal" :key="`h${line}`" class="guide horizontal" :style="{ top: `${line * props.scale}px` }" />
   </div>
@@ -172,6 +183,27 @@ function handleDown(event: PointerEvent) {
   z-index: 2;
   touch-action: none;
 }
+
+.canvas-layer:focus { outline: none; }
+.canvas-layer:focus-visible { outline: 2px solid rgba(167, 139, 250, .7); }
+
+/* Only shown while the preview has focus, i.e. when the arrow keys nudge the clip. */
+.nudge-hint {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  display: none;
+  padding: .15rem .45rem;
+  border-radius: 5px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .7);
+  color: #ddd6fe;
+  font-size: .68rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.canvas-layer:focus .nudge-hint { display: block; }
 
 .outline {
   position: absolute;
