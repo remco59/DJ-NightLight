@@ -1,10 +1,12 @@
 import { z } from 'zod'
 import {
+  BACKDROP_STYLE_KEYS,
   ENTRANCE_ANIMATION_KEYS,
   EXIT_ANIMATION_KEYS,
   MOTION_ACCENT_KEYS,
   MOTION_TEMPLATE_KEYS,
   MOTION_TEMPLATES,
+  type BackdropStyle,
   type EntranceAnimation,
   type ExitAnimation,
   type MotionAccent,
@@ -94,6 +96,9 @@ export type GraphicItem = ItemBase & {
   exit: ExitAnimation
   entranceFrames: number
   exitFrames: number
+  /** Strength (0–1) of the treatment behind the template; undefined uses the template default. */
+  backdrop?: number
+  backdropStyle?: BackdropStyle
   transform: ItemTransform
 }
 
@@ -157,6 +162,13 @@ export function createTrack(kind: TrackKind, name?: string): VideoTrack {
   return { id: newId('tr'), kind, name: name || label, hidden: false, muted: false, items: [] }
 }
 
+export const MAX_BACKDROP = 0.9
+
+/** How strongly a graphic treats the footage behind it (0–1). */
+export function graphicBackdrop(item: GraphicItem) {
+  return item.backdrop ?? MOTION_TEMPLATES[item.templateKey]?.defaultBackdrop ?? 0
+}
+
 export function createGraphicItem(templateKey: MotionTemplateKey, start: number, fps: number): GraphicItem {
   const template = MOTION_TEMPLATES[templateKey]
   return {
@@ -172,6 +184,7 @@ export function createGraphicItem(templateKey: MotionTemplateKey, start: number,
     exit: template.defaultExit,
     entranceFrames: Math.round(fps * 0.6),
     exitFrames: Math.round(fps * 0.4),
+    backdrop: template.defaultBackdrop,
     transform: defaultTransform(),
   }
 }
@@ -367,6 +380,8 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     exit: z.enum(EXIT_ANIMATION_KEYS as [ExitAnimation, ...ExitAnimation[]]),
     entranceFrames: z.number().int().min(0).max(120),
     exitFrames: z.number().int().min(0).max(120),
+    backdrop: z.number().min(0).max(MAX_BACKDROP).optional(),
+    backdropStyle: z.enum(BACKDROP_STYLE_KEYS as [BackdropStyle, ...BackdropStyle[]]).optional(),
     transform: transformSchema,
   }),
 ])
