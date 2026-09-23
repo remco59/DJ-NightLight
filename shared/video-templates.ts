@@ -326,7 +326,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('handle', 'Handle', 40),
       text('website', 'Website / booking', 50),
     ],
-    defaults: { headline: 'STAY CHARGED', handle: '@djnightlight', website: 'BOOKINGS · DJNIGHTLIGHT.NL' },
+    defaults: { headline: 'STAY CHARGED', handle: '@dj_nightlight', website: 'BOOKINGS · DJNIGHTLIGHT.NL' },
   },
 }
 
