@@ -432,6 +432,108 @@ async function main() {
   assert.equal(generatedFile.headers.get('content-type'), 'image/png')
   assert.ok((await generatedFile.arrayBuffer()).byteLength > 100)
 
+  log('build, save, reopen and export a timeline video project')
+  const clipBytes = new Uint8Array(4096)
+  clipBytes.set(new TextEncoder().encode('ftypisom'), 4)
+  const clipForm = new FormData()
+  clipForm.append('file', new Blob([clipBytes], { type: 'video/mp4' }), 'e2e-clip.mp4')
+  clipForm.append('metadata', JSON.stringify({ durationMs: 4000, width: 1080, height: 1920 }))
+  clipForm.append('thumbnail', new Blob([sourcePng], { type: 'image/png' }), 'e2e-clip-thumb.png')
+  clipForm.append('title', `E2E Clip ${marker}`)
+  clipForm.append('tags', '')
+  clipForm.append('gigId', '')
+  clipForm.append('venueId', '')
+  const clip = await json<{ asset: { id: string, mimeType: string, durationMs: number } }>(
+    await request('/api/admin/media', { method: 'POST', body: clipForm }),
+    201,
+  )
+  assert.equal(clip.asset.mimeType, 'video/mp4')
+  assert.equal(clip.asset.durationMs, 4000)
+
+  const imageOnly = await json<{ assets: Array<{ id: string }> }>(await request('/api/admin/media'))
+  assert.ok(!imageOnly.assets.some(asset => asset.id === clip.asset.id), 'Image pickers must not list video assets')
+  const allMedia = await json<{ assets: Array<{ id: string }> }>(await request('/api/admin/media?kind=all'))
+  assert.ok(allMedia.assets.some(asset => asset.id === clip.asset.id), 'The video editor must list video assets')
+
+  const ranged = await request(`/api/media/${clip.asset.id}`, { headers: { range: 'bytes=0-99' } })
+  assert.equal(ranged.status, 206)
+  assert.equal(ranged.headers.get('content-range'), 'bytes 0-99/4096')
+  assert.equal((await ranged.arrayBuffer()).byteLength, 100)
+
+  type ProjectRow = { id: string, name: string, revision: number, project: { tracks: Array<{ id: string, kind: string, items: Array<Record<string, unknown>> }> } }
+  const created = await json<{ project: ProjectRow }>(
+    await request('/api/admin/video-projects', { method: 'POST', body: { name: `E2E Reel ${marker}`, aspect: '9:16' } }),
+    201,
+  )
+  const project = created.project.project
+  const videoTrack = project.tracks.find(track => track.kind === 'video')!
+  videoTrack.items.push({
+    id: 'e2e_clip_1',
+    type: 'video',
+    assetId: clip.asset.id,
+    start: 0,
+    duration: 90,
+    opacity: 1,
+    trimStart: 15,
+    transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+    crop: { top: 0, right: 0, bottom: 0, left: 0 },
+    speed: 1,
+    volume: 1,
+    muted: false,
+  })
+  const graphic = project.tracks.find(track => track.kind === 'graphics')!.items[0]!
+  graphic.templateProps = { ...(graphic.templateProps as Record<string, unknown>), headline: 'E2E WEEKEND' }
+  const saved = await json<{ project: ProjectRow }>(await request(`/api/admin/video-projects/${created.project.id}`, {
+    method: 'PUT',
+    body: { name: `E2E Reel ${marker} v2`, project, revision: created.project.revision },
+  }))
+  assert.equal(saved.project.revision, created.project.revision + 1)
+
+  const stale = await request(`/api/admin/video-projects/${created.project.id}`, {
+    method: 'PUT',
+    body: { project, revision: created.project.revision },
+  })
+  assert.equal(stale.status, 409, 'Stale autosaves must not overwrite newer edits')
+
+  const reopened = await json<{ project: ProjectRow }>(await request(`/api/admin/video-projects/${created.project.id}`))
+  assert.equal(reopened.project.name, `E2E Reel ${marker} v2`)
+  const reopenedGraphic = reopened.project.project.tracks.find(track => track.kind === 'graphics')!.items[0]!
+  assert.equal((reopenedGraphic.templateProps as Record<string, string>).headline, 'E2E WEEKEND')
+  assert.equal(reopened.project.project.tracks.find(track => track.kind === 'video')!.items.length, 1)
+
+  const invalid = await request(`/api/admin/video-projects/${created.project.id}`, {
+    method: 'PUT',
+    body: { project: { ...reopened.project.project, fps: 7 }, revision: reopened.project.revision },
+  })
+  assert.equal(invalid.status, 422)
+
+  const clipInUse = await request(`/api/admin/media/${clip.asset.id}`, { method: 'DELETE' })
+  assert.equal(clipInUse.status, 409, 'Media used by a video project must not be deleted')
+
+  const queued = await json<{ job: { id: string, status: string } }>(
+    await request(`/api/admin/video-projects/${created.project.id}/render`, { method: 'POST' }),
+    202,
+  )
+  assert.equal(queued.job.status, 'queued')
+  const renders = await json<{ renders: Array<{ id: string, status: string, width: number, height: number }> }>(
+    await request(`/api/admin/video-projects/${created.project.id}/renders`),
+  )
+  assert.equal(renders.renders[0]?.id, queued.job.id)
+  assert.equal(renders.renders[0]?.height, 1920)
+
+  const duplicated = await json<{ project: ProjectRow }>(
+    await request(`/api/admin/video-projects/${created.project.id}/duplicate`, { method: 'POST' }),
+    201,
+  )
+  assert.notEqual(duplicated.project.id, created.project.id)
+  const projectList = await json<{ projects: Array<{ id: string }> }>(await request('/api/admin/video-projects'))
+  assert.ok(projectList.projects.some(entry => entry.id === duplicated.project.id))
+  await json(await request(`/api/admin/video-projects/${duplicated.project.id}`, { method: 'DELETE' }))
+  await ok(await request(`/api/admin/post-generator/video/${queued.job.id}`, { method: 'DELETE' }))
+
+  const editorHtml = await ok(await request(`/admin/post-generator/video/${created.project.id}`))
+  assert.ok(editorHtml.includes('Export MP4'), 'Video editor page did not render')
+
   log('edit public website content and verify public rendering')
   const adminContent = await json<{ content: Record<string, unknown> }>(await request('/api/admin/content'))
   const websiteMarker = `NightLight E2E Website ${marker}`

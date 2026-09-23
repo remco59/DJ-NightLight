@@ -35,19 +35,29 @@ Each output gets a stable `/api/generated-posts/<id>` URL and remains reusable a
 V1 is intentionally still-image only. It does not include video, Remotion, automatic Instagram publishing or AI copy generation.
 
 
-## Remotion video generator
+## Timeline video editor
 
-Admin → Post generator → Video generator creates a fixed 1080×1920, 30 fps, 10-second Reel/Story.
+Admin → Post generator → Video editor is a lightweight, template-first NLE for Reels, Stories and recaps.
 
-1. Select an existing image from the media library.
-2. Pick Spotlight, Pulse or Slide.
-3. Pick Smooth, Energy or Minimal motion.
-4. Pick a NightLight, Mono or Warm brand preset and enter the copy.
-5. Optionally upload MP3, M4A, WAV or OGG audio (max 12 MB).
-6. Queue the render and follow its progress.
-7. Open the persisted MP4 from render history.
+- **Projects** (`video_projects`) persist a JSON `VideoProject`: output settings (9:16, 4:5, 1:1 or 16:9; 24/25/30/60 fps; background; fixed or timeline-driven duration) and ordered Video, Graphics and Audio tracks. Projects autosave with optimistic revision checks, and can be renamed, duplicated and deleted.
+- **Media library** accepts images plus video (MP4, MOV, WebM, max 250 MB) and audio (MP3, M4A, WAV, OGG, max 50 MB). The browser probes duration, dimensions, a poster thumbnail and waveform peaks before upload; the server re-validates the container from its magic bytes. `/api/media/:id` streams video/audio with HTTP range support so players can seek. Existing image pickers keep receiving images only; the editor asks for `?kind=all`.
+- **Timeline**: drag media or templates onto tracks, move and reorder clips, trim either edge (bounded by the source length), split at the playhead, duplicate, delete, snap to clip edges and the playhead, zoom, and scrub. Undo/redo covers every edit.
+- **Motion templates** are timeline items, like Premiere MOGRTs: a locked animated layout with editable fields, an accent style, entrance/exit variants and timing. The library: Gig Announcement, Recap Intro, Upcoming Gigs, Logo Sting, Lower Third, Hype Title, Photo Drop and Clip Recap (3–5 clips). Definitions live in `shared/video-templates.ts`, React implementations in `remotion/motion-templates.tsx`.
+- **Inspector** follows the selection: transform, crop, opacity, speed, volume/mute for clips; volume and fades for audio; content, style and animation for graphics; output settings when nothing is selected.
+- **Shortcuts**: Space play/pause, S split, Delete delete, Ctrl/⌘ D duplicate, Ctrl/⌘ Z undo (Shift to redo), arrows step a frame (Shift for a second).
+- **Safe zones** for Reels/Stories are drawn over the 9:16 preview; templates keep text inside them.
 
-The web application does not render MP4 frames itself. It inserts a row in `video_render_jobs`. The separate `render-worker` Compose service claims jobs with PostgreSQL `FOR UPDATE SKIP LOCKED`, renders them with Remotion, updates progress, and writes the MP4 into the persistent generated-storage volume.
+### One composition for preview and export
+
+`remotion/ProjectComposition.tsx` renders a `VideoProject`. The editor mounts it through `@remotion/player`, and the render worker renders the same component (`NightLightProject`) with `@remotion/renderer`, so the preview is the export. The `remotion/` directory is React: `nuxt.config.ts` excludes it from Vue JSX and compiles it with the React JSX runtime.
+
+Timeline edits are pure functions in `shared/video-timeline.ts`, and project validation lives in `shared/video-project.ts`; both are unit tested.
+
+### Rendering
+
+Export saves the project, then queues a `video_render_jobs` row that stores a snapshot of the project, so later edits never change a queued or finished export. Jobs created by the old single-image generator still render through the legacy `NightLightVertical` composition.
+
+The web application does not render MP4 frames itself. The separate `render-worker` Compose service claims jobs with PostgreSQL `FOR UPDATE SKIP LOCKED`, renders them with Remotion, updates progress, and writes the MP4 into the persistent generated-storage volume. Project media is served to the headless browser from a loopback-only HTTP server inside the worker, which streams files from the uploads volume with byte-range support instead of inlining them as data URIs.
 
 Interrupted renders that have not updated for 30 minutes are returned to the queue when the worker starts. Failed jobs can be retried from the UI.
 

@@ -5,6 +5,12 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
+  vite: {
+    // remotion/*.tsx are React components (shared by the editor preview and the
+    // render worker). Keep them away from Vue JSX and compile them as React.
+    vueJsx: { exclude: [/[\\/]remotion[\\/]/] },
+    esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
+  },
   runtimeConfig: {
     appVersion: process.env.NUXT_APP_VERSION || 'development',
     ownerBootstrapToken: process.env.OWNER_BOOTSTRAP_TOKEN || '',
