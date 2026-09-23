@@ -1,4 +1,4 @@
-import { mediaKind, type MediaKind, type TimelineItem } from './video-project'
+import { mediaKind, type MediaKind, type TimelineItem, type VideoTrack } from './video-project'
 
 // Pure helpers for the editor UI (shared by the desktop and mobile layouts).
 
@@ -15,6 +15,16 @@ export function clampZoom(zoom: number) {
 export function pinchZoom(startZoom: number, startDistance: number, distance: number) {
   if (startDistance <= 0 || distance <= 0) return clampZoom(startZoom)
   return clampZoom(startZoom * distance / startDistance)
+}
+
+/**
+ * Tracks in the order the timeline lists them. The composition paints tracks in
+ * array order (last on top), so visual tracks are reversed to put the frontmost
+ * layer on the top row; audio has no stacking and stays below them.
+ */
+export function timelineDisplayOrder<T extends Pick<VideoTrack, 'kind'>>(tracks: T[]): T[] {
+  const visual = tracks.filter(track => track.kind !== 'audio').reverse()
+  return [...visual, ...tracks.filter(track => track.kind === 'audio')]
 }
 
 /** Tabs of the mobile editor's bottom navigation; only one tool panel is open at a time. */

@@ -8,6 +8,7 @@ import {
   formatMediaDuration,
   pinchZoom,
   quickActionsFor,
+  timelineDisplayOrder,
 } from '../shared/video-editor-ui'
 
 const video = { id: '11111111-1111-4111-8111-111111111111', mimeType: 'video/mp4', durationMs: 10_000 }
@@ -71,5 +72,24 @@ describe('formatMediaDuration', () => {
     expect(formatMediaDuration(134_000)).toBe('2:14')
     expect(formatMediaDuration(5_400)).toBe('0:05')
     expect(formatMediaDuration(null)).toBe('')
+  })
+})
+
+describe('timeline display order', () => {
+  it('lists the frontmost visual layer first and keeps audio at the bottom', () => {
+    const tracks = [
+      { id: 'video', kind: 'video' as const },
+      { id: 'graphics', kind: 'graphics' as const },
+      { id: 'audio', kind: 'audio' as const },
+      { id: 'overlay', kind: 'video' as const },
+      { id: 'audio-2', kind: 'audio' as const },
+    ]
+    expect(timelineDisplayOrder(tracks).map(track => track.id)).toEqual(['overlay', 'graphics', 'video', 'audio', 'audio-2'])
+  })
+
+  it('does not reorder the input array', () => {
+    const tracks = [{ kind: 'video' as const }, { kind: 'graphics' as const }]
+    timelineDisplayOrder(tracks)
+    expect(tracks.map(track => track.kind)).toEqual(['video', 'graphics'])
   })
 })

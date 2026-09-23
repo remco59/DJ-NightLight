@@ -2,7 +2,7 @@
 import { formatTimecode, itemEnd, type TimelineItem, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
 import { moveItem, snapFrame, snapTargets } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
-import { clampZoom, pinchZoom } from '~~/shared/video-editor-ui'
+import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
 // `compact` is the touch-first mobile timeline: no toolbar, icon-only track
@@ -19,6 +19,9 @@ const scroller = ref<HTMLElement | null>(null)
 const pxPerFrame = computed(() => state.zoom / state.project.fps)
 const contentFrames = computed(() => editor.duration.value + state.project.fps * 6)
 const contentWidth = computed(() => Math.max(600, contentFrames.value * pxPerFrame.value))
+
+// Top row = top layer on the canvas (see timelineDisplayOrder).
+const displayTracks = computed(() => timelineDisplayOrder(state.project.tracks))
 
 const ticks = computed(() => {
   const fps = state.project.fps
@@ -310,7 +313,7 @@ function wheel(event: WheelEvent) {
           </div>
         </div>
 
-        <div v-for="track in state.project.tracks" :key="track.id" class="track-row" :class="[track.kind, { hidden: track.hidden, muted: track.muted }]">
+        <div v-for="track in displayTracks" :key="track.id" class="track-row" :class="[track.kind, { hidden: track.hidden, muted: track.muted }]">
           <div v-if="props.compact" class="track-label" :style="{ width: `${LABEL_WIDTH}px` }">
             <button
               type="button"
