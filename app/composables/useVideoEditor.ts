@@ -2,6 +2,7 @@ import type { InjectionKey } from 'vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import type { MediaAssetMetadata } from '~~/shared/media'
 import {
+  MAX_PROJECT_SECONDS,
   MIN_ITEM_FRAMES,
   VIDEO_ASPECTS,
   createGraphicItem,
@@ -81,6 +82,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     lastSavedAt: Date.now(),
     media: [] as EditorMediaAsset[],
     renders: [] as EditorRender[],
+    /** One-off message for the user (e.g. why an add was shortened or refused); the page shows and clears it. */
+    notice: '',
   })
 
   let history = createHistory<VideoProject>()
@@ -238,22 +241,27 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
 
   // --- Actions ---------------------------------------------------------------
 
-  function addMedia(asset: EditorMediaAsset, trackId?: string, start = state.frame) {
-    const item = createMediaItem(asset, start, state.project.fps)
+  function insertItem(item: TimelineItem, trackId?: string) {
     const { project, track } = trackFor(item.type, trackId)
     const next = addItem(project, track.id, item)
-    if (next === project) return
+    if (next === project) {
+      state.notice = `There is no room for this clip: videos can be at most ${MAX_PROJECT_SECONDS / 60} minutes long.`
+      return
+    }
     commit(next)
     state.selectedId = item.id
+    const placed = findItem(next, item.id)?.item
+    if (placed && placed.duration < item.duration) {
+      state.notice = `The clip was shortened to fit the ${MAX_PROJECT_SECONDS / 60}-minute limit. Drag its end handle after moving it earlier to get the rest back.`
+    }
+  }
+
+  function addMedia(asset: EditorMediaAsset, trackId?: string, start = state.frame) {
+    insertItem(createMediaItem(asset, start, state.project.fps), trackId)
   }
 
   function addTemplate(key: MotionTemplateKey, trackId?: string, start = state.frame) {
-    const item = createGraphicItem(key, start, state.project.fps)
-    const { project, track } = trackFor('graphic', trackId)
-    const next = addItem(project, track.id, item)
-    if (next === project) return
-    commit(next)
-    state.selectedId = item.id
+    insertItem(createGraphicItem(key, start, state.project.fps), trackId)
   }
 
   function move(itemId: string, start: number, trackId?: string) {

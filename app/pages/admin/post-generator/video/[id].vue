@@ -74,6 +74,13 @@ function openEdit() {
   mobileTool.value = 'edit'
 }
 
+// Editor actions report refusals and adjustments through state.notice.
+watch(() => state.notice, (notice) => {
+  if (!notice) return
+  message.value = notice
+  state.notice = ''
+})
+
 watch(() => state.selectedId, () => {
   replaceKind.value = null
 })

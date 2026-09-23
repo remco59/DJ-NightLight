@@ -44,6 +44,25 @@ export function findFreeStart(track: VideoTrack, duration: number, desired: numb
   return valid[0] ?? others.reduce((end, item) => Math.max(end, itemEnd(item)), 0)
 }
 
+/**
+ * Makes an item end within the project limit. Audio and video are shortened
+ * (a long song dropped late on the timeline keeps playing until the limit);
+ * images and graphics have a chosen length, so they are refused instead.
+ * Shortening from the tail keeps any free slot free, as the range only shrinks.
+ */
+function fitWithinProject(item: TimelineItem, max: number): TimelineItem | null {
+  if (itemEnd(item) <= max) return item
+  if (item.type !== 'audio' && item.type !== 'video') return null
+  const duration = max - item.start
+  if (duration < MIN_ITEM_FRAMES) return null
+  const fitted = { ...item, duration }
+  if (fitted.type === 'audio') {
+    fitted.fadeIn = Math.min(fitted.fadeIn, duration)
+    fitted.fadeOut = Math.min(fitted.fadeOut, duration)
+  }
+  return fitted
+}
+
 /** Source length in timeline frames for trimmable media, null when unlimited (images, graphics). */
 export type SourceFramesLookup = (item: TimelineItem) => number | null
 
@@ -55,8 +74,8 @@ export function addItem(project: VideoProject, trackId: string, item: TimelineIt
   const next = clone(project)
   const track = next.tracks.find(entry => entry.id === trackId)
   if (!track || !trackAccepts(track.kind, item.type)) return project
-  const placed = { ...clone(item), start: findFreeStart(track, item.duration, item.start) }
-  if (itemEnd(placed) > maxFrame(next)) return project
+  const placed = fitWithinProject({ ...clone(item), start: findFreeStart(track, item.duration, item.start) }, maxFrame(next))
+  if (!placed) return project
   track.items.push(placed)
   sortItems(track)
   return next
@@ -70,9 +89,9 @@ export function moveItem(project: VideoProject, itemId: string, desiredStart: nu
   if (!target || !trackAccepts(target.kind, found.item.type)) return project
 
   found.track.items = found.track.items.filter(item => item.id !== itemId)
-  const start = findFreeStart(target, found.item.duration, Math.round(desiredStart), itemId)
-  if (start + found.item.duration > maxFrame(next)) return project
-  target.items.push({ ...found.item, start })
+  const placed = fitWithinProject({ ...found.item, start: findFreeStart(target, found.item.duration, Math.round(desiredStart), itemId) }, maxFrame(next))
+  if (!placed) return project
+  target.items.push(placed)
   sortItems(target)
   return next
 }
