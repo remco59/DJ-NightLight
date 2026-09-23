@@ -2500,7 +2500,7 @@ input[type='range'] {
     border-top: 0;
   }
 
-  .controls input,
+  .controls input:not([type='checkbox']):not([type='range']),
   .controls textarea,
   .controls select,
   .controls button {
@@ -2581,9 +2581,9 @@ input[type='range'] {
   .controls.mobile-tool-text .form-stack > .field,
   .controls.mobile-tool-text .form-stack > .two > .field {
     display: grid;
-    grid-template-columns: minmax(5.35rem, .42fr) minmax(0, 1fr);
+    grid-template-columns: minmax(4.7rem, .34fr) minmax(0, 1fr) auto;
     align-items: center;
-    gap: .55rem;
+    gap: .48rem;
     margin: 0;
     padding: .48rem .58rem;
     border: 1px solid #302936;
@@ -2591,12 +2591,24 @@ input[type='range'] {
     background: #151219;
   }
 
-  .controls.mobile-tool-text .field > .label-row,
+  .controls.mobile-tool-text .field > .label-row {
+    display: contents;
+  }
+
+  .controls.mobile-tool-text .field > .label-row > span:first-child,
   .controls.mobile-tool-text .field > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
     min-width: 0;
     margin: 0;
     color: #a79dad;
     font-size: .72rem;
+  }
+
+  .controls.mobile-tool-text .field-actions,
+  .controls.mobile-tool-text .field > .label-row > .field-toggle {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .controls.mobile-tool-text .field-actions > small {
@@ -2606,6 +2618,9 @@ input[type='range'] {
   .controls.mobile-tool-text .field > input,
   .controls.mobile-tool-text .field > textarea,
   .controls.mobile-tool-text .field > select {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
     min-height: 2.6rem;
     padding: .42rem .5rem;
     border-color: #28222e;
