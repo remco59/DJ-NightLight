@@ -1,20 +1,51 @@
 import { z } from 'zod'
 import { generatedPosts } from '../../../../db/schema'
 import { inspectImage } from '../../../../shared/media'
-import { POST_PRESETS } from '../../../../shared/post-generator'
+import { POST_PRESETS, POST_TEMPLATE_KEYS } from '../../../../shared/post-generator'
 import { db } from '../../../utils/db'
 import { getGeneratedStorage } from '../../../utils/media-storage'
 import { requireStaff } from '../../../utils/require-staff'
 
+const visibilitySchema = z.object({
+  logo: z.boolean(),
+  headline: z.boolean(),
+  subline: z.boolean(),
+  date: z.boolean(),
+  time: z.boolean(),
+  location: z.boolean(),
+  cta: z.boolean(),
+  gigList: z.boolean(),
+})
+
+const gigItemSchema = z.object({
+  enabled: z.boolean(),
+  dateText: z.string().max(40),
+  title: z.string().max(120),
+  locationText: z.string().max(120),
+})
+
 const designSchema = z.object({
   preset: z.enum(['square', 'portrait', 'story']),
-  templateKey: z.enum(['gradient', 'poster', 'minimal']),
+  templateKey: z.enum(POST_TEMPLATE_KEYS),
   brandPreset: z.enum(['night', 'mono', 'warm']),
   headline: z.string().max(180),
   subline: z.string().max(260),
   dateText: z.string().max(160),
+  timeText: z.string().max(80).default(''),
   locationText: z.string().max(160),
+  ctaText: z.string().max(180).default(''),
   logoText: z.string().max(80),
+  visibility: visibilitySchema.default({
+    logo: true,
+    headline: true,
+    subline: true,
+    date: true,
+    time: true,
+    location: true,
+    cta: true,
+    gigList: true,
+  }),
+  gigItems: z.array(gigItemSchema).max(6).default([]),
   imageX: z.number().min(-1).max(1),
   imageY: z.number().min(-1).max(1),
   zoom: z.number().min(1).max(3),
