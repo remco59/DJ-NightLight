@@ -87,8 +87,16 @@ jobs:
         run: |
           test "$(docker run --rm --entrypoint id dj-nightlight:ci -u)" = "10001"
           test "$(docker run --rm --entrypoint id dj-nightlight:ci -g)" = "10001"
-          test "$(docker run --rm --entrypoint id dj-nightlight-render-worker:ci -u)" = "10001"
-          test "$(docker run --rm --entrypoint id dj-nightlight-render-worker:ci -g)" = "10001"
+          # The render worker entrypoint drops from root to the nightlight user.
+          test "$(docker run --rm dj-nightlight-render-worker:ci id -u)" = "10001"
+          test "$(docker run --rm dj-nightlight-render-worker:ci id -g)" = "10001"
+
+      - name: Verify render worker Intel VAAPI support
+        run: |
+          docker run --rm --entrypoint /usr/bin/ffmpeg dj-nightlight-render-worker:ci -hide_banner -encoders | grep -q h264_vaapi
+          docker run --rm --entrypoint sh dj-nightlight-render-worker:ci -c 'test -x /opt/nightlight-intel-ffmpeg/remotion && test -x /opt/nightlight-intel-ffmpeg/ffmpeg && test -e /opt/nightlight-intel-ffmpeg/libavcodec.so'
+          # The ffmpeg wrapper must run the system FFmpeg with AAC instead of libfdk_aac.
+          docker run --rm --entrypoint /opt/nightlight-intel-ffmpeg/ffmpeg dj-nightlight-render-worker:ci -hide_banner -f lavfi -i sine=duration=0.2 -c:a libfdk_aac -f null -
 
 
   restore-test:

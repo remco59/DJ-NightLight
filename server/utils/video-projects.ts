@@ -40,6 +40,7 @@ export async function listProjectRenders(projectId: string) {
     status: videoRenderJobs.status,
     progress: videoRenderJobs.progress,
     error: videoRenderJobs.error,
+    renderEngine: videoRenderJobs.renderEngine,
     width: videoRenderJobs.width,
     height: videoRenderJobs.height,
     fps: videoRenderJobs.fps,

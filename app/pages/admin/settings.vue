@@ -177,6 +177,8 @@ useSeoMeta({title:'Settings — DJ NightLight',robots:'noindex, nofollow'})
       </form>
     </section>
 
+    <AdminRenderSettings/>
+
     <AdminIntegrationsSettings/>
   </div>
 </template>

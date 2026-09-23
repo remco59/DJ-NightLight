@@ -8,6 +8,8 @@ import postgres from 'postgres'
 import { bundle } from '@remotion/bundler'
 import { renderMedia, selectComposition } from '@remotion/renderer'
 import type { VideoDesign } from '../shared/video-generator'
+import { RENDER_ENGINE_LABELS, parseRenderEngineSetting, resolveRenderEngine } from '../shared/render-engine'
+import { detectRenderCapabilities, renderOptionsFor, type RenderCapabilities } from './render-engine'
 import {
   collectProjectAssetIds,
   parseVideoProject,
@@ -24,6 +26,9 @@ if (!connectionString) throw new Error('DATABASE_URL is required')
 
 const sql = postgres(connectionString, { max: 1, prepare: false })
 let stopping = false
+let capabilities: RenderCapabilities = { engines: [] }
+
+const CAPABILITY_REFRESH_MS = 60_000
 
 type JobRow = {
   id: string
@@ -126,6 +131,7 @@ async function markFailed(jobId: string, error: unknown) {
 const servedAssets = new Map<string, AssetRow>()
 let assetServer: Server | null = null
 let assetServerOrigin = ''
+let capabilityTimer: ReturnType<typeof setInterval> | null = null
 
 async function startAssetServer() {
   assetServer = createServer((request, response) => {
@@ -162,6 +168,28 @@ async function startAssetServer() {
   assetServerOrigin = `http://127.0.0.1:${(assetServer.address() as AddressInfo).port}`
 }
 
+// The web container cannot see the GPU, so the worker reports what it detected
+// through the database for the Settings page.
+async function refreshCapabilities() {
+  capabilities = await detectRenderCapabilities()
+  await sql`
+    INSERT INTO render_worker_status (key, capabilities, detected_at, heartbeat_at)
+    VALUES ('default', ${sql.json(capabilities.engines)}, NOW(), NOW())
+    ON CONFLICT (key) DO UPDATE
+    SET capabilities = EXCLUDED.capabilities,
+        detected_at = EXCLUDED.detected_at,
+        heartbeat_at = EXCLUDED.heartbeat_at
+  `
+}
+
+async function resolveJobEngine(job: JobRow) {
+  const rows = await sql`SELECT engine FROM render_settings WHERE key = 'default' LIMIT 1` as unknown as { engine: string }[]
+  const engine = resolveRenderEngine(parseRenderEngineSetting(rows[0]?.engine), capabilities.engines)
+  await sql`UPDATE video_render_jobs SET render_engine = ${engine}, updated_at = NOW() WHERE id = ${job.id}`
+  console.log(`Video job ${job.id} renders with ${RENDER_ENGINE_LABELS[engine]}`)
+  return renderOptionsFor(engine, capabilities)
+}
+
 async function renderComposition(job: JobRow, serveUrl: string, id: string, inputProps: Record<string, unknown>) {
   const browser = browserExecutable ? { browserExecutable } : {}
   const composition = await selectComposition({
@@ -170,6 +198,8 @@ async function renderComposition(job: JobRow, serveUrl: string, id: string, inpu
     inputProps,
     ...browser,
   })
+
+  const engineOptions = await resolveJobEngine(job)
 
   const key = outputKey()
   const target = safePath(generatedRoot, key)
@@ -184,6 +214,7 @@ async function renderComposition(job: JobRow, serveUrl: string, id: string, inpu
       outputLocation: target,
       inputProps,
       ...browser,
+      ...engineOptions,
       onProgress: ({ progress }) => {
         const percent = Math.max(2, Math.min(99, Math.round(progress * 100)))
         if (percent < lastPercent + 3) return
@@ -294,6 +325,13 @@ async function sleep(ms: number) {
 
 async function main() {
   await recoverStaleJobs()
+  await refreshCapabilities()
+  for (const engine of capabilities.engines) {
+    console.log(`Render engine ${RENDER_ENGINE_LABELS[engine.id]}: ${engine.available ? 'available' : 'unavailable'} — ${engine.detail}`)
+  }
+  capabilityTimer = setInterval(() => {
+    refreshCapabilities().catch(error => console.error('Render capability detection failed', error))
+  }, CAPABILITY_REFRESH_MS)
   await startAssetServer()
   const serveUrl = await bundle({
     entryPoint: resolve(process.cwd(), 'remotion/index.ts'),
@@ -331,6 +369,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
 try {
   await main()
 } finally {
+  if (capabilityTimer) clearInterval(capabilityTimer)
   assetServer?.close()
   await sql.end({ timeout: 5 })
 }
