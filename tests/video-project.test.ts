@@ -95,6 +95,12 @@ describe('motion templates', () => {
       'hype-title',
       'photo-drop',
       'clip-recap',
+      'neon-logo-reveal',
+      'lightning-banner',
+      'electric-gig-poster',
+      'now-playing',
+      'bolt-transition',
+      'neon-outro',
     ])
   })
 

@@ -597,6 +597,44 @@ h3 {
   background: radial-gradient(circle at 30% 20%, #ff2d9588, transparent 60%), #1b0c14;
 }
 
+/* Electric set: thumbnails show the real logo artwork these templates animate. */
+.template-art[data-template="neon-logo-reveal"],
+.template-art[data-template="electric-gig-poster"],
+.template-art[data-template="neon-outro"],
+.template-art[data-template="lightning-banner"],
+.template-art[data-template="now-playing"],
+.template-art[data-template="bolt-transition"] {
+  background: center / 84% auto no-repeat, radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%), #07040d;
+}
+
+.template-art[data-template="neon-logo-reveal"],
+.template-art[data-template="electric-gig-poster"],
+.template-art[data-template="neon-outro"] {
+  background-image: url("/brand/logo/emblem-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
+  background-size: auto 88%, auto;
+}
+
+.template-art[data-template="lightning-banner"],
+.template-art[data-template="now-playing"],
+.template-art[data-template="bolt-transition"] {
+  background-image: url("/brand/logo/wordmark-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
+}
+
+.template-art[data-template="neon-logo-reveal"] i,
+.template-art[data-template="electric-gig-poster"] i,
+.template-art[data-template="neon-outro"] i,
+.template-art[data-template="lightning-banner"] i,
+.template-art[data-template="now-playing"] i,
+.template-art[data-template="bolt-transition"] i,
+.template-art[data-template="neon-logo-reveal"] b,
+.template-art[data-template="electric-gig-poster"] b,
+.template-art[data-template="neon-outro"] b,
+.template-art[data-template="lightning-banner"] b,
+.template-art[data-template="now-playing"] b,
+.template-art[data-template="bolt-transition"] b {
+  display: none;
+}
+
 .template-copy {
   display: flex;
   flex-direction: column;
