@@ -232,7 +232,7 @@ async function loadSelectedSource() {
 async function renderPreview() {
   await nextTick()
   if (!canvasRef.value || !sourceBitmap) return
-  renderPostCanvas(canvasRef.value, sourceBitmap, design, true)
+  await renderPostCanvas(canvasRef.value, sourceBitmap, design, true)
 }
 
 
@@ -403,7 +403,7 @@ async function renderAndSave() {
   message.value = ''
   try {
     const exportCanvas = document.createElement('canvas')
-    renderPostCanvas(exportCanvas, sourceBitmap, design, false)
+    await renderPostCanvas(exportCanvas, sourceBitmap, design, false)
     const blob = await new Promise<Blob>((resolve, reject) => {
       exportCanvas.toBlob(result => result ? resolve(result) : reject(new Error('PNG export failed')), 'image/png')
     })
@@ -1497,11 +1497,11 @@ input[type='range'] {
 .template-gig-announcement::after,
 .template-recap::after,
 .template-upcoming-gigs::after {
-  background:
-    linear-gradient(128deg, transparent 0 17%, rgba(198,145,255,.7) 17.5% 18%, transparent 18.5% 100%),
-    linear-gradient(48deg, transparent 0 72%, rgba(135,48,255,.75) 72.4% 72.9%, transparent 73.4% 100%),
-    linear-gradient(to bottom, rgba(6,2,11,.22), rgba(5,2,9,.92)),
-    linear-gradient(145deg, rgba(116,30,190,.2), transparent 48%);
+  background-image:
+    url('/post-generator/nightlight-campaign-overlay.svg'),
+    linear-gradient(to bottom, rgba(6,2,11,.12), rgba(5,2,9,.9));
+  background-position: center;
+  background-size: cover;
 }
 
 .template-gig-announcement,
@@ -1604,10 +1604,10 @@ input[type='range'] {
 }
 
 .template-mini-list i {
-  height: .48rem;
-  border: 1px solid rgba(206,116,255,.68);
-  border-radius: .18rem;
-  background: rgba(8,5,12,.76);
+  height: .5rem;
+  border: 0;
+  border-radius: 0;
+  background: url('/post-generator/nightlight-event-card.svg') center / 100% 100% no-repeat;
 }
 
 .template-copy {
