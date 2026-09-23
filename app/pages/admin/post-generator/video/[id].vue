@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminNav from '~/components/admin/AdminNav.vue'
 import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.vue'
 import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
 import MobileVideoToolbar from '~/components/video/MobileVideoToolbar.vue'
@@ -42,6 +43,17 @@ provide(videoEditorKey, editor)
 const { state } = editor
 
 const tab = ref<'media' | 'templates' | 'exports'>('media')
+// The editor opts out of the admin layout for a full-screen workspace; the
+// back-office navigation opens as a drawer from the top bar instead.
+const navOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+const navDrawer = ref<HTMLElement | null>(null)
+
+watch(navOpen, async (open) => {
+  await nextTick()
+  if (open) navDrawer.value?.querySelector<HTMLElement>('a, button')?.focus()
+  else menuButton.value?.focus()
+})
 const nameDraft = ref(state.name)
 const exporting = ref(false)
 const message = ref('')
@@ -151,6 +163,10 @@ function isTyping(target: EventTarget | null) {
 }
 
 function onKey(event: KeyboardEvent) {
+  if (navOpen.value) {
+    if (event.key === 'Escape') navOpen.value = false
+    return
+  }
   if (isTyping(event.target)) return
   const mod = event.metaKey || event.ctrlKey
   const key = event.key.toLowerCase()
@@ -274,10 +290,18 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
       @export="exportVideo"
     />
     <header v-else class="topbar">
-      <NuxtLink to="/admin/post-generator/video" class="brand" title="All video projects">
-        <svg viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h5l3-8 5 16 4-12 3 6 3-4 3 2h10" /></svg>
-        <span><strong>DJ NightLight</strong><small>CREATE · PLAY · SHARE</small></span>
-      </NuxtLink>
+      <button
+        ref="menuButton"
+        class="menu-button"
+        type="button"
+        title="Menu"
+        aria-label="Open menu"
+        aria-controls="editor-nav"
+        :aria-expanded="navOpen"
+        @click="navOpen = true"
+      >
+        <Icon name="lucide:menu" aria-hidden="true" />
+      </button>
       <input v-model="nameDraft" class="name" type="text" maxlength="160" aria-label="Project name" @blur="commitName" @keydown.enter="($event.target as HTMLInputElement).blur()">
       <span class="format"><Icon name="lucide:rectangle-vertical" aria-hidden="true" /> {{ VIDEO_ASPECTS[state.project.aspect].label }}</span>
       <span class="save" :class="state.saveState" :title="state.saveError">
@@ -286,6 +310,13 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
       </span>
       <button class="export" type="button" :disabled="exporting" @click="exportVideo"><Icon name="lucide:download" aria-hidden="true" /> {{ exporting ? 'Queueing…' : 'Export MP4' }}</button>
     </header>
+
+    <template v-if="!isMobile">
+      <aside id="editor-nav" ref="navDrawer" class="nav-drawer" :class="{ open: navOpen }" :inert="!navOpen" aria-label="Back office">
+        <AdminNav />
+      </aside>
+      <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="Close menu" @click="navOpen = false" />
+    </template>
 
     <p v-if="message" class="banner">{{ message }} <button type="button" aria-label="Dismiss" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button></p>
 
@@ -401,34 +432,49 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
   background: var(--ve-panel);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  color: inherit;
-  text-decoration: none;
+.menu-button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--ve-border);
+  border-radius: 9px;
+  background: none;
+  color: var(--ve-text);
+  font-size: 1.15rem;
+  cursor: pointer;
 }
 
-.brand svg {
-  width: 34px;
-  fill: none;
-  stroke: #a855f7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.4;
-  filter: drop-shadow(0 0 6px #7c3aed);
-}
+.menu-button:hover, .menu-button[aria-expanded="true"] { background: var(--ve-raised); }
 
-.brand span {
+.nav-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  width: 17rem;
+  border-right: 1px solid #26222c;
+  background: #0e0c12;
+  box-shadow: 18px 0 40px rgba(0, 0, 0, .45);
+  transform: translateX(-105%);
+  transition: transform .2s ease, visibility 0s linear .2s;
+  visibility: hidden;
 }
 
-.brand small {
-  color: #a78bfa;
-  font-size: .55rem;
-  letter-spacing: .2em;
+.nav-drawer.open {
+  transform: translateX(0);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  border: 0;
+  background: rgba(0, 0, 0, .58);
 }
 
 .name {
