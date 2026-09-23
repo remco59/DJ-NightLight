@@ -47,6 +47,50 @@ const palettes: Record<PostBrandPreset, Palette> = {
   },
 }
 
+
+type CampaignArtwork = {
+  overlay: HTMLImageElement | null
+  card: HTMLImageElement | null
+  dateBadge: HTMLImageElement | null
+  titleBrush: HTMLImageElement | null
+}
+
+const CAMPAIGN_ARTWORK_URLS = {
+  overlay: '/post-generator/nightlight-campaign-overlay.svg',
+  card: '/post-generator/nightlight-event-card.svg',
+  dateBadge: '/post-generator/nightlight-date-badge.svg',
+  titleBrush: '/post-generator/nightlight-title-brush.svg',
+} as const
+
+let campaignArtworkPromise: Promise<CampaignArtwork> | null = null
+
+function loadArtworkImage(src: string) {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const image = new Image()
+    image.decoding = 'async'
+    image.onload = () => resolve(image)
+    image.onerror = () => resolve(null)
+    image.src = src
+  })
+}
+
+function loadCampaignArtwork() {
+  if (!campaignArtworkPromise) {
+    campaignArtworkPromise = Promise.all([
+      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.overlay),
+      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.card),
+      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.dateBadge),
+      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.titleBrush),
+    ]).then(([overlay, card, dateBadge, titleBrush]) => ({
+      overlay,
+      card,
+      dateBadge,
+      titleBrush,
+    }))
+  }
+  return campaignArtworkPromise
+}
+
 function isVisible(design: PostDesign, field: keyof PostFieldVisibility) {
   return design.visibility[field]
 }
@@ -209,21 +253,83 @@ function drawRoughPanel(
   context.restore()
 }
 
+function drawCampaignCard(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  palette: Palette,
+  artwork: CampaignArtwork | null,
+) {
+  if (artwork?.card) {
+    const pad = Math.max(4, width * .009)
+    context.drawImage(artwork.card, x - pad, y - pad, width + pad * 2, height + pad * 2)
+    return
+  }
+  drawRoughPanel(context, x, y, width, height, palette)
+}
+
+function drawDateBadge(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  palette: Palette,
+  artwork: CampaignArtwork | null,
+) {
+  if (artwork?.dateBadge) {
+    const pad = Math.max(3, width * .025)
+    context.drawImage(artwork.dateBadge, x - pad, y - pad, width + pad * 2, height + pad * 2)
+    return
+  }
+  fillRoundedRect(context, x, y, width, height, 16, palette.accentStrong, '#ffffff', 2)
+}
+
+function drawTitleBrush(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  palette: Palette,
+  artwork: CampaignArtwork | null,
+) {
+  if (artwork?.titleBrush) {
+    context.drawImage(artwork.titleBrush, x, y, width, height)
+    return
+  }
+
+  context.save()
+  context.fillStyle = palette.accentStrong
+  context.translate(x, y + height * .15)
+  context.rotate(-.025)
+  context.fillRect(0, 0, width, height * .68)
+  context.restore()
+}
+
 function drawCampaignTexture(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
   palette: Palette,
   opacity: number,
+  artwork: CampaignArtwork | null,
 ) {
   const shade = context.createLinearGradient(0, 0, 0, height)
-  shade.addColorStop(0, 'rgba(3,2,5,.38)')
-  shade.addColorStop(.48, 'rgba(7,3,12,.58)')
-  shade.addColorStop(1, 'rgba(2,1,4,.92)')
-  context.globalAlpha = Math.max(.58, opacity)
+  shade.addColorStop(0, 'rgba(3,2,5,.18)')
+  shade.addColorStop(.46, 'rgba(7,3,12,.3)')
+  shade.addColorStop(1, 'rgba(2,1,4,.78)')
+  context.globalAlpha = Math.max(.42, opacity * .82)
   context.fillStyle = shade
   context.fillRect(0, 0, width, height)
   context.globalAlpha = 1
+
+  if (artwork?.overlay) {
+    context.drawImage(artwork.overlay, 0, 0, width, height)
+    return
+  }
 
   context.save()
   context.globalAlpha = .32
@@ -258,6 +364,64 @@ function drawCampaignTexture(
     [width * .78, height * .28],
     [width * .82, height * .36],
   ], palette, width)
+}
+
+function setCampaignDisplayFont(
+  context: CanvasRenderingContext2D,
+  size: number,
+) {
+  context.font = `italic 900 ${size}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+}
+
+function drawCampaignHeadline(
+  context: CanvasRenderingContext2D,
+  text: string,
+  width: number,
+  maxWidth: number,
+  y: number,
+  size: number,
+  maxLines: number,
+  palette: Palette,
+) {
+  context.textAlign = 'center'
+  context.textBaseline = 'top'
+  context.shadowColor = palette.accentStrong
+  context.shadowBlur = Math.max(24, width * .028)
+  context.lineJoin = 'round'
+  context.strokeStyle = 'rgba(54,8,90,.7)'
+  context.lineWidth = Math.max(3, width * .0045)
+  context.fillStyle = '#ffffff'
+  setCampaignDisplayFont(context, size)
+  const lines = wrapLines(context, text.toUpperCase(), maxWidth, maxLines)
+  for (const line of lines) {
+    context.strokeText(line, width / 2, y, maxWidth)
+    context.fillText(line, width / 2, y, maxWidth)
+    y += size * .86
+  }
+  context.shadowBlur = 0
+  return y
+}
+
+function drawCampaignSubline(
+  context: CanvasRenderingContext2D,
+  text: string,
+  width: number,
+  y: number,
+  bannerWidth: number,
+  bannerHeight: number,
+  palette: Palette,
+  artwork: CampaignArtwork | null,
+) {
+  const x = (width - bannerWidth) / 2
+  drawTitleBrush(context, x, y, bannerWidth, bannerHeight, palette, artwork)
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillStyle = '#ffffff'
+  context.shadowColor = 'rgba(0,0,0,.72)'
+  context.shadowBlur = 12
+  context.font = `900 ${Math.round(width * .046)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+  context.fillText(text.toUpperCase(), width / 2, y + bannerHeight * .52, bannerWidth * .78)
+  context.shadowBlur = 0
 }
 
 function drawBrand(context: CanvasRenderingContext2D, design: PostDesign, width: number, palette: Palette) {
@@ -367,53 +531,35 @@ function drawGigAnnouncement(
   width: number,
   height: number,
   palette: Palette,
+  artwork: CampaignArtwork | null,
 ) {
   const safe = safeAreaInsets(design.preset)
   const left = safe.left
   const contentWidth = width - safe.left - safe.right
 
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity)
+  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
   drawBrand(context, design, width, palette)
 
-  let y = safe.top + width * .16
+  let y = safe.top + width * .145
   if (isVisible(design, 'headline') && design.headline.trim()) {
-    const size = Math.round(width * .098)
-    context.textAlign = 'center'
-    context.textBaseline = 'top'
-    context.shadowColor = palette.accentStrong
-    context.shadowBlur = 30
-    context.fillStyle = '#ffffff'
-    context.font = `900 italic ${size}px Arial, sans-serif`
-    const lines = wrapLines(context, design.headline.toUpperCase(), contentWidth, 3)
-    for (const line of lines) {
-      context.fillText(line, width / 2, y, contentWidth)
-      y += size * .88
-    }
-    context.shadowBlur = 0
-    drawBrushAccent(context, width * .28, y + width * .005, width * .44, palette)
-    y += width * .06
+    y = drawCampaignHeadline(
+      context,
+      design.headline,
+      width,
+      contentWidth,
+      y,
+      Math.round(width * .108),
+      3,
+      palette,
+    )
+    y += width * .015
   }
 
   if (isVisible(design, 'subline') && design.subline.trim()) {
-    const pillWidth = contentWidth * .72
-    const pillHeight = Math.max(78, width * .095)
-    fillRoundedRect(
-      context,
-      (width - pillWidth) / 2,
-      y,
-      pillWidth,
-      pillHeight,
-      pillHeight / 2,
-      palette.accentStrong,
-      '#ffffff',
-      3,
-    )
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.fillStyle = '#ffffff'
-    context.font = `900 ${Math.round(width * .052)}px Arial, sans-serif`
-    context.fillText(design.subline.toUpperCase(), width / 2, y + pillHeight / 2, pillWidth * .86)
-    y += pillHeight + width * .055
+    const bannerWidth = contentWidth * .72
+    const bannerHeight = Math.max(100, width * .12)
+    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
+    y += bannerHeight + width * .035
   }
 
   const cardGap = Math.round(width * .022)
@@ -424,48 +570,48 @@ function drawGigAnnouncement(
 
   if (cards.length) {
     const cardWidth = (contentWidth - cardGap * (cards.length - 1)) / cards.length
-    const cardHeight = Math.max(126, Math.round(width * .145))
+    const cardHeight = Math.max(132, Math.round(width * .15))
     cards.forEach((card, index) => {
       const x = left + index * (cardWidth + cardGap)
-      drawRoughPanel(context, x, y, cardWidth, cardHeight, palette)
+      drawCampaignCard(context, x, y, cardWidth, cardHeight, palette, artwork)
       context.textAlign = 'center'
       context.textBaseline = 'top'
       context.fillStyle = palette.accent
       context.font = `800 ${Math.round(width * .021)}px Arial, sans-serif`
-      context.fillText(card.label, x + cardWidth / 2, y + cardHeight * .15)
+      context.fillText(card.label, x + cardWidth / 2, y + cardHeight * .17)
       context.fillStyle = '#ffffff'
-      context.font = `900 ${Math.round(width * .038)}px Arial, sans-serif`
-      context.fillText(card.value.toUpperCase(), x + cardWidth / 2, y + cardHeight * .48, cardWidth * .82)
+      context.font = `900 ${Math.round(width * .039)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+      context.fillText(card.value.toUpperCase(), x + cardWidth / 2, y + cardHeight * .47, cardWidth * .8)
     })
     y += cardHeight + cardGap
   }
 
   if (isVisible(design, 'location') && design.locationText.trim()) {
-    const cardHeight = Math.max(108, Math.round(width * .12))
-    drawRoughPanel(context, left, y, contentWidth, cardHeight, palette)
+    const cardHeight = Math.max(112, Math.round(width * .125))
+    drawCampaignCard(context, left, y, contentWidth, cardHeight, palette, artwork)
     context.textAlign = 'left'
     context.textBaseline = 'middle'
     context.fillStyle = palette.accent
-    context.font = `900 ${Math.round(width * .033)}px Arial, sans-serif`
-    context.fillText('◆', left + width * .035, y + cardHeight / 2)
+    context.font = `900 ${Math.round(width * .03)}px Arial, sans-serif`
+    context.fillText('●', left + width * .04, y + cardHeight / 2)
     context.fillStyle = '#ffffff'
     context.font = `800 ${Math.round(width * .034)}px Arial, sans-serif`
-    context.fillText(design.locationText, left + width * .085, y + cardHeight / 2, contentWidth - width * .12)
+    context.fillText(design.locationText, left + width * .085, y + cardHeight / 2, contentWidth - width * .13)
     y += cardHeight
   }
 
   if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const ctaY = Math.min(height - safe.bottom - width * .11, Math.max(y + width * .065, height * .8))
+    const ctaY = Math.min(height - safe.bottom - width * .11, Math.max(y + width * .06, height * .8))
     context.textAlign = 'center'
     context.textBaseline = 'top'
     context.fillStyle = '#ffffff'
     context.shadowColor = palette.shadow
-    context.shadowBlur = 16
-    context.font = `900 italic ${Math.round(width * .052)}px Arial, sans-serif`
+    context.shadowBlur = 18
+    setCampaignDisplayFont(context, Math.round(width * .052))
     const lines = wrapLines(context, design.ctaText.toUpperCase(), contentWidth * .84, 2)
     lines.forEach((line, index) => context.fillText(line, width / 2, ctaY + index * width * .05, contentWidth * .84))
     context.shadowBlur = 0
-    drawBrushAccent(context, width * .34, ctaY + lines.length * width * .057, width * .32, palette)
+    drawBrushAccent(context, width * .33, ctaY + lines.length * width * .058, width * .34, palette)
   }
 }
 
@@ -475,53 +621,38 @@ function drawRecap(
   width: number,
   height: number,
   palette: Palette,
+  artwork: CampaignArtwork | null,
 ) {
   const safe = safeAreaInsets(design.preset)
   const left = safe.left
   const contentWidth = width - safe.left - safe.right
 
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity)
+  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
   drawBrand(context, design, width, palette)
 
-  let y = safe.top + width * .17
+  let y = safe.top + width * .15
   context.textAlign = 'center'
   context.textBaseline = 'top'
 
   if (isVisible(design, 'headline') && design.headline.trim()) {
-    const size = Math.round(width * .1)
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.accentStrong
-    context.shadowBlur = 30
-    context.font = `900 italic ${size}px Arial, sans-serif`
-    const lines = wrapLines(context, design.headline.toUpperCase(), contentWidth, 3)
-    for (const line of lines) {
-      context.fillText(line, width / 2, y, contentWidth)
-      y += size * .88
-    }
-    context.shadowBlur = 0
-    drawBrushAccent(context, width * .3, y + width * .004, width * .4, palette)
-    y += width * .055
+    y = drawCampaignHeadline(
+      context,
+      design.headline,
+      width,
+      contentWidth,
+      y,
+      Math.round(width * .11),
+      3,
+      palette,
+    )
+    y += width * .012
   }
 
   if (isVisible(design, 'subline') && design.subline.trim()) {
-    const pillWidth = contentWidth * .56
-    const pillHeight = Math.max(76, width * .092)
-    fillRoundedRect(
-      context,
-      (width - pillWidth) / 2,
-      y,
-      pillWidth,
-      pillHeight,
-      pillHeight / 2,
-      palette.accentStrong,
-      '#ffffff',
-      3,
-    )
-    context.textBaseline = 'middle'
-    context.fillStyle = '#ffffff'
-    context.font = `900 ${Math.round(width * .048)}px Arial, sans-serif`
-    context.fillText(design.subline.toUpperCase(), width / 2, y + pillHeight / 2, pillWidth * .86)
-    y += pillHeight + width * .055
+    const bannerWidth = contentWidth * .6
+    const bannerHeight = Math.max(98, width * .115)
+    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
+    y += bannerHeight + width * .045
   }
 
   const metaParts = [
@@ -530,31 +661,33 @@ function drawRecap(
   ].filter(Boolean)
 
   if (metaParts.length) {
-    const metaHeight = Math.max(142, width * .16)
-    drawRoughPanel(context, left, y, contentWidth, metaHeight, palette)
+    const metaHeight = Math.max(150, width * .17)
+    drawCampaignCard(context, left, y, contentWidth, metaHeight, palette, artwork)
     context.textAlign = 'left'
     context.textBaseline = 'top'
     context.fillStyle = '#ffffff'
-    context.font = `900 ${Math.round(width * .038)}px Arial, sans-serif`
-    context.fillText(metaParts[0]!.toUpperCase(), left + width * .045, y + metaHeight * .2, contentWidth * .82)
+    context.font = `900 ${Math.round(width * .041)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+    context.fillText(metaParts[0]!.toUpperCase(), left + width * .052, y + metaHeight * .2, contentWidth * .82)
     if (metaParts[1]) {
       context.fillStyle = palette.accent
       context.font = `800 ${Math.round(width * .028)}px Arial, sans-serif`
-      context.fillText(metaParts[1]!.toUpperCase(), left + width * .045, y + metaHeight * .58, contentWidth * .82)
+      context.fillText(metaParts[1]!.toUpperCase(), left + width * .052, y + metaHeight * .59, contentWidth * .82)
     }
   }
 
   if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const ctaWidth = contentWidth * .78
-    const ctaHeight = Math.max(86, width * .095)
-    const ctaX = (width - ctaWidth) / 2
-    const ctaY = height - safe.bottom - ctaHeight - width * .04
-    fillRoundedRect(context, ctaX, ctaY, ctaWidth, ctaHeight, ctaHeight / 2, palette.accentStrong, '#ffffff', 3)
+    const bannerWidth = contentWidth * .74
+    const bannerHeight = Math.max(92, width * .105)
+    const ctaY = height - safe.bottom - bannerHeight - width * .035
+    drawTitleBrush(context, (width - bannerWidth) / 2, ctaY, bannerWidth, bannerHeight, palette, artwork)
     context.textAlign = 'center'
     context.textBaseline = 'middle'
     context.fillStyle = '#ffffff'
-    context.font = `900 ${Math.round(width * .034)}px Arial, sans-serif`
-    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY + ctaHeight / 2, ctaWidth * .86)
+    context.shadowColor = palette.shadow
+    context.shadowBlur = 12
+    context.font = `900 ${Math.round(width * .034)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY + bannerHeight * .52, bannerWidth * .82)
+    context.shadowBlur = 0
   }
 }
 
@@ -564,114 +697,94 @@ function drawUpcomingGigs(
   width: number,
   height: number,
   palette: Palette,
+  artwork: CampaignArtwork | null,
 ) {
   const safe = safeAreaInsets(design.preset)
   const left = safe.left
   const contentWidth = width - safe.left - safe.right
 
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity)
+  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
   drawBrand(context, design, width, palette)
 
-  let y = safe.top + width * .16
+  let y = safe.top + width * .145
   context.textAlign = 'center'
   context.textBaseline = 'top'
 
   if (isVisible(design, 'headline') && design.headline.trim()) {
-    const size = Math.round(width * .092)
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.accentStrong
-    context.shadowBlur = 28
-    context.font = `900 italic ${size}px Arial, sans-serif`
-    const lines = wrapLines(context, design.headline.toUpperCase(), contentWidth, 2)
-    for (const line of lines) {
-      context.fillText(line, width / 2, y, contentWidth)
-      y += size * .86
-    }
-    context.shadowBlur = 0
+    y = drawCampaignHeadline(
+      context,
+      design.headline,
+      width,
+      contentWidth,
+      y,
+      Math.round(width * .108),
+      2,
+      palette,
+    )
   }
 
   if (isVisible(design, 'subline') && design.subline.trim()) {
-    y += width * .025
-    const pillWidth = contentWidth * .58
-    const pillHeight = Math.max(72, width * .088)
-    fillRoundedRect(
-      context,
-      (width - pillWidth) / 2,
-      y,
-      pillWidth,
-      pillHeight,
-      pillHeight / 2,
-      '#ffffff',
-      palette.accentStrong,
-      3,
-    )
-    context.textBaseline = 'middle'
-    context.fillStyle = '#08070a'
-    context.font = `900 ${Math.round(width * .047)}px Arial, sans-serif`
-    context.fillText(design.subline.toUpperCase(), width / 2, y + pillHeight / 2, pillWidth * .86)
-    y += pillHeight + width * .052
+    y += width * .005
+    const bannerWidth = contentWidth * .64
+    const bannerHeight = Math.max(102, width * .118)
+    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
+    y += bannerHeight + width * .045
   }
 
   if (isVisible(design, 'gigList')) {
     const items = design.gigItems.filter(item => item.enabled).slice(0, 6)
     const available = height - safe.bottom - y - (isVisible(design, 'cta') && design.ctaText.trim() ? width * .18 : width * .05)
     const gap = Math.max(18, width * .019)
-    const cardHeight = Math.min(width * .145, Math.max(width * .095, (available - gap * Math.max(0, items.length - 1)) / Math.max(1, items.length)))
+    const cardHeight = Math.min(width * .148, Math.max(width * .1, (available - gap * Math.max(0, items.length - 1)) / Math.max(1, items.length)))
 
     items.forEach((item, index) => {
       const cardY = y + index * (cardHeight + gap)
-      drawRoughPanel(context, left, cardY, contentWidth, cardHeight, palette)
+      drawCampaignCard(context, left, cardY, contentWidth, cardHeight, palette, artwork)
 
       const dateWidth = Math.min(width * .19, contentWidth * .24)
       const dateX = left + width * .018
-      const dateY = cardY + width * .012
-      const dateHeight = cardHeight - width * .024
-      fillRoundedRect(
-        context,
-        dateX,
-        dateY,
-        dateWidth,
-        dateHeight,
-        16,
-        palette.accentStrong,
-        '#ffffff',
-        2,
-      )
+      const dateY = cardY + width * .011
+      const dateHeight = cardHeight - width * .022
+      drawDateBadge(context, dateX, dateY, dateWidth, dateHeight, palette, artwork)
 
       const dateParts = item.dateText.trim().split(/\s+/)
       context.textAlign = 'center'
       context.textBaseline = 'middle'
       context.fillStyle = '#ffffff'
-      context.font = `900 ${Math.round(width * .042)}px Arial, sans-serif`
-      context.fillText(dateParts[0] || '', dateX + dateWidth / 2, cardY + cardHeight * .42, dateWidth * .8)
+      context.shadowColor = 'rgba(0,0,0,.35)'
+      context.shadowBlur = 6
+      context.font = `900 ${Math.round(width * .045)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+      context.fillText(dateParts[0] || '', dateX + dateWidth / 2, cardY + cardHeight * .39, dateWidth * .76)
       if (dateParts.length > 1) {
-        context.font = `800 ${Math.round(width * .02)}px Arial, sans-serif`
-        context.fillText(dateParts.slice(1).join(' ').toUpperCase(), dateX + dateWidth / 2, cardY + cardHeight * .71, dateWidth * .8)
+        context.shadowBlur = 0
+        context.font = `900 ${Math.round(width * .019)}px Arial, sans-serif`
+        context.fillText(dateParts.slice(1).join(' ').toUpperCase(), dateX + dateWidth / 2, cardY + cardHeight * .7, dateWidth * .78)
       }
 
-      const textX = dateX + dateWidth + width * .034
-      const textWidth = contentWidth - dateWidth - width * .085
+      const textX = dateX + dateWidth + width * .036
+      const textWidth = contentWidth - dateWidth - width * .09
       context.textAlign = 'left'
       context.fillStyle = '#ffffff'
-      context.font = `900 ${Math.round(width * .033)}px Arial, sans-serif`
-      context.fillText(item.title, textX, cardY + cardHeight * .36, textWidth)
-      context.fillStyle = palette.accent
+      context.shadowBlur = 0
+      context.font = `900 ${Math.round(width * .035)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
+      context.fillText(item.title, textX, cardY + cardHeight * .35, textWidth)
+      context.fillStyle = '#c797ff'
       context.font = `800 ${Math.round(width * .023)}px Arial, sans-serif`
       context.fillText(item.locationText, textX, cardY + cardHeight * .7, textWidth)
     })
   }
 
   if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const ctaY = height - safe.bottom - width * .08
+    const ctaY = height - safe.bottom - width * .082
     context.textAlign = 'center'
     context.textBaseline = 'middle'
     context.fillStyle = '#ffffff'
     context.shadowColor = palette.shadow
-    context.shadowBlur = 16
-    context.font = `900 italic ${Math.round(width * .04)}px Arial, sans-serif`
-    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY, contentWidth * .85)
+    context.shadowBlur = 18
+    setCampaignDisplayFont(context, Math.round(width * .044))
+    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY, contentWidth * .86)
     context.shadowBlur = 0
-    drawBrushAccent(context, width * .35, ctaY + width * .04, width * .3, palette)
+    drawBrushAccent(context, width * .32, ctaY + width * .045, width * .36, palette)
   }
 }
 
@@ -738,7 +851,7 @@ function drawSafeArea(context: CanvasRenderingContext2D, design: PostDesign, wid
   context.restore()
 }
 
-export function renderPostCanvas(
+export async function renderPostCanvas(
   canvas: HTMLCanvasElement,
   image: ImageBitmap,
   design: PostDesign,
@@ -768,13 +881,19 @@ export function renderPostCanvas(
   context.drawImage(image, rect.x, rect.y, rect.width, rect.height)
 
   const palette = palettes[design.brandPreset]
+  const isCampaignTemplate = design.templateKey === 'gig-announcement'
+    || design.templateKey === 'recap'
+    || design.templateKey === 'upcoming-gigs'
+  const artwork = design.brandPreset === 'night' && isCampaignTemplate
+    ? await loadCampaignArtwork()
+    : null
 
   if (design.templateKey === 'gig-announcement') {
-    drawGigAnnouncement(context, design, size.width, size.height, palette)
+    drawGigAnnouncement(context, design, size.width, size.height, palette, artwork)
   } else if (design.templateKey === 'recap') {
-    drawRecap(context, design, size.width, size.height, palette)
+    drawRecap(context, design, size.width, size.height, palette, artwork)
   } else if (design.templateKey === 'upcoming-gigs') {
-    drawUpcomingGigs(context, design, size.width, size.height, palette)
+    drawUpcomingGigs(context, design, size.width, size.height, palette, artwork)
   } else {
     drawTemplateOverlay(context, design, size.width, size.height, palette)
     drawBrand(context, design, size.width, palette)

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="190" viewBox="0 0 260 190">
+  <defs>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a19e6"/><stop offset=".48" stop-color="#a526ff"/><stop offset="1" stop-color="#7411d1"/>
+    </linearGradient>
+    <filter id="rough" x="-20%" y="-25%" width="140%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency=".02 .13" numOctaves="2" seed="19" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="8"/>
+    </filter>
+    <filter id="glow" x="-30%" y="-40%" width="160%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#rough)">
+    <path d="M16 14 L235 10 L250 26 L245 167 L230 181 L22 177 L9 162 L12 28 Z" fill="url(#purple)" stroke="#ead8ff" stroke-width="4" filter="url(#glow)"/>
+    <path d="M24 25 L229 22 L237 31 L234 158 L225 168 L29 166 L20 155 L21 33 Z" fill="none" stroke="#dcb8ff" stroke-width="2" opacity=".55"/>
+  </g>
+  <g opacity=".25" stroke="#fff" stroke-linecap="square">
+    <path d="M32 43 L183 25" stroke-width="4"/><path d="M78 169 L224 151" stroke-width="3"/><path d="M214 45 L244 41" stroke-width="2"/>
+  </g>
+</svg>
