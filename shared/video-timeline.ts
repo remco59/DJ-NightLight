@@ -202,6 +202,54 @@ export function deleteItem(project: VideoProject, itemId: string) {
   return next
 }
 
+/** Deletes a clip and pulls every later clip on its track left by its length. */
+export function rippleDelete(project: VideoProject, itemId: string) {
+  const found = findItem(project, itemId)
+  if (!found) return project
+  const next = clone(project)
+  const track = next.tracks.find(entry => entry.id === found.track.id)!
+  const end = itemEnd(found.item)
+  track.items = track.items
+    .filter(item => item.id !== itemId)
+    .map(item => item.start >= end ? { ...item, start: item.start - found.item.duration } : item)
+  return next
+}
+
+/** Removes the empty space between clips on a track, keeping their order and the first clip's start. */
+export function closeGaps(project: VideoProject, trackId: string) {
+  const source = project.tracks.find(track => track.id === trackId)
+  if (!source || source.items.length < 2) return project
+  const next = clone(project)
+  const track = next.tracks.find(entry => entry.id === trackId)!
+  sortItems(track)
+  let cursor = track.items[0]!.start
+  let changed = false
+  for (const item of track.items) {
+    if (item.start !== cursor) changed = true
+    item.start = cursor
+    cursor = itemEnd(item)
+  }
+  return changed ? next : project
+}
+
+/** Closes the single gap containing `frame` on a track (only between two clips). */
+export function closeGapAt(project: VideoProject, trackId: string, frame: number) {
+  const track = project.tracks.find(entry => entry.id === trackId)
+  if (!track) return project
+  const items = [...track.items].sort((a, b) => a.start - b.start)
+  const index = items.findIndex(item => item.start > frame)
+  if (index <= 0) return project
+  const gapStart = itemEnd(items[index - 1]!)
+  const gap = items[index]!.start - gapStart
+  if (frame < gapStart || gap <= 0) return project
+  const next = clone(project)
+  const target = next.tracks.find(entry => entry.id === trackId)!
+  for (const item of target.items) {
+    if (item.start >= gapStart + gap) item.start -= gap
+  }
+  return next
+}
+
 export function updateItem(project: VideoProject, itemId: string, patch: (item: TimelineItem) => void) {
   const next = clone(project)
   const found = findItem(next, itemId)

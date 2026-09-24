@@ -286,6 +286,7 @@ const assetTitle = computed(() => {
           <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> D</dt><dd>Duplicate</dd>
           <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> Z</dt><dd>Undo (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> to redo)</dd>
           <dt><Icon name="lucide:arrow-left" role="img" aria-label="Left" /> <Icon name="lucide:arrow-right" role="img" aria-label="Right" /></dt><dd>Step one frame (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> one second)</dd>
+          <dt><Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> Delete</dt><dd>Ripple delete (close the hole)</dd>
           <dt>M</dt><dd>Add marker at playhead</dd>
           <dt>[ ]</dt><dd>Previous / next marker</dd>
           <dt>\</dt><dd>Zoom timeline to fit (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> selected clip)</dd>

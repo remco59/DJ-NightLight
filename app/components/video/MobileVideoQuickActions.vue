@@ -16,6 +16,8 @@ const meta: Record<QuickAction, { label: string, icon: string }> = {
   mute: { label: 'Mute', icon: 'lucide:volume-x' },
   slip: { label: 'Slip', icon: 'lucide:move-horizontal' },
   replace: { label: 'Replace', icon: 'lucide:replace' },
+  'close-gaps': { label: 'Close gaps', icon: 'lucide:fold-horizontal' },
+  ripple: { label: 'Ripple delete', icon: 'lucide:arrow-left-to-line' },
   delete: { label: 'Delete', icon: 'lucide:trash-2' },
 }
 
@@ -33,6 +35,11 @@ function run(action: QuickAction) {
   if (action === 'split') editor.splitSelected()
   else if (action === 'duplicate') editor.duplicateSelected()
   else if (action === 'delete') editor.deleteSelected()
+  else if (action === 'ripple') editor.rippleDeleteSelected()
+  else if (action === 'close-gaps') {
+    const track = editor.selection.value?.track
+    if (track) editor.closeTrackGaps(track.id)
+  }
   else if (action === 'replace') emit('replace')
   // Slip is a mode: while on, dragging the selected clip slips its source.
   else if (action === 'slip') state.slipMode = !state.slipMode

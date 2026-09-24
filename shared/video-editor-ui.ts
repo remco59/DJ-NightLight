@@ -50,7 +50,7 @@ export function filterMediaAssets<T extends { title: string, originalFilename: s
   })
 }
 
-export type QuickAction = 'split' | 'duplicate' | 'mute' | 'slip' | 'replace' | 'delete'
+export type QuickAction = 'split' | 'duplicate' | 'mute' | 'slip' | 'replace' | 'ripple' | 'close-gaps' | 'delete'
 
 /** Clip actions offered next to the mobile timeline for the current selection. */
 export function quickActionsFor(item: TimelineItem | null): QuickAction[] {
@@ -59,7 +59,7 @@ export function quickActionsFor(item: TimelineItem | null): QuickAction[] {
   if (item.type === 'video') actions.push('mute')
   if (item.type === 'video' || item.type === 'audio') actions.push('slip')
   if (item.type !== 'graphic') actions.push('replace')
-  actions.push('delete')
+  actions.push('close-gaps', 'ripple', 'delete')
   return actions
 }
 

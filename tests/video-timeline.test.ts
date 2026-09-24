@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PROJECT_SECONDS, createGraphicItem, createMediaItem, createVideoProject, findItem, type TimelineItem, type VideoProject } from '../shared/video-project'
+import { MAX_PROJECT_SECONDS, createGraphicItem, createMediaItem, createTrack, createVideoProject, findItem, type TimelineItem, type VideoProject } from '../shared/video-project'
 import {
   addItem,
   createHistory,
@@ -9,8 +9,11 @@ import {
   moveItem,
   recordHistory,
   redoHistory,
+  closeGapAt,
+  closeGaps,
   reorderTrack,
   replaceItemAsset,
+  rippleDelete,
   slipItem,
   snapFrame,
   snapTargets,
@@ -196,5 +199,47 @@ describe('track order', () => {
     const audio2 = project.tracks.find(track => track.name === 'Audio 2')!
     expect(ids(reorderTrack(project, audio2.id, 0))).toEqual(['Video', 'Graphics', 'Overlay', 'Audio 2', 'Audio'])
     expect(reorderTrack(project, overlay.id, 0)).toBe(project)
+  })
+})
+
+describe('ripple delete and gaps', () => {
+  // a: 0–90, b: 90–150, c: 200–230 on one track; d on another track at 150.
+  function spaced() {
+    const { project, a, b, trackId } = projectWithClips()
+    const c = { ...createMediaItem(clipAsset, 200, 30), duration: 30 }
+    let next = addItem(project, trackId, c)
+    const other = createTrack('video')
+    next = { ...next, tracks: [...next.tracks, other] }
+    const d = { ...createMediaItem(clipAsset, 150, 30), duration: 30 }
+    next = addItem(next, other.id, d)
+    return { project: next, a, b, c, d, trackId }
+  }
+
+  it('ripple deletes: later clips on the same track move left, other tracks stay', () => {
+    const { project, a, b, c, d } = spaced()
+    const next = rippleDelete(project, a.id)
+    expect(findItem(next, a.id)).toBeNull()
+    expect(item(next, b.id).start).toBe(0)
+    expect(item(next, c.id).start).toBe(110)
+    expect(item(next, d.id).start).toBe(150)
+    expect(item(project, b.id).start).toBe(90)
+  })
+
+  it('closes all gaps on a track keeping order, trims and the first start', () => {
+    const { project, a, b, c, trackId } = spaced()
+    // Shift the whole track 10 frames right: the first clip's start must survive.
+    const moved = JSON.parse(JSON.stringify(project)) as VideoProject
+    for (const entry of moved.tracks.find(track => track.id === trackId)!.items) entry.start += 10
+    const closed = closeGaps(moved, trackId)
+    expect([item(closed, a.id), item(closed, b.id), item(closed, c.id)].map(entry => entry.start)).toEqual([10, 100, 160])
+    expect(item(closed, a.id).duration).toBe(90)
+    expect(closeGaps(closed, trackId)).toBe(closed)
+  })
+
+  it('closes a single gap under a frame', () => {
+    const { project, c, trackId } = spaced()
+    expect(item(closeGapAt(project, trackId, 170), c.id).start).toBe(150)
+    // Inside a clip or before the first clip there is no gap to close.
+    expect(closeGapAt(project, trackId, 100)).toBe(project)
   })
 })
