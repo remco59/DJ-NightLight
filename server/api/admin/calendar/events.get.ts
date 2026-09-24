@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     isNull(gigs.deletedAt),
     lt(gigs.startsAt, end),
     // Null end times are treated as short events. Otherwise include anything overlapping the range.
-    or(isNull(gigs.endsAt), gt(gigs.endsAt, start)),
+    or(isNull(gigs.endsAt), gt(gigs.endsAt, start))!,
   ]
   if (user.role === 'dj') conditions.push(eq(gigs.assignedUserId, user.id))
 
