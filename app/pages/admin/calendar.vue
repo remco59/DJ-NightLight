@@ -448,7 +448,7 @@ async function rotateIcs() {
                 <h3>Synchronisatiestatus</h3>
                 <p>Recente Google Calendar-activiteiten.</p>
               </div>
-              <button class="small-button" type="button" :disabled="integrationPending" @click="refreshIntegration"><Icon name="lucide:refresh-cw" /> Vernieuwen</button>
+              <button class="small-button" type="button" :disabled="integrationPending" @click="refreshIntegration()"><Icon name="lucide:refresh-cw" /> Vernieuwen</button>
             </div>
             <div v-if="!integrationData?.items.length" class="empty">Nog geen synchronisatietaken.</div>
             <article v-for="item in integrationData?.items || []" :key="item.gigId" class="sync-item">
