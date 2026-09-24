@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyGigDefaults,
+  gigFallbackProps,
   gigFieldKeys,
   gigListProps,
   gigPickerLabel,
   gigTemplateKind,
   gigTemplateProps,
   upcomingGigs,
+  upcomingPublicGigs,
   type TemplateGig,
 } from '../shared/template-gigs'
 import { createGraphicItem, timelineItemSchema } from '../shared/video-project'
-import { MOTION_TEMPLATES } from '../shared/video-templates'
+import { MOTION_TEMPLATES, parseGigRow } from '../shared/video-templates'
 
 const now = new Date('2026-09-24T12:00:00Z')
 
@@ -115,11 +117,42 @@ describe('gig defaults for new templates', () => {
     expect(item.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam'])
   })
 
-  it('keeps the template defaults without upcoming gigs or for other templates', () => {
-    const announcement = applyGigDefaults(createGraphicItem('gig-announcement', 0, 30), [], now)
-    expect(announcement.gigId).toBeUndefined()
-    expect(announcement.templateProps).toEqual(MOTION_TEMPLATES['gig-announcement'].defaults)
+  it('skips private gigs for the default', () => {
+    const wedding = gig({ id: '33333333-3333-4333-8333-333333333333', title: 'Bruiloft Jansen', startsAt: '2026-10-03T19:00:00Z', endsAt: null, publicVisibility: false })
+    const next = gig()
+    expect(upcomingPublicGigs([wedding, next], now)).toEqual([next])
+    const item = applyGigDefaults(createGraphicItem('gig-announcement', 0, 30), [wedding, next], now)
+    expect(item.gigId).toBe(next.id)
+    const list = applyGigDefaults(createGraphicItem('upcoming-gigs', 0, 30), [wedding, next], now)
+    expect(list.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam'])
+  })
+
+  it.each(['gig-announcement', 'electric-gig-poster', 'upcoming-gigs'] as const)('uses fallback text for %s without an upcoming public gig', (key) => {
+    const privateOnly = [gig({ publicVisibility: false })]
+    for (const gigs of [[], privateOnly]) {
+      const item = applyGigDefaults(createGraphicItem(key, 0, 30), gigs, now)
+      expect(item.gigId).toBeUndefined()
+      expect(item.templateProps).toMatchObject(gigFallbackProps(key))
+      // Never the example venue/date from the template defaults.
+      expect(JSON.stringify(item.templateProps)).not.toMatch(/CLUB NOVA|26 APR|Eredivisie/)
+      expect(timelineItemSchema.parse(item)).toBeTruthy()
+    }
+  })
+
+  it('keeps fallback text within the field limits', () => {
+    for (const key of ['gig-announcement', 'electric-gig-poster', 'upcoming-gigs'] as const) {
+      for (const [name, value] of Object.entries(gigFallbackProps(key))) {
+        const field = MOTION_TEMPLATES[key].fields.find(entry => entry.key === name)!
+        for (const text of [value].flat()) expect(text.length).toBeLessThanOrEqual(field.maxLength || 500)
+      }
+    }
+    const [row] = gigFallbackProps('upcoming-gigs').gigs as string[]
+    expect(parseGigRow(row!).title).toBe('Nieuwe data volgen')
+  })
+
+  it('leaves templates without gigs alone', () => {
     const title = applyGigDefaults(createGraphicItem('lower-third', 0, 30), [gig()], now)
     expect(title.templateProps).toEqual(MOTION_TEMPLATES['lower-third'].defaults)
+    expect(applyGigDefaults(createGraphicItem('lower-third', 0, 30), [], now).templateProps).toEqual(MOTION_TEMPLATES['lower-third'].defaults)
   })
 })

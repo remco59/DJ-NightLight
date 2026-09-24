@@ -36,7 +36,7 @@ import {
   gigPickerLabel,
   gigTemplateKind,
   gigTemplateProps,
-  upcomingGigs,
+  upcomingPublicGigs,
 } from '~~/shared/template-gigs'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
@@ -178,6 +178,8 @@ const gigKind = computed(() => item.value?.type === 'graphic' ? gigTemplateKind(
 const linkedGigId = computed(() => item.value?.type === 'graphic' ? item.value.gigId || '' : '')
 /** A linked gig leaves the picker once it has passed; keep showing that it is linked. */
 const linkedGigMissing = computed(() => Boolean(linkedGigId.value) && !state.gigs.some(gig => gig.id === linkedGigId.value))
+/** Only public gigs are filled in automatically; private ones can still be picked by hand. */
+const publicGigs = computed(() => upcomingPublicGigs(state.gigs))
 const gigNote = computed(() => {
   if (linkedGigId.value) return 'Date, time and venue come from this gig. Editing them switches to manual.'
   return state.gigs.length ? 'Pick a gig to fill in date, time and venue.' : 'No upcoming booked gigs in the agenda.'
@@ -197,7 +199,7 @@ function selectGig(gigId: string) {
 }
 
 function fillNextGigs() {
-  const props = gigListProps(upcomingGigs(state.gigs))
+  const props = gigListProps(publicGigs.value)
   patch((target) => {
     if (target.type === 'graphic') Object.assign(target.templateProps, props)
   })
@@ -397,8 +399,8 @@ const assetTitle = computed(() => {
                 <option value="">Add gig from agenda…</option>
                 <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
               </select>
-              <button type="button" class="ghost" :disabled="!state.gigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Fill with next gigs</button>
-              <p v-if="!state.gigs.length" class="note">No upcoming booked gigs in the agenda.</p>
+              <button type="button" class="ghost" :disabled="!publicGigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Fill with next public gigs</button>
+              <p v-if="!publicGigs.length" class="note">No upcoming public gigs in the agenda.</p>
             </template>
           </div>
           <AdminMediaPicker

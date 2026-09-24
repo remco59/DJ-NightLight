@@ -132,17 +132,38 @@ export function upcomingGigs(gigs: TemplateGig[], now = new Date()) {
   return gigs.filter(gig => new Date(gig.endsAt || gig.startsAt).getTime() >= now.getTime())
 }
 
+/** Upcoming gigs that are public on the agenda: the only ones filled in automatically. */
+export function upcomingPublicGigs(gigs: TemplateGig[], now = new Date()) {
+  return upcomingGigs(gigs, now).filter(gig => gig.publicVisibility)
+}
+
 /**
- * Fills a freshly created template with the agenda: the next gig for a single
- * announcement (linked by `gigId`), the next few for a list. Returns the
- * patched props and link, or null when the template does not use gigs.
+ * Neutral text for when there is no upcoming public gig, so a new template
+ * never shows the example venue and date from its defaults as if they were real.
+ */
+const GIG_FALLBACKS: Partial<Record<MotionTemplateKey, TemplateProps>> = {
+  'gig-announcement': { headline: 'BINNENKORT', venue: 'LOCATIE VOLGT', date: 'DATUM VOLGT', time: 'TIJD VOLGT', location: '' },
+  'electric-gig-poster': { headline: 'BINNENKORT LIVE', day: '?', month: 'VOLGT', venue: 'LOCATIE VOLGT', time: '' },
+  'upcoming-gigs': { gigs: [' | Nieuwe data volgen | Hou onze socials in de gaten'] },
+}
+
+export function gigFallbackProps(key: MotionTemplateKey): TemplateProps {
+  return structuredClone(GIG_FALLBACKS[key] || {})
+}
+
+/**
+ * Fills a freshly created template with the agenda: the next public gig for a
+ * single announcement (linked by `gigId`), the next few for a list, or the
+ * fallback text when there is none. Returns null for templates without gigs.
  */
 export function gigDefaults(key: MotionTemplateKey, gigs: TemplateGig[], now = new Date()) {
   const kind = gigTemplateKind(key)
-  const upcoming = upcomingGigs(gigs, now)
-  if (kind === 'list' && upcoming.length) return { props: gigListProps(upcoming), gigId: undefined }
-  const gig = kind === 'single' ? upcoming[0] : null
-  return gig ? { props: gigTemplateProps(key, gig), gigId: gig.id } : null
+  if (!kind) return null
+  const upcoming = upcomingPublicGigs(gigs, now)
+  const gig = upcoming[0]
+  if (!gig) return { props: gigFallbackProps(key), gigId: undefined }
+  if (kind === 'list') return { props: gigListProps(upcoming), gigId: undefined }
+  return { props: gigTemplateProps(key, gig), gigId: gig.id }
 }
 
 /** Applies `gigDefaults` to a new graphic item in place. */

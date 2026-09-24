@@ -15,8 +15,9 @@ export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, VIDEO_EDITOR_ROLES)
   const input = await readValidatedBody(event, body => schema.parse(body ?? {}))
   const project = createVideoProject(input.aspect)
-  // The starter announcement shows the next gig instead of placeholder text.
-  const gigs = await listTemplateGigs(user.role, 6)
+  // The starter announcement shows the next public gig, or neutral fallback
+  // text. The agenda is a nice-to-have here: it never blocks creating a project.
+  const gigs = await listTemplateGigs(user.role).catch(() => [])
   for (const item of project.tracks.flatMap(track => track.items)) {
     if (item.type === 'graphic') applyGigDefaults(item, gigs)
   }
