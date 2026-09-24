@@ -12,7 +12,7 @@ export const renderEngineSettingSchema = z.enum(RENDER_ENGINE_SETTINGS)
 export const renderSettingsInputSchema = z.object({ engine: renderEngineSettingSchema })
 
 export const RENDER_ENGINE_LABELS: Record<RenderEngineSetting, string> = {
-  auto: 'Automatic',
+  auto: 'Automatisch',
   cpu: 'CPU (software)',
   intel: 'Intel GPU (VAAPI)',
 }

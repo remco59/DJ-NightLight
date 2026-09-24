@@ -37,25 +37,25 @@ const options = computed(() => {
   return [
     {
       id: 'auto' as const,
-      detail: `Uses the Intel GPU when available, otherwise the CPU.${data.value?.engine === 'auto' && active ? ` Currently: ${RENDER_ENGINE_LABELS[active]}.` : ''}`,
+      detail: `Gebruikt de Intel GPU als die beschikbaar is, anders de CPU.${data.value?.engine === 'auto' && active ? ` Nu: ${RENDER_ENGINE_LABELS[active]}.` : ''}`,
       available: true,
     },
-    { id: 'cpu' as const, detail: 'Software encoding. Always available.', available: true },
+    { id: 'cpu' as const, detail: 'Software-encoding. Altijd beschikbaar.', available: true },
     {
       id: 'intel' as const,
-      detail: intel?.detail || 'Not detected yet. Start the render worker to check for an Intel GPU.',
+      detail: intel?.detail || 'Nog niet gedetecteerd. Start de renderworker om te controleren of er een Intel GPU is.',
       available: Boolean(intel?.available),
     },
   ]
 })
 
 function formatAge(value: string | null) {
-  if (!value) return 'never'
+  if (!value) return 'nooit'
   const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000))
-  if (seconds < 90) return `${seconds} s ago`
+  if (seconds < 90) return `${seconds} s geleden`
   const minutes = Math.round(seconds / 60)
-  if (minutes < 90) return `${minutes} min ago`
-  return new Date(value).toLocaleString()
+  if (minutes < 90) return `${minutes} min geleden`
+  return new Date(value).toLocaleString('nl-NL')
 }
 
 async function save() {
@@ -65,10 +65,10 @@ async function save() {
   try {
     await $fetch('/api/admin/render-settings', { method: 'PUT', body: { engine: engine.value } })
     await refresh()
-    message.value = 'Rendering preference saved. It applies to the next export.'
+    message.value = 'Renderinstelling opgeslagen. Die geldt vanaf de volgende export.'
     messageType.value = 'success'
   } catch (error: unknown) {
-    message.value = apiErrorMessage(error, 'Could not save the rendering preference.')
+    message.value = apiErrorMessage(error, 'Renderinstelling opslaan is niet gelukt.')
     messageType.value = 'error'
   } finally {
     saving.value = false
@@ -80,22 +80,22 @@ async function save() {
   <section id="rendering" class="card rendering">
     <div class="head">
       <div>
-        <p class="eyebrow">Video exports</p>
-        <h2>Video rendering</h2>
-        <p>Choose how the render worker encodes exported videos. Available hardware is detected automatically.</p>
+        <p class="eyebrow">Video-exports</p>
+        <h2>Video renderen</h2>
+        <p>Kies hoe de renderworker geëxporteerde video’s codeert. Beschikbare hardware wordt automatisch gedetecteerd.</p>
       </div>
       <div class="status-stack">
         <span class="pill" :class="{ on: data?.workerOnline }">{{ data?.workerOnline ? 'Worker online' : 'Worker offline' }}</span>
-        <small>Hardware checked {{ formatAge(data?.detectedAt ?? null) }}</small>
+        <small>Hardware gecontroleerd {{ formatAge(data?.detectedAt ?? null) }}</small>
       </div>
     </div>
 
     <fieldset class="engines">
-      <legend class="sr-only">Render engine</legend>
+      <legend class="sr-only">Render-engine</legend>
       <label v-for="option in options" :key="option.id" class="engine" :class="{ disabled: !option.available, selected: engine === option.id }">
         <input v-model="engine" type="radio" name="render-engine" :value="option.id" :disabled="!option.available">
         <span>
-          <strong>{{ RENDER_ENGINE_LABELS[option.id] }}<template v-if="option.id === 'auto'"> (recommended)</template></strong>
+          <strong>{{ RENDER_ENGINE_LABELS[option.id] }}<template v-if="option.id === 'auto'"> (aanbevolen)</template></strong>
           <small>{{ option.detail }}</small>
         </span>
       </label>
@@ -104,8 +104,8 @@ async function save() {
     <div class="actions">
       <span :class="messageType">{{ message }}</span>
       <div>
-        <button class="ghost" type="button" :disabled="pending" @click="refresh()">{{ pending ? 'Checking…' : 'Refresh' }}</button>
-        <button type="button" :disabled="saving || engine === data?.engine" @click="save">{{ saving ? 'Saving…' : 'Save rendering' }}</button>
+        <button class="ghost" type="button" :disabled="pending" @click="refresh()">{{ pending ? 'Controleren…' : 'Vernieuwen' }}</button>
+        <button type="button" :disabled="saving || engine === data?.engine" @click="save">{{ saving ? 'Opslaan…' : 'Renderinstelling opslaan' }}</button>
       </div>
     </div>
   </section>

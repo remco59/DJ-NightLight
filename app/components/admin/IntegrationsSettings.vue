@@ -55,9 +55,9 @@ watchEffect(() => {
 })
 
 function sourceLabel(source: Source) {
-  if (source === 'settings') return 'Saved in NightLight'
-  if (source === 'environment') return 'Server environment'
-  return 'Not configured'
+  if (source === 'settings') return 'Opgeslagen in NightLight'
+  if (source === 'environment') return 'Serveromgeving'
+  return 'Niet ingesteld'
 }
 
 function startCalendarCredentials() {
@@ -82,7 +82,7 @@ async function saveCalendar() {
 
   if (calendarEditingCredentials.value) {
     if (!calendarCredentials.clientId || !calendarCredentials.clientSecret || !calendarCredentials.refreshToken) {
-      calendarMessage.value = 'Enter the client ID, client secret and refresh token together.'
+      calendarMessage.value = 'Vul de client-ID, het client secret en de refresh token samen in.'
       calendarMessageType.value = 'error'
       return
     }
@@ -96,10 +96,10 @@ async function saveCalendar() {
     calendarCredentials.clientSecret = ''
     calendarCredentials.refreshToken = ''
     await refresh()
-    calendarMessage.value = 'Google Calendar settings saved.'
+    calendarMessage.value = 'Instellingen voor Google Calendar opgeslagen.'
     calendarMessageType.value = 'success'
   } catch (error: unknown) {
-    calendarMessage.value = apiErrorMessage(error, 'Could not save Google Calendar settings.')
+    calendarMessage.value = apiErrorMessage(error, 'Instellingen voor Google Calendar opslaan is niet gelukt.')
     calendarMessageType.value = 'error'
   } finally {
     busy.value = ''
@@ -107,18 +107,18 @@ async function saveCalendar() {
 }
 
 async function removeCalendarCredentials() {
-  if (!confirm('Remove the Google Calendar credentials saved in NightLight? Environment credentials will still be used if they exist.')) return
+  if (!confirm('De in NightLight opgeslagen inloggegevens voor Google Calendar verwijderen? Inloggegevens uit de serveromgeving worden dan gebruikt als die er zijn.')) return
   busy.value = 'calendar-remove'
   calendarMessage.value = ''
   try {
     await $fetch('/api/admin/integrations', { method: 'DELETE', body: { provider: 'calendar' } })
     await refresh()
     calendarMessage.value = data.value?.calendar.source === 'environment'
-      ? 'Saved credentials removed. NightLight is using the server environment again.'
-      : 'Saved Google Calendar credentials removed.'
+      ? 'Opgeslagen inloggegevens verwijderd. NightLight gebruikt weer de serveromgeving.'
+      : 'Opgeslagen inloggegevens voor Google Calendar verwijderd.'
     calendarMessageType.value = 'success'
   } catch (error: unknown) {
-    calendarMessage.value = apiErrorMessage(error, 'Could not remove Google Calendar credentials.')
+    calendarMessage.value = apiErrorMessage(error, 'Inloggegevens voor Google Calendar verwijderen is niet gelukt.')
     calendarMessageType.value = 'error'
   } finally {
     busy.value = ''
@@ -135,7 +135,7 @@ async function saveEmail() {
   emailMessage.value = ''
   emailMessageType.value = ''
   if (!data.value?.email.apiKeyConfigured && !emailApiKey.value) {
-    emailMessage.value = 'Enter a Resend API key before enabling email delivery.'
+    emailMessage.value = 'Vul een Resend API-sleutel in voordat je het versturen van e-mail inschakelt.'
     emailMessageType.value = 'error'
     return
   }
@@ -154,10 +154,10 @@ async function saveEmail() {
     emailApiKey.value = ''
     emailEditingKey.value = false
     await refresh()
-    emailMessage.value = 'Email provider settings saved.'
+    emailMessage.value = 'Instellingen voor de e-mailprovider opgeslagen.'
     emailMessageType.value = 'success'
   } catch (error: unknown) {
-    emailMessage.value = apiErrorMessage(error, 'Could not save email provider settings.')
+    emailMessage.value = apiErrorMessage(error, 'Instellingen voor de e-mailprovider opslaan is niet gelukt.')
     emailMessageType.value = 'error'
   } finally {
     busy.value = ''
@@ -165,18 +165,18 @@ async function saveEmail() {
 }
 
 async function removeEmailSettings() {
-  if (!confirm('Remove the email provider settings saved in NightLight? Environment settings will still be used if they exist.')) return
+  if (!confirm('De in NightLight opgeslagen instellingen voor de e-mailprovider verwijderen? Instellingen uit de serveromgeving worden dan gebruikt als die er zijn.')) return
   busy.value = 'email-remove'
   emailMessage.value = ''
   try {
     await $fetch('/api/admin/integrations', { method: 'DELETE', body: { provider: 'email' } })
     await refresh()
     emailMessage.value = data.value?.email.source === 'environment'
-      ? 'Saved email settings removed. NightLight is using the server environment again.'
-      : 'Saved email provider settings removed.'
+      ? 'Opgeslagen e-mailinstellingen verwijderd. NightLight gebruikt weer de serveromgeving.'
+      : 'Opgeslagen instellingen voor de e-mailprovider verwijderd.'
     emailMessageType.value = 'success'
   } catch (error: unknown) {
-    emailMessage.value = apiErrorMessage(error, 'Could not remove email provider settings.')
+    emailMessage.value = apiErrorMessage(error, 'Instellingen voor de e-mailprovider verwijderen is niet gelukt.')
     emailMessageType.value = 'error'
   } finally {
     busy.value = ''
@@ -188,9 +188,9 @@ async function removeEmailSettings() {
   <section id="integrations" class="integrations">
     <div class="section-intro">
       <div>
-        <p class="eyebrow">Connected services</p>
-        <h2>Integrations</h2>
-        <p>Configure every external service here. Secrets saved in NightLight are encrypted and take precedence over server environment variables.</p>
+        <p class="eyebrow">Gekoppelde diensten</p>
+        <h2>Integraties</h2>
+        <p>Stel hier alle externe diensten in. Geheimen die je in NightLight opslaat, worden versleuteld en gaan boven de omgevingsvariabelen van de server.</p>
       </div>
     </div>
 
@@ -199,10 +199,10 @@ async function removeEmailSettings() {
         <div>
           <p class="eyebrow">Google</p>
           <h3>Google Calendar</h3>
-          <p>Synchronize booked gigs one-way to your calendar.</p>
+          <p>Synchroniseer geboekte gigs in één richting naar je agenda.</p>
         </div>
         <div class="status-stack">
-          <span class="pill" :class="{ on: data.calendar.configured }">{{ data.calendar.configured ? 'Connected' : 'Missing credentials' }}</span>
+          <span class="pill" :class="{ on: data.calendar.configured }">{{ data.calendar.configured ? 'Gekoppeld' : 'Inloggegevens ontbreken' }}</span>
           <small>{{ sourceLabel(data.calendar.source) }}</small>
         </div>
       </div>
@@ -210,18 +210,18 @@ async function removeEmailSettings() {
       <div class="form-grid">
         <label class="toggle">
           <input v-model="calendarForm.enabled" type="checkbox">
-          <span>Enable calendar sync</span>
+          <span>Agendasynchronisatie inschakelen</span>
         </label>
         <label>
-          Calendar ID
+          Agenda-ID
           <input v-model="calendarForm.calendarId" placeholder="primary">
         </label>
         <label>
-          When a booked gig is cancelled
+          Als een geboekte gig wordt geannuleerd
           <select v-model="calendarForm.cancellationBehavior">
-            <option value="delete">Delete mapped event</option>
-            <option value="mark_cancelled">Keep event and mark cancelled</option>
-            <option value="keep">Leave event unchanged</option>
+            <option value="delete">Gekoppelde afspraak verwijderen</option>
+            <option value="mark_cancelled">Afspraak behouden en als geannuleerd markeren</option>
+            <option value="keep">Afspraak ongewijzigd laten</option>
           </select>
         </label>
       </div>
@@ -229,32 +229,32 @@ async function removeEmailSettings() {
       <div class="credential-panel">
         <div class="credential-head">
           <div>
-            <strong>OAuth credentials</strong>
+            <strong>OAuth-inloggegevens</strong>
             <p v-if="data.calendar.configured">
-              Client ID {{ data.calendar.clientId || 'configured' }} · secret configured · refresh token configured
+              Client-ID {{ data.calendar.clientId || 'ingesteld' }} · secret ingesteld · refresh token ingesteld
             </p>
-            <p v-else>Add a Google OAuth client ID, client secret and refresh token.</p>
+            <p v-else>Voeg een Google OAuth client-ID, client secret en refresh token toe.</p>
           </div>
           <button v-if="!calendarEditingCredentials" class="ghost" type="button" @click="startCalendarCredentials">
-            {{ data.calendar.configured ? 'Replace credentials' : 'Add credentials' }}
+            {{ data.calendar.configured ? 'Inloggegevens vervangen' : 'Inloggegevens toevoegen' }}
           </button>
         </div>
 
         <div v-if="calendarEditingCredentials" class="credentials-grid">
-          <label>Client ID<input v-model="calendarCredentials.clientId" autocomplete="off" spellcheck="false"></label>
+          <label>Client-ID<input v-model="calendarCredentials.clientId" autocomplete="off" spellcheck="false"></label>
           <label>Client secret<input v-model="calendarCredentials.clientSecret" type="password" autocomplete="off" spellcheck="false"></label>
           <label class="wide">Refresh token<input v-model="calendarCredentials.refreshToken" type="password" autocomplete="off" spellcheck="false"></label>
-          <p class="wide hint">Create OAuth credentials in Google Cloud, authorize Calendar access once, then paste the resulting refresh token here. Existing secrets are never shown again.</p>
+          <p class="wide hint">Maak OAuth-inloggegevens aan in Google Cloud, geef eenmalig toegang tot Calendar en plak de refresh token die je dan krijgt hier. Bestaande geheimen worden nooit meer getoond.</p>
         </div>
       </div>
 
       <div class="actions">
         <button type="button" :disabled="busy === 'calendar'" @click="saveCalendar">
-          {{ busy === 'calendar' ? 'Saving…' : 'Save Google Calendar' }}
+          {{ busy === 'calendar' ? 'Opslaan…' : 'Google Calendar opslaan' }}
         </button>
-        <button v-if="calendarEditingCredentials" class="ghost" type="button" @click="calendarEditingCredentials = false">Cancel credential change</button>
+        <button v-if="calendarEditingCredentials" class="ghost" type="button" @click="calendarEditingCredentials = false">Wijziging inloggegevens annuleren</button>
         <button v-if="data.calendar.source === 'settings'" class="ghost danger" type="button" :disabled="busy === 'calendar-remove'" @click="removeCalendarCredentials">
-          Remove saved credentials
+          Opgeslagen inloggegevens verwijderen
         </button>
       </div>
       <p v-if="calendarMessage" class="message" :class="calendarMessageType">{{ calendarMessage }}</p>
@@ -265,21 +265,21 @@ async function removeEmailSettings() {
         <div>
           <p class="eyebrow">Email</p>
           <h3>Resend</h3>
-          <p>Send portal invitations, invoice emails, reminders and review requests.</p>
+          <p>Verstuur portaaluitnodigingen, factuurmails, herinneringen en reviewverzoeken.</p>
         </div>
         <div class="status-stack">
-          <span class="pill" :class="{ on: data.email.configured }">{{ data.email.configured ? 'Connected' : 'Missing settings' }}</span>
+          <span class="pill" :class="{ on: data.email.configured }">{{ data.email.configured ? 'Gekoppeld' : 'Instellingen ontbreken' }}</span>
           <small>{{ sourceLabel(data.email.source) }}</small>
         </div>
       </div>
 
       <div class="form-grid email-grid">
         <label>
-          From address
+          Afzenderadres
           <input v-model="emailForm.from" placeholder="DJ NightLight (boekingen@example.com)">
         </label>
         <label>
-          Review URL
+          Review-URL
           <input v-model="emailForm.reviewUrl" type="url" placeholder="https://…">
         </label>
       </div>
@@ -287,29 +287,29 @@ async function removeEmailSettings() {
       <div class="credential-panel">
         <div class="credential-head">
           <div>
-            <strong>Resend API key</strong>
-            <p>{{ data.email.apiKeyConfigured ? (data.email.apiKeyPreview || 'Configured') : 'No API key configured' }}</p>
+            <strong>Resend API-sleutel</strong>
+            <p>{{ data.email.apiKeyConfigured ? (data.email.apiKeyPreview || 'Ingesteld') : 'Geen API-sleutel ingesteld' }}</p>
           </div>
           <button v-if="!emailEditingKey" class="ghost" type="button" @click="startEmailKey">
-            {{ data.email.apiKeyConfigured ? 'Replace API key' : 'Add API key' }}
+            {{ data.email.apiKeyConfigured ? 'API-sleutel vervangen' : 'API-sleutel toevoegen' }}
           </button>
         </div>
         <label v-if="emailEditingKey">
-          New API key
+          Nieuwe API-sleutel
           <input v-model="emailApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="re_…">
-          <small>The key is encrypted after saving and cannot be read back from the UI.</small>
+          <small>De sleutel wordt na opslaan versleuteld en is daarna niet meer uit te lezen.</small>
         </label>
       </div>
 
       <div class="actions">
         <button type="button" :disabled="busy === 'email'" @click="saveEmail">
-          {{ busy === 'email' ? 'Saving…' : 'Save email settings' }}
+          {{ busy === 'email' ? 'Opslaan…' : 'E-mailinstellingen opslaan' }}
         </button>
-        <button v-if="emailEditingKey" class="ghost" type="button" @click="emailEditingKey = false; emailApiKey = ''">Cancel key change</button>
+        <button v-if="emailEditingKey" class="ghost" type="button" @click="emailEditingKey = false; emailApiKey = ''">Wijziging sleutel annuleren</button>
         <button v-if="data.email.source === 'settings'" class="ghost danger" type="button" :disabled="busy === 'email-remove'" @click="removeEmailSettings">
-          Remove saved settings
+          Opgeslagen instellingen verwijderen
         </button>
-        <NuxtLink class="text-link" to="/admin/email">Open email automation</NuxtLink>
+        <NuxtLink class="text-link" to="/admin/email">E-mailautomatisering openen</NuxtLink>
       </div>
       <p v-if="emailMessage" class="message" :class="emailMessageType">{{ emailMessage }}</p>
     </article>

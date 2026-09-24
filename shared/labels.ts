@@ -71,7 +71,22 @@ export const emailJobStatusLabels: Labels = {
   sent: 'Verzonden',
   failed: 'Mislukt',
   cancelled: 'Geannuleerd',
-  suppressed: 'Onderdrukt',
+  suppressed: 'Uitgeschakeld',
+}
+
+// Email templates are seeded with English names; show them by key instead.
+export const emailTemplateLabels: Labels = {
+  lead_acknowledgement: 'Bevestiging aanvraag',
+  booking_accepted: 'Boeking bevestigd',
+  client_portal_invitation: 'Uitnodiging klantportaal',
+  portal_reminder: 'Herinnering portaal',
+  invoice_sent: 'Factuur verstuurd',
+  payment_reminder: 'Betaalherinnering',
+  overdue_reminder: 'Herinnering verlopen factuur',
+  payment_received: 'Betaling ontvangen',
+  pre_gig_reminder: 'Herinnering voor de gig',
+  thank_you: 'Bedankje',
+  review_request: 'Verzoek om review',
 }
 
 export const activityActionLabels: Labels = {
