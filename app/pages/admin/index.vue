@@ -29,29 +29,29 @@ const { data, status, refresh } = await useFetch<DashboardData>('/api/admin/dash
 
 const stats = computed(() => [
   {
-    label: 'Upcoming gigs',
+    label: 'Aankomende gigs',
     value: data.value?.summary.upcoming ?? 0,
-    detail: 'Booked, future dates',
+    detail: 'Geboekt, toekomstige datums',
   },
   {
     label: 'Leads',
     value: data.value?.summary.leads ?? 0,
-    detail: 'Need follow-up',
+    detail: 'Opvolging nodig',
   },
   {
-    label: 'Open invoices',
+    label: 'Openstaande facturen',
     value: data.value?.summary.unpaidInvoices ?? '—',
-    detail: 'Draft or awaiting payment',
+    detail: 'Concept of wacht op betaling',
   },
   {
-    label: 'Needs attention',
+    label: 'Aandacht nodig',
     value: data.value?.summary.attention ?? 0,
-    detail: 'Current actionable items',
+    detail: 'Openstaande actiepunten',
   },
 ])
 
 function formatDate(value: string | Date | null) {
-  if (!value) return 'Date not set'
+  if (!value) return 'Datum niet ingesteld'
   return new Intl.DateTimeFormat('nl-NL', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -64,7 +64,7 @@ function dayOfMonth(value: string | Date | null) {
 
 function shortMonth(value: string | Date | null) {
   return value
-    ? new Date(value).toLocaleDateString('en', { month: 'short' })
+    ? new Date(value).toLocaleDateString('nl-NL', { month: 'short' })
     : ''
 }
 
@@ -78,20 +78,20 @@ useSeoMeta({
   <div class="dashboard">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Overview</p>
+        <p class="eyebrow">Overzicht</p>
         <h1>Dashboard</h1>
-        <p>What needs your attention, without the noise.</p>
+        <p>Wat je aandacht nodig heeft, zonder ruis.</p>
       </div>
       <div class="actions">
-        <button type="button" class="secondary" @click="() => refresh()">Refresh</button>
-        <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="with-icon primary"><Icon name="lucide:plus" aria-hidden="true" />New gig</NuxtLink>
+        <button type="button" class="secondary" @click="() => refresh()">Vernieuwen</button>
+        <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="with-icon primary"><Icon name="lucide:plus" aria-hidden="true" />Nieuwe gig</NuxtLink>
       </div>
     </header>
 
-    <div v-if="status === 'pending'" class="state">Loading dashboard…</div>
+    <div v-if="status === 'pending'" class="state">Dashboard laden…</div>
 
     <template v-else>
-      <section class="stats" aria-label="Dashboard statistics">
+      <section class="stats" aria-label="Dashboardstatistieken">
         <AdminStatCard
           v-for="stat in stats"
           :key="stat.label"
@@ -103,14 +103,14 @@ useSeoMeta({
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Planning</p>
-            <h2>Upcoming gigs</h2>
+            <h2>Aankomende gigs</h2>
           </div>
-          <NuxtLink to="/admin/gigs">View all</NuxtLink>
+          <NuxtLink to="/admin/gigs">Alles bekijken</NuxtLink>
         </div>
 
         <div v-if="!data?.upcoming.length" class="empty">
-          <strong>No upcoming gigs yet.</strong>
-          <span>New booked gigs will appear here automatically.</span>
+          <strong>Nog geen aankomende gigs.</strong>
+          <span>Nieuw geboekte gigs verschijnen hier automatisch.</span>
         </div>
 
         <NuxtLink
@@ -126,7 +126,7 @@ useSeoMeta({
           </div>
           <div class="gig-copy">
             <strong>{{ gig.title }}</strong>
-            <span>{{ gig.venueName || gig.eventType || 'Location not set' }}</span>
+            <span>{{ gig.venueName || gig.eventType || 'Locatie niet ingesteld' }}</span>
           </div>
           <time>{{ formatDate(gig.startsAt) }}</time>
         </NuxtLink>
@@ -134,16 +134,16 @@ useSeoMeta({
 
       <section class="system-strip">
         <div>
-          <strong>Client portal</strong>
-          <span>Active</span>
+          <strong>Klantportaal</strong>
+          <span>Actief</span>
         </div>
         <div>
-          <strong>Calendar sync</strong>
-          <span>Planned for phase 5</span>
+          <strong>Agendasynchronisatie</strong>
+          <span>Gepland voor fase 5</span>
         </div>
         <div>
-          <strong>Payments</strong>
-          <span>Stripe Checkout active</span>
+          <strong>Betalingen</strong>
+          <span>Stripe Checkout actief</span>
         </div>
       </section>
     </template>

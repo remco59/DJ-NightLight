@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
@@ -12,7 +13,7 @@ type Client = {
 type HistoryItem = { id:string; title:string; status:string; startsAt:string|Date|null; fee:string|null; currency:string; venueName:string|null }
 
 const { data, refresh } = await useFetch<{ client:Client, history:HistoryItem[] }>(`/api/admin/clients/${id}`)
-if (!data.value) throw createError({ statusCode:404, statusMessage:'Client not found' })
+if (!data.value) throw createError({ statusCode:404, statusMessage:'Klant niet gevonden' })
 
 const form = reactive({
   type: data.value.client.type,
@@ -31,44 +32,44 @@ async function save(){
   saving.value=true; message.value=''
   try{
     await $fetch(`/api/admin/clients/${id}`,{method:'PUT',body:form})
-    await refresh(); message.value='Saved.'
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not save.')}
+    await refresh(); message.value='Opgeslagen.'
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Opslaan is niet gelukt.')}
   finally{saving.value=false}
 }
 async function remove(){
-  if(!confirm('Delete this client permanently?')) return
+  if(!confirm('Deze klant definitief verwijderen?')) return
   try{
     await $fetch(`/api/admin/clients/${id}`,{method:'DELETE'})
     await navigateTo('/admin/clients')
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not delete client.')}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Klant verwijderen is niet gelukt.')}
 }
-function dateLabel(value:string|Date|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(value)):'No date'}
+function dateLabel(value:string|Date|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(value)):'Geen datum'}
 
-useSeoMeta({title:'Client — DJ NightLight',robots:'noindex, nofollow'})
+useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
 </script>
 
 <template>
   <div v-if="data" class="detail-page">
-    <NuxtLink to="/admin/clients" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Clients</NuxtLink>
-    <header><div><p class="eyebrow">Client</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button></header>
+    <NuxtLink to="/admin/clients" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Klanten</NuxtLink>
+    <header><div><p class="eyebrow">Klant</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></header>
     <form class="editor" @submit.prevent="save">
       <div class="grid">
-        <label>Type<select v-model="form.type"><option value="person">Person</option><option value="company">Company</option></select></label>
-        <label v-if="form.type==='company'">Company name<input v-model="form.companyName"></label>
-        <template v-else><label>First name<input v-model="form.firstName"></label><label>Last name<input v-model="form.lastName"></label></template>
-        <label>Email<input v-model="form.email" type="email"></label>
-        <label>Phone<input v-model="form.phone"></label>
-        <label class="wide">Billing address<textarea v-model="form.billingAddress" rows="2"/></label>
-        <label class="wide">Notes<textarea v-model="form.notes" rows="4"/></label>
+        <label>Type<select v-model="form.type"><option value="person">Particulier</option><option value="company">Bedrijf</option></select></label>
+        <label v-if="form.type==='company'">Bedrijfsnaam<input v-model="form.companyName"></label>
+        <template v-else><label>Voornaam<input v-model="form.firstName"></label><label>Achternaam<input v-model="form.lastName"></label></template>
+        <label>E-mail<input v-model="form.email" type="email"></label>
+        <label>Telefoon<input v-model="form.phone"></label>
+        <label class="wide">Factuuradres<textarea v-model="form.billingAddress" rows="2"/></label>
+        <label class="wide">Notities<textarea v-model="form.notes" rows="4"/></label>
       </div>
-      <div class="form-actions"><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Save changes'}}</button><span>{{message}}</span></div>
+      <div class="form-actions"><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Wijzigingen opslaan'}}</button><span>{{message}}</span></div>
     </form>
 
     <section class="history">
-      <div class="section-heading"><p class="eyebrow">History</p><h2>Gigs</h2></div>
-      <p v-if="!data.history.length" class="empty">No gigs connected to this client yet.</p>
+      <div class="section-heading"><p class="eyebrow">Geschiedenis</p><h2>Gigs</h2></div>
+      <p v-if="!data.history.length" class="empty">Nog geen gigs gekoppeld aan deze klant.</p>
       <NuxtLink v-for="gig in data.history" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig">
-        <div><strong>{{gig.title}}</strong><span>{{gig.venueName||'Venue not set'}}</span></div><div class="meta"><span>{{dateLabel(gig.startsAt)}}</span><span>{{gig.status}}</span></div>
+        <div><strong>{{gig.title}}</strong><span>{{gig.venueName||'Locatie niet ingesteld'}}</span></div><div class="meta"><span>{{dateLabel(gig.startsAt)}}</span><span>{{labelFor(gigStatusLabels,gig.status)}}</span></div>
       </NuxtLink>
     </section>
   </div>
