@@ -144,6 +144,8 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <div v-if="canManageGigs" class="save-bar"><div><strong>{{message||'Wijzigingen worden pas bewaard na opslaan.'}}</strong><span>Agendasynchronisatie volgt in fase 5.</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
+<AdminGigEmails v-if="canManageGigs" :gig-id="id" :portal-url="portalUrl" />
+
 <section class="card activity"><p class="eyebrow">Activiteit</p><h2>Recente wijzigingen</h2><div v-if="!data.activity.length" class="subtle">Nog geen activiteit vastgelegd.</div><div v-for="item in data.activity" :key="item.id" class="activity-row"><strong>{{labelFor(activityActionLabels,item.action)}}<small v-if="item.actorName"> · {{item.actorName}}</small></strong><span>{{activityDate(item.createdAt)}}</span></div></section>
 </div></template>
 

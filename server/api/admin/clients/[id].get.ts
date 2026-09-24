@@ -1,5 +1,6 @@
-import { desc, eq } from 'drizzle-orm'
-import { clients, gigs, venues } from '../../../../db/schema'
+import { asc, desc, eq } from 'drizzle-orm'
+import { clients, emailTemplates, gigs, venues } from '../../../../db/schema'
+import { isAutomaticEmailTemplate } from '../../../../shared/email-automation'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 import { gigTitleSql } from '../../../utils/gig-title'
@@ -32,5 +33,17 @@ export default defineEventHandler(async (event) => {
     .where(eq(gigs.clientId, id))
     .orderBy(desc(gigs.startsAt))
 
-  return { client, history }
+  const templates = await db.select({
+    key: emailTemplates.key,
+    name: emailTemplates.name,
+    enabled: emailTemplates.enabled,
+    scheduleAnchor: emailTemplates.scheduleAnchor,
+    offsetMinutes: emailTemplates.offsetMinutes,
+  }).from(emailTemplates).orderBy(asc(emailTemplates.name))
+
+  return {
+    client,
+    history,
+    emailTemplates: templates.filter(template => isAutomaticEmailTemplate(template.key)),
+  }
 })

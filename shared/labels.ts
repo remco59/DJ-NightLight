@@ -95,6 +95,7 @@ export const emailTemplateLabels: Labels = {
   pre_gig_reminder: 'Herinnering voor de gig',
   thank_you: 'Bedankje',
   review_request: 'Verzoek om review',
+  custom_message: 'Eigen bericht',
 }
 
 export const activityActionLabels: Labels = {
@@ -121,6 +122,7 @@ export const activityActionLabels: Labels = {
   portal_submission_completed: 'Portaalformulier ingediend',
   questionnaire_version_created: 'Nieuwe vragenlijstversie',
   website_inquiry: 'Aanvraag via website',
+  email_sent_manually: 'E-mail handmatig verstuurd',
   user_created: 'Gebruiker aangemaakt',
   user_updated: 'Gebruiker bijgewerkt',
   user_disabled: 'Gebruiker uitgeschakeld',
