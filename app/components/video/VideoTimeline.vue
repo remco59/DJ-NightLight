@@ -2,7 +2,7 @@
 import { MARKER_COLORS, findItem, formatTimecode, itemEnd, type MarkerColor, type TimelineItem, type TimelineMarker, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
 import { moveItem, snapFrame, snapTargets, updateMarker } from '~~/shared/video-timeline'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
-import { clampZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
+import { clampZoom, fitZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 import WaveformCanvas from '~/components/video/WaveformCanvas.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
@@ -443,11 +443,58 @@ function touchEnd(event: TouchEvent) {
   if (event.touches.length < 2) pinching = null
 }
 
-function wheel(event: WheelEvent) {
-  if (!event.ctrlKey && !event.metaKey) return
-  event.preventDefault()
-  zoomBy(event.deltaY > 0 ? 0.85 : 1.18)
+/** Sets the zoom while keeping the frame at `offset` px into the lanes in place. */
+function zoomAround(zoom: number, offset: number) {
+  const element = scroller.value
+  if (!element) {
+    state.zoom = clampZoom(zoom)
+    return
+  }
+  const frame = (element.scrollLeft + offset) / pxPerFrame.value
+  state.zoom = clampZoom(zoom)
+  void nextTick(() => {
+    element.scrollLeft = Math.max(0, frame * pxPerFrame.value - offset)
+  })
 }
+
+// Ctrl/Cmd+wheel zooms around the pointer; Shift+wheel scrolls sideways
+// (for mice that only report vertical wheel movement); plain wheel scrolls tracks.
+function wheel(event: WheelEvent) {
+  const element = scroller.value
+  if (!element) return
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault()
+    const offset = event.clientX - element.getBoundingClientRect().left - LABEL_WIDTH.value
+    zoomAround(state.zoom * (event.deltaY > 0 ? 0.85 : 1.18), Math.max(0, offset))
+  } else if (event.shiftKey && !event.deltaX && event.deltaY) {
+    event.preventDefault()
+    element.scrollLeft += event.deltaY
+  }
+}
+
+/** Zooms so the whole video fits the visible timeline and scrolls to the start. */
+function zoomToFit() {
+  const element = scroller.value
+  if (!element) return
+  state.zoom = fitZoom(editor.duration.value, state.project.fps, element.clientWidth - LABEL_WIDTH.value - 24)
+  void nextTick(() => {
+    element.scrollLeft = 0
+  })
+}
+
+/** Zooms so the selected clip fills the visible timeline. */
+function zoomToSelection() {
+  const element = scroller.value
+  const item = editor.selection.value?.item
+  if (!element || !item) return
+  const width = element.clientWidth - LABEL_WIDTH.value
+  state.zoom = fitZoom(item.duration, state.project.fps, width * 0.9)
+  void nextTick(() => {
+    element.scrollLeft = Math.max(0, x(item.start) - width * 0.05)
+  })
+}
+
+defineExpose({ zoomToFit, zoomToSelection })
 </script>
 
 <template>
@@ -471,6 +518,7 @@ function wheel(event: WheelEvent) {
         <button type="button" title="Zoom out" @click="zoomBy(0.8)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
         <input v-model.number="state.zoom" class="zoom" type="range" min="8" max="400" aria-label="Timeline zoom">
         <button type="button" title="Zoom in" @click="zoomBy(1.25)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
+        <button type="button" title="Zoom to fit (\) — Shift+\ zooms to the selected clip" @click="zoomToFit"><Icon name="lucide:maximize-2" aria-hidden="true" /></button>
         <label class="snap"><input v-model="state.snap" type="checkbox"> Snap</label>
         <select v-model="state.beatSnap" class="beat-snap" aria-label="Snap to the music" :disabled="!state.snap" title="Also snap to the beat grid of the audio">
           <option value="beats">to beats</option>

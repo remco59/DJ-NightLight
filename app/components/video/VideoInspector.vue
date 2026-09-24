@@ -288,6 +288,7 @@ const assetTitle = computed(() => {
           <dt><Icon name="lucide:arrow-left" role="img" aria-label="Left" /> <Icon name="lucide:arrow-right" role="img" aria-label="Right" /></dt><dd>Step one frame (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> one second)</dd>
           <dt>M</dt><dd>Add marker at playhead</dd>
           <dt>[ ]</dt><dd>Previous / next marker</dd>
+          <dt>\</dt><dd>Zoom timeline to fit (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> selected clip)</dd>
         </dl>
       </section>
     </template>

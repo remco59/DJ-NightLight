@@ -11,6 +11,12 @@ export function clampZoom(zoom: number) {
   return Math.min(MAX_TIMELINE_ZOOM, Math.max(MIN_TIMELINE_ZOOM, Math.round(zoom)))
 }
 
+/** Zoom (px per second) that fits `frames` into `width` pixels, rounded down so it never overflows. */
+export function fitZoom(frames: number, fps: number, width: number) {
+  const seconds = Math.max(1 / fps, frames / fps)
+  return Math.min(MAX_TIMELINE_ZOOM, Math.max(MIN_TIMELINE_ZOOM, Math.floor(width / seconds)))
+}
+
 /** Zoom for a two-finger pinch that started at `startDistance` and is now `distance` apart. */
 export function pinchZoom(startZoom: number, startDistance: number, distance: number) {
   if (startDistance <= 0 || distance <= 0) return clampZoom(startZoom)

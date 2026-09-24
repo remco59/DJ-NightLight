@@ -70,6 +70,7 @@ const exporting = ref(false)
 const message = ref('')
 const volume = ref(1)
 const preview = ref<InstanceType<typeof RemotionPreview> | null>(null)
+const timeline = ref<InstanceType<typeof VideoTimeline> | null>(null)
 const stage = ref<HTMLElement | null>(null)
 const stageSize = reactive({ width: 0, height: 0 })
 
@@ -286,6 +287,11 @@ function onKey(event: KeyboardEvent) {
   } else if (!mod && key === 's') {
     event.preventDefault()
     editor.splitSelected()
+  } else if (!mod && (key === '\\' || key === '|')) {
+    // Shift+\ arrives as | on most layouts.
+    event.preventDefault()
+    if (event.shiftKey || key === '|') timeline.value?.zoomToSelection()
+    else timeline.value?.zoomToFit()
   } else if (!mod && key === 'm') {
     event.preventDefault()
     editor.addMarkerAtPlayhead()
@@ -539,7 +545,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
       </template>
     </div>
 
-    <VideoTimeline class="timeline-row" :compact="isMobile" @seek="seek" />
+    <VideoTimeline ref="timeline" class="timeline-row" :compact="isMobile" @seek="seek" />
 
     <template v-if="isMobile">
       <MobileVideoQuickActions @replace="startReplace" />
