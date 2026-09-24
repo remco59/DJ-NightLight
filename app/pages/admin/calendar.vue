@@ -74,9 +74,6 @@ function endOfWeek(value: Date) {
 function startOfMonth(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), 1)
 }
-function endOfMonth(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth() + 1, 1)
-}
 function startOfYear(value: Date) {
   return new Date(value.getFullYear(), 0, 1)
 }
