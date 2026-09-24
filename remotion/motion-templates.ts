@@ -678,8 +678,8 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
   const timeIcon = iconOf(item, 'timeIcon')
   const placeIcon = iconOf(item, 'placeIcon')
   // Shrink the rows when they would not fit (square canvases, six gigs).
-  const listSpace = landscape ? height - 140 : height - (safe.top - 60) - safe.bottom - 500
-  const k = Math.min(1, listSpace / Math.max(1, gigs.length * 125 + 12))
+  const listSpace = landscape ? height - 220 : height - (safe.top - 60) - safe.bottom - 500
+  const k = Math.min(1, listSpace / Math.max(1, gigs.length * 153 + 20))
   const iconStyle = (size: number): React.CSSProperties => ({ display: 'flex', flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 8px ${colors.glow})`, fontSize: size })
   // A straight card, so long lists keep their icons inside, with the electric edge.
   const rows = gigs.map((gig, index) => {
@@ -696,7 +696,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
             gridTemplateColumns: `${(dateIcon ? 250 : 205) * k}px 1fr`,
             gap: 24 * k,
             alignItems: 'center',
-            padding: `${20 * k}px 0`,
+            padding: `${32 * k}px 0`,
             borderBottom: index === gigs.length - 1 ? 'none' : `1px solid ${colors.accent}40`,
             opacity: reveal(frame, listAt + index * 4, 10),
             transform: `translateX(${(1 - reveal(frame, listAt + index * 4, 10)) * 80}px)`,
@@ -720,7 +720,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
           meta.length
             ? h(
                 'div',
-                { style: { display: 'flex', flexWrap: 'wrap', columnGap: 26 * k, rowGap: 4 * k, marginTop: 6 * k } },
+                { style: { display: 'flex', flexWrap: 'wrap', columnGap: 26 * k, rowGap: 4 * k, marginTop: 10 * k } },
                 meta.map(part =>
                   h(
                     'span',
@@ -740,7 +740,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
     h(EdgeArcs, { colors, frame, seed: `gigs-arcs-${item.id}`, from: listAt + 4 }),
     h(
       NeonPanel,
-      { colors, skew: 0, style: { position: 'relative', padding: `${6 * k}px ${40 * k}px`, ...electricEdge(colors, frame, `gigs-edge-${item.id}`, listAt) } },
+      { colors, skew: 0, style: { position: 'relative', padding: `${10 * k}px ${40 * k}px`, ...electricEdge(colors, frame, `gigs-edge-${item.id}`, listAt) } },
       rows,
     ),
   )
