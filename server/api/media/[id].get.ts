@@ -19,9 +19,9 @@ function parseRange(header: string | undefined, size: number) {
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media-ID is verplicht' })
   const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, id)).limit(1)
-  if (!asset) throw createError({ statusCode: 404, statusMessage: 'Media asset not found' })
+  if (!asset) throw createError({ statusCode: 404, statusMessage: 'Mediabestand niet gevonden' })
 
   const query = getQuery(event)
   const variant = String(query.variant || 'original')
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
       path = storage.path(key)
       size = (await stat(path)).size
     } catch {
-      throw createError({ statusCode: 404, statusMessage: 'Stored media file is missing' })
+      throw createError({ statusCode: 404, statusMessage: 'Het opgeslagen mediabestand ontbreekt' })
     }
     setHeader(event, 'content-type', asset.mimeType)
     setHeader(event, 'accept-ranges', 'bytes')
@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
     const range = parseRange(rangeHeader, size)
     if (rangeHeader && !range) {
       setHeader(event, 'content-range', `bytes */${size}`)
-      throw createError({ statusCode: 416, statusMessage: 'Requested range not satisfiable' })
+      throw createError({ statusCode: 416, statusMessage: 'Het gevraagde bereik is niet beschikbaar' })
     }
     if (range) {
       event.node.res.statusCode = 206
@@ -69,6 +69,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'content-length', data.length)
     return data
   } catch {
-    throw createError({ statusCode: 404, statusMessage: 'Stored media file is missing' })
+    throw createError({ statusCode: 404, statusMessage: 'Het opgeslagen mediabestand ontbreekt' })
   }
 })

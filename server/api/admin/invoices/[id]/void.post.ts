@@ -9,16 +9,16 @@ const schema = z.object({ createReplacement: z.boolean().default(true) })
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Invoice id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
   const parsed = schema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Invalid correction request' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldig correctieverzoek' })
   const [current] = await db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.status, 'finalized'))).limit(1)
-  if (!current) throw createError({ statusCode: 409, statusMessage: 'Only finalized invoices can be voided' })
+  if (!current) throw createError({ statusCode: 409, statusMessage: 'Alleen definitieve facturen kunnen vervallen worden verklaard' })
   const lines = await db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id)).orderBy(asc(invoiceLineItems.ordering))
 
   const result = await db.transaction(async (tx) => {
     const [voided] = await tx.update(invoices).set({ status: 'void', voidedAt: new Date(), updatedAt: new Date() }).where(and(eq(invoices.id, id), eq(invoices.status, 'finalized'))).returning()
-    if (!voided) throw createError({ statusCode: 409, statusMessage: 'Invoice was already changed' })
+    if (!voided) throw createError({ statusCode: 409, statusMessage: 'De factuur is al gewijzigd' })
     let replacement = null
     if (parsed.data.createReplacement) {
       const [created] = await tx.insert(invoices).values({
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
         paymentTerms: current.paymentTerms, legalText: current.legalText, notes: current.notes,
         replacementForInvoiceId: current.id,
       }).returning()
-      if (!created) throw createError({ statusCode: 500, statusMessage: 'Could not create replacement' })
+      if (!created) throw createError({ statusCode: 500, statusMessage: 'Vervangende factuur aanmaken is niet gelukt' })
       replacement = created
       if (lines.length) await tx.insert(invoiceLineItems).values(lines.map(line => ({ invoiceId: created.id, description: line.description, quantity: line.quantity, unitPriceCents: line.unitPriceCents, ordering: line.ordering })))
     }

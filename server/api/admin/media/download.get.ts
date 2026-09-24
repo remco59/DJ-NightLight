@@ -16,12 +16,12 @@ const idsSchema = z.string()
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
   const parsed = idsSchema.safeParse(String(getQuery(event).ids || ''))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Select between 1 and 200 media items' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Selecteer tussen 1 en 200 mediabestanden' })
 
   const rows = await db.select().from(mediaAssets).where(inArray(mediaAssets.id, parsed.data))
-  if (!rows.length) throw createError({ statusCode: 404, statusMessage: 'Media assets not found' })
+  if (!rows.length) throw createError({ statusCode: 404, statusMessage: 'Mediabestanden niet gevonden' })
   if (rows.reduce((total, row) => total + row.byteSize, 0) > MAX_ARCHIVE_BYTES) {
-    throw createError({ statusCode: 413, statusMessage: 'Selection is larger than 1 GB; download fewer items at once' })
+    throw createError({ statusCode: 413, statusMessage: 'De selectie is groter dan 1 GB; download minder bestanden tegelijk' })
   }
 
   const storage = getMediaStorage()

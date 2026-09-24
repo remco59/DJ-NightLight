@@ -40,7 +40,7 @@ function inspectUploadedImage(buffer: Uint8Array) {
   try {
     return inspectImage(buffer)
   } catch (error) {
-    throw new MediaValidationError(error instanceof Error ? error.message : 'Invalid image')
+    throw new MediaValidationError(error instanceof Error ? error.message : 'Ongeldige afbeelding')
   }
 }
 
@@ -67,13 +67,13 @@ function placementColumns(input: MediaPlacement) {
  */
 export async function validateParentAsset(parentId: string | null | undefined, assetId?: string) {
   if (!parentId) return null
-  if (parentId === assetId) throw new MediaValidationError('An asset cannot be a variant of itself')
+  if (parentId === assetId) throw new MediaValidationError('Een bestand kan geen variant van zichzelf zijn')
   let current: string | null = parentId
   for (let depth = 0; current && depth < 25; depth++) {
     const [row] = await db.select({ id: mediaAssets.id, parentAssetId: mediaAssets.parentAssetId })
       .from(mediaAssets).where(eq(mediaAssets.id, current)).limit(1)
-    if (!row) throw new MediaValidationError(depth ? 'The original asset chain is broken' : 'The original asset no longer exists')
-    if (assetId && row.parentAssetId === assetId) throw new MediaValidationError('An original cannot become a variant of its own variant')
+    if (!row) throw new MediaValidationError(depth ? 'De keten van originelen is onderbroken' : 'Het originele bestand bestaat niet meer')
+    if (assetId && row.parentAssetId === assetId) throw new MediaValidationError('Een origineel kan geen variant worden van zijn eigen variant')
     current = row.parentAssetId
   }
   return parentId
@@ -96,10 +96,10 @@ export async function storeMediaImage(input: MediaPlacement & {
   gigId?: string | null
   venueId?: string | null
 }) {
-  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new MediaValidationError('Image must be between 1 byte and 15 MB')
+  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new MediaValidationError('Een afbeelding moet tussen 1 byte en 15 MB zijn')
   const info = inspectUploadedImage(input.data)
   if (info.width > 12000 || info.height > 12000 || info.width * info.height > 80_000_000) {
-    throw new MediaValidationError('Image dimensions are too large')
+    throw new MediaValidationError('De afmetingen van de afbeelding zijn te groot')
   }
 
   const storage = getMediaStorage()
@@ -107,9 +107,9 @@ export async function storeMediaImage(input: MediaPlacement & {
   let thumbnailKey: string | null = null
   try {
     if (input.thumbnail?.length) {
-      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('Thumbnail exceeds 2 MB')
+      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('De thumbnail is groter dan 2 MB')
       const thumbnailInfo = inspectUploadedImage(input.thumbnail)
-      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('Thumbnail dimensions are too large')
+      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('De afmetingen van de thumbnail zijn te groot')
       thumbnailKey = await storage.put(input.thumbnail, thumbnailInfo.extension, 'thumbnails')
     }
     const [asset] = await db.insert(mediaAssets).values({
@@ -128,7 +128,7 @@ export async function storeMediaImage(input: MediaPlacement & {
       venueId: input.venueId || null,
       ...placementColumns(input),
     }).returning()
-    if (!asset) throw new Error('Media asset could not be created')
+    if (!asset) throw new Error('Mediabestand aanmaken is niet gelukt')
     await addAssetsToCollections([asset.id], input.collectionIds || [])
     return asset
   } catch (error) {
@@ -173,14 +173,14 @@ export async function storeTimedMedia(input: MediaPlacement & {
   try {
     info = inspectTimedMedia(input.data)
   } catch (error) {
-    throw new MediaValidationError(error instanceof Error ? error.message : 'Invalid media file')
+    throw new MediaValidationError(error instanceof Error ? error.message : 'Ongeldig mediabestand')
   }
   const limit = info.kind === 'video' ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES
   if (input.data.length > limit) {
-    throw new MediaValidationError(info.kind === 'video' ? 'Video must be 250 MB or smaller' : 'Audio must be 50 MB or smaller')
+    throw new MediaValidationError(info.kind === 'video' ? 'Een video mag maximaal 250 MB zijn' : 'Audio mag maximaal 50 MB zijn')
   }
   const parsed = timedMetadataSchema.safeParse(input.metadata)
-  if (!parsed.success) throw new MediaValidationError('Media metadata (duration and dimensions) is missing or invalid')
+  if (!parsed.success) throw new MediaValidationError('De mediagegevens (duur en afmetingen) ontbreken of zijn ongeldig')
   const metadata: MediaAssetMetadata = {}
   if (parsed.data.peaks?.length) metadata.peaks = parsed.data.peaks.map(value => Math.round(value * 1000) / 1000)
   if (parsed.data.fps) metadata.fps = parsed.data.fps
@@ -192,9 +192,9 @@ export async function storeTimedMedia(input: MediaPlacement & {
   let thumbnailKey: string | null = null
   try {
     if (input.thumbnail?.length) {
-      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('Thumbnail exceeds 2 MB')
+      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('De thumbnail is groter dan 2 MB')
       const thumbnailInfo = inspectUploadedImage(input.thumbnail)
-      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('Thumbnail dimensions are too large')
+      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('De afmetingen van de thumbnail zijn te groot')
       thumbnailKey = await storage.put(input.thumbnail, thumbnailInfo.extension, 'thumbnails')
     }
     const [asset] = await db.insert(mediaAssets).values({
@@ -214,7 +214,7 @@ export async function storeTimedMedia(input: MediaPlacement & {
       venueId: input.venueId || null,
       ...placementColumns(input),
     }).returning()
-    if (!asset) throw new Error('Media asset could not be created')
+    if (!asset) throw new Error('Mediabestand aanmaken is niet gelukt')
     await addAssetsToCollections([asset.id], input.collectionIds || [])
     return asset
   } catch (error) {
@@ -418,7 +418,7 @@ export function collectionConflict(error: unknown) {
     ? ((error as { cause?: { code?: unknown } }).cause?.code)
     : undefined
   if (code === '23505' || causeCode === '23505') {
-    return createError({ statusCode: 409, statusMessage: 'A collection with this name already exists' })
+    return createError({ statusCode: 409, statusMessage: 'Er bestaat al een collectie met deze naam' })
   }
   return error
 }

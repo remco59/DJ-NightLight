@@ -34,7 +34,7 @@ async function run(task: () => Promise<unknown>, success: string, failure: strin
 async function create() {
   const name = newName.value.trim()
   if (!name) return
-  if (await run(() => mediaApi.createCollection(name), `Collection “${name}” created.`, 'Could not create the collection.')) newName.value = ''
+  if (await run(() => mediaApi.createCollection(name), `Collectie “${name}” aangemaakt.`, 'Collectie aanmaken is niet gelukt.')) newName.value = ''
 }
 
 function startRename(collection: MediaCollectionSummary) {
@@ -48,7 +48,7 @@ async function rename(collection: MediaCollectionSummary) {
     renaming.value = ''
     return
   }
-  if (await run(() => mediaApi.updateCollection(collection.id, { name }), 'Collection renamed.', 'Could not rename the collection.')) renaming.value = ''
+  if (await run(() => mediaApi.updateCollection(collection.id, { name }), 'Collectie hernoemd.', 'Collectie hernoemen is niet gelukt.')) renaming.value = ''
 }
 
 async function move(collection: MediaCollectionSummary, offset: number) {
@@ -59,14 +59,14 @@ async function move(collection: MediaCollectionSummary, offset: number) {
   ordered.splice(target, 0, ...ordered.splice(index, 1))
   await run(
     () => Promise.all(ordered.map((entry, sortOrder) => mediaApi.updateCollection(entry.id, { sortOrder }))),
-    'Order saved.',
-    'Could not reorder collections.',
+    'Volgorde opgeslagen.',
+    'Volgorde wijzigen is niet gelukt.',
   )
 }
 
 async function remove(collection: MediaCollectionSummary) {
-  if (!confirm(`Delete the collection “${collection.name}”? The ${collection.itemCount} item(s) in it stay in the library.`)) return
-  await run(() => mediaApi.deleteCollection(collection.id), 'Collection deleted.', 'Could not delete the collection.')
+  if (!confirm(`Collectie “${collection.name}” verwijderen? De ${collection.itemCount} item(s) erin blijven in de bibliotheek.`)) return
+  await run(() => mediaApi.deleteCollection(collection.id), 'Collectie verwijderd.', 'Collectie verwijderen is niet gelukt.')
 }
 
 function onKey(event: KeyboardEvent) {
@@ -79,19 +79,19 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 <template>
   <Teleport to="body">
     <div class="layer">
-      <button type="button" class="mh-backdrop" aria-label="Close collections" @click="emit('close')" />
+      <button type="button" class="mh-backdrop" aria-label="Collecties sluiten" @click="emit('close')" />
       <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="collections-dialog-title">
         <header>
           <div>
-            <h2 id="collections-dialog-title">Collections</h2>
-            <p>Group assets by purpose. Collections hold references, never copies, so one photo can live in several.</p>
+            <h2 id="collections-dialog-title">Collecties</h2>
+            <p>Groepeer media per doel. Een collectie verwijst naar bestanden en maakt nooit kopieën, dus één foto kan in meerdere collecties staan.</p>
           </div>
-          <button type="button" class="mh-icon-btn close" aria-label="Close" @click="emit('close')"><Icon name="lucide:x" aria-hidden="true" /></button>
+          <button type="button" class="mh-icon-btn close" aria-label="Sluiten" @click="emit('close')"><Icon name="lucide:x" aria-hidden="true" /></button>
         </header>
 
         <form class="create" @submit.prevent="create">
-          <input v-model="newName" class="mh-input" maxlength="80" placeholder="New collection, e.g. Best crowd shots">
-          <button type="submit" class="mh-btn primary" :disabled="busy || !newName.trim()"><Icon name="lucide:plus" aria-hidden="true" />Create</button>
+          <input v-model="newName" class="mh-input" maxlength="80" placeholder="Nieuwe collectie, bijv. Beste publieksfoto’s">
+          <button type="submit" class="mh-btn primary" :disabled="busy || !newName.trim()"><Icon name="lucide:plus" aria-hidden="true" />Aanmaken</button>
         </form>
 
         <ul v-if="collections.length" class="list">
@@ -100,21 +100,21 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
             <span v-else class="thumb empty"><Icon name="lucide:folder" aria-hidden="true" /></span>
             <form v-if="renaming === collection.id" class="rename" @submit.prevent="rename(collection)">
               <input v-model="renameValue" class="mh-input" maxlength="80" autofocus @keydown.escape.prevent="renaming = ''">
-              <button type="submit" class="mh-btn" :disabled="busy">Save</button>
+              <button type="submit" class="mh-btn" :disabled="busy">Opslaan</button>
             </form>
             <button v-else type="button" class="name" @click="emit('open', collection.id)">
               <strong>{{ collection.name }}</strong>
               <small>{{ collection.itemCount }} item{{ collection.itemCount === 1 ? '' : 's' }}</small>
             </button>
             <div class="tools">
-              <button type="button" class="mh-icon-btn" aria-label="Move up" :disabled="busy || index === 0" @click="move(collection, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
-              <button type="button" class="mh-icon-btn" aria-label="Move down" :disabled="busy || index === collections.length - 1" @click="move(collection, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
-              <button type="button" class="mh-icon-btn" :aria-label="`Rename ${collection.name}`" @click="startRename(collection)"><Icon name="lucide:pencil" aria-hidden="true" /></button>
-              <button type="button" class="mh-icon-btn danger" :aria-label="`Delete ${collection.name}`" :disabled="busy" @click="remove(collection)"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+              <button type="button" class="mh-icon-btn" aria-label="Omhoog" :disabled="busy || index === 0" @click="move(collection, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
+              <button type="button" class="mh-icon-btn" aria-label="Omlaag" :disabled="busy || index === collections.length - 1" @click="move(collection, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
+              <button type="button" class="mh-icon-btn" :aria-label="`${collection.name} hernoemen`" @click="startRename(collection)"><Icon name="lucide:pencil" aria-hidden="true" /></button>
+              <button type="button" class="mh-icon-btn danger" :aria-label="`${collection.name} verwijderen`" :disabled="busy" @click="remove(collection)"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
             </div>
           </li>
         </ul>
-        <p v-else class="mh-empty">No collections yet.</p>
+        <p v-else class="mh-empty">Nog geen collecties.</p>
       </section>
     </div>
   </Teleport>

@@ -39,7 +39,7 @@ const hasToolbar = computed(() => Boolean(slots.toolbar))
           @click="emit('toggleAdvanced')"
         >
           <Icon name="lucide:list-filter" aria-hidden="true" />
-          <span>More filters</span>
+          <span>Meer filters</span>
           <span v-if="props.activeAdvancedCount" class="count-badge">{{ props.activeAdvancedCount }}</span>
           <Icon class="caret" :name="props.advancedOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
         </button>
@@ -53,7 +53,7 @@ const hasToolbar = computed(() => Boolean(slots.toolbar))
         <div class="chips">
           <slot name="chips" />
         </div>
-        <button class="clear-all" type="button" @click="emit('clearAll')">Clear all</button>
+        <button class="clear-all" type="button" @click="emit('clearAll')">Alles wissen</button>
       </div>
     </section>
 

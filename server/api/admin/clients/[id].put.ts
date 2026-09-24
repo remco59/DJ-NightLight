@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Client id is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Klant-ID is verplicht' })
   }
 
   const input = await readValidatedBody(event, clientInputSchema.parse)
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!client) {
-    throw createError({ statusCode: 404, statusMessage: 'Client not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Klant niet gevonden' })
   }
 
   return { client }

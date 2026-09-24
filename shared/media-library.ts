@@ -12,9 +12,9 @@ export type MediaUsage = {
 export const MEDIA_USAGE_LABELS: Record<MediaUsageKind, string> = {
   website: 'Website',
   landing_page: 'Landing page',
-  video_project: 'Video generator',
-  video_render: 'Video render',
-  post_generator: 'Post generator',
+  video_project: 'Videogenerator',
+  video_render: 'Videorender',
+  post_generator: 'Postgenerator',
 }
 
 /** One asset as the library, the picker and the inspector see it. */
@@ -87,12 +87,12 @@ export type MediaLibraryFilters = {
 export const ADVANCED_FILTER_KEYS = ['kind', 'gigId', 'venueId', 'tags', 'source', 'orientation', 'added', 'usage', 'variants'] as const
 
 export const MEDIA_SORT_OPTIONS: Array<{ value: MediaSort, label: string }> = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'oldest', label: 'Oldest' },
-  { value: 'updated', label: 'Recently edited' },
-  { value: 'gig_date', label: 'Gig date' },
-  { value: 'title', label: 'Title A–Z' },
-  { value: 'largest', label: 'Largest file' },
+  { value: 'newest', label: 'Nieuwste' },
+  { value: 'oldest', label: 'Oudste' },
+  { value: 'updated', label: 'Laatst bewerkt' },
+  { value: 'gig_date', label: 'Gigdatum' },
+  { value: 'title', label: 'Titel A–Z' },
+  { value: 'largest', label: 'Grootste bestand' },
 ]
 
 export function defaultMediaFilters(): MediaLibraryFilters {
@@ -259,6 +259,7 @@ export function mediaSubline(item: MediaLibraryItem) {
 export function mediaTypeLabel(item: Pick<MediaLibraryItem, 'mimeType' | 'source'>) {
   const kind = mediaKindFromMime(item.mimeType)
   const format = item.mimeType.split('/')[1]?.replace('jpeg', 'jpg').replace('quicktime', 'mov').replace('mpeg', 'mp3').toUpperCase() || ''
-  const noun = kind === 'image' ? 'image' : kind
-  return `${format} ${item.source === 'generated' ? `generated ${noun}` : noun}`.trim()
+  const noun = { image: 'afbeelding', video: 'video', audio: 'audio' }[kind]
+  const label = format ? `${format}-${noun}` : noun
+  return item.source === 'generated' ? `Gegenereerde ${label}` : label
 }

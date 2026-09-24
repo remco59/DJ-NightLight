@@ -7,10 +7,10 @@ import { requireStaff } from '../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const [source] = await db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-  if (!source) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!source) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const contacts = await db.select().from(gigContacts).where(eq(gigContacts.gigId, id))
   const timeline = await db.select().from(gigTimelineItems).where(eq(gigTimelineItems.gigId, id)).orderBy(asc(gigTimelineItems.ordering))
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
       source: source.source,
     }).returning()
 
-    if (!gig) throw createError({ statusCode: 500, statusMessage: 'Could not duplicate gig' })
+    if (!gig) throw createError({ statusCode: 500, statusMessage: 'Gig dupliceren is niet gelukt' })
     if (contacts.length) {
       await tx.insert(gigContacts).values(contacts.map(contact => ({
         gigId: gig.id, name: contact.name, role: contact.role, email: contact.email, phone: contact.phone, notes: contact.notes,

@@ -73,14 +73,14 @@ function run(action: MediaCardAction) {
     <button
       type="button"
       class="thumb"
-      :aria-label="`${selecting ? 'Select' : 'Open'} ${title}`"
+      :aria-label="`${title} ${selecting ? 'selecteren' : 'openen'}`"
       @click="activate"
     >
       <img v-if="item.thumbnailUrl" :src="item.thumbnailUrl" :alt="item.altText || title" loading="lazy" decoding="async">
       <span v-else class="placeholder"><Icon :name="typeIcon" aria-hidden="true" /></span>
       <span v-if="layout === 'grid'" class="type-badge" :title="mediaTypeLabel(item)"><Icon :name="typeIcon" aria-hidden="true" /></span>
       <span v-if="duration && layout === 'grid'" class="duration"><Icon name="lucide:video" aria-hidden="true" />{{ duration }}</span>
-      <span v-if="item.variantCount && layout === 'grid'" class="variants" :title="`${item.variantCount} variant${item.variantCount === 1 ? '' : 's'}`">
+      <span v-if="item.variantCount && layout === 'grid'" class="variants" :title="`${item.variantCount} variant${item.variantCount === 1 ? '' : 'en'}`">
         <Icon name="lucide:layers" aria-hidden="true" />{{ item.variantCount }}
       </span>
     </button>
@@ -91,7 +91,7 @@ function run(action: MediaCardAction) {
       class="select"
       role="checkbox"
       :aria-checked="selected"
-      :aria-label="`Select ${title}`"
+      :aria-label="`${title} selecteren`"
       @click.stop="emit('toggle', $event)"
     >
       <span class="mh-check" :class="{ checked: selected }"><Icon v-if="selected" name="lucide:check" aria-hidden="true" /></span>
@@ -99,18 +99,18 @@ function run(action: MediaCardAction) {
 
     <MediaPopover v-if="interactive" v-model:open="menuOpen" class="menu" align="end">
       <template #trigger="{ toggle }">
-        <button type="button" class="more" :aria-expanded="menuOpen" :aria-label="`Actions for ${title}`" @click.stop="toggle">
+        <button type="button" class="more" :aria-expanded="menuOpen" :aria-label="`Acties voor ${title}`" @click.stop="toggle">
           <Icon name="lucide:ellipsis" aria-hidden="true" />
         </button>
       </template>
-      <button type="button" class="mh-menu-item" @click="run('open')"><Icon name="lucide:maximize-2" aria-hidden="true" />Open preview</button>
-      <button type="button" class="mh-menu-item" @click="run('edit')"><Icon name="lucide:pencil" aria-hidden="true" />Edit metadata</button>
-      <button type="button" class="mh-menu-item" @click="run('copy')"><Icon name="lucide:link" aria-hidden="true" />Copy link</button>
-      <button type="button" class="mh-menu-item" @click="run('download')"><Icon name="lucide:download" aria-hidden="true" />Download</button>
-      <button type="button" class="mh-menu-item" @click="run('variant')"><Icon name="lucide:layers" aria-hidden="true" />Upload a variant</button>
+      <button type="button" class="mh-menu-item" @click="run('open')"><Icon name="lucide:maximize-2" aria-hidden="true" />Voorbeeld openen</button>
+      <button type="button" class="mh-menu-item" @click="run('edit')"><Icon name="lucide:pencil" aria-hidden="true" />Gegevens bewerken</button>
+      <button type="button" class="mh-menu-item" @click="run('copy')"><Icon name="lucide:link" aria-hidden="true" />Link kopiëren</button>
+      <button type="button" class="mh-menu-item" @click="run('download')"><Icon name="lucide:download" aria-hidden="true" />Downloaden</button>
+      <button type="button" class="mh-menu-item" @click="run('variant')"><Icon name="lucide:layers" aria-hidden="true" />Variant uploaden</button>
       <template v-if="collections.length">
         <div class="mh-menu-sep" />
-        <p class="menu-label">Collections</p>
+        <p class="menu-label">Collecties</p>
         <button
           v-for="collection in collections"
           :key="collection.id"
@@ -124,7 +124,7 @@ function run(action: MediaCardAction) {
         </button>
       </template>
       <div class="mh-menu-sep" />
-      <button type="button" class="mh-menu-item danger" @click="run('delete')"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+      <button type="button" class="mh-menu-item danger" @click="run('delete')"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button>
     </MediaPopover>
 
     <div class="body" @click="activate">

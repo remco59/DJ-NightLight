@@ -5,24 +5,24 @@ const route = useRoute()
 const section = computed(() => String(route.params.section))
 
 const sections: Record<string, { title: string, description: string }> = {
-  gigs: { title: 'Gigs', description: 'Manage leads, booked gigs and planning.' },
-  clients: { title: 'Clients', description: 'Client profiles and booking history.' },
-  venues: { title: 'Venues', description: 'Locations, contacts and load-in notes.' },
-  invoices: { title: 'Invoices', description: 'Invoices and payment status.' },
-  media: { title: 'Media', description: 'Photos and media used across NightLight.' },
-  content: { title: 'Website', description: 'Edit the public website.' },
-  'landing-pages': { title: 'Landing pages', description: 'Targeted service and campaign pages.' },
-  'post-generator': { title: 'Post generator', description: 'Create branded social posts.' },
-  calendar: { title: 'Calendar', description: 'NightLight calendar synchronization.' },
-  email: { title: 'Email', description: 'Templates and automated communication.' },
-  users: { title: 'Users', description: 'Accounts and permissions.' },
-  settings: { title: 'Settings', description: 'Business and application settings.' },
+  gigs: { title: 'Gigs', description: 'Beheer leads, geboekte gigs en planning.' },
+  clients: { title: 'Klanten', description: 'Klantprofielen en boekingsgeschiedenis.' },
+  venues: { title: 'Locaties', description: 'Locaties, contactpersonen en notities voor de opbouw.' },
+  invoices: { title: 'Facturen', description: 'Facturen en betaalstatus.' },
+  media: { title: 'Media', description: 'Foto’s en media die door heel NightLight worden gebruikt.' },
+  content: { title: 'Website', description: 'Bewerk de publieke website.' },
+  'landing-pages': { title: 'Landing pages', description: 'Gerichte dienst- en campagnepagina’s.' },
+  'post-generator': { title: 'Post generator', description: 'Maak social posts in je eigen huisstijl.' },
+  calendar: { title: 'Agenda', description: 'NightLight-agendasynchronisatie.' },
+  email: { title: 'Email', description: 'Templates en automatische communicatie.' },
+  users: { title: 'Gebruikers', description: 'Accounts en rechten.' },
+  settings: { title: 'Instellingen', description: 'Bedrijfs- en applicatie-instellingen.' },
 }
 
 const current = computed(() => sections[section.value])
 
 if (!current.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Admin section not found' })
+  throw createError({ statusCode: 404, statusMessage: 'Onderdeel niet gevonden' })
 }
 
 useSeoMeta({
@@ -37,8 +37,8 @@ useSeoMeta({
     <h1>{{ current.title }}</h1>
     <p>{{ current.description }}</p>
     <div class="coming">
-      <strong>This module is ready in the navigation.</strong>
-      <span>Its full workflow is implemented in the matching project phase.</span>
+      <strong>Dit onderdeel staat klaar in de navigatie.</strong>
+      <span>De volledige workflow volgt in de bijbehorende projectfase.</span>
     </div>
   </div>
 </template>

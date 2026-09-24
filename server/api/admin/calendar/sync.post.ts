@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     } catch (error) {
       throw createError({
         statusCode: 502,
-        statusMessage: error instanceof Error ? error.message : 'Calendar synchronization failed',
+        statusMessage: error instanceof Error ? error.message : 'Agendasynchronisatie mislukt',
       })
     }
   }

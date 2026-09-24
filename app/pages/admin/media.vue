@@ -40,10 +40,10 @@ const { assets, collections, gigs, venues, byId, refresh, status } = await useMe
 
 const PAGE_SIZE = 60
 const tabs: Array<{ value: MediaTypeTab, label: string, icon?: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'photo', label: 'Photos', icon: 'lucide:image' },
-  { value: 'video', label: 'Videos', icon: 'lucide:clapperboard' },
-  { value: 'generated', label: 'Generated', icon: 'lucide:sparkles' },
+  { value: 'all', label: 'Alles' },
+  { value: 'photo', label: 'Foto’s', icon: 'lucide:image' },
+  { value: 'video', label: 'Video’s', icon: 'lucide:clapperboard' },
+  { value: 'generated', label: 'Gegenereerd', icon: 'lucide:sparkles' },
 ]
 
 const filters = ref<MediaLibraryFilters>({
@@ -75,25 +75,25 @@ const allTags = computed(() => collectMediaTags(assets.value))
 const advancedCount = computed(() => activeAdvancedFilterCount(filters.value))
 const selectedSet = computed(() => new Set(selected.value))
 const inspected = computed(() => inspectId.value ? byId.value.get(inspectId.value) || null : null)
-const sortLabel = computed(() => MEDIA_SORT_OPTIONS.find(option => option.value === sort.value)?.label || 'Newest')
+const sortLabel = computed(() => MEDIA_SORT_OPTIONS.find(option => option.value === sort.value)?.label || 'Nieuwste')
 const activeCollection = computed(() => collections.value.find(collection => collection.id === filters.value.collectionId) || null)
 const hasAnyFilter = computed(() => Boolean(filters.value.query || filters.value.collectionId || filters.value.type !== 'all' || advancedCount.value))
 
 const activeChips = computed(() => {
   const f = filters.value
   const chips: Array<{ key: string, label: string, clear: () => void }> = []
-  const gigName = (id: string) => id === 'none' ? 'No gig' : gigs.value.find(gig => gig.id === id)?.title || 'Gig'
-  const venueName = (id: string) => id === 'none' ? 'No venue' : venues.value.find(venue => venue.id === id)?.name || 'Venue'
-  if (activeCollection.value) chips.push({ key: 'collection', label: `Collection: ${activeCollection.value.name}`, clear: () => { f.collectionId = '' } })
-  if (f.kind) chips.push({ key: 'kind', label: `Type: ${f.kind}`, clear: () => { f.kind = '' } })
+  const gigName = (id: string) => id === 'none' ? 'Geen gig' : gigs.value.find(gig => gig.id === id)?.title || 'Gig'
+  const venueName = (id: string) => id === 'none' ? 'Geen locatie' : venues.value.find(venue => venue.id === id)?.name || 'Locatie'
+  if (activeCollection.value) chips.push({ key: 'collection', label: `Collectie: ${activeCollection.value.name}`, clear: () => { f.collectionId = '' } })
+  if (f.kind) chips.push({ key: 'kind', label: `Type: ${{ image: 'afbeeldingen', video: 'video’s', audio: 'audio' }[f.kind]}`, clear: () => { f.kind = '' } })
   if (f.gigId) chips.push({ key: 'gig', label: `Gig: ${gigName(f.gigId)}`, clear: () => { f.gigId = '' } })
-  if (f.venueId) chips.push({ key: 'venue', label: `Venue: ${venueName(f.venueId)}`, clear: () => { f.venueId = '' } })
+  if (f.venueId) chips.push({ key: 'venue', label: `Locatie: ${venueName(f.venueId)}`, clear: () => { f.venueId = '' } })
   for (const tag of f.tags) chips.push({ key: `tag-${tag}`, label: `Tag: ${tag}`, clear: () => { f.tags = f.tags.filter(existing => existing !== tag) } })
-  if (f.source) chips.push({ key: 'source', label: `Source: ${f.source}`, clear: () => { f.source = '' } })
-  if (f.orientation) chips.push({ key: 'orientation', label: f.orientation, clear: () => { f.orientation = '' } })
-  if (f.added) chips.push({ key: 'added', label: `Added: last ${f.added.replace('d', ' days').replace('365 days', 'year')}`, clear: () => { f.added = '' } })
-  if (f.usage) chips.push({ key: 'usage', label: f.usage === 'used' ? 'Used' : 'Unused', clear: () => { f.usage = '' } })
-  if (f.variants) chips.push({ key: 'variants', label: f.variants === 'originals' ? 'Originals only' : 'Variants only', clear: () => { f.variants = '' } })
+  if (f.source) chips.push({ key: 'source', label: `Bron: ${{ upload: 'geüpload', url: 'via URL', generated: 'gegenereerd', derived: 'bewerkte variant' }[f.source]}`, clear: () => { f.source = '' } })
+  if (f.orientation) chips.push({ key: 'orientation', label: { landscape: 'Liggend', portrait: 'Staand', square: 'Vierkant' }[f.orientation], clear: () => { f.orientation = '' } })
+  if (f.added) chips.push({ key: 'added', label: `Toegevoegd: ${{ '7d': 'afgelopen 7 dagen', '30d': 'afgelopen 30 dagen', '90d': 'afgelopen 90 dagen', '365d': 'afgelopen jaar' }[f.added]}`, clear: () => { f.added = '' } })
+  if (f.usage) chips.push({ key: 'usage', label: f.usage === 'used' ? 'Gebruikt' : 'Ongebruikt', clear: () => { f.usage = '' } })
+  if (f.variants) chips.push({ key: 'variants', label: f.variants === 'originals' ? 'Alleen originelen' : 'Alleen varianten', clear: () => { f.variants = '' } })
   return chips
 })
 
@@ -158,24 +158,24 @@ function uploadVariant(item: MediaLibraryItem) {
 
 async function onUploaded(ids: string[]) {
   await refresh()
-  notify(`${ids.length} file${ids.length === 1 ? '' : 's'} added to the library.`)
+  notify(`${ids.length} bestand${ids.length === 1 ? '' : 'en'} toegevoegd aan de bibliotheek.`)
 }
 
 async function copyLink(item: MediaLibraryItem) {
   try {
     await navigator.clipboard.writeText(mediaPublicUrl(item))
-    notify('Link copied to clipboard.')
+    notify('Link gekopieerd.')
   } catch {
-    notify('Could not access the clipboard.', 'error')
+    notify('Geen toegang tot het klembord.', 'error')
   }
 }
 
 async function removeAssets(ids: string[]) {
   const names = ids.map(id => byId.value.get(id)).filter(Boolean).map(item => mediaDisplayTitle(item!))
   const question = ids.length === 1
-    ? `Delete “${names[0]}”? This removes the file permanently.`
-    : `Delete ${ids.length} items? This removes the files permanently.`
-  if (!confirm(`${question} Items that are still used on the website, landing pages or in videos are kept.`)) return
+    ? `“${names[0]}” verwijderen? Het bestand wordt definitief verwijderd.`
+    : `${ids.length} items verwijderen? De bestanden worden definitief verwijderd.`
+  if (!confirm(`${question} Items die nog op de website, op landing pages of in video’s worden gebruikt, blijven bewaard.`)) return
   busy.value = true
   try {
     const result = await mediaApi.bulk<MediaDeleteResult>(ids, { action: 'delete' })
@@ -184,16 +184,16 @@ async function removeAssets(ids: string[]) {
     await refresh()
     if (result.blocked.length) {
       const first = result.blocked[0]!
-      const name = byId.value.get(first.id) ? mediaDisplayTitle(byId.value.get(first.id)!) : 'An item'
+      const name = byId.value.get(first.id) ? mediaDisplayTitle(byId.value.get(first.id)!) : 'Een item'
       notify(
-        `${result.deleted.length ? `Deleted ${result.deleted.length}. ` : ''}${result.blocked.length} still in use and kept — ${name}: ${first.references.join(', ')}.`,
+        `${result.deleted.length ? `${result.deleted.length} verwijderd. ` : ''}${result.blocked.length} nog in gebruik en bewaard — ${name}: ${first.references.join(', ')}.`,
         'error',
       )
     } else {
-      notify(`Deleted ${result.deleted.length} item${result.deleted.length === 1 ? '' : 's'}.`)
+      notify(`${result.deleted.length} item${result.deleted.length === 1 ? '' : 's'} verwijderd.`)
     }
   } catch (error) {
-    notify(apiErrorMessage(error, 'Delete failed.'), 'error')
+    notify(apiErrorMessage(error, 'Verwijderen mislukt.'), 'error')
   } finally {
     busy.value = false
   }
@@ -205,18 +205,18 @@ async function runBulk(action: MediaBulkAction, ids = selected.value) {
     const result = await mediaApi.bulk(ids, action)
     await refresh()
     const verb = {
-      addTags: 'Tagged',
-      removeTags: 'Updated tags on',
-      setGig: 'Linked',
-      setVenue: 'Linked',
-      addToCollection: 'Added',
-      removeFromCollection: 'Removed',
-      moveToCollection: 'Moved',
-      delete: 'Deleted',
+      addTags: 'Tags toegevoegd aan',
+      removeTags: 'Tags bijgewerkt voor',
+      setGig: 'Gekoppeld:',
+      setVenue: 'Gekoppeld:',
+      addToCollection: 'Toegevoegd:',
+      removeFromCollection: 'Verwijderd uit collectie:',
+      moveToCollection: 'Verplaatst:',
+      delete: 'Verwijderd:',
     }[action.action]
     notify(`${verb} ${result.updated} item${result.updated === 1 ? '' : 's'}.`)
   } catch (error) {
-    notify(apiErrorMessage(error, 'That did not work. Try again.'), 'error')
+    notify(apiErrorMessage(error, 'Dat is niet gelukt. Probeer het opnieuw.'), 'error')
   } finally {
     busy.value = false
   }
@@ -227,9 +227,9 @@ async function createCollection(name: string, ids = selected.value) {
   try {
     await mediaApi.createCollection(name, ids)
     await refresh()
-    notify(`Created “${name}” with ${ids.length} item${ids.length === 1 ? '' : 's'}.`)
+    notify(`“${name}” aangemaakt met ${ids.length} item${ids.length === 1 ? '' : 's'}.`)
   } catch (error) {
-    notify(apiErrorMessage(error, 'Could not create the collection.'), 'error')
+    notify(apiErrorMessage(error, 'Collectie aanmaken is niet gelukt.'), 'error')
   } finally {
     busy.value = false
   }
@@ -311,23 +311,23 @@ function closeInspector() {
     <header class="header">
       <div>
         <p class="eyebrow">Content</p>
-        <h1>Media library</h1>
-        <p class="lead">All your photos, videos and generated content in one place. Organize, search and use them across your website, socials and promos.</p>
+        <h1>Mediabibliotheek</h1>
+        <p class="lead">Al je foto’s, video’s en gegenereerde content op één plek. Organiseer, zoek en gebruik ze op je website, socials en in promo’s.</p>
       </div>
       <button type="button" class="mh-btn primary upload-button" @click="openUpload()">
-        <Icon name="lucide:plus" aria-hidden="true" />Upload media
+        <Icon name="lucide:plus" aria-hidden="true" />Media uploaden
       </button>
     </header>
 
     <div class="toolbar">
       <label class="search">
         <Icon name="lucide:search" aria-hidden="true" />
-        <span class="visually-hidden">Search media</span>
-        <input ref="searchInput" v-model="filters.query" type="search" placeholder="Search media by title, tag, gig or venue…">
+        <span class="visually-hidden">Media zoeken</span>
+        <input ref="searchInput" v-model="filters.query" type="search" placeholder="Zoek media op titel, tag, gig of locatie…">
         <kbd aria-hidden="true">⌘ K</kbd>
       </label>
 
-      <div class="tabs" role="tablist" aria-label="Media type">
+      <div class="tabs" role="tablist" aria-label="Mediatype">
         <button
           v-for="tab in tabs"
           :key="tab.value"
@@ -354,7 +354,7 @@ function closeInspector() {
         <MediaPopover v-model:open="sortOpen" align="end">
           <template #trigger="{ toggle: toggleSort }">
             <button type="button" class="mh-btn" :aria-expanded="sortOpen" @click="toggleSort">
-              <Icon name="lucide:arrow-up-down" aria-hidden="true" /><span class="sort-prefix">Sort: </span>{{ sortLabel }}<Icon name="lucide:chevron-down" aria-hidden="true" />
+              <Icon name="lucide:arrow-up-down" aria-hidden="true" /><span class="sort-prefix">Sorteren: </span>{{ sortLabel }}<Icon name="lucide:chevron-down" aria-hidden="true" />
             </button>
           </template>
           <button
@@ -368,11 +368,11 @@ function closeInspector() {
           </button>
         </MediaPopover>
 
-        <div class="view-toggle" role="group" aria-label="View">
-          <button type="button" class="mh-icon-btn" :class="{ active: view === 'grid' }" :aria-pressed="view === 'grid'" aria-label="Grid view" @click="view = 'grid'">
+        <div class="view-toggle" role="group" aria-label="Weergave">
+          <button type="button" class="mh-icon-btn" :class="{ active: view === 'grid' }" :aria-pressed="view === 'grid'" aria-label="Rasterweergave" @click="view = 'grid'">
             <Icon name="lucide:layout-grid" aria-hidden="true" />
           </button>
-          <button type="button" class="mh-icon-btn" :class="{ active: view === 'row' }" :aria-pressed="view === 'row'" aria-label="List view" @click="view = 'row'">
+          <button type="button" class="mh-icon-btn" :class="{ active: view === 'row' }" :aria-pressed="view === 'row'" aria-label="Lijstweergave" @click="view = 'row'">
             <Icon name="lucide:list" aria-hidden="true" />
           </button>
         </div>
@@ -381,7 +381,7 @@ function closeInspector() {
 
     <div v-if="activeChips.length" class="chips">
       <AdminFilterChip v-for="chip in activeChips" :key="chip.key" :label="chip.label" @remove="chip.clear()" />
-      <button type="button" class="clear-all" @click="clearFilters">Clear all</button>
+      <button type="button" class="clear-all" @click="clearFilters">Alles wissen</button>
     </div>
 
     <MediaCollectionsRow :collections="collections" :active-id="filters.collectionId" @select="selectCollection" @manage="collectionsOpen = true" />
@@ -406,7 +406,7 @@ function closeInspector() {
 
     <div class="results-head">
       <h2>
-        <template v-if="hasAnyFilter">{{ visible.length }} of {{ assets.length }} items</template>
+        <template v-if="hasAnyFilter">{{ visible.length }} van {{ assets.length }} items</template>
         <template v-else>{{ assets.length }} item{{ assets.length === 1 ? '' : 's' }}</template>
       </h2>
       <span v-if="activeCollection?.description" class="collection-note">{{ activeCollection.description }}</span>
@@ -418,16 +418,16 @@ function closeInspector() {
 
     <div v-else-if="!assets.length" class="mh-empty">
       <Icon name="lucide:images" aria-hidden="true" />
-      <strong>Your media library is empty</strong>
-      <span>Upload photos and videos from your gigs to use them on the website, in posts and in videos.</span>
-      <button type="button" class="mh-btn primary" @click="openUpload()"><Icon name="lucide:plus" aria-hidden="true" />Upload media</button>
+      <strong>Je mediabibliotheek is nog leeg</strong>
+      <span>Upload foto’s en video’s van je gigs om ze op de website, in posts en in video’s te gebruiken.</span>
+      <button type="button" class="mh-btn primary" @click="openUpload()"><Icon name="lucide:plus" aria-hidden="true" />Media uploaden</button>
     </div>
 
     <div v-else-if="!visible.length" class="mh-empty">
       <Icon name="lucide:search-x" aria-hidden="true" />
-      <strong>Nothing matches these filters</strong>
-      <span>Try another search or remove a filter.</span>
-      <button type="button" class="mh-btn" @click="clearFilters">Clear filters</button>
+      <strong>Niets gevonden met deze filters</strong>
+      <span>Probeer een andere zoekterm of verwijder een filter.</span>
+      <button type="button" class="mh-btn" @click="clearFilters">Filters wissen</button>
     </div>
 
     <div v-else :class="view === 'grid' ? 'grid' : 'list'">
@@ -446,7 +446,7 @@ function closeInspector() {
       />
     </div>
     <div v-if="shown.length < visible.length" ref="sentinel" class="sentinel">
-      <button type="button" class="mh-btn" @click="renderLimit += PAGE_SIZE">Show more ({{ visible.length - shown.length }} left)</button>
+      <button type="button" class="mh-btn" @click="renderLimit += PAGE_SIZE">Meer tonen (nog {{ visible.length - shown.length }})</button>
     </div>
 
     <MediaInspector

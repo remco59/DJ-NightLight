@@ -80,11 +80,11 @@ const parentOptions = computed(() => props.assets
   .sort((a, b) => a.label.localeCompare(b.label, 'nl', { numeric: true })))
 const parentAsset = computed(() => props.assets.find(asset => asset.id === meta.parentAssetId) || null)
 const uploadLabel = computed(() => {
-  if (running.value) return `Uploading ${Math.min(doneCount.value + 1, queue.value.length)} of ${queue.value.length}…`
+  if (running.value) return `Uploaden ${Math.min(doneCount.value + 1, queue.value.length)} van ${queue.value.length}…`
   const count = pending.value.length
-  if (!count) return 'Upload'
-  if (failedCount.value && failedCount.value === count) return `Retry ${count} failed`
-  return `Upload ${count} file${count === 1 ? '' : 's'}`
+  if (!count) return 'Uploaden'
+  if (failedCount.value && failedCount.value === count) return `${count} mislukte opnieuw proberen`
+  return `${count} bestand${count === 1 ? '' : 'en'} uploaden`
 })
 
 watch(open, (value) => {
@@ -102,7 +102,7 @@ watch(open, (value) => {
 function addFiles(files: Iterable<File>, sourceUrl = '') {
   for (const file of files) {
     const problem = props.imagesOnly && !file.type.startsWith('image/')
-      ? 'Only JPEG, PNG and WebP images can be used here.'
+      ? 'Hier kun je alleen JPEG-, PNG- en WebP-afbeeldingen gebruiken.'
       : checkMediaFile(file)
     queue.value.push({
       key: `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`,
@@ -144,7 +144,7 @@ async function addRemote() {
     addFiles([file], remoteUrl.value.trim())
     remoteUrl.value = ''
   } catch (error) {
-    remoteError.value = error instanceof Error ? error.message : 'Could not fetch this link.'
+    remoteError.value = error instanceof Error ? error.message : 'Deze link ophalen is niet gelukt.'
   } finally {
     remoteBusy.value = false
   }
@@ -178,7 +178,7 @@ async function uploadOne(item: QueueItem, index: number, total: number) {
     item.status = 'done'
   } catch (error) {
     item.status = 'error'
-    item.error = error instanceof Error ? error.message : 'Upload failed.'
+    item.error = error instanceof Error ? error.message : 'Uploaden mislukt.'
   }
 }
 
@@ -235,16 +235,16 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="drawer">
       <div v-if="open" class="drawer-layer">
-        <button type="button" class="mh-backdrop" aria-label="Close upload" @click="close" />
+        <button type="button" class="mh-backdrop" aria-label="Uploaden sluiten" @click="close" />
         <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="upload-title">
           <header class="drawer-header">
-            <h2 id="upload-title">{{ preset?.parentAssetId ? 'Upload variant' : 'Upload media' }}</h2>
-            <button type="button" class="mh-icon-btn close" aria-label="Close" :disabled="running" @click="close"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <h2 id="upload-title">{{ preset?.parentAssetId ? 'Variant uploaden' : 'Media uploaden' }}</h2>
+            <button type="button" class="mh-icon-btn close" aria-label="Sluiten" :disabled="running" @click="close"><Icon name="lucide:x" aria-hidden="true" /></button>
           </header>
 
           <div class="tabs" role="tablist">
-            <button type="button" role="tab" :aria-selected="tab === 'upload'" :class="{ active: tab === 'upload' }" @click="tab = 'upload'">Upload</button>
-            <button type="button" role="tab" :aria-selected="tab === 'url'" :class="{ active: tab === 'url' }" @click="tab = 'url'">From URL</button>
+            <button type="button" role="tab" :aria-selected="tab === 'upload'" :class="{ active: tab === 'upload' }" @click="tab = 'upload'">Uploaden</button>
+            <button type="button" role="tab" :aria-selected="tab === 'url'" :class="{ active: tab === 'url' }" @click="tab = 'url'">Via URL</button>
           </div>
 
           <div class="drawer-body">
@@ -259,24 +259,24 @@ onBeforeUnmount(() => {
             >
               <input ref="fileInput" type="file" multiple :accept="accept" class="visually-hidden" @change="chooseFiles">
               <Icon name="lucide:cloud-upload" class="drop-icon" aria-hidden="true" />
-              <strong>Drag &amp; drop files here</strong>
-              <span>or <u>click to browse</u></span>
-              <small>JPG, PNG or WebP · max 15 MB each<template v-if="!imagesOnly"><br>Videos up to 250 MB · audio up to 50 MB</template></small>
+              <strong>Sleep bestanden hierheen</strong>
+              <span>of <u>klik om te bladeren</u></span>
+              <small>JPG, PNG of WebP · max. 15 MB per bestand<template v-if="!imagesOnly"><br>Video’s tot 250 MB · audio tot 50 MB</template></small>
             </label>
 
             <div v-else class="remote">
               <label class="mh-field">
-                <span>File URL</span>
+                <span>Bestands-URL</span>
                 <input v-model="remoteUrl" class="mh-input" type="url" placeholder="https://…/photo.jpg" @keydown.enter.prevent="addRemote">
               </label>
               <button type="button" class="mh-btn" :disabled="!remoteUrl.trim() || remoteBusy" @click="addRemote">
-                <Icon name="lucide:link" aria-hidden="true" />{{ remoteBusy ? 'Fetching…' : 'Add from link' }}
+                <Icon name="lucide:link" aria-hidden="true" />{{ remoteBusy ? 'Ophalen…' : 'Toevoegen via link' }}
               </button>
-              <small>The file is downloaded by your browser and validated like any upload. Some sites block this; download the file and upload it instead.</small>
+              <small>Je browser downloadt het bestand en het wordt gecontroleerd zoals elke upload. Sommige sites blokkeren dit; download het bestand dan en upload het.</small>
               <p v-if="remoteError" class="error">{{ remoteError }}</p>
             </div>
 
-            <ul v-if="queue.length" class="queue" aria-label="Selected files">
+            <ul v-if="queue.length" class="queue" aria-label="Gekozen bestanden">
               <li v-for="item in queue" :key="item.key" class="queue-item" :class="item.status" :title="item.error || item.file.name">
                 <img v-if="item.previewUrl && item.file.type.startsWith('image/')" :src="item.previewUrl" alt="">
                 <video v-else-if="item.previewUrl" :src="item.previewUrl" muted preload="metadata" />
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
                 <span v-if="item.status === 'uploading'" class="progress"><span :style="{ width: `${Math.round(item.progress * 100)}%` }" /></span>
                 <span v-if="item.status === 'done'" class="state ok"><Icon name="lucide:check" aria-hidden="true" /></span>
                 <span v-if="item.status === 'error'" class="state bad"><Icon name="lucide:triangle-alert" aria-hidden="true" /></span>
-                <button v-if="item.status !== 'uploading' && item.status !== 'done'" type="button" class="remove" :aria-label="`Remove ${item.file.name}`" @click="removeItem(item)">
+                <button v-if="item.status !== 'uploading' && item.status !== 'done'" type="button" class="remove" :aria-label="`${item.file.name} verwijderen`" @click="removeItem(item)">
                   <Icon name="lucide:x" aria-hidden="true" />
                 </button>
               </li>
@@ -294,44 +294,44 @@ onBeforeUnmount(() => {
             </ul>
 
             <section class="meta">
-              <h3>Metadata <span>{{ queue.length > 1 ? `(applies to all ${queue.length} files)` : '' }}</span></h3>
+              <h3>Gegevens <span>{{ queue.length > 1 ? `(geldt voor alle ${queue.length} bestanden)` : '' }}</span></h3>
               <label class="mh-field">
-                <span>Title</span>
-                <input v-model="meta.title" class="mh-input" placeholder="e.g. Main room moments">
-                <small v-if="queue.length > 1">Leave empty to use each file name. With a title, files are numbered 1–{{ queue.length }}.</small>
+                <span>Titel</span>
+                <input v-model="meta.title" class="mh-input" placeholder="bijv. Main room moments">
+                <small v-if="queue.length > 1">Laat leeg om de bestandsnamen te gebruiken. Met een titel worden de bestanden genummerd 1–{{ queue.length }}.</small>
               </label>
               <label class="mh-field">
-                <span>Alt text</span>
-                <input v-model="meta.altText" class="mh-input" placeholder="Describe the media for accessibility">
+                <span>Alt-tekst</span>
+                <input v-model="meta.altText" class="mh-input" placeholder="Beschrijf de media voor toegankelijkheid">
               </label>
               <label class="mh-field">
                 <span>Tags</span>
-                <input v-model="meta.tags" class="mh-input" list="upload-tag-suggestions" placeholder="Add tags, comma separated">
+                <input v-model="meta.tags" class="mh-input" list="upload-tag-suggestions" placeholder="Tags, gescheiden door komma’s">
                 <datalist id="upload-tag-suggestions"><option v-for="tag in tagSuggestions" :key="tag" :value="tag" /></datalist>
               </label>
               <div class="two">
                 <label class="mh-field">
-                  <span>Link to gig</span>
+                  <span>Koppelen aan gig</span>
                   <select v-model="meta.gigId" class="mh-select">
-                    <option value="">No gig association</option>
+                    <option value="">Niet gekoppeld aan een gig</option>
                     <option v-for="gig in gigs" :key="gig.id" :value="gig.id">{{ gig.title }}</option>
                   </select>
                 </label>
                 <label class="mh-field">
-                  <span>Link to venue</span>
+                  <span>Koppelen aan locatie</span>
                   <select v-model="meta.venueId" class="mh-select">
-                    <option value="">No venue association</option>
+                    <option value="">Niet gekoppeld aan een locatie</option>
                     <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
                   </select>
                 </label>
               </div>
 
               <button type="button" class="advanced-toggle" :aria-expanded="showAdvanced" @click="showAdvanced = !showAdvanced">
-                Advanced options <Icon :name="showAdvanced ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
+                Geavanceerde opties <Icon :name="showAdvanced ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
               </button>
               <div v-if="showAdvanced" class="advanced">
                 <div v-if="collections.length" class="mh-field">
-                  <span>Add to collections</span>
+                  <span>Aan collecties toevoegen</span>
                   <div class="chips">
                     <button
                       v-for="collection in collections"
@@ -347,27 +347,27 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <label class="mh-field">
-                  <span>Variant of</span>
+                  <span>Variant van</span>
                   <select v-model="meta.parentAssetId" class="mh-select">
-                    <option value="">Not a variant (original)</option>
+                    <option value="">Geen variant (origineel)</option>
                     <option v-for="option in parentOptions" :key="option.id" :value="option.id">{{ option.label }}</option>
                   </select>
-                  <small>Crops, enhanced edits and exports stay linked to their original.</small>
+                  <small>Uitsneden, bewerkte versies en exports blijven gekoppeld aan hun origineel.</small>
                 </label>
                 <div v-if="parentAsset" class="parent-preview">
                   <img v-if="parentAsset.thumbnailUrl" :src="parentAsset.thumbnailUrl" alt="">
-                  <span>Original: <strong>{{ mediaDisplayTitle(parentAsset) }}</strong></span>
+                  <span>Origineel: <strong>{{ mediaDisplayTitle(parentAsset) }}</strong></span>
                 </div>
                 <label v-if="meta.parentAssetId" class="mh-field">
-                  <span>Variant label</span>
-                  <input v-model="meta.variantLabel" class="mh-input" list="variant-label-suggestions" maxlength="80" placeholder="e.g. Instagram 4:5 crop">
+                  <span>Variantlabel</span>
+                  <input v-model="meta.variantLabel" class="mh-input" list="variant-label-suggestions" maxlength="80" placeholder="bijv. Instagram 4:5-uitsnede">
                   <datalist id="variant-label-suggestions">
                     <option value="Enhanced NR" />
-                    <option value="Instagram 4:5 crop" />
-                    <option value="Story 9:16 crop" />
-                    <option value="Square 1:1 crop" />
-                    <option value="Black & white" />
-                    <option value="Gig recap graphic" />
+                    <option value="Instagram 4:5-uitsnede" />
+                    <option value="Story 9:16-uitsnede" />
+                    <option value="Vierkant 1:1-uitsnede" />
+                    <option value="Zwart-wit" />
+                    <option value="Gig-recap graphic" />
                   </datalist>
                 </label>
               </div>
@@ -377,14 +377,14 @@ onBeforeUnmount(() => {
           <footer class="drawer-footer">
             <template v-if="finished">
               <p class="summary">
-                <Icon name="lucide:circle-check" aria-hidden="true" />{{ doneCount }} uploaded<template v-if="failedCount">, {{ failedCount }} failed</template>
+                <Icon name="lucide:circle-check" aria-hidden="true" />{{ doneCount }} geüpload<template v-if="failedCount">, {{ failedCount }} mislukt</template>
               </p>
-              <button v-if="failedCount" type="button" class="mh-btn primary block" @click="startUpload">Retry {{ failedCount }} failed</button>
-              <button type="button" class="mh-btn block" :class="{ primary: !failedCount }" @click="close">Done</button>
+              <button v-if="failedCount" type="button" class="mh-btn primary block" @click="startUpload">{{ failedCount }} mislukte opnieuw proberen</button>
+              <button type="button" class="mh-btn block" :class="{ primary: !failedCount }" @click="close">Klaar</button>
             </template>
             <template v-else>
               <button type="button" class="mh-btn primary block" :disabled="!pending.length || running" @click="startUpload">{{ uploadLabel }}</button>
-              <button type="button" class="mh-btn block" :disabled="running" @click="close">Cancel</button>
+              <button type="button" class="mh-btn block" :disabled="running" @click="close">Annuleren</button>
             </template>
           </footer>
         </aside>

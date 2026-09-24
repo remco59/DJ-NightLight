@@ -12,17 +12,22 @@ import {
   outboxEvents,
 } from '../../db/schema'
 import {
+  clientAllowsAutomaticEmail,
   emailRetryDelayMs,
   formatMoney,
   normalizeEmailText,
   renderBrandedEmailHtml,
   renderEmailTemplate,
+  type EmailAttachment,
   type EmailVariables,
 } from '../../shared/email-automation'
 import { db } from './db'
 import { sendEmail } from './email-provider'
 import { loadEmailIntegration } from './integration-settings'
 import { gigTitleSql } from './gig-title'
+import { getInvoiceDetail } from './invoice-data'
+import { buildInvoicePdf } from './invoice-pdf'
+import { getMediaStorage } from './media-storage'
 
 function clientName(input: { firstName: string | null, lastName: string | null, companyName: string | null }) {
   return input.companyName || [input.firstName, input.lastName].filter(Boolean).join(' ') || 'daar'
@@ -33,7 +38,8 @@ function fmt(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Amsterdam' }).format(new Date(value))
 }
 
-export async function loadGigEmailContext(gigId: string) {
+/** Gig, client and template variables for a gig, also when the client has no email address. */
+export async function loadGigEmailDetails(gigId: string) {
   const [row] = await db
     .select({
       gigId: gigs.id,
@@ -41,29 +47,40 @@ export async function loadGigEmailContext(gigId: string) {
       gigStatus: gigs.status,
       startsAt: gigs.startsAt,
       endsAt: gigs.endsAt,
+      clientId: clients.id,
       clientEmail: clients.email,
       firstName: clients.firstName,
       lastName: clients.lastName,
       companyName: clients.companyName,
+      emailAutomationDisabled: clients.emailAutomationDisabled,
     })
     .from(gigs)
     .leftJoin(clients, eq(gigs.clientId, clients.id))
     .where(and(eq(gigs.id, gigId), isNull(gigs.deletedAt)))
     .limit(1)
-  if (!row?.clientEmail) return null
+  if (!row) return null
 
   const { config: emailConfig } = await loadEmailIntegration()
   return {
-    recipient: row.clientEmail,
-    status: row.gigStatus,
-    startsAt: row.startsAt,
-    endsAt: row.endsAt,
+    row,
     variables: {
       clientName: clientName(row),
       gigTitle: row.gigTitle,
       gigDate: fmt(row.startsAt),
       reviewUrl: emailConfig.reviewUrl || '',
     } satisfies EmailVariables,
+  }
+}
+
+export async function loadGigEmailContext(gigId: string) {
+  const details = await loadGigEmailDetails(gigId)
+  if (!details?.row.clientEmail) return null
+  return {
+    recipient: details.row.clientEmail,
+    status: details.row.gigStatus,
+    startsAt: details.row.startsAt,
+    endsAt: details.row.endsAt,
+    variables: details.variables,
   }
 }
 
@@ -191,23 +208,45 @@ async function isSuppressed(gigId: string | null, templateKey: string) {
   return Boolean(row)
 }
 
+async function clientTurnedOffAutomation(gigId: string | null, templateKey: string) {
+  if (!gigId) return false
+  const [row] = await db.select({ disabled: clients.emailAutomationDisabled })
+    .from(gigs)
+    .innerJoin(clients, eq(gigs.clientId, clients.id))
+    .where(eq(gigs.id, gigId))
+    .limit(1)
+  return !clientAllowsAutomaticEmail(row?.disabled, templateKey)
+}
+
+async function loadAttachments(attachments: EmailAttachment[]) {
+  const storage = getMediaStorage()
+  return Promise.all(attachments.map(async (attachment) => {
+    if (attachment.kind === 'file') {
+      return { filename: attachment.filename, content: await storage.read(attachment.storageKey) }
+    }
+    const detail = await getInvoiceDetail(attachment.invoiceId)
+    if (!detail?.invoice.documentSnapshot) throw new Error(`Factuur ${attachment.filename} is niet meer beschikbaar`)
+    return { filename: attachment.filename, content: buildInvoicePdf(detail.invoice.documentSnapshot) }
+  }))
+}
+
 async function shouldSkipCurrentState(job: typeof emailJobs.$inferSelect) {
   if (job.templateKey === 'portal_reminder' && job.gigId) {
     const [submission] = await db.select({ status: contractSubmissions.status })
       .from(contractSubmissions).where(eq(contractSubmissions.gigId, job.gigId)).limit(1)
-    if (submission?.status === 'submitted') return 'Client portal was already submitted'
+    if (submission?.status === 'submitted') return 'Het klantportaal is al ingediend'
   }
 
   if (['pre_gig_reminder', 'thank_you', 'review_request', 'booking_accepted'].includes(job.templateKey) && job.gigId) {
     const [gig] = await db.select({ status: gigs.status }).from(gigs).where(eq(gigs.id, job.gigId)).limit(1)
-    if (!gig || gig.status !== 'booked') return 'Gig is no longer booked'
+    if (!gig || gig.status !== 'booked') return 'De gig is niet meer geboekt'
   }
 
   if (['payment_reminder', 'overdue_reminder', 'invoice_sent', 'payment_received'].includes(job.templateKey) && job.invoiceId) {
     const [invoice] = await db.select({ status: invoices.status, paymentStatus: invoices.paymentStatus })
       .from(invoices).where(eq(invoices.id, job.invoiceId)).limit(1)
-    if (!invoice || invoice.status === 'void') return 'Invoice is no longer payable'
-    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'Invoice is already paid'
+    if (!invoice || invoice.status === 'void') return 'De factuur hoeft niet meer betaald te worden'
+    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'De factuur is al betaald'
   }
   return null
 }
@@ -217,11 +256,16 @@ export async function processEmailJob(jobId: string) {
   if (!job || !['pending', 'failed'].includes(job.status)) return { status: 'ignored' as const }
 
   const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.key, job.templateKey)).limit(1)
-  const skipReason = !template?.enabled
-    ? 'Template is disabled'
-    : await isSuppressed(job.gigId, job.templateKey)
-      ? 'Automation is suppressed for this gig'
-      : await shouldSkipCurrentState(job)
+  // Mail composed by hand from a gig is always sent: the automation switches only govern automatic mail.
+  const skipReason = job.manual
+    ? null
+    : !template?.enabled
+      ? 'Het template is uitgeschakeld'
+      : await isSuppressed(job.gigId, job.templateKey)
+        ? 'Automatisering is uitgeschakeld voor deze gig'
+        : await clientTurnedOffAutomation(job.gigId, job.templateKey)
+          ? 'Automatisch versturen staat uit voor deze klant'
+          : await shouldSkipCurrentState(job)
 
   if (skipReason) {
     await db.update(emailJobs).set({
@@ -235,11 +279,12 @@ export async function processEmailJob(jobId: string) {
   if (!template) return { status: 'missing-template' as const }
   await db.update(emailJobs).set({ status: 'processing', updatedAt: new Date() }).where(eq(emailJobs.id, job.id))
 
-  const subject = renderEmailTemplate(template.subject, job.variables)
-  const text = normalizeEmailText(renderEmailTemplate(template.body, job.variables))
+  const subject = job.subjectOverride ?? renderEmailTemplate(template.subject, job.variables)
+  const text = normalizeEmailText(job.bodyOverride ?? renderEmailTemplate(template.body, job.variables))
   const html = renderBrandedEmailHtml(template.key, text, job.variables)
   try {
-    const sent = await sendEmail({ to: job.recipient, subject, text, html, idempotencyKey: job.dedupeKey })
+    const attachments = job.attachments.length ? await loadAttachments(job.attachments) : undefined
+    const sent = await sendEmail({ to: job.recipient, subject, text, html, idempotencyKey: job.dedupeKey, attachments })
     const sentAt = new Date()
     await db.transaction(async (tx) => {
       await tx.insert(emailDeliveryAttempts).values({
@@ -409,4 +454,31 @@ export async function queueTestEmail(templateKey: string, recipient: string, var
     dedupeKey: `test:${randomUUID()}`,
     runAt: new Date(),
   })
+}
+
+export async function queueManualEmail(input: {
+  templateKey: string
+  gigId: string
+  recipient: string
+  subject: string
+  body: string
+  variables: EmailVariables
+  attachments: EmailAttachment[]
+  userId: string
+}) {
+  const [job] = await db.insert(emailJobs).values({
+    templateKey: input.templateKey,
+    gigId: input.gigId,
+    recipient: input.recipient,
+    variables: input.variables as Record<string, string | number | null>,
+    dedupeKey: `manual:${randomUUID()}`,
+    runAt: new Date(),
+    manual: true,
+    subjectOverride: input.subject,
+    bodyOverride: input.body,
+    attachments: input.attachments,
+    createdByUserId: input.userId,
+  }).returning()
+  if (!job) throw new Error('E-mail kon niet in de wachtrij worden gezet')
+  return job
 }

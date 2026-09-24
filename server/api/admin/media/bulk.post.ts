@@ -22,7 +22,7 @@ const schema = z.discriminatedUnion('action', [
 
 async function requireCollection(id: string) {
   const [collection] = await db.select({ id: mediaCollections.id }).from(mediaCollections).where(eq(mediaCollections.id, id)).limit(1)
-  if (!collection) throw createError({ statusCode: 404, statusMessage: 'Collection not found' })
+  if (!collection) throw createError({ statusCode: 404, statusMessage: 'Collectie niet gevonden' })
 }
 
 export default defineEventHandler(async (event) => {
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
     case 'addTags':
     case 'removeTags': {
       const change = normalizeTags(input.tags)
-      if (!change.length) throw createError({ statusCode: 422, statusMessage: 'Enter at least one tag' })
+      if (!change.length) throw createError({ statusCode: 422, statusMessage: 'Vul minstens één tag in' })
       const rows = await db.select({ id: mediaAssets.id, tags: mediaAssets.tags }).from(mediaAssets).where(inArray(mediaAssets.id, input.ids))
       await db.transaction(async (tx) => {
         for (const row of rows) {

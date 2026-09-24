@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  attachmentExtension,
+  clientAllowsAutomaticEmail,
   emailHtmlFromText,
+  emailScheduleLabel,
+  isAutomaticEmailTemplate,
+  sanitizeAttachmentFilename,
   emailRetryDelayMs,
   formatMoney,
   normalizeEmailText,
@@ -57,5 +62,32 @@ describe('email automation helpers', () => {
 
   it('formats integer cents without floating point invoice math', () => {
     expect(formatMoney(95000, 'EUR')).toContain('950')
+  })
+
+  it('sends automatic emails unless the client switched the template off', () => {
+    expect(clientAllowsAutomaticEmail([], 'booking_accepted')).toBe(true)
+    expect(clientAllowsAutomaticEmail(null, 'booking_accepted')).toBe(true)
+    expect(clientAllowsAutomaticEmail(['thank_you'], 'booking_accepted')).toBe(true)
+    expect(clientAllowsAutomaticEmail(['thank_you'], 'thank_you')).toBe(false)
+  })
+
+  it('keeps the custom message template out of automation', () => {
+    expect(isAutomaticEmailTemplate('custom_message')).toBe(false)
+    expect(isAutomaticEmailTemplate('invoice_sent')).toBe(true)
+  })
+
+  it('cleans attachment filenames and reads their extension', () => {
+    expect(sanitizeAttachmentFilename('C:\\docs\\Contract "final".PDF')).toBe('Contract final.PDF')
+    expect(sanitizeAttachmentFilename('../../etc/passwd')).toBe('passwd')
+    expect(sanitizeAttachmentFilename('\u0000')).toBe('bijlage')
+    expect(attachmentExtension('Contract final.PDF')).toBe('pdf')
+    expect(attachmentExtension('no-extension')).toBe('')
+  })
+
+  it('describes when a template is sent', () => {
+    expect(emailScheduleLabel('event', 0)).toBe('Direct wanneer het gebeurt')
+    expect(emailScheduleLabel('gig_start', -10080)).toBe('7 dagen voor de start van de gig')
+    expect(emailScheduleLabel('gig_end', 1440)).toBe('1 dag na het einde van de gig')
+    expect(emailScheduleLabel('invoice_due', -120)).toBe('2 uur voor de vervaldatum van de factuur')
   })
 })

@@ -7,7 +7,7 @@ const optionalDate = z.union([z.string(), z.null()]).optional().transform((value
   if (!value) return null
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
-    ctx.addIssue({ code: 'custom', message: 'Invalid date or time' })
+    ctx.addIssue({ code: 'custom', message: 'Ongeldige datum of tijd' })
     return z.NEVER
   }
   return date
@@ -16,7 +16,7 @@ const optionalEmail = z.string().trim().max(320).optional().transform((value, ct
   if (!value) return null
   const parsed = z.email().safeParse(value)
   if (!parsed.success) {
-    ctx.addIssue({ code: 'custom', message: 'Invalid email address' })
+    ctx.addIssue({ code: 'custom', message: 'Ongeldig e-mailadres' })
     return z.NEVER
   }
   return parsed.data.toLowerCase()
@@ -61,7 +61,7 @@ export const gigInputSchema = z.object({
   timeline: z.array(gigTimelineInputSchema).max(100).default([]),
 }).superRefine((value, ctx) => {
   if (value.startsAt && value.endsAt && value.endsAt < value.startsAt) {
-    ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'End time must be after start time' })
+    ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'De eindtijd moet na de starttijd liggen' })
   }
 })
 

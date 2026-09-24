@@ -78,7 +78,7 @@ async function bassBand(buffer: AudioBuffer) {
 
 async function analyse(url: string): Promise<Waveform> {
   const response = await fetch(url)
-  if (!response.ok) throw new Error(`Audio could not be loaded (${response.status})`)
+  if (!response.ok) throw new Error(`Audio laden is niet gelukt (${response.status})`)
   const data = await response.arrayBuffer()
   // Decoding needs no audible context; an offline one avoids autoplay restrictions.
   const buffer = await new OfflineAudioContext(1, 1, DECODE_SAMPLE_RATE).decodeAudioData(data)

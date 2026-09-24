@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   await requireStaff(event)
   const input = await readValidatedBody(event, schema.parse)
   const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.key, input.templateKey)).limit(1)
-  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template not found' })
+  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template niet gevonden' })
 
   const subject = renderEmailTemplate(template.subject, input.variables)
   const body = normalizeEmailText(renderEmailTemplate(template.body, input.variables))

@@ -28,7 +28,7 @@ CREATE TABLE "media_collection_items" (
 CREATE INDEX "media_collection_items_asset_idx" ON "media_collection_items" ("asset_id");
 
 INSERT INTO "media_collections" ("name", "description", "sort_order") VALUES
-  ('Promo', 'Shots for flyers, socials and announcements', 0),
-  ('Website', 'Photos used on the public website', 1),
-  ('Recent gigs', 'Fresh material from the latest nights', 2),
-  ('Recaps', 'Aftermovies and recap graphics', 3);
+  ('Promo', 'Beelden voor flyers, socials en aankondigingen', 0),
+  ('Website', 'Foto’s voor de publieke website', 1),
+  ('Recente gigs', 'Vers materiaal van de laatste avonden', 2),
+  ('Recaps', 'Aftermovies en recap-graphics', 3);

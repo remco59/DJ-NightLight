@@ -70,14 +70,14 @@ export async function assertProjectAssetsExist(project: VideoProject) {
   if (!ids.length) return
   const rows = await db.select({ id: mediaAssets.id }).from(mediaAssets).where(inArray(mediaAssets.id, ids))
   if (rows.length !== ids.length) {
-    throw createError({ statusCode: 422, statusMessage: 'The project uses media that is no longer in the media library' })
+    throw createError({ statusCode: 422, statusMessage: 'Het project gebruikt media die niet meer in de mediabibliotheek staan' })
   }
 }
 
 export async function getProjectOr404(id: string | undefined) {
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Video project id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Videoproject-ID is verplicht' })
   const [row] = await db.select().from(videoProjects).where(eq(videoProjects.id, id)).limit(1)
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Video project not found' })
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Videoproject niet gevonden' })
   return row
 }
 

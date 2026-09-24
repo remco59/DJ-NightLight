@@ -21,7 +21,7 @@ function toggleMute() {
 
 <template>
   <div class="m-transport">
-    <button type="button" :aria-label="state.playing ? 'Pause' : 'Play'" @click="emit('toggle')">
+    <button type="button" :aria-label="state.playing ? 'Pauzeren' : 'Afspelen'" @click="emit('toggle')">
       <Icon :name="state.playing ? 'lucide:pause' : 'lucide:play'" aria-hidden="true" />
     </button>
     <span class="time">{{ formatTimecode(state.frame, state.project.fps) }} / {{ formatTimecode(editor.duration.value, state.project.fps) }}</span>
@@ -31,13 +31,13 @@ function toggleMute() {
       min="0"
       :max="editor.duration.value - 1"
       :value="state.frame"
-      aria-label="Playhead"
+      aria-label="Afspeelpositie"
       @input="emit('seek', Number(($event.target as HTMLInputElement).value))"
     >
-    <button type="button" :aria-label="volume > 0 ? 'Mute preview' : 'Unmute preview'" :aria-pressed="volume === 0" @click="toggleMute">
+    <button type="button" :aria-label="volume > 0 ? 'Voorbeeld dempen' : 'Geluid voorbeeld aan'" :aria-pressed="volume === 0" @click="toggleMute">
       <Icon :name="volume > 0 ? 'lucide:volume-2' : 'lucide:volume-x'" aria-hidden="true" />
     </button>
-    <button type="button" aria-label="Fullscreen" @click="emit('fullscreen')">
+    <button type="button" aria-label="Volledig scherm" @click="emit('fullscreen')">
       <Icon name="lucide:maximize" aria-hidden="true" />
     </button>
   </div>

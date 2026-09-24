@@ -13,10 +13,10 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [] }>()
 
 const sourceLabels: Record<typeof MEDIA_SOURCES[number], string> = {
-  upload: 'Uploaded',
-  url: 'From URL',
-  generated: 'Generated',
-  derived: 'Edited variant',
+  upload: 'Geüpload',
+  url: 'Via URL',
+  generated: 'Gegenereerd',
+  derived: 'Bewerkte variant',
 }
 const showAllTags = ref(false)
 const visibleTags = computed(() => showAllTags.value ? props.tags : props.tags.slice(0, 18))
@@ -47,79 +47,79 @@ function reset() {
   <div class="filters">
     <header>
       <strong>Filters</strong>
-      <button type="button" class="reset" @click="reset">Reset</button>
+      <button type="button" class="reset" @click="reset">Herstellen</button>
     </header>
     <div class="grid">
       <label class="mh-field">
-        <span>Media type</span>
+        <span>Mediatype</span>
         <select v-model="filters.kind" class="mh-select">
-          <option value="">Any type</option>
-          <option value="image">Images</option>
-          <option value="video">Videos</option>
+          <option value="">Elk type</option>
+          <option value="image">Afbeeldingen</option>
+          <option value="video">Video’s</option>
           <option value="audio">Audio</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Source</span>
+        <span>Bron</span>
         <select v-model="filters.source" class="mh-select">
-          <option value="">Any source</option>
+          <option value="">Elke bron</option>
           <option v-for="source in MEDIA_SOURCES" :key="source" :value="source">{{ sourceLabels[source] }}</option>
         </select>
       </label>
       <label class="mh-field">
         <span>Gig</span>
         <select v-model="filters.gigId" class="mh-select">
-          <option value="">Any gig</option>
-          <option value="none">Not linked to a gig</option>
+          <option value="">Elke gig</option>
+          <option value="none">Niet gekoppeld aan een gig</option>
           <option v-for="gig in gigs" :key="gig.id" :value="gig.id">{{ gig.title }}</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Venue</span>
+        <span>Locatie</span>
         <select v-model="filters.venueId" class="mh-select">
-          <option value="">Any venue</option>
-          <option value="none">Not linked to a venue</option>
+          <option value="">Elke locatie</option>
+          <option value="none">Niet gekoppeld aan een locatie</option>
           <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Date added</span>
+        <span>Toegevoegd</span>
         <select v-model="filters.added" class="mh-select">
-          <option value="">Any time</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-          <option value="365d">Last year</option>
+          <option value="">Altijd</option>
+          <option value="7d">Afgelopen 7 dagen</option>
+          <option value="30d">Afgelopen 30 dagen</option>
+          <option value="90d">Afgelopen 90 dagen</option>
+          <option value="365d">Afgelopen jaar</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Orientation</span>
+        <span>Oriëntatie</span>
         <select v-model="filters.orientation" class="mh-select">
-          <option value="">Any orientation</option>
-          <option value="landscape">Landscape</option>
-          <option value="portrait">Portrait</option>
-          <option value="square">Square</option>
+          <option value="">Elke oriëntatie</option>
+          <option value="landscape">Liggend</option>
+          <option value="portrait">Staand</option>
+          <option value="square">Vierkant</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Usage</span>
+        <span>Gebruik</span>
         <select v-model="filters.usage" class="mh-select">
-          <option value="">Used or unused</option>
-          <option value="used">Used somewhere</option>
-          <option value="unused">Not used yet</option>
+          <option value="">Gebruikt of ongebruikt</option>
+          <option value="used">Ergens gebruikt</option>
+          <option value="unused">Nog niet gebruikt</option>
         </select>
       </label>
       <label class="mh-field">
-        <span>Variants</span>
+        <span>Varianten</span>
         <select v-model="filters.variants" class="mh-select">
-          <option value="">Originals and variants</option>
-          <option value="originals">Originals only</option>
-          <option value="variants">Variants only</option>
+          <option value="">Originelen en varianten</option>
+          <option value="originals">Alleen originelen</option>
+          <option value="variants">Alleen varianten</option>
         </select>
       </label>
     </div>
     <div v-if="tags.length" class="mh-field tags">
-      <span>Tags <small>(all selected tags must match)</small></span>
+      <span>Tags <small>(alle gekozen tags moeten kloppen)</small></span>
       <div class="chips">
         <button
           v-for="tag in visibleTags"
@@ -133,12 +133,12 @@ function reset() {
           {{ tag }}
         </button>
         <button v-if="tags.length > 18" type="button" class="more" @click="showAllTags = !showAllTags">
-          {{ showAllTags ? 'Show fewer' : `+${tags.length - 18} more` }}
+          {{ showAllTags ? 'Minder tonen' : `+${tags.length - 18} meer` }}
         </button>
       </div>
     </div>
     <footer>
-      <button type="button" class="mh-btn primary" @click="emit('done')">Done</button>
+      <button type="button" class="mh-btn primary" @click="emit('done')">Klaar</button>
     </footer>
   </div>
 </template>

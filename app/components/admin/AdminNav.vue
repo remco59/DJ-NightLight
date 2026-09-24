@@ -16,11 +16,11 @@ const groups: NavGroup[] = [
   { label:'', items:[
     {label:'Dashboard',to:'/admin',icon:'lucide:layout-dashboard',roles:allRoles},
   ]},
-  { label:'Work', items:[
+  { label:'Werk', items:[
     {label:'Gigs',to:'/admin/gigs',icon:'lucide:disc-3',roles:['owner','manager','dj']},
-    {label:'Calendar',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
-    {label:'Clients',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
-    {label:'Venues',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
+    {label:'Agenda',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
+    {label:'Klanten',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
+    {label:'Locaties',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
     {label:'Email',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
   ]},
   { label:'Content', items:[
@@ -29,15 +29,15 @@ const groups: NavGroup[] = [
     {label:'Post generator',to:'/admin/post-generator',icon:'lucide:sparkles',roles:['owner','content_editor']},
     {label:'Landing pages',to:'/admin/landing-pages',icon:'lucide:panels-top-left',roles:['owner','content_editor']},
   ]},
-  { label:'More', items:[
-    {label:'Client portal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
-    {label:'Production status',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
+  { label:'Meer', items:[
+    {label:'Klantportaal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
+    {label:'Systeemstatus',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
   ]},
 ]
 
 const footerItems: NavItem[] = [
-  {label:'Settings',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
-  {label:'Users',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
+  {label:'Instellingen',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
+  {label:'Gebruikers',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
 ]
 
 const visibleGroups = computed(() => {

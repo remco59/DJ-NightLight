@@ -21,6 +21,7 @@ import type { SitePublicCopy } from '../../shared/schemas/site-content'
 import type { MediaAssetMetadata, MediaSource } from '../../shared/media'
 import type { VideoProject } from '../../shared/video-project'
 import type { RenderEngineCapability } from '../../shared/render-engine'
+import type { EmailAttachment } from '../../shared/email-automation'
 
 export const userRole = pgEnum('user_role', ['owner', 'dj', 'manager', 'content_editor'])
 export const clientType = pgEnum('client_type', ['person', 'company'])
@@ -63,6 +64,7 @@ export const clients = pgTable('clients', {
   billingAddress: text('billing_address'),
   notes: text('notes'),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }).unique(),
+  emailAutomationDisabled: jsonb('email_automation_disabled').$type<string[]>().default([]).notNull(),
   ...timestamps,
 })
 
@@ -280,6 +282,7 @@ export const calendarSyncSettings = pgTable('calendar_sync_settings', {
   clientId: varchar('client_id', { length: 500 }),
   clientSecretEncrypted: text('client_secret_encrypted'),
   refreshTokenEncrypted: text('refresh_token_encrypted'),
+  icsTokenEncrypted: text('ics_token_encrypted'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
@@ -328,6 +331,11 @@ export const emailJobs = pgTable('email_jobs', {
   dedupeKey: varchar('dedupe_key', { length: 255 }).notNull().unique(),
   lastError: text('last_error'),
   sentAt: timestamp('sent_at', { withTimezone: true }),
+  manual: boolean('manual').default(false).notNull(),
+  subjectOverride: varchar('subject_override', { length: 300 }),
+  bodyOverride: text('body_override'),
+  attachments: jsonb('attachments').$type<EmailAttachment[]>().default([]).notNull(),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   ...timestamps,
 })
 

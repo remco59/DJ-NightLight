@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     project,
     createdByUserId: user.id,
   }).returning()
-  if (!row) throw createError({ statusCode: 500, statusMessage: 'Video project could not be created' })
+  if (!row) throw createError({ statusCode: 500, statusMessage: 'Videoproject aanmaken is niet gelukt' })
   event.node.res.statusCode = 201
   return { project: row }
 })

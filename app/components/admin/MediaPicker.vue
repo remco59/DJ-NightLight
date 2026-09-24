@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
   /** Enables the "This gig" tab. */
   gigId?: string | null
 }>(), {
-  label: 'Image',
+  label: 'Afbeelding',
   description: '',
   kind: 'image',
   allowExternal: true,
@@ -60,12 +60,13 @@ function applyExternalUrl() {
 const pool = computed(() => props.kind === 'all' ? assets.value : assets.value.filter(asset => asset.mimeType.startsWith('image/')))
 const selectedAsset = computed(() => pool.value.find(asset => asset.url === props.modelValue) || null)
 const selectedPreview = computed(() => selectedAsset.value?.thumbnailUrl || props.modelValue)
-const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'image')
+const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'afbeelding')
+const chooseLabel = computed(() => props.kind === 'all' ? 'Media kiezen' : 'Afbeelding kiezen')
 const tabs = computed(() => [
-  { value: 'all' as const, label: 'All' },
+  { value: 'all' as const, label: 'Alles' },
   { value: 'recent' as const, label: 'Recent' },
-  ...(props.gigId ? [{ value: 'gig' as const, label: 'This gig' }] : []),
-  { value: 'generated' as const, label: 'Generated' },
+  ...(props.gigId ? [{ value: 'gig' as const, label: 'Deze gig' }] : []),
+  { value: 'generated' as const, label: 'Gegenereerd' },
 ])
 
 const filteredAssets = computed(() => {
@@ -116,7 +117,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
         <span v-if="description">{{ description }}</span>
       </div>
       <button type="button" class="text-button" @click="open = true">
-        {{ modelValue ? `Change ${mediaNoun}` : `Choose ${mediaNoun}` }}
+        {{ modelValue ? `Andere ${mediaNoun} kiezen` : chooseLabel }}
       </button>
     </div>
 
@@ -124,45 +125,45 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
       <img v-if="selectedPreview" :src="selectedPreview" :alt="selectedAsset?.altText || selectedAsset?.title || label">
       <div v-else class="media-placeholder"><Icon name="lucide:film" aria-hidden="true" /></div>
       <div class="selected-copy">
-        <strong>{{ selectedAsset ? mediaDisplayTitle(selectedAsset) : 'External image' }}</strong>
-        <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Media library</span>
-        <span v-else>External URL</span>
-        <button type="button" class="remove" @click="clearSelection">Remove</button>
+        <strong>{{ selectedAsset ? mediaDisplayTitle(selectedAsset) : 'Externe afbeelding' }}</strong>
+        <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Mediabibliotheek</span>
+        <span v-else>Externe URL</span>
+        <button type="button" class="remove" @click="clearSelection">Verwijderen</button>
       </div>
     </div>
 
     <div v-else class="empty-media" @click="open = true">
       <span>＋</span>
       <div>
-        <strong>Select from Media</strong>
-        <small>{{ kind === 'all' ? 'Choose an existing image or video, or upload new media.' : 'Or upload a new image without leaving this editor.' }}</small>
+        <strong>Kiezen uit Media</strong>
+        <small>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload nieuwe media.' : 'Of upload een nieuwe afbeelding zonder deze editor te verlaten.' }}</small>
       </div>
     </div>
 
     <details v-if="allowExternal" class="external">
-      <summary>Use an external image URL</summary>
+      <summary>Een externe afbeeldings-URL gebruiken</summary>
       <input v-model="externalUrl" type="url" placeholder="https://…" @change="applyExternalUrl">
     </details>
     </template>
 
     <Teleport to="body">
       <div v-if="open" class="picker-backdrop" @click.self="open = false">
-        <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`Choose ${label}`">
+        <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`">
           <header class="picker-header">
             <div>
-              <p class="picker-eyebrow">Media library</p>
-              <h2>Choose {{ label.toLowerCase() }}</h2>
+              <p class="picker-eyebrow">Mediabibliotheek</p>
+              <h2>{{ label }} kiezen</h2>
             </div>
             <div class="header-actions">
-              <button type="button" class="mh-btn primary" @click="uploadOpen = true"><Icon name="lucide:plus" aria-hidden="true" />Upload</button>
-              <button type="button" class="mh-icon-btn" aria-label="Close" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
+              <button type="button" class="mh-btn primary" @click="uploadOpen = true"><Icon name="lucide:plus" aria-hidden="true" />Uploaden</button>
+              <button type="button" class="mh-icon-btn" aria-label="Sluiten" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
           </header>
 
           <div class="picker-toolbar">
             <label class="picker-search">
               <Icon name="lucide:search" aria-hidden="true" />
-              <input v-model="search" type="search" :placeholder="`Search ${kind === 'all' ? 'media' : 'images'} by title, tag, gig or venue…`" :aria-label="`Search ${mediaNoun}`">
+              <input v-model="search" type="search" :placeholder="`Zoek ${kind === 'all' ? 'media' : 'afbeeldingen'} op titel, tag, gig of locatie…`" :aria-label="`${kind === 'all' ? 'Media' : 'Afbeeldingen'} zoeken`">
             </label>
             <div class="picker-tabs" role="tablist">
               <button
@@ -177,8 +178,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
                 {{ entry.label }}
               </button>
             </div>
-            <select v-if="collections.length" v-model="collectionId" class="mh-select picker-collection" aria-label="Collection">
-              <option value="">All collections</option>
+            <select v-if="collections.length" v-model="collectionId" class="mh-select picker-collection" aria-label="Collectie">
+              <option value="">Alle collecties</option>
               <option v-for="collection in collections" :key="collection.id" :value="collection.id">{{ collection.name }} ({{ collection.itemCount }})</option>
             </select>
           </div>
@@ -194,13 +195,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
             />
             <div v-if="!filteredAssets.length" class="mh-empty no-results">
               <Icon name="lucide:images" aria-hidden="true" />
-              <strong>No {{ kind === 'all' ? 'media' : 'images' }} here yet</strong>
-              <button type="button" class="mh-btn" @click="uploadOpen = true"><Icon name="lucide:upload" aria-hidden="true" />Upload {{ mediaNoun }}</button>
+              <strong>Nog geen {{ kind === 'all' ? 'media' : 'afbeeldingen' }} hier</strong>
+              <button type="button" class="mh-btn" @click="uploadOpen = true"><Icon name="lucide:upload" aria-hidden="true" />{{ kind === 'all' ? 'Media' : 'Afbeelding' }} uploaden</button>
             </div>
           </div>
           <footer class="picker-footer">
             <span>{{ filteredAssets.length }} item{{ filteredAssets.length === 1 ? '' : 's' }}</span>
-            <NuxtLink to="/admin/media" target="_blank">Manage in Media library<Icon name="lucide:arrow-up-right" aria-hidden="true" /></NuxtLink>
+            <NuxtLink to="/admin/media" target="_blank">Beheren in Mediabibliotheek<Icon name="lucide:arrow-up-right" aria-hidden="true" /></NuxtLink>
           </footer>
         </section>
       </div>

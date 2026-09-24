@@ -214,7 +214,7 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
         if (!unchanged) scheduleSave()
       } catch (error) {
         state.saveState = 'error'
-        state.saveError = apiErrorMessage(error, 'Autosave failed. Your changes are kept in this tab.')
+        state.saveError = apiErrorMessage(error, 'Automatisch opslaan mislukt. Je wijzigingen blijven bewaard in dit tabblad.')
       }
     })()
     await saving
@@ -267,14 +267,14 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     const { project, track } = trackFor(item.type, trackId)
     const next = addItem(project, track.id, item)
     if (next === project) {
-      state.notice = `There is no room for this clip: videos can be at most ${MAX_PROJECT_SECONDS / 60} minutes long.`
+      state.notice = `Er is geen ruimte voor deze clip: video’s mogen maximaal ${MAX_PROJECT_SECONDS / 60} minuten duren.`
       return
     }
     commit(next)
     state.selectedId = item.id
     const placed = findItem(next, item.id)?.item
     if (placed && placed.duration < item.duration) {
-      state.notice = `The clip was shortened to fit the ${MAX_PROJECT_SECONDS / 60}-minute limit. Drag its end handle after moving it earlier to get the rest back.`
+      state.notice = `De clip is ingekort zodat hij binnen de limiet van ${MAX_PROJECT_SECONDS / 60} minuten past. Verplaats hem naar voren en sleep dan de eindgreep om de rest terug te krijgen.`
     }
   }
 

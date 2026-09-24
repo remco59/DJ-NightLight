@@ -1,5 +1,54 @@
 export type EmailVariables = Record<string, string | number | null | undefined>
 
+export type EmailAttachment =
+  | { kind: 'file', storageKey: string, filename: string, mimeType: string, byteSize: number }
+  | { kind: 'invoice', invoiceId: string, filename: string }
+
+/** Templates that only exist for composing mail by hand and never run automatically. */
+export const MANUAL_ONLY_EMAIL_TEMPLATES: readonly string[] = ['custom_message']
+
+export const MAX_EMAIL_ATTACHMENTS = 5
+export const MAX_EMAIL_ATTACHMENT_BYTES = 10 * 1024 * 1024
+export const MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES = 20 * 1024 * 1024
+export const EMAIL_ATTACHMENT_EXTENSIONS: readonly string[] = [
+  'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic',
+  'doc', 'docx', 'odt', 'rtf', 'txt', 'xls', 'xlsx', 'ods', 'csv',
+  'ppt', 'pptx', 'ics', 'zip', 'mp3', 'wav', 'm4a',
+]
+
+export function isAutomaticEmailTemplate(templateKey: string) {
+  return !MANUAL_ONLY_EMAIL_TEMPLATES.includes(templateKey)
+}
+
+export function clientAllowsAutomaticEmail(disabled: readonly string[] | null | undefined, templateKey: string) {
+  return !(disabled || []).includes(templateKey)
+}
+
+export function sanitizeAttachmentFilename(name: string) {
+  const base = name.split(/[\\/]/).pop() || ''
+  const cleaned = Array.from(base)
+    .filter(char => char.charCodeAt(0) >= 32 && !'"<>|:*?'.includes(char))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned.slice(-180) || 'bijlage'
+}
+
+export function attachmentExtension(filename: string) {
+  const match = /\.([a-z0-9]{1,8})$/i.exec(filename)
+  return match ? match[1]!.toLowerCase() : ''
+}
+
+export function emailScheduleLabel(anchor: string, offsetMinutes: number) {
+  if (anchor === 'event') return 'Direct wanneer het gebeurt'
+  const days = Math.round(Math.abs(offsetMinutes) / 1440)
+  const hours = Math.round(Math.abs(offsetMinutes) / 60)
+  const amount = days >= 1 ? `${days} ${days === 1 ? 'dag' : 'dagen'}` : `${hours} uur`
+  const reference = anchor === 'gig_start' ? 'de start van de gig' : anchor === 'gig_end' ? 'het einde van de gig' : 'de vervaldatum van de factuur'
+  if (offsetMinutes === 0) return `Bij ${reference}`
+  return `${amount} ${offsetMinutes < 0 ? 'voor' : 'na'} ${reference}`
+}
+
 type EmailDetail = {
   label: string
   variable: string
@@ -97,6 +146,14 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     eyebrow: 'Bedankt',
     title: 'Bedankt voor een mooie avond',
     details: [{ label: 'Boeking', variable: 'gigTitle' }],
+  },
+  custom_message: {
+    eyebrow: 'NightLight',
+    title: 'Een bericht over {{gigTitle}}',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Datum', variable: 'gigDate' },
+    ],
   },
   review_request: {
     eyebrow: 'Review',

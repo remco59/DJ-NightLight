@@ -19,6 +19,6 @@ export default defineEventHandler(async (event) => {
     .where(eq(calendarSyncSettings.key, 'default'))
     .returning()
 
-  if (!settings) throw createError({ statusCode: 404, statusMessage: 'Calendar settings not found' })
+  if (!settings) throw createError({ statusCode: 404, statusMessage: 'Agenda-instellingen niet gevonden' })
   return { settings }
 })

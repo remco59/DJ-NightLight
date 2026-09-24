@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       description: input.description,
       sortOrder: (last?.value ?? -1) + 1,
     }).returning()
-    if (!collection) throw new Error('Collection could not be created')
+    if (!collection) throw new Error('Collectie aanmaken is niet gelukt')
     await addAssetsToCollections(input.assetIds, [collection.id])
     event.node.res.statusCode = 201
     return { collection }

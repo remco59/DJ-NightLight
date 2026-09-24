@@ -6,6 +6,7 @@ type SendInput = {
   text: string
   html: string
   idempotencyKey: string
+  attachments?: Array<{ filename: string, content: Uint8Array }>
 }
 
 export async function emailProviderConfigured() {
@@ -15,7 +16,7 @@ export async function emailProviderConfigured() {
 
 export async function sendEmail(input: SendInput) {
   const { config: email } = await loadEmailIntegration()
-  if (!email.apiKey || !email.from) throw new Error('Email provider is not configured')
+  if (!email.apiKey || !email.from) throw new Error('De e-mailprovider is niet ingesteld')
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -30,12 +31,20 @@ export async function sendEmail(input: SendInput) {
       subject: input.subject,
       text: input.text,
       html: input.html,
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map(attachment => ({
+              filename: attachment.filename,
+              content: Buffer.from(attachment.content).toString('base64'),
+            })),
+          }
+        : {}),
     }),
   })
 
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 1000)
-    throw new Error(`Email provider failed (${response.status}): ${detail}`)
+    throw new Error(`E-mailprovider gaf een fout (${response.status}): ${detail}`)
   }
 
   const payload = await response.json() as { id?: string }

@@ -2,14 +2,15 @@
 import type { Ref } from 'vue'
 import { gigEndFromDuration } from '~~/shared/gig-duration'
 import { apiErrorMessage } from '~/utils/api-error'
+import { gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
 const { user } = useUserSession()
 const canManageGigs = computed(() => user.value?.role === 'owner' || user.value?.role === 'manager')
 const removalNotice = computed(() => route.query.removed === 'archive'
-  ? 'Gig archived because financial records are linked to it. Invoice and payment history was kept.'
-  : route.query.removed === 'delete' ? 'Gig permanently deleted.' : '')
+  ? 'Gig gearchiveerd omdat er financiële gegevens aan gekoppeld zijn. De factuur- en betaalgeschiedenis is bewaard.'
+  : route.query.removed === 'delete' ? 'Gig definitief verwijderd.' : '')
 
 type ClientOption = { id:string; type:'person'|'company'; firstName:string|null; lastName:string|null; companyName:string|null }
 type VenueOption = { id:string; name:string; city:string|null }
@@ -72,23 +73,23 @@ const activeAdvancedCount=computed(()=>[
 ].filter(Boolean).length)
 const hasActiveFilters=computed(()=>Object.values(filters).some(Boolean))
 const dateFilterLabel=computed(()=>{
-  if(filters.timing==='upcoming')return 'Date: Upcoming'
-  if(filters.timing==='past')return 'Date: Past'
-  if(filters.startDate||filters.endDate)return `Date: ${filters.startDate||'Any'} – ${filters.endDate||'Any'}`
+  if(filters.timing==='upcoming')return 'Datum: Aankomend'
+  if(filters.timing==='past')return 'Datum: Verleden'
+  if(filters.startDate||filters.endDate)return `Datum: ${filters.startDate||'Elke'} – ${filters.endDate||'Elke'}`
   return ''
 })
 
-function clientName(client:ClientOption){return client.companyName||[client.firstName,client.lastName].filter(Boolean).join(' ')||'Unnamed client'}
+function clientName(client:ClientOption){return client.companyName||[client.firstName,client.lastName].filter(Boolean).join(' ')||'Naamloze klant'}
 function venueName(venue:VenueOption){return venue.city?`${venue.name} — ${venue.city}`:venue.name}
-function assignedName(gig:GigRow){return data.value?.options.djs.find(d=>d.id===gig.assignedUserId)?.name||'Unassigned'}
-function rowClient(gig:GigRow){return gig.clientCompanyName||[gig.clientFirstName,gig.clientLastName].filter(Boolean).join(' ')||'No client'}
-function formatDate(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Date not set'}
+function assignedName(gig:GigRow){return data.value?.options.djs.find(d=>d.id===gig.assignedUserId)?.name||'Niet toegewezen'}
+function rowClient(gig:GigRow){return gig.clientCompanyName||[gig.clientFirstName,gig.clientLastName].filter(Boolean).join(' ')||'Geen klant'}
+function formatDate(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Datum niet ingesteld'}
 function money(value:string|null,currency:string){return value?new Intl.NumberFormat('nl-NL',{style:'currency',currency}).format(Number(value)):'—'}
 function iso(value:string){return value?new Date(value).toISOString():null}
 function normalize(value:string){return value.trim().toLocaleLowerCase()}
-function statusLabel(value:string){return value?value.charAt(0).toUpperCase()+value.slice(1):''}
-function selectedClientLabel(){const client=data.value?.options.clients.find(item=>item.id===filters.clientId);return client?clientName(client):'Client'}
-function selectedVenueLabel(){return data.value?.options.venues.find(item=>item.id===filters.venueId)?.name||'Venue'}
+function statusLabel(value:string){return labelFor(gigStatusLabels,value)}
+function selectedClientLabel(){const client=data.value?.options.clients.find(item=>item.id===filters.clientId);return client?clientName(client):'Klant'}
+function selectedVenueLabel(){return data.value?.options.venues.find(item=>item.id===filters.venueId)?.name||'Locatie'}
 function selectedDjLabel(){return data.value?.options.djs.find(item=>item.id===filters.assignedUserId)?.name||'DJ'}
 function clearDateFilter(){dateMode.value='';filters.timing='';filters.startDate='';filters.endDate=''}
 function clearAllFilters(){
@@ -237,7 +238,7 @@ async function createClient(){
     await refresh()
     selectClient(result.client)
     Object.assign(newClient,{type:'person',firstName:'',lastName:'',companyName:'',email:'',phone:''})
-  }catch(error:unknown){clientError.value=apiErrorMessage(error,'Could not create client.')}
+  }catch(error:unknown){clientError.value=apiErrorMessage(error,'Klant aanmaken is niet gelukt.')}
   finally{clientSaving.value=false}
 }
 
@@ -250,7 +251,7 @@ async function createVenue(){
     await refresh()
     selectVenue(result.venue)
     Object.assign(newVenue,{name:'',city:'',address:''})
-  }catch(error:unknown){venueError.value=apiErrorMessage(error,'Could not create venue.')}
+  }catch(error:unknown){venueError.value=apiErrorMessage(error,'Locatie aanmaken is niet gelukt.')}
   finally{venueSaving.value=false}
 }
 
@@ -268,7 +269,7 @@ async function createGig(){
     }})
     await refresh()
     await navigateTo(`/admin/gigs/${result.gig.id}`)
-  }catch(error:unknown){formError.value=apiErrorMessage(error,'Could not create gig.')}
+  }catch(error:unknown){formError.value=apiErrorMessage(error,'Gig aanmaken is niet gelukt.')}
   finally{saving.value=false}
 }
 
@@ -279,8 +280,8 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
 <template>
   <div class="gigs-page">
     <header class="page-header">
-      <div><p class="eyebrow">Operations</p><h1>Gigs</h1><p>Leads, bookings and your complete planning.</p></div>
-      <button v-if="canManageGigs" class="with-icon primary" type="button" @click="openCreate"><Icon name="lucide:plus" aria-hidden="true" />New gig</button>
+      <div><p class="eyebrow">Planning</p><h1>Gigs</h1><p>Leads, boekingen en je complete planning.</p></div>
+      <button v-if="canManageGigs" class="with-icon primary" type="button" @click="openCreate"><Icon name="lucide:plus" aria-hidden="true" />Nieuwe gig</button>
     </header>
     <div v-if="removalNotice" class="notice">{{removalNotice}}</div>
 
@@ -288,25 +289,25 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
       <div v-if="showCreate&&canManageGigs" class="modal-backdrop" @click.self="closeCreate">
         <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="new-gig-title" @keydown.esc="closeCreate">
           <header class="modal-header">
-            <div><p class="eyebrow">New booking</p><h2 id="new-gig-title">Create gig</h2><p>Plan the essentials now. You can add the rest later.</p></div>
-            <button class="icon-button" type="button" aria-label="Close new gig modal" @click="closeCreate"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <div><p class="eyebrow">Nieuwe boeking</p><h2 id="new-gig-title">Gig aanmaken</h2><p>Plan nu de basis. De rest kun je later aanvullen.</p></div>
+            <button class="icon-button" type="button" aria-label="Venster voor nieuwe gig sluiten" @click="closeCreate"><Icon name="lucide:x" aria-hidden="true" /></button>
           </header>
 
           <form class="modal-form" @submit.prevent="createGig">
             <section class="form-section">
-              <div class="section-heading"><strong>Basics</strong><span>What is the booking?</span></div>
+              <div class="section-heading"><strong>Basis</strong><span>Wat is de boeking?</span></div>
               <div class="form-grid">
-                <label class="wide">Title<input v-model="form.title" autofocus placeholder="Optional: leave empty to use the venue name"></label>
-                <label>Event type<input v-model="form.eventType" placeholder="Wedding, club…"></label>
-                <label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Booked</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select></label>
+                <label class="wide">Titel<input v-model="form.title" autofocus placeholder="Optioneel: laat leeg om de naam van de locatie te gebruiken"></label>
+                <label>Soort evenement<input v-model="form.eventType" placeholder="Bruiloft, club…"></label>
+                <label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label>
               </div>
             </section>
 
             <section class="form-section">
-              <div class="section-heading"><strong>Client & venue</strong><span>Search existing records or create them without leaving this gig.</span></div>
+              <div class="section-heading"><strong>Klant & locatie</strong><span>Zoek bestaande gegevens of maak ze aan zonder deze gig te verlaten.</span></div>
               <div class="form-grid relation-grid">
                 <div class="field">
-                  <label class="field-label" for="gig-client-search">Client</label>
+                  <label class="field-label" for="gig-client-search">Klant</label>
                   <div class="picker">
                     <div class="picker-input-row">
                       <input
@@ -320,40 +321,40 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                         :aria-expanded="clientPickerOpen"
                         :aria-activedescendant="clientPickerOpen&&(clientCanCreate||filteredClients.length)?`gig-client-options-${clientActive}`:undefined"
                         autocomplete="off"
-                        placeholder="Search or create a client…"
+                        placeholder="Zoek of maak een klant aan…"
                         @focus="openClientPicker"
                         @blur="clientPickerOpen=false"
                         @input="onClientInput"
                         @keydown="onClientKeydown"
                       >
-                      <button v-if="form.clientId" class="text-button" type="button" @click="clearClient">Clear</button>
+                      <button v-if="form.clientId" class="text-button" type="button" @click="clearClient">Wissen</button>
                     </div>
                     <div v-if="clientPickerOpen" id="gig-client-options" class="picker-menu" role="listbox">
                       <button v-if="clientCanCreate" id="gig-client-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="clientActive===0" :data-active="clientActive===0" @mouseenter="clientActive=0" @mousedown.prevent="startClientCreate">
-                        <strong><Icon name="lucide:plus" aria-hidden="true" />Create “{{clientSearch.trim()}}”</strong><span>New client</span>
+                        <strong><Icon name="lucide:plus" aria-hidden="true" />“{{clientSearch.trim()}}” aanmaken</strong><span>Nieuwe klant</span>
                       </button>
                       <button v-for="(client,index) in filteredClients" :id="`gig-client-options-${index+clientOffset}`" :key="client.id" class="picker-option" type="button" role="option" :aria-selected="clientActive===index+clientOffset" :data-active="clientActive===index+clientOffset" :data-selected="form.clientId===client.id" @mouseenter="clientActive=index+clientOffset" @mousedown.prevent="selectClient(client)">
-                        <strong>{{clientName(client)}}</strong><span>{{client.type==='company'?'Company':'Person'}}</span>
+                        <strong>{{clientName(client)}}</strong><span>{{client.type==='company'?'Bedrijf':'Particulier'}}</span>
                       </button>
-                      <div v-if="!clientCanCreate&&!filteredClients.length" class="picker-empty">Start typing to add a client.</div>
+                      <div v-if="!clientCanCreate&&!filteredClients.length" class="picker-empty">Begin met typen om een klant toe te voegen.</div>
                     </div>
                   </div>
                   <div v-if="showClientCreate" ref="clientCreatePanel" class="inline-create" @keydown.enter="onCreatePanelEnter($event,createClient)">
-                    <div class="inline-create-header"><strong>New client</strong><button class="text-button" type="button" @click="cancelClientCreate">Cancel</button></div>
+                    <div class="inline-create-header"><strong>Nieuwe klant</strong><button class="text-button" type="button" @click="cancelClientCreate">Annuleren</button></div>
                     <div class="compact-grid">
-                      <label>Type<select v-model="newClient.type"><option value="person">Person</option><option value="company">Company</option></select></label>
-                      <label v-if="newClient.type==='company'">Company name<input v-model="newClient.companyName" placeholder="Company"></label>
-                      <template v-else><label>First name<input v-model="newClient.firstName"></label><label>Last name<input v-model="newClient.lastName"></label></template>
-                      <label>Email<input v-model="newClient.email" type="email"></label>
-                      <label>Phone<input v-model="newClient.phone" type="tel"></label>
+                      <label>Type<select v-model="newClient.type"><option value="person">Particulier</option><option value="company">Bedrijf</option></select></label>
+                      <label v-if="newClient.type==='company'">Bedrijfsnaam<input v-model="newClient.companyName" placeholder="Bedrijf"></label>
+                      <template v-else><label>Voornaam<input v-model="newClient.firstName"></label><label>Achternaam<input v-model="newClient.lastName"></label></template>
+                      <label>E-mail<input v-model="newClient.email" type="email"></label>
+                      <label>Telefoon<input v-model="newClient.phone" type="tel"></label>
                     </div>
                     <p v-if="clientError" class="error">{{clientError}}</p>
-                    <button class="secondary" type="button" :disabled="clientSaving" @click="createClient">{{clientSaving?'Creating…':'Create & select client'}}</button>
+                    <button class="secondary" type="button" :disabled="clientSaving" @click="createClient">{{clientSaving?'Aanmaken…':'Klant aanmaken & kiezen'}}</button>
                   </div>
                 </div>
 
                 <div class="field">
-                  <label class="field-label" for="gig-venue-search">Venue</label>
+                  <label class="field-label" for="gig-venue-search">Locatie</label>
                   <div class="picker">
                     <div class="picker-input-row">
                       <input
@@ -367,63 +368,63 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                         :aria-expanded="venuePickerOpen"
                         :aria-activedescendant="venuePickerOpen&&(venueCanCreate||filteredVenues.length)?`gig-venue-options-${venueActive}`:undefined"
                         autocomplete="off"
-                        placeholder="Search or create a venue…"
+                        placeholder="Zoek of maak een locatie aan…"
                         @focus="openVenuePicker"
                         @blur="venuePickerOpen=false"
                         @input="onVenueInput"
                         @keydown="onVenueKeydown"
                       >
-                      <button v-if="form.venueId" class="text-button" type="button" @click="clearVenue">Clear</button>
+                      <button v-if="form.venueId" class="text-button" type="button" @click="clearVenue">Wissen</button>
                     </div>
                     <div v-if="venuePickerOpen" id="gig-venue-options" class="picker-menu" role="listbox">
                       <button v-if="venueCanCreate" id="gig-venue-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="venueActive===0" :data-active="venueActive===0" @mouseenter="venueActive=0" @mousedown.prevent="startVenueCreate">
-                        <strong><Icon name="lucide:plus" aria-hidden="true" />Create “{{venueSearch.trim()}}”</strong><span>New venue</span>
+                        <strong><Icon name="lucide:plus" aria-hidden="true" />“{{venueSearch.trim()}}” aanmaken</strong><span>Nieuwe locatie</span>
                       </button>
                       <button v-for="(venue,index) in filteredVenues" :id="`gig-venue-options-${index+venueOffset}`" :key="venue.id" class="picker-option" type="button" role="option" :aria-selected="venueActive===index+venueOffset" :data-active="venueActive===index+venueOffset" :data-selected="form.venueId===venue.id" @mouseenter="venueActive=index+venueOffset" @mousedown.prevent="selectVenue(venue)">
-                        <strong>{{venue.name}}</strong><span>{{venue.city||'City not set'}}</span>
+                        <strong>{{venue.name}}</strong><span>{{venue.city||'Plaats niet ingesteld'}}</span>
                       </button>
-                      <div v-if="!venueCanCreate&&!filteredVenues.length" class="picker-empty">Start typing to add a venue.</div>
+                      <div v-if="!venueCanCreate&&!filteredVenues.length" class="picker-empty">Begin met typen om een locatie toe te voegen.</div>
                     </div>
                   </div>
                   <div v-if="showVenueCreate" ref="venueCreatePanel" class="inline-create" @keydown.enter="onCreatePanelEnter($event,createVenue)">
-                    <div class="inline-create-header"><strong>New venue</strong><button class="text-button" type="button" @click="cancelVenueCreate">Cancel</button></div>
+                    <div class="inline-create-header"><strong>Nieuwe locatie</strong><button class="text-button" type="button" @click="cancelVenueCreate">Annuleren</button></div>
                     <div class="compact-grid">
-                      <label>Name<input v-model="newVenue.name" placeholder="Venue name"></label>
-                      <label>City<input v-model="newVenue.city" name="city"></label>
-                      <label class="wide">Address<input v-model="newVenue.address"></label>
+                      <label>Naam<input v-model="newVenue.name" placeholder="Naam van de locatie"></label>
+                      <label>Plaats<input v-model="newVenue.city" name="city"></label>
+                      <label class="wide">Adres<input v-model="newVenue.address"></label>
                     </div>
                     <p v-if="venueError" class="error">{{venueError}}</p>
-                    <button class="secondary" type="button" :disabled="venueSaving" @click="createVenue">{{venueSaving?'Creating…':'Create & select venue'}}</button>
+                    <button class="secondary" type="button" :disabled="venueSaving" @click="createVenue">{{venueSaving?'Aanmaken…':'Locatie aanmaken & kiezen'}}</button>
                   </div>
                 </div>
 
-                <label class="wide">Assigned DJ<select v-model="form.assignedUserId"><option value="">Unassigned</option><option v-for="dj in data?.options.djs||[]" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label>
+                <label class="wide">Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data?.options.djs||[]" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label>
               </div>
             </section>
 
             <section class="form-section">
-              <div class="section-heading"><strong>Timing</strong><span>Duration automatically determines the end time.</span></div>
+              <div class="section-heading"><strong>Tijden</strong><span>De duur bepaalt automatisch de eindtijd.</span></div>
               <div class="form-grid timing-grid">
                 <label>Start<input v-model="form.startsAt" type="datetime-local"></label>
-                <label>Duration (hours)<input v-model="form.durationHours" type="number" min="0.25" step="0.25" inputmode="decimal" placeholder="4"></label>
-                <label>Load-in<input v-model="form.loadInAt" type="datetime-local"></label>
+                <label>Duur (uren)<input v-model="form.durationHours" type="number" min="0.25" step="0.25" inputmode="decimal" placeholder="4"></label>
+                <label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label>
               </div>
             </section>
 
             <section class="form-section">
-              <div class="section-heading"><strong>Details</strong><span>Optional commercial and internal information.</span></div>
+              <div class="section-heading"><strong>Details</strong><span>Optionele commerciële en interne informatie.</span></div>
               <div class="form-grid">
-                <label>Fee<input v-model="form.fee" inputmode="decimal" placeholder="750.00"></label>
-                <label>Source<input v-model="form.source" placeholder="Referral, website…"></label>
-                <label class="checkbox wide"><input v-model="form.publicVisibility" type="checkbox"> Show in public agenda</label>
-                <label class="wide">Internal notes<textarea v-model="form.internalNotes" rows="3"/></label>
+                <label>Gage<input v-model="form.fee" inputmode="decimal" placeholder="750.00"></label>
+                <label>Bron<input v-model="form.source" placeholder="Doorverwijzing, website…"></label>
+                <label class="checkbox wide"><input v-model="form.publicVisibility" type="checkbox"> Tonen in publieke agenda</label>
+                <label class="wide">Interne notities<textarea v-model="form.internalNotes" rows="3"/></label>
               </div>
             </section>
 
             <p v-if="formError" class="error modal-error">{{formError}}</p>
             <footer class="modal-actions">
-              <button class="secondary" type="button" @click="closeCreate">Cancel</button>
-              <button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Create gig'}}</button>
+              <button class="secondary" type="button" @click="closeCreate">Annuleren</button>
+              <button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig aanmaken'}}</button>
             </footer>
           </form>
         </section>
@@ -440,82 +441,82 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
       @clear-all="clearAllFilters"
     >
       <template #primary>
-        <input v-model="filters.search" type="search" placeholder="Search gigs, clients or venues…">
+        <input v-model="filters.search" type="search" placeholder="Zoek gigs, klanten of locaties…">
         <select v-model="filters.status" aria-label="Status">
-          <option value="">All statuses</option>
+          <option value="">Alle statussen</option>
           <option value="lead">Lead</option>
-          <option value="booked">Booked</option>
-          <option value="declined">Declined</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="booked">Geboekt</option>
+          <option value="declined">Afgewezen</option>
+          <option value="cancelled">Geannuleerd</option>
         </select>
-        <select v-model="dateMode" aria-label="Date">
-          <option value="">Any date</option>
-          <option value="upcoming">Upcoming</option>
-          <option value="past">Past</option>
-          <option value="custom">Custom range</option>
+        <select v-model="dateMode" aria-label="Datum">
+          <option value="">Elke datum</option>
+          <option value="upcoming">Aankomend</option>
+          <option value="past">Verleden</option>
+          <option value="custom">Eigen periode</option>
         </select>
-        <input v-if="dateMode==='custom'" v-model="filters.startDate" type="date" aria-label="From date">
-        <input v-if="dateMode==='custom'" v-model="filters.endDate" type="date" aria-label="To date">
+        <input v-if="dateMode==='custom'" v-model="filters.startDate" type="date" aria-label="Vanaf datum">
+        <input v-if="dateMode==='custom'" v-model="filters.endDate" type="date" aria-label="Tot datum">
       </template>
 
       <template #advanced>
-        <label>Event type
+        <label>Soort evenement
           <select v-model="filters.eventType">
-            <option value="">All event types</option>
+            <option value="">Alle soorten evenementen</option>
             <option v-for="type in data?.options.eventTypes||[]" :key="type" :value="type">{{type}}</option>
           </select>
         </label>
-        <label>Client
+        <label>Klant
           <select v-model="filters.clientId">
-            <option value="">All clients</option>
+            <option value="">Alle klanten</option>
             <option v-for="client in data?.options.clients||[]" :key="client.id" :value="client.id">{{clientName(client)}}</option>
           </select>
         </label>
-        <label>Venue
+        <label>Locatie
           <select v-model="filters.venueId">
-            <option value="">All venues</option>
+            <option value="">Alle locaties</option>
             <option v-for="venue in data?.options.venues||[]" :key="venue.id" :value="venue.id">{{venue.name}}</option>
           </select>
         </label>
-        <label>Visibility
+        <label>Zichtbaarheid
           <select v-model="filters.public">
-            <option value="">Public + private</option>
-            <option value="true">Public</option>
-            <option value="false">Private</option>
+            <option value="">Publiek + privé</option>
+            <option value="true">Publiek</option>
+            <option value="false">Privé</option>
           </select>
         </label>
-        <label v-if="canManageGigs">Assigned DJ
+        <label v-if="canManageGigs">Toegewezen DJ
           <select v-model="filters.assignedUserId">
-            <option value="">All DJs</option>
+            <option value="">Alle DJ’s</option>
             <option v-for="dj in data?.options.djs||[]" :key="dj.id" :value="dj.id">{{dj.name}}</option>
           </select>
         </label>
       </template>
 
       <template #chips>
-        <AdminFilterChip v-if="filters.search" :label="`Search: ${filters.search}`" @remove="filters.search=''" />
+        <AdminFilterChip v-if="filters.search" :label="`Zoeken: ${filters.search}`" @remove="filters.search=''" />
         <AdminFilterChip v-if="filters.status" :label="`Status: ${statusLabel(filters.status)}`" @remove="filters.status=''" />
         <AdminFilterChip v-if="dateFilterLabel" :label="dateFilterLabel" @remove="clearDateFilter" />
-        <AdminFilterChip v-if="filters.eventType" :label="`Event type: ${filters.eventType}`" @remove="filters.eventType=''" />
-        <AdminFilterChip v-if="filters.clientId" :label="`Client: ${selectedClientLabel()}`" @remove="filters.clientId=''" />
-        <AdminFilterChip v-if="filters.venueId" :label="`Venue: ${selectedVenueLabel()}`" @remove="filters.venueId=''" />
-        <AdminFilterChip v-if="filters.public" :label="`Visibility: ${filters.public==='true'?'Public':'Private'}`" @remove="filters.public=''" />
+        <AdminFilterChip v-if="filters.eventType" :label="`Soort evenement: ${filters.eventType}`" @remove="filters.eventType=''" />
+        <AdminFilterChip v-if="filters.clientId" :label="`Klant: ${selectedClientLabel()}`" @remove="filters.clientId=''" />
+        <AdminFilterChip v-if="filters.venueId" :label="`Locatie: ${selectedVenueLabel()}`" @remove="filters.venueId=''" />
+        <AdminFilterChip v-if="filters.public" :label="`Zichtbaarheid: ${filters.public==='true'?'Publiek':'Privé'}`" @remove="filters.public=''" />
         <AdminFilterChip v-if="canManageGigs&&filters.assignedUserId" :label="`DJ: ${selectedDjLabel()}`" @remove="filters.assignedUserId=''" />
       </template>
 
       <template #toolbar>
         <label class="sort-control">
-          <span>Sort by</span>
-          <select v-model="sort" aria-label="Sort gigs">
-            <option value="date_desc">Date (newest first)</option>
-            <option value="date_asc">Date (oldest first)</option>
+          <span>Sorteren op</span>
+          <select v-model="sort" aria-label="Gigs sorteren">
+            <option value="date_desc">Datum (nieuwste eerst)</option>
+            <option value="date_asc">Datum (oudste eerst)</option>
           </select>
         </label>
       </template>
     </AdminFilterBar>
 
-    <div v-if="status==='pending'" class="empty">Loading gigs…</div><div v-else-if="!data?.gigs.length" class="empty">No gigs match these filters.</div>
-    <div v-else class="gig-list"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('en',{month:'short'}):'TBD'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><span class="status" :data-status="gig.status">{{gig.status}}</span><span v-if="gig.publicVisibility" class="public">Public</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'No venue'}} · {{gig.eventType||'Event type not set'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
+    <div v-if="status==='pending'" class="empty">Gigs laden…</div><div v-else-if="!data?.gigs.length" class="empty">Geen gigs gevonden met deze filters.</div>
+    <div v-else class="gig-list"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('nl-NL',{month:'short'}):'n.n.b.'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><span class="status" :data-status="gig.status">{{statusLabel(gig.status)}}</span><span v-if="gig.publicVisibility" class="public">Publiek</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'Geen locatie'}} · {{gig.eventType||'Soort evenement niet ingesteld'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
   </div>
 </template>
 

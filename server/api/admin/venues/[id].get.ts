@@ -9,12 +9,12 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Venue id is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Locatie-ID is verplicht' })
   }
 
   const [venue] = await db.select().from(venues).where(eq(venues.id, id)).limit(1)
   if (!venue) {
-    throw createError({ statusCode: 404, statusMessage: 'Venue not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Locatie niet gevonden' })
   }
 
   const history = await db

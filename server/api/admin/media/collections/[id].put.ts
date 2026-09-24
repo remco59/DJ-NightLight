@@ -14,14 +14,14 @@ const schema = z.object({
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Collection id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Collectie-ID is verplicht' })
   const input = await readValidatedBody(event, schema.parse)
   try {
     const [collection] = await db.update(mediaCollections)
       .set({ ...input, updatedAt: new Date() })
       .where(eq(mediaCollections.id, id))
       .returning()
-    if (!collection) throw createError({ statusCode: 404, statusMessage: 'Collection not found' })
+    if (!collection) throw createError({ statusCode: 404, statusMessage: 'Collectie niet gevonden' })
     return { collection }
   } catch (error) {
     throw collectionConflict(error)

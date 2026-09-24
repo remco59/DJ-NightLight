@@ -33,7 +33,7 @@ describe('render engine selection', () => {
   })
 
   it('refuses an explicitly chosen engine that is unavailable instead of using the CPU', () => {
-    expect(() => resolveRenderEngine('intel', [cpu, intelMissing])).toThrow('Intel GPU (VAAPI) is unavailable: No Intel GPU found')
+    expect(() => resolveRenderEngine('intel', [cpu, intelMissing])).toThrow('Intel GPU (VAAPI) is niet beschikbaar: No Intel GPU found')
   })
 
   it('validates saved settings', () => {

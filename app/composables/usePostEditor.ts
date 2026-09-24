@@ -52,9 +52,9 @@ export type PostEditorTool = 'media' | 'template' | 'text' | 'design' | 'effects
 export type PostCanvasSelection = 'none' | 'image' | 'text'
 
 export const POST_BRANDS = [
-  { key: 'night' as const, label: 'NightLight', description: 'Purple nightlife accent.', colors: ['#9d5cff', '#17131d', '#858093', '#f7f4fb'] },
-  { key: 'mono' as const, label: 'Mono', description: 'Black & white.', colors: ['#ffffff', '#0d0b10', '#77717d', '#d8d4dc'] },
-  { key: 'warm' as const, label: 'Warm', description: 'Warm orange accent.', colors: ['#ff7a45', '#1c1210', '#9f7465', '#fff3eb'] },
+  { key: 'night' as const, label: 'NightLight', description: 'Paars nachtleven-accent.', colors: ['#9d5cff', '#17131d', '#858093', '#f7f4fb'] },
+  { key: 'mono' as const, label: 'Mono', description: 'Zwart-wit.', colors: ['#ffffff', '#0d0b10', '#77717d', '#d8d4dc'] },
+  { key: 'warm' as const, label: 'Warm', description: 'Warm oranje accent.', colors: ['#ff7a45', '#1c1210', '#9f7465', '#fff3eb'] },
 ]
 
 export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -159,7 +159,7 @@ export function createPostEditor(options: {
       return
     }
     const response = await fetch(asset.url)
-    if (!response.ok) throw new Error('Could not load selected media')
+    if (!response.ok) throw new Error('Gekozen media laden is niet gelukt')
     const bitmap = await createImageBitmap(await response.blob())
     if (token !== loadToken) {
       bitmap.close()
@@ -191,11 +191,11 @@ export function createPostEditor(options: {
 
   /** Render the post without guides, exactly as it is exported. */
   async function renderExportBlob() {
-    if (!sourceBitmap) throw new Error('Select a photo first.')
+    if (!sourceBitmap) throw new Error('Kies eerst een foto.')
     const canvas = document.createElement('canvas')
     await renderPostCanvas(canvas, sourceBitmap, design, false)
     return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNG export failed')), 'image/png')
+      canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNG exporteren mislukt')), 'image/png')
     })
   }
 
@@ -337,15 +337,15 @@ export function createPostEditor(options: {
     Object.assign(design, restorePostDesign(design, post.design))
     if (post.sourceMediaAssetId && assets.value.some(asset => asset.id === post.sourceMediaAssetId)) {
       sourceAssetId.value = post.sourceMediaAssetId
-      message.value = 'Loaded the design from this export.'
+      message.value = 'Ontwerp uit deze export geladen.'
     } else {
-      message.value = 'Loaded the design; its photo is no longer in the media library.'
+      message.value = 'Ontwerp geladen; de foto staat niet meer in de mediabibliotheek.'
     }
   }
 
   async function uploadSource(file: File) {
     if (!POST_IMAGE_TYPES.includes(file.type)) {
-      message.value = 'Choose a JPEG, PNG or WebP image.'
+      message.value = 'Kies een JPEG-, PNG- of WebP-afbeelding.'
       return false
     }
     busy.value = 'upload'
@@ -363,10 +363,10 @@ export function createPostEditor(options: {
       const result = await $fetch<{ asset: { id: string } }>('/api/admin/media', { method: 'POST', body: form })
       await refresh()
       sourceAssetId.value = result.asset.id
-      message.value = 'Photo uploaded to the media library and selected.'
+      message.value = 'Foto geüpload naar de mediabibliotheek en gekozen.'
       return true
     } catch (error) {
-      message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Upload failed.')
+      message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Uploaden mislukt.')
       return false
     } finally {
       busy.value = ''
@@ -381,7 +381,7 @@ export function createPostEditor(options: {
 
   async function exportPost() {
     if (!sourceBitmap || !selectedAsset.value) {
-      message.value = 'Select a photo first.'
+      message.value = 'Kies eerst een foto.'
       return
     }
     busy.value = 'render'
@@ -397,25 +397,25 @@ export function createPostEditor(options: {
         body: form,
       })
       lastRenderedUrl.value = result.post.imageUrl
-      message.value = 'Post exported. The PNG is saved in Recent exports.'
+      message.value = 'Post geëxporteerd. De PNG staat bij Recente exports.'
       await refresh()
     } catch (error) {
-      message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Export failed.')
+      message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Exporteren mislukt.')
     } finally {
       busy.value = ''
     }
   }
 
   async function deletePost(post: GeneratedPost) {
-    if (!confirm('Delete this exported post?')) return
+    if (!confirm('Deze geëxporteerde post verwijderen?')) return
     busy.value = post.id
     try {
       const response = await fetch('/api/admin/post-generator/' + post.id, { method: 'DELETE' })
-      if (!response.ok) throw new Error('Could not delete exported post')
+      if (!response.ok) throw new Error('Geëxporteerde post verwijderen is niet gelukt')
       if (lastRenderedUrl.value === post.imageUrl) lastRenderedUrl.value = ''
       await refresh()
     } catch (error) {
-      message.value = error instanceof Error ? error.message : 'Delete failed.'
+      message.value = error instanceof Error ? error.message : 'Verwijderen mislukt.'
     } finally {
       busy.value = ''
     }
@@ -423,7 +423,7 @@ export function createPostEditor(options: {
 
   watch(sourceAssetId, () => {
     void loadSelectedSource().catch((error) => {
-      message.value = error instanceof Error ? error.message : 'Could not load photo.'
+      message.value = error instanceof Error ? error.message : 'Foto laden is niet gelukt.'
     })
   })
   watch(design, () => void renderPreview(), { deep: true })

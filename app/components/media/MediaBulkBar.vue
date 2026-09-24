@@ -77,59 +77,59 @@ function create() {
 </script>
 
 <template>
-  <div class="bulk" role="toolbar" aria-label="Bulk actions">
+  <div class="bulk" role="toolbar" aria-label="Acties voor selectie">
     <div class="count">
       <span class="mh-check checked"><Icon name="lucide:check" aria-hidden="true" /></span>
-      <strong>{{ count }} selected</strong>
-      <button v-if="count < visibleCount" type="button" class="link" @click="emit('selectAll')">Select all {{ visibleCount }}</button>
+      <strong>{{ count }} geselecteerd</strong>
+      <button v-if="count < visibleCount" type="button" class="link" @click="emit('selectAll')">Alle {{ visibleCount }} selecteren</button>
     </div>
 
     <div class="actions">
       <MediaPopover v-model:open="tagsOpen" placement="bottom" sheet-on-mobile>
         <template #trigger="{ toggle }">
-          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:tag" aria-hidden="true" />Add tags</button>
+          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:tag" aria-hidden="true" />Tags toevoegen</button>
         </template>
         <form class="pop" @submit.prevent="applyTags('addTags')">
           <label class="mh-field">
-            <span>Tags for {{ count }} item{{ count === 1 ? '' : 's' }}</span>
-            <input v-model="tagInput" class="mh-input" list="bulk-tag-suggestions" placeholder="promo, crowd" autofocus>
+            <span>Tags voor {{ count }} item{{ count === 1 ? '' : 's' }}</span>
+            <input v-model="tagInput" class="mh-input" list="bulk-tag-suggestions" placeholder="promo, publiek" autofocus>
             <datalist id="bulk-tag-suggestions"><option v-for="tag in tagSuggestions" :key="tag" :value="tag" /></datalist>
           </label>
           <div class="pair">
-            <button type="button" class="mh-btn" :disabled="!tagInput.trim()" @click="applyTags('removeTags')">Remove</button>
-            <button type="submit" class="mh-btn primary" :disabled="!tagInput.trim()">Add</button>
+            <button type="button" class="mh-btn" :disabled="!tagInput.trim()" @click="applyTags('removeTags')">Verwijderen</button>
+            <button type="submit" class="mh-btn primary" :disabled="!tagInput.trim()">Toevoegen</button>
           </div>
         </form>
       </MediaPopover>
 
       <MediaPopover v-model:open="gigOpen" sheet-on-mobile>
         <template #trigger="{ toggle }">
-          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:calendar-days" aria-hidden="true" />Link to gig</button>
+          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:calendar-days" aria-hidden="true" />Aan gig koppelen</button>
         </template>
         <div class="pop">
           <label class="mh-field">
             <span>Gig</span>
             <select v-model="gigId" class="mh-select">
-              <option value="">Keep current gig</option>
-              <option value="none">Remove gig link</option>
+              <option value="">Huidige gig houden</option>
+              <option value="none">Gigkoppeling verwijderen</option>
               <option v-for="gig in gigs" :key="gig.id" :value="gig.id">{{ gig.title }}</option>
             </select>
           </label>
           <label class="mh-field">
-            <span>Venue</span>
+            <span>Locatie</span>
             <select v-model="venueId" class="mh-select">
-              <option value="">Keep current venue</option>
-              <option value="none">Remove venue link</option>
+              <option value="">Huidige locatie houden</option>
+              <option value="none">Locatiekoppeling verwijderen</option>
               <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
             </select>
           </label>
-          <button type="button" class="mh-btn primary" :disabled="!gigId && !venueId" @click="applyLinks">Apply to {{ count }}</button>
+          <button type="button" class="mh-btn primary" :disabled="!gigId && !venueId" @click="applyLinks">Toepassen op {{ count }}</button>
         </div>
       </MediaPopover>
 
       <MediaPopover v-model:open="collectionOpen" sheet-on-mobile>
         <template #trigger="{ toggle }">
-          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:folder-plus" aria-hidden="true" />Add to collection</button>
+          <button type="button" class="mh-btn" :disabled="busy" @click="toggle"><Icon name="lucide:folder-plus" aria-hidden="true" />Aan collectie toevoegen</button>
         </template>
         <div class="pop list">
           <button v-for="collection in collections" :key="collection.id" type="button" class="mh-menu-item" @click="addTo(collection.id)">
@@ -137,18 +137,18 @@ function create() {
           </button>
           <div class="mh-menu-sep" />
           <form class="new" @submit.prevent="create">
-            <input v-model="newCollection" class="mh-input" maxlength="80" placeholder="New collection name">
-            <button type="submit" class="mh-btn" :disabled="!newCollection.trim()">Create</button>
+            <input v-model="newCollection" class="mh-input" maxlength="80" placeholder="Naam nieuwe collectie">
+            <button type="submit" class="mh-btn" :disabled="!newCollection.trim()">Aanmaken</button>
           </form>
         </div>
       </MediaPopover>
 
       <MediaPopover v-if="activeCollection" v-model:open="moveOpen" sheet-on-mobile>
         <template #trigger="{ toggle }">
-          <button type="button" class="mh-btn" :disabled="busy || !moveTargets.length" @click="toggle"><Icon name="lucide:folder-input" aria-hidden="true" />Move</button>
+          <button type="button" class="mh-btn" :disabled="busy || !moveTargets.length" @click="toggle"><Icon name="lucide:folder-input" aria-hidden="true" />Verplaatsen</button>
         </template>
         <div class="pop list">
-          <p class="hint">Move from <strong>{{ activeCollection.name }}</strong> to…</p>
+          <p class="hint">Verplaatsen van <strong>{{ activeCollection.name }}</strong> naar…</p>
           <button v-for="collection in moveTargets" :key="collection.id" type="button" class="mh-menu-item" @click="moveTo(collection.id)">
             <Icon name="lucide:folder" aria-hidden="true" />{{ collection.name }}
           </button>
@@ -161,15 +161,15 @@ function create() {
         :disabled="busy"
         @click="emit('action', { action: 'removeFromCollection', collectionId: activeCollectionId })"
       >
-        <Icon name="lucide:folder-minus" aria-hidden="true" />Remove from {{ activeCollection.name }}
+        <Icon name="lucide:folder-minus" aria-hidden="true" />Uit {{ activeCollection.name }} halen
       </button>
 
-      <button type="button" class="mh-btn" :disabled="busy" @click="emit('download')"><Icon name="lucide:download" aria-hidden="true" />Download</button>
+      <button type="button" class="mh-btn" :disabled="busy" @click="emit('download')"><Icon name="lucide:download" aria-hidden="true" />Downloaden</button>
       <span class="divider" aria-hidden="true" />
-      <button type="button" class="mh-btn danger" :disabled="busy" @click="emit('delete')"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+      <button type="button" class="mh-btn danger" :disabled="busy" @click="emit('delete')"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button>
     </div>
 
-    <button type="button" class="mh-btn ghost clear" @click="emit('clear')"><Icon name="lucide:x" aria-hidden="true" />Clear selection</button>
+    <button type="button" class="mh-btn ghost clear" @click="emit('clear')"><Icon name="lucide:x" aria-hidden="true" />Selectie wissen</button>
   </div>
 </template>
 

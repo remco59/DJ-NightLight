@@ -28,13 +28,13 @@ export async function loadStripeCredentials() {
 
 export async function getStripeClient() {
   const { secretKey } = await loadStripeCredentials()
-  if (!secretKey) throw createError({ statusCode: 503, statusMessage: 'Stripe is not configured' })
+  if (!secretKey) throw createError({ statusCode: 503, statusMessage: 'Stripe is niet ingesteld' })
   return createStripeClient(secretKey)
 }
 
 export async function getStripeWebhookSecret() {
   const { webhookSecret } = await loadStripeCredentials()
-  if (!webhookSecret) throw createError({ statusCode: 503, statusMessage: 'Stripe webhooks are not configured' })
+  if (!webhookSecret) throw createError({ statusCode: 503, statusMessage: 'Stripe-webhooks zijn niet ingesteld' })
   return webhookSecret
 }
 

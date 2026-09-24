@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}`)
 
   const access = await resolvePortalAccess(token)
-  if (!access) throw createError({ statusCode: 404, statusMessage: 'This portal link is invalid or expired' })
+  if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
 
   await db.update(portalLinks).set({ lastUsedAt: new Date() }).where(eq(portalLinks.id, access.linkId))
   await recordAudit({

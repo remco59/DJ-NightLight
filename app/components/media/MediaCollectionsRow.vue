@@ -15,9 +15,9 @@ const emit = defineEmits<{
 <template>
   <section class="collections" aria-labelledby="collections-heading">
     <header>
-      <h2 id="collections-heading">Collections</h2>
+      <h2 id="collections-heading">Collecties</h2>
       <button type="button" class="view-all" @click="emit('manage')">
-        {{ collections.length ? 'View all collections' : 'Create a collection' }}<Icon name="lucide:arrow-right" aria-hidden="true" />
+        {{ collections.length ? 'Alle collecties bekijken' : 'Collectie aanmaken' }}<Icon name="lucide:arrow-right" aria-hidden="true" />
       </button>
     </header>
     <div v-if="collections.length" class="row">

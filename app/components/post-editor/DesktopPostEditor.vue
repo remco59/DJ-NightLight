@@ -74,7 +74,7 @@ watch([thumbnailInputs, thumbnailsNeeded], ([inputs, needed]) => {
 
 async function openPreview() {
   if (!editor.selectedAsset.value) {
-    message.value = 'Select a photo first.'
+    message.value = 'Kies eerst een foto.'
     return
   }
   previewBusy.value = true
@@ -84,7 +84,7 @@ async function openPreview() {
     await nextTick()
     previewCloseRef.value?.focus()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Could not render the preview.'
+    message.value = error instanceof Error ? error.message : 'Voorbeeld maken is niet gelukt.'
   } finally {
     previewBusy.value = false
   }
@@ -173,17 +173,17 @@ onBeforeUnmount(() => {
     <header class="editor-header">
       <div class="editor-title">
         <p class="breadcrumb">Content <Icon name="lucide:chevron-right" aria-hidden="true" /> Post generator</p>
-        <h1>Instagram post generator</h1>
-        <p class="subtitle">Create branded NightLight social images independently from a gig.</p>
+        <h1>Postgenerator</h1>
+        <p class="subtitle">Maak social-afbeeldingen in NightLight-huisstijl, los van een gig.</p>
       </div>
 
       <div class="editor-actions">
-        <div class="action-group" role="group" aria-label="History">
+        <div class="action-group" role="group" aria-label="Geschiedenis">
           <button
             type="button"
             class="icon-action"
-            aria-label="Undo"
-            :title="`Undo (${modKey}+Z)`"
+            aria-label="Ongedaan maken"
+            :title="`Ongedaan maken (${modKey}+Z)`"
             aria-keyshortcuts="Control+Z Meta+Z"
             :disabled="!canUndo"
             @click="editor.undo()"
@@ -193,8 +193,8 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="icon-action"
-            aria-label="Redo"
-            :title="`Redo (${modKey}+Shift+Z)`"
+            aria-label="Opnieuw"
+            :title="`Opnieuw (${modKey}+Shift+Z)`"
             aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
             :disabled="!canRedo"
             @click="editor.redo()"
@@ -203,14 +203,14 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <nav class="mode-switch" aria-label="Editor mode">
-          <span class="mode active" aria-current="page"><Icon name="lucide:image" aria-hidden="true" /> Image</span>
+        <nav class="mode-switch" aria-label="Editormodus">
+          <span class="mode active" aria-current="page"><Icon name="lucide:image" aria-hidden="true" /> Afbeelding</span>
           <NuxtLink class="mode" to="/admin/post-generator/video"><Icon name="lucide:film" aria-hidden="true" /> Video</NuxtLink>
         </nav>
 
-        <button type="button" class="action" aria-label="Preview" :disabled="previewBusy || !editor.selectedAsset.value" title="Preview the post without guides" @click="openPreview">
+        <button type="button" class="action" aria-label="Voorbeeld" :disabled="previewBusy || !editor.selectedAsset.value" title="Bekijk de post zonder hulplijnen" @click="openPreview">
           <Icon name="lucide:eye" aria-hidden="true" />
-          <span class="action-label">{{ previewBusy ? 'Rendering…' : 'Preview' }}</span>
+          <span class="action-label">{{ previewBusy ? 'Renderen…' : 'Voorbeeld' }}</span>
         </button>
         <button
           type="button"
@@ -218,12 +218,12 @@ onBeforeUnmount(() => {
           :disabled="busy === 'render' || !editor.readyToExport.value"
           @click="editor.exportPost()"
         >
-          {{ busy === 'render' ? 'Exporting…' : 'Export post' }}
+          {{ busy === 'render' ? 'Exporteren…' : 'Post exporteren' }}
           <Icon v-if="busy !== 'render'" name="lucide:arrow-right" aria-hidden="true" />
         </button>
-        <button type="button" class="action" aria-label="Recent exports" aria-haspopup="dialog" :aria-expanded="exportsOpen" title="Recent exports" @click="exportsOpen = true">
+        <button type="button" class="action" aria-label="Recente exports" aria-haspopup="dialog" :aria-expanded="exportsOpen" title="Recente exports" @click="exportsOpen = true">
           <Icon name="lucide:history" aria-hidden="true" />
-          <span class="action-label">Recent exports</span>
+          <span class="action-label">Recente exports</span>
           <span v-if="editor.posts.value.length" class="count">{{ editor.posts.value.length }}</span>
         </button>
       </div>
@@ -249,8 +249,8 @@ onBeforeUnmount(() => {
     <div class="toast-region" role="status" aria-live="polite">
       <div v-if="message" class="toast">
         <span>{{ message }}</span>
-        <a v-if="lastRenderedUrl && busy !== 'render'" :href="lastRenderedUrl" download="nightlight-post.png">Download PNG</a>
-        <button type="button" aria-label="Dismiss" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
+        <a v-if="lastRenderedUrl && busy !== 'render'" :href="lastRenderedUrl" download="nightlight-post.png">PNG downloaden</a>
+        <button type="button" aria-label="Sluiten" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
       </div>
     </div>
 
@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
     <MediaPicker
       v-model:open="mediaPickerOpen"
       :model-value="selectedAssetUrl"
-      label="Source photo"
+      label="Bronfoto"
       bare
       :allow-external="false"
       upload-tags="post-generator"
@@ -268,14 +268,14 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
       <div v-if="previewUrl" class="preview-backdrop" @click.self="closePreview">
-        <section class="preview-dialog" role="dialog" aria-modal="true" aria-label="Post preview">
-          <img :src="previewUrl" alt="Preview of the exported post">
+        <section class="preview-dialog" role="dialog" aria-modal="true" aria-label="Voorbeeld van de post">
+          <img :src="previewUrl" alt="Voorbeeld van de geëxporteerde post">
           <footer class="preview-footer">
-            <span>Exactly as exported · no guides · {{ design.preset === 'story' ? '9:16' : design.preset === 'portrait' ? '4:5' : '1:1' }}</span>
+            <span>Precies zoals geëxporteerd · zonder hulplijnen · {{ design.preset === 'story' ? '9:16' : design.preset === 'portrait' ? '4:5' : '1:1' }}</span>
             <div>
-              <button ref="previewCloseRef" type="button" class="action" @click="closePreview">Close</button>
+              <button ref="previewCloseRef" type="button" class="action" @click="closePreview">Sluiten</button>
               <button type="button" class="action primary" :disabled="busy === 'render' || !editor.readyToExport.value" @click="exportFromPreview">
-                Export post <Icon name="lucide:arrow-right" aria-hidden="true" />
+                Post exporteren <Icon name="lucide:arrow-right" aria-hidden="true" />
               </button>
             </div>
           </footer>
