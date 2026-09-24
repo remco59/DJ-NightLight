@@ -401,9 +401,11 @@ const EmblemBuild: React.FC<{
 /** Dark glass panel with a neon edge, skewed like the logo's type. */
 const NeonPanel: React.FC<{
   colors: Colors
+  /** Horizontal skew in degrees; 0 gives a straight box. */
+  skew?: number
   style?: React.CSSProperties
   children?: React.ReactNode
-}> = ({ colors, style, children }) =>
+}> = ({ colors, skew = -12, style, children }) =>
   h(
     'div',
     {
@@ -412,11 +414,54 @@ const NeonPanel: React.FC<{
         background: 'rgba(6,4,10,.84)',
         border: `2px solid ${colors.accent}aa`,
         boxShadow: `0 0 36px ${colors.glow}55, inset 0 0 22px ${colors.glow}33`,
-        transform: 'skewX(-12deg)',
+        transform: skew ? `skewX(${skew}deg)` : undefined,
         ...style,
       },
     },
-    h('div', { style: { transform: 'skewX(12deg)' } }, children),
+    skew ? h('div', { style: { transform: `skewX(${-skew}deg)` } }, children) : children,
+  )
+
+/** A neon-tube edge for a box: it switches on at `from` and then flickers. */
+function electricEdge(colors: Colors, frame: number, seed: string, from: number): React.CSSProperties {
+  const on = frame < from ? 0 : Math.max(0.6, flicker(frame, seed, from))
+  return {
+    border: `3px solid ${colors.soft}`,
+    boxShadow: [
+      `0 0 0 ${5 * on}px ${colors.accent}`,
+      `0 0 ${26 * on}px ${6 * on}px ${colors.glow}`,
+      `0 0 ${90 * on}px ${16 * on}px ${colors.glow}99`,
+      `inset 0 0 ${26 * on}px ${colors.accent}66`,
+    ].join(', '),
+  }
+}
+
+/** The logo's arcs crackling around the edges of the (positioned) parent box. */
+const EdgeArcs: React.FC<{
+  colors: Colors
+  frame: number
+  seed: string
+  from: number
+}> = ({ colors, frame, seed, from }) =>
+  h(
+    Fragment,
+    null,
+    [0, 180].map(turn =>
+      h(Img, {
+        key: turn,
+        src: staticFile('brand/logo/emblem-arcs.webp'),
+        style: {
+          position: 'absolute',
+          left: '-14%',
+          top: '-12%',
+          width: '128%',
+          height: '124%',
+          maxWidth: 'none',
+          filter: artTint(colors),
+          transform: `rotate(${turn}deg)`,
+          opacity: flicker(frame, `${seed}-${turn}`, from),
+        },
+      }),
+    ),
   )
 
 /** Skewed call-to-action tag in the logo's violet. */
@@ -636,10 +681,8 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
   const listSpace = landscape ? height - 140 : height - (safe.top - 60) - safe.bottom - 500
   const k = Math.min(1, listSpace / Math.max(1, gigs.length * 125 + 12))
   const iconStyle = (size: number): React.CSSProperties => ({ display: 'flex', flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 8px ${colors.glow})`, fontSize: size })
-  const list = h(
-    NeonPanel,
-    { key: 'list', colors, style: { width: '100%', maxWidth: landscape ? 860 : 900, padding: `${6 * k}px ${46 * k}px`, opacity: reveal(frame, listAt - 2, 8) } },
-    gigs.map((gig, index) => {
+  // A straight card, so long lists keep their icons inside, with the electric edge.
+  const rows = gigs.map((gig, index) => {
       const meta = [
         { key: 'time', icon: timeIcon, text: gig.time },
         { key: 'place', icon: placeIcon, text: gig.place },
@@ -690,7 +733,16 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
             : null,
         ),
       )
-    }),
+    })
+  const list = h(
+    'div',
+    { key: 'list', style: { position: 'relative', width: '100%', maxWidth: landscape ? 860 : 900, opacity: reveal(frame, listAt - 2, 8) } },
+    h(EdgeArcs, { colors, frame, seed: `gigs-arcs-${item.id}`, from: listAt + 4 }),
+    h(
+      NeonPanel,
+      { colors, skew: 0, style: { position: 'relative', padding: `${6 * k}px ${40 * k}px`, ...electricEdge(colors, frame, `gigs-edge-${item.id}`, listAt) } },
+      rows,
+    ),
   )
   const ctaAt = listAt + gigs.length * 4 + 4
   const ctaNode = cta
@@ -850,7 +902,7 @@ const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, height, assets 
   const drop = reveal(frame, 0, 16)
   // Once the polaroid lands its neon edge switches on and the logo's arcs crackle around it.
   const landed = 12
-  const edge = frame < landed ? 0 : Math.max(0.6, flicker(frame, `photo-edge-${item.id}`, landed))
+  const edge = electricEdge(colors, frame, `photo-edge-${item.id}`, landed)
   const flash = interpolate(frame, [landed, landed + 2, landed + 10], [0, 0.35, 0], clamp)
   const [, , boltW, boltH] = BRAND_LOGOS.emblem.layers.bolt
   return h(
@@ -867,23 +919,7 @@ const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, height, assets 
           transform: `translateY(${(1 - drop) * -height}px) rotate(${interpolate(drop, [0, 1], [-18, -4])}deg)`,
         },
       },
-      ...[0, 180].map(turn =>
-        h(Img, {
-          key: turn,
-          src: staticFile('brand/logo/emblem-arcs.webp'),
-          style: {
-            position: 'absolute',
-            left: -cardWidth * 0.14,
-            top: -cardHeight * 0.12,
-            width: cardWidth * 1.28,
-            height: cardHeight * 1.24,
-            maxWidth: 'none',
-            filter: artTint(colors),
-            transform: `rotate(${turn}deg)`,
-            opacity: flicker(frame, `photo-arcs-${turn}-${item.id}`, landed + 2),
-          },
-        }),
-      ),
+      h(EdgeArcs, { colors, frame, seed: `photo-arcs-${item.id}`, from: landed + 2 }),
       h(
         'div',
         {
@@ -892,14 +928,8 @@ const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, height, assets 
             inset: 0,
             padding: '28px 28px 0',
             background: '#f4f1ea',
-            border: `3px solid ${colors.soft}`,
-            boxShadow: [
-              `0 0 0 ${5 * edge}px ${colors.accent}`,
-              `0 0 ${26 * edge}px ${6 * edge}px ${colors.glow}`,
-              `0 0 ${90 * edge}px ${16 * edge}px ${colors.glow}99`,
-              `inset 0 0 ${26 * edge}px ${colors.accent}66`,
-              '0 40px 90px rgba(0,0,0,.6)',
-            ].join(', '),
+            ...edge,
+            boxShadow: `${edge.boxShadow}, 0 40px 90px rgba(0,0,0,.6)`,
           },
         },
         h(
