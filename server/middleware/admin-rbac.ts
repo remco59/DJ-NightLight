@@ -26,6 +26,8 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
     || pathname.startsWith('/api/admin/post-generator')
   ) return 'content:manage'
 
+  if (pathname === '/api/admin/calendar/events' && method === 'GET') return 'gigs:read'
+
   if (pathname.startsWith('/api/admin/gigs')) {
     const isSimpleGigRoute = /^\/api\/admin\/gigs(?:\/[^/]+)?$/.test(pathname)
     return method === 'GET' && isSimpleGigRoute ? 'gigs:read' : 'gigs:manage'
