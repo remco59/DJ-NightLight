@@ -68,6 +68,21 @@ export const BACKDROP_STYLE_KEYS = Object.keys(BACKDROP_STYLES) as BackdropStyle
 
 export type TemplateFieldKind = 'text' | 'textarea' | 'list' | 'asset' | 'assets' | 'icon'
 
+/**
+ * One input of a structured list row. Rows are stored as "a | b | c"; `slot`
+ * is the position in that string, so new columns can be appended without
+ * breaking saved rows. Columns are listed in the order the editor shows them.
+ */
+export type TemplateColumn = {
+  key: string
+  label: string
+  slot: number
+  maxLength: number
+  placeholder?: string
+  /** Takes the full width of the row in the editor. */
+  wide?: boolean
+}
+
 export type TemplateField = {
   key: string
   label: string
@@ -75,7 +90,18 @@ export type TemplateField = {
   maxLength?: number
   maxItems?: number
   placeholder?: string
+  /** Edit each list row as separate inputs instead of one text field. */
+  columns?: TemplateColumn[]
 }
+
+/** Upcoming Gigs rows: "date | title | place | day | time"; day and time are optional. */
+export const GIG_ROW_COLUMNS: TemplateColumn[] = [
+  { key: 'day', label: 'Day', slot: 3, maxLength: 6, placeholder: 'ZA' },
+  { key: 'date', label: 'Date', slot: 0, maxLength: 12, placeholder: '06 DEC' },
+  { key: 'time', label: 'Time', slot: 4, maxLength: 16, placeholder: '22:00' },
+  { key: 'title', label: 'Title', slot: 1, maxLength: 50, placeholder: 'Club Nova', wide: true },
+  { key: 'place', label: 'Place', slot: 2, maxLength: 50, placeholder: 'Amsterdam', wide: true },
+]
 
 export type TemplateFieldValue = string | string[]
 export type TemplateProps = Record<string, TemplateFieldValue>
@@ -103,10 +129,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'gig-announcement': {
     key: 'gig-announcement',
     label: 'Gig Announcement',
-    description: 'Big rough headline with date, time and venue blocks.',
+    description: 'Logo header, headline words slamming in over the logo\'s neon rule, date, time and venue.',
     category: 'Announce',
     defaultDurationSeconds: 6,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
     defaultBackdrop: 0.45,
@@ -138,10 +164,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'recap-intro': {
     key: 'recap-intro',
     label: 'Recap Intro',
-    description: 'Opening title for an aftermovie or night recap.',
+    description: 'Opening title for an aftermovie, with a glitching headline and the logo\'s arcs.',
     category: 'Recap',
     defaultDurationSeconds: 3,
-    defaultAccent: 'hot-pink',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'zoom',
     defaultExit: 'whip',
     defaultBackdrop: 0.35,
@@ -155,17 +181,20 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'upcoming-gigs': {
     key: 'upcoming-gigs',
     label: 'Upcoming Gigs',
-    description: 'Agenda list with up to six dates.',
+    description: 'Agenda of up to six dates under a headline between the logo\'s rules.',
     category: 'Announce',
     defaultDurationSeconds: 6,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
     defaultBackdrop: 0.5,
     fields: [
       text('headline', 'Headline', 40),
       text('kicker', 'Kicker', 40),
-      { key: 'gigs', label: 'Gigs (date | title | place)', kind: 'list', maxItems: 6, maxLength: 120, placeholder: '06 DEC | Club Nova | Amsterdam' },
+      { key: 'gigs', label: 'Gigs', kind: 'list', maxItems: 6, maxLength: 160, columns: GIG_ROW_COLUMNS },
+      icon('dateIcon', 'Date icon'),
+      icon('timeIcon', 'Time icon'),
+      icon('placeIcon', 'Place icon'),
       text('cta', 'CTA', 60),
       icon('ctaIcon', 'CTA icon'),
     ],
@@ -173,10 +202,13 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       headline: 'BINNENKORT',
       kicker: 'DJ NIGHTLIGHT',
       gigs: [
-        '06 DEC | Eredivisie Dames | VC Sneek',
-        '17 DEC | Tjas & Skeuvel | Collabo',
-        '27 DEC | ’T Portiertje | Uitgeest',
+        '06 DEC | Eredivisie Dames | VC Sneek | ZO | 20:00',
+        '17 DEC | Tjas & Skeuvel | Collabo | DO | 21:00',
+        '27 DEC | ’T Portiertje | Uitgeest | ZO | 16:00',
       ],
+      dateIcon: 'calendar',
+      timeIcon: 'clock',
+      placeIcon: 'map-pin',
       cta: 'BOEK NU',
       ctaIcon: 'arrow-right',
     },
@@ -184,26 +216,26 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'logo-sting': {
     key: 'logo-sting',
     label: 'DJ NightLight Logo Sting',
-    description: 'Short waveform logo reveal for intros and outros.',
+    description: 'Fast build of the real wordmark with a bolt flash and waveform, for intros and outros.',
     category: 'Brand',
     defaultDurationSeconds: 2.5,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'zoom',
     defaultExit: 'fade',
     defaultBackdrop: 0.4,
     fields: [
-      text('title', 'Title', 40),
+      text('title', 'Kicker', 40),
       text('tagline', 'Tagline', 60),
     ],
-    defaults: { title: 'DJ NightLight', tagline: 'MAKEN · DRAAIEN · DELEN' },
+    defaults: { title: 'DJ', tagline: 'MAKEN · DRAAIEN · DELEN' },
   },
   'lower-third': {
     key: 'lower-third',
     label: 'Lower Third',
-    description: 'Name and role bar for the lower part of the frame.',
+    description: 'The logo emblem with a name between its neon rules and a role underneath.',
     category: 'Titles',
     defaultDurationSeconds: 4,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'whip',
     defaultExit: 'whip',
     defaultBackdrop: 0,
@@ -216,10 +248,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'hype-title': {
     key: 'hype-title',
     label: 'Hype Title',
-    description: 'Huge punchy words that hit on the beat.',
+    description: 'Huge punchy words that hit on the beat with the logo\'s arcs.',
     category: 'Titles',
     defaultDurationSeconds: 3,
-    defaultAccent: 'hot-pink',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'glitch',
     defaultExit: 'zoom-out',
     defaultBackdrop: 0.35,
@@ -231,10 +263,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'photo-drop': {
     key: 'photo-drop',
     label: 'Photo Drop',
-    description: 'Polaroid-style photo that drops in with a caption.',
+    description: 'Polaroid that drops in, lights up with an electric edge and carries a caption.',
     category: 'Recap',
     defaultDurationSeconds: 3,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'fade-slide-up',
     defaultExit: 'fade',
     defaultBackdrop: 0.35,
@@ -247,10 +279,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'clip-recap': {
     key: 'clip-recap',
     label: 'Clip Recap',
-    description: '3–5 photos or clips cut together with a title overlay.',
+    description: '3–5 photos or clips cut together with bolt flashes and a title between the logo\'s rules.',
     category: 'Recap',
     defaultDurationSeconds: 6,
-    defaultAccent: 'neon-purple',
+    defaultAccent: 'ultraviolet',
     defaultEntrance: 'fade',
     defaultExit: 'fade',
     defaultBackdrop: 0,
@@ -406,8 +438,28 @@ export function listProp(props: TemplateProps, key: string) {
   return Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
 }
 
-/** Splits an Upcoming Gigs row in the "date | title | place" notation. */
+/**
+ * Splits a structured list row into its columns for editing. Only the single
+ * space either side of each separator is removed, so a value keeps the spaces
+ * someone is still typing.
+ */
+export function splitListRow(row: string, columns: TemplateColumn[]) {
+  const parts = row.split('|').map(part => part.replace(/^ /, '').replace(/ $/, ''))
+  return Object.fromEntries(columns.map(column => [column.key, parts[column.slot] ?? ''])) as Record<string, string>
+}
+
+/** Joins edited columns back into a row; empty trailing columns are dropped. */
+export function joinListRow(values: Record<string, string>, columns: TemplateColumn[]) {
+  const parts: string[] = []
+  for (const column of columns) parts[column.slot] = (values[column.key] || '').replaceAll('|', '/')
+  const filled = Array.from(parts, part => part ?? '')
+  while (filled.length && !filled[filled.length - 1]!.trim()) filled.pop()
+  return filled.join(' | ')
+}
+
+/** Splits an Upcoming Gigs row in the "date | title | place | day | time" notation. */
 export function parseGigRow(row: string) {
-  const [date = '', title = '', place = ''] = row.split('|').map(part => part.trim())
-  return { date, title, place }
+  const values = splitListRow(row, GIG_ROW_COLUMNS)
+  const [date, title, place, day, time] = ['date', 'title', 'place', 'day', 'time'].map(key => values[key]!.trim()) as [string, string, string, string, string]
+  return { date, title, place, day, time }
 }
