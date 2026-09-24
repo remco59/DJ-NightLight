@@ -48,6 +48,8 @@ The gig page has an **E-mails naar de klant** card. It shows every automatic and
 - edit the recipient, subject and text, and preview the branded email;
 - optionally attach up to 5 files (10 MB each, 20 MB in total) and/or the PDF of a finalized invoice of the gig.
 
+Every automatic email that has not gone out (scheduled, failed or skipped for the client) has **Bewerken en versturen** in the history. It opens the same editor right under that email, prefilled with that email's own details (recipient, portal link, invoice details). Sending it cancels the automatic email first, with the reason "Vervangen door een handmatig verstuurde e-mail", so the client never gets both; if it has already been sent or replaced, the manual send is refused. Use **E-mail schrijven** to send another one.
+
 Manual emails are sent immediately and always go out: template switches, client choices, gig suppressions and business-state checks only apply to automatic mail. Uploaded attachments are stored under `email-attachments/` in the uploads storage. If delivery fails the job is retried by the worker like any other job.
 
 ## Reliability

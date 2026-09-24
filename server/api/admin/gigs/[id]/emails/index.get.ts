@@ -46,6 +46,7 @@ export default defineEventHandler(async (event) => {
     manual: emailJobs.manual,
     subjectOverride: emailJobs.subjectOverride,
     attachments: emailJobs.attachments,
+    variables: emailJobs.variables,
     createdAt: emailJobs.createdAt,
   }).from(emailJobs)
     .where(eq(emailJobs.gigId, gigId))
@@ -79,6 +80,8 @@ export default defineEventHandler(async (event) => {
     jobs: jobs.map(job => ({
       ...job,
       attachments: job.attachments.map(attachment => attachment.filename),
+      // Automatic emails can be edited and sent by hand, starting from their own details.
+      variables: job.manual ? null : job.variables,
     })),
   }
 })
