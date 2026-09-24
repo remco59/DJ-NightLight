@@ -25,7 +25,9 @@ import {
   MOTION_ACCENTS,
   MOTION_TEMPLATES,
   iconProp,
+  joinListRow,
   listProp,
+  splitListRow,
   textProp,
   type TemplateField,
 } from '~~/shared/video-templates'
@@ -38,6 +40,7 @@ import {
   gigTemplateProps,
   upcomingPublicGigs,
 } from '~~/shared/template-gigs'
+import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { MAX_BPM, MIN_BPM, withDownbeatAt, type BeatGrid } from '~~/shared/beat-grid'
@@ -54,6 +57,19 @@ const headingTag = computed(() => props.mobile ? 'summary' : 'h3')
 const item = computed(() => editor.selection.value?.item || null)
 const template = computed(() => item.value?.type === 'graphic' ? MOTION_TEMPLATES[item.value.templateKey] : null)
 const fps = computed(() => state.project.fps)
+// What the selected graphic would play with its sound on, for the hint list.
+const soundCues = computed(() => {
+  const current = item.value
+  if (current?.type !== 'graphic') return []
+  return graphicSoundCues({ ...current, sound: { ...DEFAULT_ITEM_SOUND, ...current.sound, enabled: true } })
+})
+const soundTrackMuted = computed(() => editor.selection.value?.track.muted ?? false)
+
+function setSound(change: Partial<ItemSound>, key = '') {
+  patch((target) => {
+    if (target.type === 'graphic') target.sound = { ...DEFAULT_ITEM_SOUND, ...target.sound, ...change }
+  }, key)
+}
 
 function patch(mutator: (target: TimelineItem) => void, key = '') {
   if (!item.value) return
@@ -208,7 +224,7 @@ function fillNextGigs() {
 function addGigRow(field: TemplateField, select: HTMLSelectElement) {
   const gig = state.gigs.find(entry => entry.id === select.value)
   select.value = ''
-  if (gig) addListRow(field, gigListRow(gig).slice(0, field.maxLength || 120))
+  if (gig) addListRow(field, gigListRow(gig).slice(0, field.maxLength || 160))
 }
 
 function listValue(field: TemplateField) {
@@ -239,6 +255,13 @@ function setListRow(field: TemplateField, index: number, value: string) {
   const rows = [...listValue(field)]
   rows[index] = value
   setField(field, rows)
+}
+
+/** Updates one column of a structured list row. */
+function setListColumn(field: TemplateField, index: number, key: string, value: string) {
+  if (!field.columns) return
+  const columns = splitListRow(listValue(field)[index] || '', field.columns)
+  setListRow(field, index, joinListRow({ ...columns, [key]: value }, field.columns))
 }
 
 function addListRow(field: TemplateField, value = '') {
@@ -383,11 +406,14 @@ const assetTitle = computed(() => {
             </select>
             <span class="icon-preview" aria-hidden="true"><Icon v-if="iconValue(field)" :name="`lucide:${iconValue(field)}`" /></span>
           </label>
-          <div v-else-if="field.kind === 'list'" class="stack">
+          <div v-else-if="field.kind === 'list' && field.columns" class="stack column-list">
             <span>{{ field.label }}</span>
-            <div v-for="(row, index) in listValue(field)" :key="index" class="list-row">
-              <input type="text" :maxlength="field.maxLength" :placeholder="field.placeholder" :value="row" @input="setListRow(field, index, ($event.target as HTMLInputElement).value)">
-              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <div v-for="(row, index) in listValue(field)" :key="index" class="column-row">
+              <label v-for="column in field.columns" :key="column.key" :class="{ wide: column.wide }">
+                <span>{{ column.label }}</span>
+                <input type="text" :maxlength="column.maxLength" :placeholder="column.placeholder" :value="splitListRow(row, field.columns)[column.key]" @input="setListColumn(field, index, column.key, ($event.target as HTMLInputElement).value)">
+              </label>
+              <button type="button" class="ghost remove-row" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Remove</button>
             </div>
             <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
             <template v-if="gigKind === 'list'">
@@ -402,6 +428,14 @@ const assetTitle = computed(() => {
               <button type="button" class="ghost" :disabled="!publicGigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Fill with next public gigs</button>
               <p v-if="!publicGigs.length" class="note">No upcoming public gigs in the agenda.</p>
             </template>
+          </div>
+          <div v-else-if="field.kind === 'list'" class="stack">
+            <span>{{ field.label }}</span>
+            <div v-for="(row, index) in listValue(field)" :key="index" class="list-row">
+              <input type="text" :maxlength="field.maxLength" :placeholder="field.placeholder" :value="row" @input="setListRow(field, index, ($event.target as HTMLInputElement).value)">
+              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
+            </div>
+            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
           </div>
           <AdminMediaPicker
             v-else-if="field.kind === 'asset'"
@@ -463,6 +497,22 @@ const assetTitle = computed(() => {
           <input type="range" min="0" max="60" :value="item.exitFrames" @input="patch(target => { if (target.type === 'graphic') target.exitFrames = Number(($event.target as HTMLInputElement).value) }, 'exitFrames')">
           <output>{{ seconds(item.exitFrames) }}s</output>
         </label>
+      </component>
+
+      <component :is="sectionTag" v-if="item.type === 'graphic'" class="block">
+        <component :is="headingTag">Sound</component>
+        <template v-if="soundCues.length">
+          <label class="row check"><span>Template sounds</span>
+            <input type="checkbox" :checked="item.sound?.enabled ?? false" @change="setSound({ enabled: ($event.target as HTMLInputElement).checked })">
+          </label>
+          <label class="row"><span>Volume</span>
+            <input type="range" min="0" max="1" step="0.01" :disabled="!item.sound?.enabled" :value="item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume" @input="setSound({ volume: Number(($event.target as HTMLInputElement).value) }, 'soundVolume')">
+            <output>{{ Math.round((item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume) * 100) }}%</output>
+          </label>
+          <p class="note">{{ soundCues.map(cue => `${TEMPLATE_SOUNDS[cue.sound].label} at ${seconds(cue.frame)}s`).join(' · ') }}</p>
+          <p v-if="soundTrackMuted && item.sound?.enabled" class="note">The track is muted, so these sounds are silent.</p>
+        </template>
+        <p v-else class="note">This template has no sound hits. Whip, zoom and glitch entrances or exits add one.</p>
       </component>
 
       <!-- Transform for everything visual -->
@@ -709,8 +759,41 @@ output {
   gap: .3rem;
 }
 
-.media-list {
+.media-list, .column-list {
   gap: .7rem;
+}
+
+/* One card per structured row: short columns share a line, wide ones span it. */
+.column-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .4rem;
+  padding: .55rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 10px;
+  background: var(--ve-bg);
+}
+
+.column-row label {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.column-row label > span {
+  color: var(--ve-muted);
+  font-size: .72rem;
+}
+
+.column-row .wide {
+  grid-column: 1 / -1;
+}
+
+.column-row .remove-row {
+  color: var(--ve-muted);
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 .media-list-row {

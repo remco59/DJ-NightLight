@@ -7,6 +7,7 @@ import { useVideoEditor } from '~/composables/useVideoEditor'
 import WaveformCanvas from '~/components/video/WaveformCanvas.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { beatFrames, type GridLine } from '~~/shared/beat-grid'
+import { TEMPLATE_SOUNDS, graphicSoundCues } from '~~/shared/template-sounds'
 
 // `compact` is the touch-first mobile timeline: no toolbar, icon-only track
 // labels, bigger trim handles and tap-to-select so panning never moves clips.
@@ -102,6 +103,11 @@ function beatTargets(project: VideoProject, ignoreId: string) {
   return frames
 }
 
+/** Where a graphic's template sounds hit, relative to its start. */
+function soundCues(item: TimelineItem) {
+  return item.type === 'graphic' ? graphicSoundCues(item) : []
+}
+
 function snapped(frame: number, base: VideoProject, itemId: string) {
   if (!state.snap) return frame
   const targets = [...snapTargets(base, state.frame, itemId), ...beatTargets(base, itemId)]
@@ -158,9 +164,13 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
     const delta = Math.round(dx / pxPerFrame.value)
     if (mode === 'move') {
       const desired = item.start + delta
-      const snapStart = snapped(desired, base, item.id)
-      const snapEnd = snapped(desired + item.duration, base, item.id) - item.duration
-      const start = Math.abs(snapStart - desired) <= Math.abs(snapEnd - desired) ? snapStart : snapEnd
+      // Either edge, or a graphic's sound hit, may snap; the closest pull wins.
+      const anchors = [0, item.duration, ...soundCues(item).map(cue => cue.frame)]
+      let start = desired
+      for (const anchor of anchors) {
+        const candidate = snapped(desired + anchor, base, item.id) - anchor
+        if (candidate !== desired && (start === desired || Math.abs(candidate - desired) < Math.abs(start - desired))) start = candidate
+      }
       const lane = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest<HTMLElement>('[data-track-id]')
       editor.transient(moveItem(base, item.id, start, lane?.dataset.trackId))
     } else if (mode === 'slip') {
@@ -668,7 +678,7 @@ defineExpose({ zoomToFit, zoomToSelection })
             <Icon class="kind" :name="kindIcon[track.kind]" aria-hidden="true" />
             <span class="name">{{ track.name }}</span>
             <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
-            <button v-if="track.kind !== 'graphics'" type="button" :title="track.muted ? 'Unmute track' : 'Mute track'" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
+            <button type="button" :title="track.kind === 'graphics' ? (track.muted ? 'Unmute template sounds' : 'Mute template sounds') : (track.muted ? 'Unmute track' : 'Mute track')" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
             <button v-if="track.items.length > 1" type="button" title="Close gaps between clips" @click="editor.closeTrackGaps(track.id)"><Icon name="lucide:fold-horizontal" aria-hidden="true" /></button>
             <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Remove empty track" @click="editor.removeTrack(track.id)"><Icon name="lucide:x" aria-hidden="true" /></button>
           </div>
@@ -708,6 +718,14 @@ defineExpose({ zoomToFit, zoomToSelection })
                 />
                 <svg v-else-if="!waveforms.get(item.assetId)" class="wave" viewBox="0 0 100 100" preserveAspectRatio="none"><path :d="waveform(item)" /></svg>
               </template>
+              <i
+                v-for="(cue, cueIndex) in soundCues(item)"
+                :key="`sfx-${cueIndex}`"
+                class="sfx-tick"
+                :class="{ silent: track.muted || track.hidden }"
+                :style="{ left: `${x(cue.frame)}px` }"
+                :title="`${TEMPLATE_SOUNDS[cue.sound].label} sound`"
+              />
               <span class="label">
                 <b v-if="item.type === 'graphic'"><Icon name="lucide:type" aria-hidden="true" /></b>
                 <b v-else-if="item.type === 'audio'"><Icon name="lucide:music" aria-hidden="true" /></b>
@@ -979,6 +997,21 @@ defineExpose({ zoomToFit, zoomToSelection })
   background: linear-gradient(180deg, #7c3aed, #6d28d9);
   border-color: #a78bfa;
 }
+
+/* Where a template sound hits; drag the clip and these snap like its edges. */
+.sfx-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fde68a;
+  box-shadow: 0 0 4px #facc15;
+  opacity: .85;
+  pointer-events: none;
+}
+
+.sfx-tick.silent { background: #a8a2b3; box-shadow: none; opacity: .5; }
 
 .item.audio {
   background: #123524;

@@ -3,7 +3,7 @@
 // starting point and "manual" keeps whatever the user typed.
 
 import type { GraphicItem } from './video-project'
-import { MOTION_TEMPLATES, type MotionTemplateKey, type TemplateProps } from './video-templates'
+import { GIG_ROW_COLUMNS, MOTION_TEMPLATES, joinListRow, type MotionTemplateKey, type TemplateProps } from './video-templates'
 
 /** The gig data a template may use: nothing internal (fees, notes, client). */
 export type TemplateGig = {
@@ -77,7 +77,17 @@ export function gigPickerLabel(gig: TemplateGig) {
 
 /** One "date | title | place" row for the Upcoming Gigs template. */
 export function gigListRow(gig: TemplateGig) {
-  return [gigDateLabel(gig), gig.title, gig.venueCity || gig.venueName || ''].join(' | ')
+  const { weekday, time } = localParts(gig.startsAt)
+  const values: Record<string, string> = {
+    date: gigDateLabel(gig),
+    title: gig.title,
+    place: gig.venueCity || gig.venueName || '',
+    // The list uses two-letter days (ZA, ZO) next to the date.
+    day: weekday.slice(0, 2),
+    time,
+  }
+  for (const column of GIG_ROW_COLUMNS) values[column.key] = (values[column.key] || '').slice(0, column.maxLength)
+  return joinListRow(values, GIG_ROW_COLUMNS)
 }
 
 /** The template fields a gig fills in; other fields (headline, CTA, icons) are left alone. */
@@ -106,7 +116,7 @@ export function gigTemplateProps(key: MotionTemplateKey, gig: TemplateGig): Temp
 /** Rows for the Upcoming Gigs template: the next gigs, as many as it shows. */
 export function gigListProps(gigs: TemplateGig[]): TemplateProps {
   const field = MOTION_TEMPLATES['upcoming-gigs'].fields.find(entry => entry.key === 'gigs')
-  return { gigs: gigs.slice(0, field?.maxItems || 6).map(gig => gigListRow(gig).slice(0, field?.maxLength || 120)) }
+  return { gigs: gigs.slice(0, field?.maxItems || 6).map(gig => gigListRow(gig).slice(0, field?.maxLength || 160)) }
 }
 
 const GIG_FIELDS: Partial<Record<MotionTemplateKey, string[]>> = {

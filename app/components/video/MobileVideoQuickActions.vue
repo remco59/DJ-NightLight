@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { clampZoom, quickActionsFor, type QuickAction } from '~~/shared/video-editor-ui'
+import { DEFAULT_ITEM_SOUND } from '~~/shared/template-sounds'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
 const emit = defineEmits<{ replace: [] }>()
@@ -8,7 +9,10 @@ const editor = useVideoEditor()
 const { state } = editor
 const item = computed(() => editor.selection.value?.item || null)
 const actions = computed(() => quickActionsFor(item.value))
-const muted = computed(() => item.value?.type === 'video' && item.value.muted)
+const muted = computed(() => {
+  if (item.value?.type === 'video') return item.value.muted
+  return item.value?.type === 'graphic' && !item.value.sound?.enabled
+})
 
 const meta: Record<QuickAction, { label: string, icon: string }> = {
   split: { label: 'Split', icon: 'lucide:scissors' },
@@ -46,6 +50,7 @@ function run(action: QuickAction) {
   else if (action === 'mute' && item.value) {
     editor.patchItem(item.value.id, (target) => {
       if (target.type === 'video') target.muted = !target.muted
+      if (target.type === 'graphic') target.sound = { ...DEFAULT_ITEM_SOUND, ...target.sound, enabled: !target.sound?.enabled }
     }, `${item.value.id}:muted:${Date.now()}`)
   }
 }

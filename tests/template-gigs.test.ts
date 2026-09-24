@@ -85,7 +85,8 @@ describe('gig template data', () => {
     const gigs = Array.from({ length: 8 }, (_, index) => gig({ id: `g${index}` }))
     const rows = gigListProps(gigs).gigs as string[]
     expect(rows).toHaveLength(6)
-    expect(rows[0]).toBe('05 DEC | Eredivisie Dames | Amsterdam')
+    expect(rows[0]).toBe('05 DEC | Eredivisie Dames | Amsterdam | ZA | 22:00')
+    expect(parseGigRow(rows[0]!)).toEqual({ date: '05 DEC', title: 'Eredivisie Dames', place: 'Amsterdam', day: 'ZA', time: '22:00' })
   })
 
   it('labels gigs in the picker and marks private ones', () => {
@@ -114,7 +115,7 @@ describe('gig defaults for new templates', () => {
   it('fills the Upcoming Gigs list without a link', () => {
     const item = applyGigDefaults(createGraphicItem('upcoming-gigs', 0, 30), [gig()], now)
     expect(item.gigId).toBeUndefined()
-    expect(item.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam'])
+    expect(item.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam | ZA | 22:00'])
   })
 
   it('skips private gigs for the default', () => {
@@ -124,7 +125,7 @@ describe('gig defaults for new templates', () => {
     const item = applyGigDefaults(createGraphicItem('gig-announcement', 0, 30), [wedding, next], now)
     expect(item.gigId).toBe(next.id)
     const list = applyGigDefaults(createGraphicItem('upcoming-gigs', 0, 30), [wedding, next], now)
-    expect(list.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam'])
+    expect(list.templateProps.gigs).toEqual(['05 DEC | Eredivisie Dames | Amsterdam | ZA | 22:00'])
   })
 
   it.each(['gig-announcement', 'electric-gig-poster', 'upcoming-gigs'] as const)('uses fallback text for %s without an upcoming public gig', (key) => {

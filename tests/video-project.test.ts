@@ -11,7 +11,7 @@ import {
   trackAccepts,
 } from '../shared/video-project'
 import { isLucideIcon } from '../shared/lucide-icons'
-import { MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, iconProp, parseGigRow } from '../shared/video-templates'
+import { GIG_ROW_COLUMNS, MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, iconProp, joinListRow, parseGigRow, splitListRow } from '../shared/video-templates'
 import { inspectTimedMedia } from '../shared/media'
 
 const assetId = '11111111-1111-4111-8111-111111111111'
@@ -162,8 +162,20 @@ describe('motion templates', () => {
   })
 
   it('parses upcoming gig rows', () => {
-    expect(parseGigRow('06 DEC | Club Nova | Amsterdam')).toEqual({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam' })
-    expect(parseGigRow('10 DEC')).toEqual({ date: '10 DEC', title: '', place: '' })
+    expect(parseGigRow('06 DEC | Club Nova | Amsterdam')).toEqual({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: '', time: '' })
+    expect(parseGigRow('10 DEC')).toEqual({ date: '10 DEC', title: '', place: '', day: '', time: '' })
+    expect(parseGigRow('06 DEC|Club Nova|Amsterdam|ZA|22:00')).toEqual({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: 'ZA', time: '22:00' })
+  })
+
+  it('edits gig rows column by column', () => {
+    const row = joinListRow({ day: 'ZA', date: '06 DEC', time: '', title: 'Club Nova', place: '' }, GIG_ROW_COLUMNS)
+    expect(row).toBe('06 DEC | Club Nova |  | ZA')
+    expect(parseGigRow(row)).toEqual({ date: '06 DEC', title: 'Club Nova', place: '', day: 'ZA', time: '' })
+    // Rows without day or time keep the old notation.
+    expect(joinListRow({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: '', time: '' }, GIG_ROW_COLUMNS)).toBe('06 DEC | Club Nova | Amsterdam')
+    // A value keeps the space someone is still typing, and pipes cannot split it.
+    const typing = joinListRow({ date: '06 DEC', title: 'Club ', place: 'A|B' }, GIG_ROW_COLUMNS)
+    expect(splitListRow(typing, GIG_ROW_COLUMNS)).toMatchObject({ title: 'Club ', place: 'A/B' })
   })
 })
 
