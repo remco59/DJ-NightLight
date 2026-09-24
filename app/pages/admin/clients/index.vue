@@ -34,7 +34,7 @@ const { data, status, refresh } = await useFetch<{ clients: ClientListItem[] }>(
 })
 
 function displayName(client: ClientListItem) {
-  return client.companyName || [client.firstName, client.lastName].filter(Boolean).join(' ') || 'Unnamed client'
+  return client.companyName || [client.firstName, client.lastName].filter(Boolean).join(' ') || 'Naamloze klant'
 }
 
 async function createClient() {
@@ -49,70 +49,70 @@ async function createClient() {
     showCreate.value = false
     await navigateTo(`/admin/clients/${result.client.id}`)
   } catch (error: unknown) {
-    formError.value = apiErrorMessage(error, 'Could not create client.')
+    formError.value = apiErrorMessage(error, 'Klant aanmaken is niet gelukt.')
   } finally {
     saving.value = false
   }
 }
 
-useSeoMeta({ title: 'Clients — DJ NightLight', robots: 'noindex, nofollow' })
+useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
 <template>
   <div class="entity-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Operations</p>
-        <h1>Clients</h1>
-        <p>People and companies that book NightLight.</p>
+        <p class="eyebrow">Relaties</p>
+        <h1>Klanten</h1>
+        <p>Personen en bedrijven die NightLight boeken.</p>
       </div>
       <button class="with-icon primary" type="button" @click="showCreate = !showCreate">
         <Icon :name="showCreate ? 'lucide:x' : 'lucide:plus'" aria-hidden="true" />
-        {{ showCreate ? 'Close' : 'New client' }}
+        {{ showCreate ? 'Sluiten' : 'Nieuwe klant' }}
       </button>
     </header>
 
     <form v-if="showCreate" class="editor-card" @submit.prevent="createClient">
-      <h2>New client</h2>
+      <h2>Nieuwe klant</h2>
       <div class="grid">
         <label>Type
-          <select v-model="form.type"><option value="person">Person</option><option value="company">Company</option></select>
+          <select v-model="form.type"><option value="person">Particulier</option><option value="company">Bedrijf</option></select>
         </label>
-        <label v-if="form.type === 'company'">Company name<input v-model="form.companyName" required></label>
+        <label v-if="form.type === 'company'">Bedrijfsnaam<input v-model="form.companyName" required></label>
         <template v-else>
-          <label>First name<input v-model="form.firstName"></label>
-          <label>Last name<input v-model="form.lastName"></label>
+          <label>Voornaam<input v-model="form.firstName"></label>
+          <label>Achternaam<input v-model="form.lastName"></label>
         </template>
-        <label>Email<input v-model="form.email" type="email"></label>
-        <label>Phone<input v-model="form.phone" type="tel"></label>
-        <label class="wide">Billing address<textarea v-model="form.billingAddress" rows="2" /></label>
-        <label class="wide">Notes<textarea v-model="form.notes" rows="3" /></label>
+        <label>E-mail<input v-model="form.email" type="email"></label>
+        <label>Telefoon<input v-model="form.phone" type="tel"></label>
+        <label class="wide">Factuuradres<textarea v-model="form.billingAddress" rows="2" /></label>
+        <label class="wide">Notities<textarea v-model="form.notes" rows="3" /></label>
       </div>
       <p v-if="formError" class="error">{{ formError }}</p>
-      <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Saving…' : 'Create client' }}</button>
+      <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Opslaan…' : 'Klant aanmaken' }}</button>
     </form>
 
     <AdminFilterBar
       :has-active-filters="Boolean(search)"
-      :results-label="`${data?.clients.length ?? 0} clients`"
+      :results-label="`${data?.clients.length ?? 0} klanten`"
       @clear-all="search = ''"
     >
       <template #primary>
-        <input v-model="search" type="search" placeholder="Search name, company or email…">
+        <input v-model="search" type="search" placeholder="Zoek op naam, bedrijf of e-mail…">
       </template>
       <template #chips>
-        <AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search = ''" />
+        <AdminFilterChip v-if="search" :label="`Zoeken: ${search}`" @remove="search = ''" />
       </template>
     </AdminFilterBar>
 
-    <div v-if="status === 'pending'" class="empty">Loading clients…</div>
-    <div v-else-if="!data?.clients.length" class="empty">No clients found.</div>
+    <div v-if="status === 'pending'" class="empty">Klanten laden…</div>
+    <div v-else-if="!data?.clients.length" class="empty">Geen klanten gevonden.</div>
     <div v-else class="list">
       <NuxtLink v-for="client in data.clients" :key="client.id" :to="`/admin/clients/${client.id}`" class="row">
         <div class="avatar">{{ displayName(client).slice(0, 2).toUpperCase() }}</div>
         <div class="copy">
           <strong>{{ displayName(client) }}</strong>
-          <span>{{ client.email || client.phone || (client.type === 'company' ? 'Company' : 'Person') }}</span>
+          <span>{{ client.email || client.phone || (client.type === 'company' ? 'Bedrijf' : 'Particulier') }}</span>
         </div>
         <span class="count">{{ client.gigCount }} {{ client.gigCount === 1 ? 'gig' : 'gigs' }}</span>
       </NuxtLink>

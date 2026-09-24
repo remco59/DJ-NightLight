@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '~/utils/api-error'
+import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
+
 definePageMeta({ layout: 'admin' })
 
 type CancellationBehavior = 'delete' | 'mark_cancelled' | 'keep'
@@ -38,10 +41,10 @@ async function sync(gigId?: string) {
       body: gigId ? { gigId } : {},
     })
     message.value = gigId
-      ? `Sync finished: ${response.result.status || 'done'}.`
-      : `Sync finished: ${response.result.processed || 0} processed, ${response.result.failed || 0} failed.`
+      ? `Synchronisatie klaar: ${response.result.status ? labelFor(calendarSyncStatusLabels, response.result.status).toLowerCase() : 'gereed'}.`
+      : `Synchronisatie klaar: ${response.result.processed || 0} verwerkt, ${response.result.failed || 0} mislukt.`
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Synchronization failed.'
+    message.value = apiErrorMessage(error, 'Synchronisatie mislukt.')
   } finally {
     syncing.value = null
     await refresh()
@@ -58,62 +61,62 @@ function formatDate(value: string | null) {
   <div class="page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Operations</p>
-        <h1>Calendar</h1>
-        <p class="intro">One-way synchronization from booked NightLight gigs to Google Calendar.</p>
+        <p class="eyebrow">Planning</p>
+        <h1>Agenda</h1>
+        <p class="intro">Synchronisatie in één richting van geboekte NightLight-gigs naar Google Calendar.</p>
       </div>
       <button class="primary" type="button" :disabled="syncing !== null || !data?.settings.enabled" @click="sync()">
-        {{ syncing === 'all' ? 'Syncing…' : 'Sync all' }}
+        {{ syncing === 'all' ? 'Synchroniseren…' : 'Alles synchroniseren' }}
       </button>
     </header>
 
     <section class="panel">
       <div class="panel-heading">
         <div>
-          <h2>Connection & behavior</h2>
-          <p>Google Calendar is configured centrally in Settings, so credentials and sync behavior have one source of truth.</p>
+          <h2>Koppeling & gedrag</h2>
+          <p>Google Calendar stel je centraal in bij Instellingen, zodat inloggegevens en synchronisatiegedrag op één plek staan.</p>
         </div>
         <span class="status" :class="{ ok: data?.credentialsConfigured }">
-          {{ data?.credentialsConfigured ? 'Credentials configured' : 'Credentials missing' }}
+          {{ data?.credentialsConfigured ? 'Inloggegevens ingesteld' : 'Inloggegevens ontbreken' }}
         </span>
       </div>
 
       <div class="facts">
-        <div><span>Synchronization</span><strong>{{ data?.settings.enabled ? 'Enabled' : 'Disabled' }}</strong></div>
-        <div><span>Calendar ID</span><strong>{{ data?.settings.calendarId || 'primary' }}</strong></div>
+        <div><span>Synchronisatie</span><strong>{{ data?.settings.enabled ? 'Ingeschakeld' : 'Uitgeschakeld' }}</strong></div>
+        <div><span>Agenda-ID</span><strong>{{ data?.settings.calendarId || 'primary' }}</strong></div>
         <div>
-          <span>Cancelled / declined gigs</span>
-          <strong>{{ data?.settings.cancellationBehavior === 'delete' ? 'Delete mapped event' : data?.settings.cancellationBehavior === 'mark_cancelled' ? 'Keep and mark cancelled' : 'Leave event unchanged' }}</strong>
+          <span>Geannuleerde / afgewezen gigs</span>
+          <strong>{{ data?.settings.cancellationBehavior === 'delete' ? 'Gekoppelde afspraak verwijderen' : data?.settings.cancellationBehavior === 'mark_cancelled' ? 'Behouden en als geannuleerd markeren' : 'Afspraak ongewijzigd laten' }}</strong>
         </div>
       </div>
-      <NuxtLink class="settings-link" to="/admin/settings#integrations">Manage Google Calendar in Settings <Icon name="lucide:chevron-right" aria-hidden="true" /> Integrations</NuxtLink>
+      <NuxtLink class="settings-link" to="/admin/settings#integrations">Google Calendar beheren via Instellingen <Icon name="lucide:chevron-right" aria-hidden="true" /> Integraties</NuxtLink>
       <p v-if="message" class="message">{{ message }}</p>
     </section>
 
     <section class="panel">
       <div class="panel-heading">
         <div>
-          <h2>Synchronization status</h2>
-          <p>Failed jobs are retried in the background with exponential backoff and can be retried manually.</p>
+          <h2>Synchronisatiestatus</h2>
+          <p>Mislukte taken worden op de achtergrond steeds later opnieuw geprobeerd en kun je ook handmatig opnieuw starten.</p>
         </div>
-        <button class="with-icon quiet" type="button" :disabled="pending" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
+        <button class="with-icon quiet" type="button" :disabled="pending" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Vernieuwen</button>
       </div>
 
-      <div v-if="!data?.items.length" class="empty">No gigs have been queued for Calendar sync yet.</div>
+      <div v-if="!data?.items.length" class="empty">Er staan nog geen gigs in de wachtrij voor agendasynchronisatie.</div>
       <div v-else class="list">
         <article v-for="item in data.items" :key="item.gigId" class="row">
           <div>
             <strong>{{ item.title }}</strong>
-            <p>{{ formatDate(item.startsAt) }} · {{ item.gigStatus }}</p>
+            <p>{{ formatDate(item.startsAt) }} · {{ labelFor(gigStatusLabels, item.gigStatus) }}</p>
           </div>
           <div class="sync-state">
-            <span class="pill" :data-state="item.syncStatus">{{ item.syncStatus }}</span>
-            <small v-if="item.lastSyncedAt">Last synced {{ formatDate(item.lastSyncedAt) }}</small>
-            <small v-else-if="item.lastAttemptAt">Last attempt {{ formatDate(item.lastAttemptAt) }}</small>
+            <span class="pill" :data-state="item.syncStatus">{{ labelFor(calendarSyncStatusLabels, item.syncStatus) }}</span>
+            <small v-if="item.lastSyncedAt">Laatst gesynchroniseerd {{ formatDate(item.lastSyncedAt) }}</small>
+            <small v-else-if="item.lastAttemptAt">Laatste poging {{ formatDate(item.lastAttemptAt) }}</small>
             <small v-if="item.lastError" class="error">{{ item.lastError }}</small>
           </div>
           <button class="quiet" type="button" :disabled="syncing !== null || !data?.settings.enabled" @click="sync(item.gigId)">
-            {{ syncing === item.gigId ? 'Retrying…' : 'Sync now' }}
+            {{ syncing === item.gigId ? 'Opnieuw proberen…' : 'Nu synchroniseren' }}
           </button>
         </article>
       </div>

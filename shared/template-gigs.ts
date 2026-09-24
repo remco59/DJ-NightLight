@@ -72,7 +72,7 @@ export function gigPickerLabel(gig: TemplateGig) {
   const { weekday } = localParts(gig.startsAt)
   const place = [gig.venueName, gig.venueCity].filter(Boolean).join(', ')
   return [`${weekday} ${gigDateLabel(gig)}`, gig.title, place].filter(Boolean).join(' · ')
-    + (gig.publicVisibility ? '' : ' (not public)')
+    + (gig.publicVisibility ? '' : ' (niet publiek)')
 }
 
 /** One "date | title | place" row for the Upcoming Gigs template. */

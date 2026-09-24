@@ -7,13 +7,13 @@ import { requireStaff } from '../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
   const parsed = renderSettingsInputSchema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Choose automatic, CPU or Intel GPU rendering' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Kies automatisch, CPU of Intel GPU voor het renderen' })
 
   const { engine } = parsed.data
   if (engine !== 'auto') {
     const current = await loadRenderSettings()
     if (!isEngineAvailable(engine, current.capabilities)) {
-      throw createError({ statusCode: 422, statusMessage: 'The render worker has not detected this engine as available' })
+      throw createError({ statusCode: 422, statusMessage: 'De renderworker heeft deze engine niet als beschikbaar gedetecteerd' })
     }
   }
 

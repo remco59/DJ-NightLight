@@ -11,7 +11,7 @@ const schema = z.object({ provider: z.enum(['calendar', 'email']) })
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
   const parsed = schema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Invalid integration provider' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldige integratie' })
 
   if (parsed.data.provider === 'calendar') {
     await db.update(calendarSyncSettings).set({

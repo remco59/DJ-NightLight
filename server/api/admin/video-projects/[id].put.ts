@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   }).where(and(eq(videoProjects.id, existing.id), eq(videoProjects.revision, input.revision))).returning()
 
   if (!row) {
-    throw createError({ statusCode: 409, statusMessage: 'This project was changed elsewhere. Reload to get the latest version.' })
+    throw createError({ statusCode: 409, statusMessage: 'Dit project is ergens anders gewijzigd. Laad de pagina opnieuw voor de nieuwste versie.' })
   }
   return { project: row }
 })

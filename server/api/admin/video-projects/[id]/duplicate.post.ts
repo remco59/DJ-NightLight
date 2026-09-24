@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     project: source.project,
     createdByUserId: user.id,
   }).returning()
-  if (!row) throw createError({ statusCode: 500, statusMessage: 'Video project could not be duplicated' })
+  if (!row) throw createError({ statusCode: 500, statusMessage: 'Videoproject dupliceren is niet gelukt' })
   event.node.res.statusCode = 201
   return { project: row }
 })

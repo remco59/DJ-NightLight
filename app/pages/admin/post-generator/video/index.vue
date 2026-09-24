@@ -2,6 +2,7 @@
 import { apiErrorMessage } from '~/utils/api-error'
 import { canCancelRender, type VideoRenderStatus } from '~~/shared/video-generator'
 import { VIDEO_ASPECTS, VIDEO_ASPECT_KEYS, type VideoAspect } from '~~/shared/video-project'
+import { labelFor, renderStatusLabels } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
 
@@ -44,7 +45,7 @@ async function create() {
     const result = await $fetch<{ project: { id: string } }>('/api/admin/video-projects', { method: 'POST', body: { name: name.value, aspect: aspect.value } })
     await navigateTo(`/admin/post-generator/video/${result.project.id}`)
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Project could not be created.')
+    message.value = apiErrorMessage(error, 'Project aanmaken is niet gelukt.')
   } finally {
     busy.value = ''
   }
@@ -56,34 +57,34 @@ async function duplicate(project: ProjectSummary) {
     await $fetch(`/api/admin/video-projects/${project.id}/duplicate`, { method: 'POST' })
     await refresh()
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Project could not be duplicated.')
+    message.value = apiErrorMessage(error, 'Project dupliceren is niet gelukt.')
   } finally {
     busy.value = ''
   }
 }
 
 async function remove(project: ProjectSummary) {
-  if (!confirm(`Delete “${project.name}”? Finished exports stay available below.`)) return
+  if (!confirm(`“${project.name}” verwijderen? Afgeronde exports blijven hieronder beschikbaar.`)) return
   busy.value = project.id
   try {
     await $fetch(`/api/admin/video-projects/${project.id}`, { method: 'DELETE' })
     await refresh()
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Project could not be deleted.')
+    message.value = apiErrorMessage(error, 'Project verwijderen is niet gelukt.')
   } finally {
     busy.value = ''
   }
 }
 
 async function cancelJob(job: RenderJob) {
-  if (!confirm('Cancel this render?')) return
+  if (!confirm('Deze render annuleren?')) return
   busy.value = job.id
   message.value = ''
   try {
     await $fetch(`/api/admin/post-generator/video/${job.id}/cancel`, { method: 'POST' })
     await refreshQueue()
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Render could not be cancelled.')
+    message.value = apiErrorMessage(error, 'Render annuleren is niet gelukt.')
   } finally {
     busy.value = ''
   }
@@ -99,26 +100,26 @@ onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
 })
 
-useSeoMeta({ title: 'Video editor — DJ NightLight', robots: 'noindex, nofollow' })
+useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
 <template>
   <div class="page">
     <header class="header">
       <div>
-        <p class="crumb">Content / Video editor</p>
-        <h1>Video projects</h1>
-        <p class="subtitle">Timeline-based Reels, Stories and recaps with NightLight motion graphics.</p>
+        <p class="crumb">Content / Video-editor</p>
+        <h1>Videoprojecten</h1>
+        <p class="subtitle">Reels, Stories en terugblikken op een timeline, met NightLight-motion graphics.</p>
       </div>
-      <NuxtLink class="secondary" to="/admin/post-generator">Image generator</NuxtLink>
+      <NuxtLink class="secondary" to="/admin/post-generator">Afbeeldingengenerator</NuxtLink>
     </header>
 
     <form class="create" @submit.prevent="create">
-      <input v-model="name" type="text" maxlength="160" placeholder="Project name, e.g. Weekend Vibes" aria-label="Project name">
-      <select v-model="aspect" aria-label="Format">
+      <input v-model="name" type="text" maxlength="160" placeholder="Projectnaam, bijv. Weekend Vibes" aria-label="Projectnaam">
+      <select v-model="aspect" aria-label="Formaat">
         <option v-for="key in VIDEO_ASPECT_KEYS" :key="key" :value="key">{{ VIDEO_ASPECTS[key].label }}</option>
       </select>
-      <button class="primary" type="submit" :disabled="busy === 'create'">{{ busy === 'create' ? 'Creating…' : '+ New project' }}</button>
+      <button class="primary" type="submit" :disabled="busy === 'create'">{{ busy === 'create' ? 'Aanmaken…' : '+ Nieuw project' }}</button>
     </form>
     <p v-if="message" class="message">{{ message }}</p>
 
@@ -129,28 +130,28 @@ useSeoMeta({ title: 'Video editor — DJ NightLight', robots: 'noindex, nofollow
         </NuxtLink>
         <div class="meta">
           <NuxtLink :to="`/admin/post-generator/video/${project.id}`"><strong>{{ project.name }}</strong></NuxtLink>
-          <small>{{ project.durationSeconds }}s · {{ project.itemCount }} items · edited {{ new Date(project.updatedAt).toLocaleString() }}</small>
+          <small>{{ project.durationSeconds }}s · {{ project.itemCount }} items · bewerkt {{ new Date(project.updatedAt).toLocaleString('nl-NL') }}</small>
         </div>
         <div class="actions">
-          <NuxtLink :to="`/admin/post-generator/video/${project.id}`">Open</NuxtLink>
-          <button type="button" :disabled="busy === project.id" @click="duplicate(project)">Duplicate</button>
-          <button class="with-icon" type="button" :disabled="busy === project.id" @click="remove(project)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+          <NuxtLink :to="`/admin/post-generator/video/${project.id}`">Openen</NuxtLink>
+          <button type="button" :disabled="busy === project.id" @click="duplicate(project)">Dupliceren</button>
+          <button class="with-icon" type="button" :disabled="busy === project.id" @click="remove(project)"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button>
         </div>
       </article>
-      <p v-if="!data?.projects.length" class="empty">No video projects yet. Create one to open the editor.</p>
+      <p v-if="!data?.projects.length" class="empty">Nog geen videoprojecten. Maak er een aan om de editor te openen.</p>
     </section>
 
     <section class="exports">
-      <h2>Render history</h2>
+      <h2>Rendergeschiedenis</h2>
       <ol>
         <li v-for="job in queue?.jobs || []" :key="job.id">
-          <span class="status" :class="job.status">{{ job.status }}{{ job.status === 'rendering' ? ` ${job.progress}%` : '' }}</span>
-          <strong>{{ job.projectName || (job.projectId ? 'Video project' : 'Legacy video') }}</strong>
-          <small>{{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s<template v-if="job.renderEngine"> · {{ job.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template> · {{ new Date(job.createdAt).toLocaleString() }}</small>
-          <a v-if="job.videoUrl" class="with-icon" :href="job.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
-          <button v-if="canCancelRender(job.status)" class="cancel with-icon" type="button" :disabled="busy === job.id" @click="cancelJob(job)"><Icon name="lucide:circle-x" aria-hidden="true" />Cancel</button>
+          <span class="status" :class="job.status">{{ labelFor(renderStatusLabels, job.status) }}{{ job.status === 'rendering' ? ` ${job.progress}%` : '' }}</span>
+          <strong>{{ job.projectName || (job.projectId ? 'Videoproject' : 'Oude video') }}</strong>
+          <small>{{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s<template v-if="job.renderEngine"> · {{ job.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template> · {{ new Date(job.createdAt).toLocaleString('nl-NL') }}</small>
+          <a v-if="job.videoUrl" class="with-icon" :href="job.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />MP4 openen</a>
+          <button v-if="canCancelRender(job.status)" class="cancel with-icon" type="button" :disabled="busy === job.id" @click="cancelJob(job)"><Icon name="lucide:circle-x" aria-hidden="true" />Annuleren</button>
         </li>
-        <li v-if="!queue?.jobs.length" class="empty">Nothing rendered yet.</li>
+        <li v-if="!queue?.jobs.length" class="empty">Nog niets gerenderd.</li>
       </ol>
     </section>
   </div>

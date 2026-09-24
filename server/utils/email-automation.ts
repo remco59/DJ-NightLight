@@ -195,19 +195,19 @@ async function shouldSkipCurrentState(job: typeof emailJobs.$inferSelect) {
   if (job.templateKey === 'portal_reminder' && job.gigId) {
     const [submission] = await db.select({ status: contractSubmissions.status })
       .from(contractSubmissions).where(eq(contractSubmissions.gigId, job.gigId)).limit(1)
-    if (submission?.status === 'submitted') return 'Client portal was already submitted'
+    if (submission?.status === 'submitted') return 'Het klantportaal is al ingediend'
   }
 
   if (['pre_gig_reminder', 'thank_you', 'review_request', 'booking_accepted'].includes(job.templateKey) && job.gigId) {
     const [gig] = await db.select({ status: gigs.status }).from(gigs).where(eq(gigs.id, job.gigId)).limit(1)
-    if (!gig || gig.status !== 'booked') return 'Gig is no longer booked'
+    if (!gig || gig.status !== 'booked') return 'De gig is niet meer geboekt'
   }
 
   if (['payment_reminder', 'overdue_reminder', 'invoice_sent', 'payment_received'].includes(job.templateKey) && job.invoiceId) {
     const [invoice] = await db.select({ status: invoices.status, paymentStatus: invoices.paymentStatus })
       .from(invoices).where(eq(invoices.id, job.invoiceId)).limit(1)
-    if (!invoice || invoice.status === 'void') return 'Invoice is no longer payable'
-    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'Invoice is already paid'
+    if (!invoice || invoice.status === 'void') return 'De factuur hoeft niet meer betaald te worden'
+    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'De factuur is al betaald'
   }
   return null
 }
@@ -218,9 +218,9 @@ export async function processEmailJob(jobId: string) {
 
   const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.key, job.templateKey)).limit(1)
   const skipReason = !template?.enabled
-    ? 'Template is disabled'
+    ? 'Het template is uitgeschakeld'
     : await isSuppressed(job.gigId, job.templateKey)
-      ? 'Automation is suppressed for this gig'
+      ? 'Automatisering is uitgeschakeld voor deze gig'
       : await shouldSkipCurrentState(job)
 
   if (skipReason) {

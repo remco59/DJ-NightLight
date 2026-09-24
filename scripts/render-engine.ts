@@ -75,26 +75,26 @@ async function vaapiTestEncode(device: string): Promise<string | null> {
 
 async function detectIntel(): Promise<{ capability: RenderEngineCapability, device?: string }> {
   const unavailable = (detail: string, device?: string) => ({ capability: { id: 'intel' as const, available: false, detail }, device })
-  if (process.arch !== 'x64') return unavailable('Intel VAAPI rendering needs the x64 render worker image.')
+  if (process.arch !== 'x64') return unavailable('Renderen met Intel VAAPI vereist de x64-image van de renderworker.')
 
   const device = await findRenderDevice()
-  if (!device) return unavailable('No Intel GPU found: /dev/dri has no render device.')
+  if (!device) return unavailable('Geen Intel GPU gevonden: /dev/dri heeft geen render-apparaat.')
   if (!await exists(device, constants.R_OK | constants.W_OK)) {
-    return unavailable(`Intel GPU found at ${device}, but the render worker has no permission to use it.`, device)
+    return unavailable(`Intel GPU gevonden op ${device}, maar de renderworker heeft geen rechten om die te gebruiken.`, device)
   }
-  if (!await systemFfmpegHasEncoder('h264_vaapi')) return unavailable('The worker FFmpeg does not include the h264_vaapi encoder.', device)
-  if (!await exists(join(INTEL_FFMPEG_DIR, 'remotion'))) return unavailable(`Remotion binaries for VAAPI are missing from ${INTEL_FFMPEG_DIR}.`, device)
+  if (!await systemFfmpegHasEncoder('h264_vaapi')) return unavailable('De FFmpeg van de worker bevat de h264_vaapi-encoder niet.', device)
+  if (!await exists(join(INTEL_FFMPEG_DIR, 'remotion'))) return unavailable(`De Remotion-binaries voor VAAPI ontbreken in ${INTEL_FFMPEG_DIR}.`, device)
 
   const failure = await vaapiTestEncode(device)
-  if (failure) return unavailable(`VAAPI test encode on ${device} failed: ${failure}`, device)
-  return { capability: { id: 'intel', available: true, detail: `Intel GPU ready (${device}).` }, device }
+  if (failure) return unavailable(`Testencode met VAAPI op ${device} mislukt: ${failure}`, device)
+  return { capability: { id: 'intel', available: true, detail: `Intel GPU klaar (${device}).` }, device }
 }
 
 export async function detectRenderCapabilities(): Promise<RenderCapabilities> {
   const intel = await detectIntel()
   return {
     engines: [
-      { id: 'cpu', available: true, detail: 'Software H.264 encoding. Always available.' },
+      { id: 'cpu', available: true, detail: 'Software-encoding (H.264). Altijd beschikbaar.' },
       intel.capability,
     ],
     ...(intel.capability.available && intel.device ? { intelDevice: intel.device } : {}),

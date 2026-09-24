@@ -15,18 +15,18 @@ const muted = computed(() => {
 })
 
 const meta: Record<QuickAction, { label: string, icon: string }> = {
-  split: { label: 'Split', icon: 'lucide:scissors' },
-  duplicate: { label: 'Duplicate', icon: 'lucide:copy' },
-  mute: { label: 'Mute', icon: 'lucide:volume-x' },
-  slip: { label: 'Slip', icon: 'lucide:move-horizontal' },
-  replace: { label: 'Replace', icon: 'lucide:replace' },
-  'close-gaps': { label: 'Close gaps', icon: 'lucide:fold-horizontal' },
+  split: { label: 'Splitsen', icon: 'lucide:scissors' },
+  duplicate: { label: 'Dupliceren', icon: 'lucide:copy' },
+  mute: { label: 'Dempen', icon: 'lucide:volume-x' },
+  slip: { label: 'Verschuiven', icon: 'lucide:move-horizontal' },
+  replace: { label: 'Vervangen', icon: 'lucide:replace' },
+  'close-gaps': { label: 'Gaten sluiten', icon: 'lucide:fold-horizontal' },
   ripple: { label: 'Ripple delete', icon: 'lucide:arrow-left-to-line' },
-  delete: { label: 'Delete', icon: 'lucide:trash-2' },
+  delete: { label: 'Verwijderen', icon: 'lucide:trash-2' },
 }
 
 function label(action: QuickAction) {
-  if (action === 'mute' && muted.value) return 'Unmute'
+  if (action === 'mute' && muted.value) return 'Geluid aan'
   return meta[action].label
 }
 
@@ -67,23 +67,23 @@ function zoomBy(factor: number) {
 
 <template>
   <div class="m-actions">
-    <div class="actions" role="toolbar" :aria-label="item ? 'Selected clip actions' : 'Timeline actions'">
+    <div class="actions" role="toolbar" :aria-label="item ? 'Acties voor gekozen clip' : 'Timeline-acties'">
       <button
         v-for="action in actions"
         :key="action"
         type="button"
         :class="{ danger: action === 'delete', on: action === 'slip' && state.slipMode }"
         :aria-pressed="action === 'slip' ? state.slipMode : undefined"
-        :title="action === 'split' && !item ? 'Split the clip under the playhead' : undefined"
+        :title="action === 'split' && !item ? 'De clip onder de afspeelpositie splitsen' : undefined"
         @click="run(action)"
       >
         <Icon :name="icon(action)" aria-hidden="true" />
         <span>{{ label(action) }}</span>
       </button>
     </div>
-    <div class="zoom" role="group" aria-label="Timeline zoom">
-      <button type="button" aria-label="Zoom out timeline" @click="zoomBy(0.75)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
-      <button type="button" aria-label="Zoom in timeline" @click="zoomBy(1.33)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
+    <div class="zoom" role="group" aria-label="Zoom timeline">
+      <button type="button" aria-label="Timeline uitzoomen" @click="zoomBy(0.75)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
+      <button type="button" aria-label="Timeline inzoomen" @click="zoomBy(1.33)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
     </div>
   </div>
 </template>

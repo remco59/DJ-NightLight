@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<{
   bare?: boolean
   uploadTags?: string
 }>(), {
-  label: 'Image',
+  label: 'Afbeelding',
   description: '',
   kind: 'image',
   allowExternal: true,
@@ -76,7 +76,8 @@ const selectedAsset = computed(() =>
 )
 
 const selectedPreview = computed(() => selectedAsset.value?.thumbnailUrl || props.modelValue)
-const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'image')
+const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'afbeelding')
+const chooseLabel = computed(() => props.kind === 'all' ? 'Media kiezen' : 'Afbeelding kiezen')
 
 const filteredAssets = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -135,10 +136,10 @@ async function upload() {
     uploadTitle.value = ''
     uploadAlt.value = ''
     if (fileInput.value) fileInput.value.value = ''
-    uploadMessage.value = 'Uploaded and selected.'
+    uploadMessage.value = 'Geüpload en gekozen.'
     open.value = false
   } catch (error) {
-    uploadMessage.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Upload failed.')
+    uploadMessage.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Uploaden mislukt.')
   } finally {
     uploadBusy.value = false
   }
@@ -154,7 +155,7 @@ async function upload() {
         <span v-if="description">{{ description }}</span>
       </div>
       <button type="button" class="text-button" @click="open = true">
-        {{ modelValue ? `Change ${mediaNoun}` : `Choose ${mediaNoun}` }}
+        {{ modelValue ? `Andere ${mediaNoun} kiezen` : chooseLabel }}
       </button>
     </div>
 
@@ -162,41 +163,41 @@ async function upload() {
       <img v-if="selectedPreview" :src="selectedPreview" :alt="selectedAsset?.altText || selectedAsset?.title || label">
       <div v-else class="media-placeholder"><Icon name="lucide:film" aria-hidden="true" /></div>
       <div class="selected-copy">
-        <strong>{{ selectedAsset?.title || selectedAsset?.originalFilename || 'External image' }}</strong>
-        <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Media library</span>
-        <span v-else>External URL</span>
-        <button type="button" class="remove" @click="clearSelection">Remove</button>
+        <strong>{{ selectedAsset?.title || selectedAsset?.originalFilename || 'Externe afbeelding' }}</strong>
+        <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Mediabibliotheek</span>
+        <span v-else>Externe URL</span>
+        <button type="button" class="remove" @click="clearSelection">Verwijderen</button>
       </div>
     </div>
 
     <div v-else class="empty-media" @click="open = true">
       <span>＋</span>
       <div>
-        <strong>Select from Media</strong>
-        <small>{{ kind === 'all' ? 'Choose an existing image or video, or upload a new image.' : 'Or upload a new image without leaving this editor.' }}</small>
+        <strong>Kiezen uit Media</strong>
+        <small>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload een nieuwe afbeelding.' : 'Of upload een nieuwe afbeelding zonder deze editor te verlaten.' }}</small>
       </div>
     </div>
 
     <details v-if="allowExternal" class="external">
-      <summary>Use an external image URL</summary>
+      <summary>Een externe afbeeldings-URL gebruiken</summary>
       <input v-model="externalUrl" type="url" placeholder="https://…" @change="applyExternalUrl">
     </details>
     </template>
 
     <Teleport to="body">
       <div v-if="open" class="picker-backdrop" @click.self="open = false">
-        <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`Choose ${label}`">
+        <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`">
           <header class="picker-header">
             <div>
-              <p class="eyebrow">Media library</p>
-              <h2>Choose {{ label.toLowerCase() }}</h2>
-              <p>{{ kind === 'all' ? 'Select an existing image or video, or upload a new image.' : 'Select an existing image or upload a new one.' }}</p>
+              <p class="eyebrow">Mediabibliotheek</p>
+              <h2>{{ label }} kiezen</h2>
+              <p>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload een nieuwe afbeelding.' : 'Kies een bestaande afbeelding of upload een nieuwe.' }}</p>
             </div>
-            <button type="button" class="close" aria-label="Close" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <button type="button" class="close" aria-label="Sluiten" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
           </header>
 
           <div class="picker-toolbar">
-            <input v-model="search" type="search" placeholder="Search title, filename or tag">
+            <input v-model="search" type="search" placeholder="Zoek op titel, bestandsnaam of tag">
           </div>
 
           <div class="picker-body">
@@ -216,13 +217,13 @@ async function upload() {
                   <small>{{ asset.width }}<IconTimes />{{ asset.height }}</small>
                 </span>
               </button>
-              <p v-if="!filteredAssets.length" class="no-results">No {{ kind === 'all' ? 'media items' : 'images' }} match your search.</p>
+              <p v-if="!filteredAssets.length" class="no-results">Geen {{ kind === 'all' ? 'media' : 'afbeeldingen' }} gevonden voor je zoekopdracht.</p>
             </div>
 
             <aside class="upload-panel">
-              <p class="eyebrow">New image</p>
-              <h3>Upload to Media</h3>
-              <p>JPEG, PNG or WebP · max 15 MB.</p>
+              <p class="eyebrow">Nieuwe afbeelding</p>
+              <h3>Uploaden naar Media</h3>
+              <p>JPEG, PNG of WebP · max. 15 MB.</p>
               <input
                 ref="fileInput"
                 type="file"
@@ -230,12 +231,12 @@ async function upload() {
                 @change="chooseFile"
               >
               <label>
-                <span>Title</span>
-                <input v-model="uploadTitle" placeholder="Image title">
+                <span>Titel</span>
+                <input v-model="uploadTitle" placeholder="Titel van de afbeelding">
               </label>
               <label>
-                <span>Alt text</span>
-                <textarea v-model="uploadAlt" rows="3" placeholder="Describe the image" />
+                <span>Alt-tekst</span>
+                <textarea v-model="uploadAlt" rows="3" placeholder="Beschrijf de afbeelding" />
               </label>
               <p v-if="uploadMessage" class="upload-message">{{ uploadMessage }}</p>
               <button
@@ -244,7 +245,7 @@ async function upload() {
                 :disabled="!uploadFile || uploadBusy"
                 @click="upload"
               >
-                {{ uploadBusy ? 'Uploading…' : 'Upload & use' }}
+                {{ uploadBusy ? 'Uploaden…' : 'Uploaden & gebruiken' }}
               </button>
             </aside>
           </div>

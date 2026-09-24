@@ -87,7 +87,7 @@ onMounted(async () => {
     renderPlayer()
   } catch (error) {
     console.error('Remotion preview failed to load', error)
-    failed.value = 'The preview could not be loaded in this browser.'
+    failed.value = 'Het voorbeeld kan in deze browser niet worden geladen.'
   }
 })
 

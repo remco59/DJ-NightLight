@@ -60,21 +60,21 @@ const optionalUuid = z.string().uuid().or(z.literal('')).transform(value => valu
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
   const parts = await readMultipartFormData(event)
-  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Multipart render upload is required' })
+  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Een multipart-upload van de render is verplicht' })
 
   const part = (name: string) => parts.find(item => item.name === name)
   const file = part('file')
-  if (!file?.data?.length) throw createError({ statusCode: 422, statusMessage: 'Rendered PNG is required' })
-  if (file.data.length > 20 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'Rendered PNG exceeds 20 MB' })
+  if (!file?.data?.length) throw createError({ statusCode: 422, statusMessage: 'Een gerenderde PNG is verplicht' })
+  if (file.data.length > 20 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'De gerenderde PNG is groter dan 20 MB' })
 
   const designPart = part('design')?.data?.toString('utf8')
-  if (!designPart) throw createError({ statusCode: 422, statusMessage: 'Design metadata is required' })
+  if (!designPart) throw createError({ statusCode: 422, statusMessage: 'Ontwerpgegevens zijn verplicht' })
 
   let designJson: unknown
   try {
     designJson = JSON.parse(designPart)
   } catch {
-    throw createError({ statusCode: 422, statusMessage: 'Design metadata is invalid JSON' })
+    throw createError({ statusCode: 422, statusMessage: 'De ontwerpgegevens zijn geen geldige JSON' })
   }
   const design = designSchema.parse(designJson)
   const sourceMediaAssetId = optionalUuid.parse(part('sourceMediaAssetId')?.data?.toString('utf8') || '')
@@ -84,13 +84,13 @@ export default defineEventHandler(async (event) => {
   try {
     info = inspectImage(file.data)
   } catch (error) {
-    throw createError({ statusCode: 422, statusMessage: error instanceof Error ? error.message : 'Invalid rendered image' })
+    throw createError({ statusCode: 422, statusMessage: error instanceof Error ? error.message : 'Ongeldige gerenderde afbeelding' })
   }
-  if (info.mimeType !== 'image/png') throw createError({ statusCode: 422, statusMessage: 'Generated posts must be PNG' })
+  if (info.mimeType !== 'image/png') throw createError({ statusCode: 422, statusMessage: 'Gegenereerde posts moeten PNG zijn' })
   if (info.width !== expected.width || info.height !== expected.height) {
     throw createError({
       statusCode: 422,
-      statusMessage: `Rendered image must be ${expected.width}×${expected.height} for ${expected.label}`,
+      statusMessage: `De gerenderde afbeelding moet ${expected.width}×${expected.height} zijn voor ${expected.label}`,
     })
   }
 
@@ -107,7 +107,7 @@ export default defineEventHandler(async (event) => {
       outputKey,
       outputMimeType: info.mimeType,
     }).returning()
-    if (!post) throw new Error('Generated post could not be saved')
+    if (!post) throw new Error('Gegenereerde post opslaan is niet gelukt')
     event.node.res.statusCode = 201
     return { post: { ...post, imageUrl: `/api/generated-posts/${post.id}` } }
   } catch (error) {

@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Venue id is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Locatie-ID is verplicht' })
   }
 
   const input = await readValidatedBody(event, venueInputSchema.parse)
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!venue) {
-    throw createError({ statusCode: 404, statusMessage: 'Venue not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Locatie niet gevonden' })
   }
 
   return { venue }

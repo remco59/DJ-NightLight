@@ -16,7 +16,7 @@ const schema = z.object({
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media-ID is verplicht' })
   const input = await readValidatedBody(event, schema.parse)
 
   const [asset] = await db.update(mediaAssets).set({
@@ -28,6 +28,6 @@ export default defineEventHandler(async (event) => {
     updatedAt: new Date(),
   }).where(eq(mediaAssets.id, id)).returning()
 
-  if (!asset) throw createError({ statusCode: 404, statusMessage: 'Media asset not found' })
+  if (!asset) throw createError({ statusCode: 404, statusMessage: 'Mediabestand niet gevonden' })
   return { asset }
 })

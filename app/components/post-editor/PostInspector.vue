@@ -24,9 +24,9 @@ const { design, busy, templates, brands } = editor
 const tabs: Array<{ key: PostEditorTool, label: string, icon: string }> = [
   { key: 'media', label: 'Media', icon: 'lucide:image' },
   { key: 'template', label: 'Template', icon: 'lucide:layout-template' },
-  { key: 'text', label: 'Text', icon: 'lucide:type' },
-  { key: 'design', label: 'Design', icon: 'lucide:palette' },
-  { key: 'effects', label: 'Effects', icon: 'lucide:sparkles' },
+  { key: 'text', label: 'Tekst', icon: 'lucide:type' },
+  { key: 'design', label: 'Ontwerp', icon: 'lucide:palette' },
+  { key: 'effects', label: 'Effecten', icon: 'lucide:sparkles' },
 ]
 
 const QUICK_TEMPLATE_COUNT = 4
@@ -67,34 +67,34 @@ const textFields: Array<{
   placeholder: string
   multiline?: boolean
 }> = [
-  { field: 'headline', key: 'headline', label: 'Headline', max: 180, placeholder: 'JOUW AVOND. JOUW SOUND.', multiline: true },
-  { field: 'subline', key: 'subline', label: 'Subtitle', max: 260, placeholder: 'DJ NightLight · allround DJ', multiline: true },
-  { field: 'date', key: 'dateText', label: 'Date', max: 160, placeholder: '12 DEC' },
-  { field: 'time', key: 'timeText', label: 'Time', max: 80, placeholder: '22:00 – 02:00' },
-  { field: 'location', key: 'locationText', label: 'Location', max: 160, placeholder: 'Groningen' },
-  { field: 'cta', key: 'ctaText', label: 'Call to action', max: 180, placeholder: 'SEE YOU THERE!' },
+  { field: 'headline', key: 'headline', label: 'Kop', max: 180, placeholder: 'JOUW AVOND. JOUW SOUND.', multiline: true },
+  { field: 'subline', key: 'subline', label: 'Ondertitel', max: 260, placeholder: 'DJ NightLight · allround DJ', multiline: true },
+  { field: 'date', key: 'dateText', label: 'Datum', max: 160, placeholder: '12 DEC' },
+  { field: 'time', key: 'timeText', label: 'Tijd', max: 80, placeholder: '22:00 – 02:00' },
+  { field: 'location', key: 'locationText', label: 'Locatie', max: 160, placeholder: 'Groningen' },
+  { field: 'cta', key: 'ctaText', label: 'Call to action', max: 180, placeholder: 'TOT DAN!' },
 ]
 
 const fieldLabels: Record<PostTextField, string> = {
-  headline: 'Headline',
-  subline: 'Subtitle',
-  date: 'Date',
-  time: 'Time',
-  location: 'Location',
+  headline: 'Kop',
+  subline: 'Ondertitel',
+  date: 'Datum',
+  time: 'Tijd',
+  location: 'Locatie',
   cta: 'Call to action',
-  gigList: 'Gig list',
+  gigList: 'Giglijst',
 }
 
 const alignOptions = [
-  { key: 'left', label: 'Align left', icon: 'lucide:align-left' },
-  { key: 'center', label: 'Align centre', icon: 'lucide:align-center' },
-  { key: 'right', label: 'Align right', icon: 'lucide:align-right' },
+  { key: 'left', label: 'Links uitlijnen', icon: 'lucide:align-left' },
+  { key: 'center', label: 'Centreren', icon: 'lucide:align-center' },
+  { key: 'right', label: 'Rechts uitlijnen', icon: 'lucide:align-right' },
 ] as const
 
 const positionOptions = [
-  { key: 'top', label: 'Top' },
-  { key: 'middle', label: 'Middle' },
-  { key: 'bottom', label: 'Bottom' },
+  { key: 'top', label: 'Boven' },
+  { key: 'middle', label: 'Midden' },
+  { key: 'bottom', label: 'Onder' },
 ] as const
 
 function selectTool(key: PostEditorTool) {
@@ -129,7 +129,7 @@ function onDrop(event: DragEvent) {
   dropActive.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file && !POST_IMAGE_TYPES.includes(file.type)) {
-    editor.message.value = 'Choose a JPEG, PNG or WebP image.'
+    editor.message.value = 'Kies een JPEG-, PNG- of WebP-afbeelding.'
     return
   }
   void uploadFile(file)
@@ -138,7 +138,7 @@ function onDrop(event: DragEvent) {
 
 <template>
   <aside class="inspector" :class="{ collapsed }" aria-label="Inspector">
-    <div class="tool-tabs" role="tablist" aria-label="Editor tools" :aria-orientation="collapsed ? 'vertical' : 'horizontal'">
+    <div class="tool-tabs" role="tablist" aria-label="Editorgereedschap" :aria-orientation="collapsed ? 'vertical' : 'horizontal'">
       <button
         v-for="(tab, index) in tabs"
         :id="'post-tool-tab-' + tab.key"
@@ -173,8 +173,8 @@ function onDrop(event: DragEvent) {
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Source photo</h2>
-              <p>Upload a club photo or choose from your media library.</p>
+              <h2>Bronfoto</h2>
+              <p>Upload een clubfoto of kies er een uit je mediabibliotheek.</p>
             </div>
           </header>
 
@@ -200,18 +200,18 @@ function onDrop(event: DragEvent) {
           >
             <span class="upload-icon"><Icon name="lucide:cloud-upload" aria-hidden="true" /></span>
             <span class="upload-copy">
-              <strong>{{ busy === 'upload' ? 'Uploading…' : 'Upload photo' }}</strong>
-              <small>Click to browse or drag &amp; drop · JPEG, PNG, WebP</small>
+              <strong>{{ busy === 'upload' ? 'Uploaden…' : 'Foto uploaden' }}</strong>
+              <small>Klik om te bladeren of sleep een bestand hierheen · JPEG, PNG, WebP</small>
             </span>
           </button>
 
           <div class="media-head">
-            <div class="sub-tabs" role="group" aria-label="Media source">
-              <button type="button" :class="{ active: mediaView === 'library' }" :aria-pressed="mediaView === 'library'" @click="mediaView = 'library'">Library</button>
-              <button type="button" :class="{ active: mediaView === 'recent' }" :aria-pressed="mediaView === 'recent'" @click="mediaView = 'recent'">Recently used</button>
+            <div class="sub-tabs" role="group" aria-label="Mediabron">
+              <button type="button" :class="{ active: mediaView === 'library' }" :aria-pressed="mediaView === 'library'" @click="mediaView = 'library'">Bibliotheek</button>
+              <button type="button" :class="{ active: mediaView === 'recent' }" :aria-pressed="mediaView === 'recent'" @click="mediaView = 'recent'">Recent gebruikt</button>
             </div>
             <button type="button" class="link-button" @click="emit('browse-media')">
-              See all <Icon name="lucide:arrow-right" aria-hidden="true" />
+              Alles bekijken <Icon name="lucide:arrow-right" aria-hidden="true" />
             </button>
           </div>
 
@@ -232,24 +232,24 @@ function onDrop(event: DragEvent) {
             </button>
           </div>
           <p v-else class="empty-note">
-            {{ mediaView === 'recent' ? 'Photos you export with appear here.' : 'No photos in the media library yet.' }}
+            {{ mediaView === 'recent' ? 'Foto’s die je in een export gebruikt, verschijnen hier.' : 'Nog geen foto’s in de mediabibliotheek.' }}
           </p>
         </section>
 
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Photo position</h2>
-              <p>Drag the photo on the canvas, or drag a corner to scale.</p>
+              <h2>Positie foto</h2>
+              <p>Sleep de foto op het canvas, of sleep een hoek om te schalen.</p>
             </div>
             <button type="button" class="link-button" @click="editor.resetImagePosition()">
-              <Icon name="lucide:rotate-ccw" aria-hidden="true" /> Reset
+              <Icon name="lucide:rotate-ccw" aria-hidden="true" /> Herstellen
             </button>
           </header>
           <div class="range-stack">
-            <PostRangeField v-model="design.zoom" label="Scale" :min="1" :max="3" :step=".01" />
-            <PostRangeField v-model="design.imageX" label="Position X" :min="-1" :max="1" :step=".01" />
-            <PostRangeField v-model="design.imageY" label="Position Y" :min="-1" :max="1" :step=".01" />
+            <PostRangeField v-model="design.zoom" label="Schaal" :min="1" :max="3" :step=".01" />
+            <PostRangeField v-model="design.imageX" label="Positie X" :min="-1" :max="1" :step=".01" />
+            <PostRangeField v-model="design.imageY" label="Positie Y" :min="-1" :max="1" :step=".01" />
           </div>
         </section>
       </template>
@@ -260,10 +260,10 @@ function onDrop(event: DragEvent) {
           <header class="group-head">
             <div>
               <h2>Templates</h2>
-              <p>Templates set the layout. Your text is kept when you switch.</p>
+              <p>Templates bepalen de layout. Je tekst blijft behouden als je wisselt.</p>
             </div>
             <button type="button" class="link-button" @click="emit('browse-templates')">
-              See all ({{ templates.length }}) <Icon name="lucide:arrow-right" aria-hidden="true" />
+              Alles bekijken ({{ templates.length }}) <Icon name="lucide:arrow-right" aria-hidden="true" />
             </button>
           </header>
 
@@ -289,12 +289,12 @@ function onDrop(event: DragEvent) {
           </header>
           <dl class="meta-list">
             <div>
-              <dt>Text fields</dt>
+              <dt>Tekstvelden</dt>
               <dd>{{ template.fields.map(field => fieldLabels[field]).join(', ') }}</dd>
             </div>
             <div>
-              <dt>Text layout</dt>
-              <dd>{{ template.flexibleText ? 'Adjustable alignment and position' : 'Centred, set by the template' }}</dd>
+              <dt>Tekstopmaak</dt>
+              <dd>{{ template.flexibleText ? 'Uitlijning en positie instelbaar' : 'Gecentreerd, bepaald door het template' }}</dd>
             </div>
           </dl>
         </section>
@@ -305,8 +305,8 @@ function onDrop(event: DragEvent) {
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Text</h2>
-              <p>Fields used by the {{ template.label }} template.</p>
+              <h2>Tekst</h2>
+              <p>Velden die het template {{ template.label }} gebruikt.</p>
             </div>
           </header>
 
@@ -318,7 +318,7 @@ function onDrop(event: DragEvent) {
                   <span class="field-tools">
                     <small v-if="item.multiline" class="count">{{ design[item.key].length }}/{{ item.max }}</small>
                     <label class="switch">
-                      <input v-model="design.visibility[visibilityKey(item.field)]" type="checkbox" role="switch" :aria-label="'Show ' + item.label.toLowerCase()">
+                      <input v-model="design.visibility[visibilityKey(item.field)]" type="checkbox" role="switch" :aria-label="item.label + ' tonen'">
                       <span aria-hidden="true" />
                     </label>
                   </span>
@@ -348,11 +348,11 @@ function onDrop(event: DragEvent) {
         <section v-if="usesField('gigList')" class="group">
           <header class="group-head">
             <div>
-              <h2>Upcoming gigs</h2>
-              <p>Up to six rows for the planning template.</p>
+              <h2>Aankomende gigs</h2>
+              <p>Maximaal zes regels voor het planningstemplate.</p>
             </div>
             <label class="switch">
-              <input v-model="design.visibility.gigList" type="checkbox" role="switch" aria-label="Show gig list">
+              <input v-model="design.visibility.gigList" type="checkbox" role="switch" aria-label="Giglijst tonen">
               <span aria-hidden="true" />
             </label>
           </header>
@@ -366,35 +366,35 @@ function onDrop(event: DragEvent) {
               <button
                 type="button"
                 class="icon-button small"
-                :aria-label="`Remove gig ${index + 1}`"
-                title="Remove"
+                :aria-label="`Gig ${index + 1} verwijderen`"
+                title="Verwijderen"
                 :disabled="design.gigItems.length <= 1"
                 @click="editor.removeGigItem(index)"
               >
                 <Icon name="lucide:trash-2" aria-hidden="true" />
               </button>
               <div class="gig-fields">
-                <input v-model="item.dateText" maxlength="40" placeholder="06 DEC" :aria-label="`Gig ${index + 1} date`" :disabled="!design.visibility.gigList || !item.enabled">
-                <input v-model="item.title" maxlength="120" placeholder="Eredivisie Dames" :aria-label="`Gig ${index + 1} title`" :disabled="!design.visibility.gigList || !item.enabled">
-                <input v-model="item.locationText" maxlength="120" placeholder="VC Sneek" :aria-label="`Gig ${index + 1} location`" :disabled="!design.visibility.gigList || !item.enabled">
+                <input v-model="item.dateText" maxlength="40" placeholder="06 DEC" :aria-label="`Datum gig ${index + 1}`" :disabled="!design.visibility.gigList || !item.enabled">
+                <input v-model="item.title" maxlength="120" placeholder="Eredivisie Dames" :aria-label="`Titel gig ${index + 1}`" :disabled="!design.visibility.gigList || !item.enabled">
+                <input v-model="item.locationText" maxlength="120" placeholder="VC Sneek" :aria-label="`Locatie gig ${index + 1}`" :disabled="!design.visibility.gigList || !item.enabled">
               </div>
             </div>
           </div>
           <button type="button" class="ghost-button" :disabled="design.gigItems.length >= 6" @click="editor.addGigItem()">
-            <Icon name="lucide:plus" aria-hidden="true" /> Add gig
+            <Icon name="lucide:plus" aria-hidden="true" /> Gig toevoegen
           </button>
         </section>
 
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Text layout</h2>
-              <p v-if="!template.flexibleText">{{ template.label }} centres its text; alignment is set by the template.</p>
+              <h2>Tekstopmaak</h2>
+              <p v-if="!template.flexibleText">{{ template.label }} centreert de tekst; de uitlijning wordt bepaald door het template.</p>
             </div>
           </header>
           <template v-if="template.flexibleText">
             <div class="option-row">
-              <span id="post-align-label" class="option-label">Alignment</span>
+              <span id="post-align-label" class="option-label">Uitlijning</span>
               <div class="segmented" role="radiogroup" aria-labelledby="post-align-label">
                 <button
                   v-for="option in alignOptions"
@@ -412,7 +412,7 @@ function onDrop(event: DragEvent) {
               </div>
             </div>
             <div class="option-row">
-              <span id="post-position-label" class="option-label">Position</span>
+              <span id="post-position-label" class="option-label">Positie</span>
               <div class="segmented" role="radiogroup" aria-labelledby="post-position-label">
                 <button
                   v-for="option in positionOptions"
@@ -436,11 +436,11 @@ function onDrop(event: DragEvent) {
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Brand style</h2>
-              <p>Colours for text, accents and panels.</p>
+              <h2>Huisstijl</h2>
+              <p>Kleuren voor tekst, accenten en panelen.</p>
             </div>
           </header>
-          <div class="brand-list" role="radiogroup" aria-label="Brand style">
+          <div class="brand-list" role="radiogroup" aria-label="Huisstijl">
             <button
               v-for="brand in brands"
               :key="brand.key"
@@ -462,7 +462,7 @@ function onDrop(event: DragEvent) {
             </button>
           </div>
           <p v-if="!template.flexibleText && design.brandPreset !== 'night'" class="empty-note">
-            The campaign artwork of {{ template.label }} is only used with the NightLight style.
+            De campagne-artwork van {{ template.label }} wordt alleen gebruikt met de NightLight-stijl.
           </p>
         </section>
 
@@ -470,15 +470,15 @@ function onDrop(event: DragEvent) {
           <header class="group-head">
             <div>
               <h2>Logo</h2>
-              <p>The brand label at the top of the post.</p>
+              <p>Het merklabel bovenaan de post.</p>
             </div>
             <label class="switch">
-              <input v-model="design.visibility.logo" type="checkbox" role="switch" aria-label="Show logo">
+              <input v-model="design.visibility.logo" type="checkbox" role="switch" aria-label="Logo tonen">
               <span aria-hidden="true" />
             </label>
           </header>
           <div class="text-field">
-            <label for="post-logo-text">Brand label</label>
+            <label for="post-logo-text">Merklabel</label>
             <input id="post-logo-text" v-model="design.logoText" maxlength="80" :disabled="!design.visibility.logo">
           </div>
         </section>
@@ -494,17 +494,17 @@ function onDrop(event: DragEvent) {
             </div>
           </header>
           <div class="range-stack">
-            <PostRangeField v-model="design.overlayOpacity" label="Strength" :min="0" :max=".9" :step=".01" />
+            <PostRangeField v-model="design.overlayOpacity" label="Sterkte" :min="0" :max=".9" :step=".01" />
           </div>
         </section>
         <section class="group">
           <header class="group-head">
             <div>
-              <h2>Template effects</h2>
+              <h2>Template-effecten</h2>
               <p>
                 {{ template.flexibleText
-                  ? 'Fades, frames and panels come from the template and follow the overlay strength.'
-                  : 'Campaign texture, glow and brush accents come from the template and follow the overlay strength.' }}
+                  ? 'Fades, kaders en panelen komen uit het template en volgen de sterkte van de overlay.'
+                  : 'Campagnetextuur, gloed en penseelaccenten komen uit het template en volgen de sterkte van de overlay.' }}
               </p>
             </div>
           </header>

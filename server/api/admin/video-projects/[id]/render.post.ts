@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const project = validateProject(row.project)
   await assertProjectAssetsExist(project)
   const hasContent = project.tracks.some(track => track.items.length)
-  if (!hasContent) throw createError({ statusCode: 422, statusMessage: 'Add something to the timeline before exporting' })
+  if (!hasContent) throw createError({ statusCode: 422, statusMessage: 'Zet eerst iets op de timeline voordat je exporteert' })
 
   const [job] = await db.insert(videoRenderJobs).values({
     projectId: row.id,
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     status: 'queued',
     progress: 0,
   }).returning()
-  if (!job) throw createError({ statusCode: 500, statusMessage: 'Render could not be queued' })
+  if (!job) throw createError({ statusCode: 500, statusMessage: 'Render in de wachtrij zetten is niet gelukt' })
   event.node.res.statusCode = 202
   return { job: { id: job.id, status: job.status, progress: job.progress } }
 })

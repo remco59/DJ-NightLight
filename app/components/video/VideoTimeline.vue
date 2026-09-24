@@ -370,7 +370,7 @@ function drop(event: DragEvent, track: VideoTrack) {
 function itemLabel(item: TimelineItem) {
   if (item.type === 'graphic') return MOTION_TEMPLATES[item.templateKey]?.label || 'Graphic'
   const asset = editor.mediaById.value.get(item.assetId)
-  return asset?.title || asset?.originalFilename || 'Missing media'
+  return asset?.title || asset?.originalFilename || 'Media ontbreekt'
 }
 
 function itemStyle(item: TimelineItem) {
@@ -554,30 +554,30 @@ defineExpose({ zoomToFit, zoomToSelection })
   <section class="timeline" :class="{ dragging: Boolean(dragging), slipping: dragging?.mode === 'slip', compact: props.compact }">
     <div v-if="!props.compact" class="toolbar">
       <div class="group">
-        <button type="button" title="Undo (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()"><Icon name="lucide:undo-2" aria-hidden="true" /></button>
-        <button type="button" title="Redo (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()"><Icon name="lucide:redo-2" aria-hidden="true" /></button>
+        <button type="button" title="Ongedaan maken (Ctrl/Cmd+Z)" :disabled="!editor.canUndo.value" @click="editor.undo()"><Icon name="lucide:undo-2" aria-hidden="true" /></button>
+        <button type="button" title="Opnieuw (Ctrl/Cmd+Shift+Z)" :disabled="!editor.canRedo.value" @click="editor.redo()"><Icon name="lucide:redo-2" aria-hidden="true" /></button>
         <span class="divider" />
-        <button type="button" title="Delete (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
-        <button type="button" title="Ripple delete: delete and pull later clips left (Shift+Delete)" :disabled="!state.selectedId" @click="editor.rippleDeleteSelected()"><Icon name="lucide:arrow-left-to-line" aria-hidden="true" /></button>
-        <button type="button" title="Split at playhead (S)" @click="editor.splitSelected()"><Icon name="lucide:scissors" aria-hidden="true" /></button>
-        <button type="button" title="Duplicate (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()"><Icon name="lucide:copy" aria-hidden="true" /></button>
-        <button type="button" title="Add marker at playhead (M)" @click="addMarker"><Icon name="lucide:bookmark-plus" aria-hidden="true" /></button>
+        <button type="button" title="Verwijderen (Delete)" :disabled="!state.selectedId" @click="editor.deleteSelected()"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+        <button type="button" title="Ripple delete: verwijderen en latere clips naar links schuiven (Shift+Delete)" :disabled="!state.selectedId" @click="editor.rippleDeleteSelected()"><Icon name="lucide:arrow-left-to-line" aria-hidden="true" /></button>
+        <button type="button" title="Splitsen bij de afspeelpositie (S)" @click="editor.splitSelected()"><Icon name="lucide:scissors" aria-hidden="true" /></button>
+        <button type="button" title="Dupliceren (Ctrl/Cmd+D)" :disabled="!state.selectedId" @click="editor.duplicateSelected()"><Icon name="lucide:copy" aria-hidden="true" /></button>
+        <button type="button" title="Marker toevoegen bij de afspeelpositie (M)" @click="addMarker"><Icon name="lucide:bookmark-plus" aria-hidden="true" /></button>
         <span class="divider" />
-        <button type="button" title="Add video track" @click="editor.addTrack('video')"><Icon name="lucide:plus" aria-hidden="true" />Video</button>
-        <button type="button" title="Add graphics track" @click="editor.addTrack('graphics')"><Icon name="lucide:plus" aria-hidden="true" />Graphics</button>
-        <button type="button" title="Add audio track" @click="editor.addTrack('audio')"><Icon name="lucide:plus" aria-hidden="true" />Audio</button>
+        <button type="button" title="Videotrack toevoegen" @click="editor.addTrack('video')"><Icon name="lucide:plus" aria-hidden="true" />Video</button>
+        <button type="button" title="Graphics-track toevoegen" @click="editor.addTrack('graphics')"><Icon name="lucide:plus" aria-hidden="true" />Graphics</button>
+        <button type="button" title="Audiotrack toevoegen" @click="editor.addTrack('audio')"><Icon name="lucide:plus" aria-hidden="true" />Audio</button>
       </div>
       <div class="group">
         <span class="timecode">{{ formatTimecode(state.frame, state.project.fps) }}:{{ String(state.frame % state.project.fps).padStart(2, '0') }}</span>
-        <button type="button" title="Zoom out" @click="zoomBy(0.8)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
-        <input v-model.number="state.zoom" class="zoom" type="range" min="8" max="400" aria-label="Timeline zoom">
-        <button type="button" title="Zoom in" @click="zoomBy(1.25)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
-        <button type="button" title="Zoom to fit (\) — Shift+\ zooms to the selected clip" @click="zoomToFit"><Icon name="lucide:maximize-2" aria-hidden="true" /></button>
-        <label class="snap"><input v-model="state.snap" type="checkbox"> Snap</label>
-        <select v-model="state.beatSnap" class="beat-snap" aria-label="Snap to the music" :disabled="!state.snap" title="Also snap to the beat grid of the audio">
-          <option value="beats">to beats</option>
-          <option value="bars">to bars</option>
-          <option value="off">not to music</option>
+        <button type="button" title="Uitzoomen" @click="zoomBy(0.8)"><Icon name="lucide:zoom-out" aria-hidden="true" /></button>
+        <input v-model.number="state.zoom" class="zoom" type="range" min="8" max="400" aria-label="Zoom timeline">
+        <button type="button" title="Inzoomen" @click="zoomBy(1.25)"><Icon name="lucide:zoom-in" aria-hidden="true" /></button>
+        <button type="button" title="Passend zoomen (\) — Shift+\ zoomt naar de gekozen clip" @click="zoomToFit"><Icon name="lucide:maximize-2" aria-hidden="true" /></button>
+        <label class="snap"><input v-model="state.snap" type="checkbox"> Vastklikken</label>
+        <select v-model="state.beatSnap" class="beat-snap" aria-label="Vastklikken op de muziek" :disabled="!state.snap" title="Ook vastklikken op het beatgrid van de audio">
+          <option value="beats">op beats</option>
+          <option value="bars">op maten</option>
+          <option value="off">niet op muziek</option>
         </select>
       </div>
     </div>
@@ -597,14 +597,14 @@ defineExpose({ zoomToFit, zoomToSelection })
           <div class="corner" :style="{ width: `${LABEL_WIDTH}px` }" />
           <div class="ruler" :style="{ width: `${contentWidth}px` }" @pointerdown="scrubStart">
             <span v-for="tick in ticks" :key="tick.frame" class="tick" :style="{ left: `${x(tick.frame)}px` }">{{ tick.label }}</span>
-            <span class="end-marker" :style="{ left: `${x(editor.duration.value)}px` }" title="End of video" />
+            <span class="end-marker" :style="{ left: `${x(editor.duration.value)}px` }" title="Einde van de video" />
             <span
               v-for="marker in state.project.markers || []"
               :key="marker.id"
               class="marker"
               :class="{ selected: state.selectedMarkerId === marker.id }"
               :style="{ left: `${x(marker.frame)}px`, '--marker': marker.color || MARKER_COLORS[0] }"
-              :title="`${marker.label || 'Marker'} — drag to move, double-click to edit`"
+              :title="`${marker.label || 'Marker'} — sleep om te verplaatsen, dubbelklik om te bewerken`"
               @pointerdown="startMarkerDrag($event, marker)"
               @dblclick.stop="editMarker(marker)"
             >{{ marker.label }}</span>
@@ -620,8 +620,8 @@ defineExpose({ zoomToFit, zoomToSelection })
                 v-model="markerLabel"
                 type="text"
                 maxlength="40"
-                placeholder="Label, e.g. Drop"
-                aria-label="Marker label"
+                placeholder="Label, bijv. Drop"
+                aria-label="Label marker"
                 @keydown.enter="closeMarkerEditor"
                 @keydown.escape="state.editingMarkerId = null"
                 @blur="commitMarkerLabel"
@@ -633,10 +633,10 @@ defineExpose({ zoomToFit, zoomToSelection })
                 class="swatch"
                 :class="{ on: (editingMarker.color || MARKER_COLORS[0]) === color }"
                 :style="{ background: color }"
-                :aria-label="`Colour ${color}`"
+                :aria-label="`Kleur ${color}`"
                 @click="setMarkerColor(color)"
               />
-              <button type="button" class="done" @click="closeMarkerEditor">Done</button>
+              <button type="button" class="done" @click="closeMarkerEditor">Klaar</button>
             </div>
           </div>
         </div>
@@ -658,7 +658,7 @@ defineExpose({ zoomToFit, zoomToSelection })
               type="button"
               class="track-toggle"
               :class="{ off: track.kind === 'audio' ? track.muted : track.hidden }"
-              :aria-label="`${track.name}: ${track.kind === 'audio' ? (track.muted ? 'unmute' : 'mute') : (track.hidden ? 'show' : 'hide')}`"
+              :aria-label="`${track.name}: ${track.kind === 'audio' ? (track.muted ? 'dempen opheffen' : 'dempen') : (track.hidden ? 'tonen' : 'verbergen')}`"
               :aria-pressed="track.kind === 'audio' ? track.muted : track.hidden"
               @click="editor.toggleTrack(track.id, track.kind === 'audio' ? 'muted' : 'hidden')"
             >
@@ -670,24 +670,24 @@ defineExpose({ zoomToFit, zoomToSelection })
               class="grip"
               role="button"
               tabindex="0"
-              :aria-label="`Reorder ${track.name}: drag, or use the up and down arrow keys`"
-              :title="track.kind === 'audio' ? 'Drag to reorder' : 'Drag to reorder (top row = front layer)'"
+              :aria-label="`${track.name} verplaatsen: sleep, of gebruik de pijltjestoetsen omhoog en omlaag`"
+              :title="track.kind === 'audio' ? 'Sleep om de volgorde te wijzigen' : 'Sleep om de volgorde te wijzigen (bovenste rij = voorste laag)'"
               @pointerdown="startTrackDrag($event, track)"
               @keydown="trackKey($event, track)"
             ><Icon name="lucide:grip-vertical" aria-hidden="true" /></span>
             <Icon class="kind" :name="kindIcon[track.kind]" aria-hidden="true" />
             <span class="name">{{ track.name }}</span>
-            <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Show track' : 'Hide track'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
-            <button type="button" :title="track.kind === 'graphics' ? (track.muted ? 'Unmute template sounds' : 'Mute template sounds') : (track.muted ? 'Unmute track' : 'Mute track')" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
-            <button v-if="track.items.length > 1" type="button" title="Close gaps between clips" @click="editor.closeTrackGaps(track.id)"><Icon name="lucide:fold-horizontal" aria-hidden="true" /></button>
-            <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Remove empty track" @click="editor.removeTrack(track.id)"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <button v-if="track.kind !== 'audio'" type="button" :title="track.hidden ? 'Track tonen' : 'Track verbergen'" @click="editor.toggleTrack(track.id, 'hidden')"><Icon :name="track.hidden ? 'lucide:eye-off' : 'lucide:eye'" aria-hidden="true" /></button>
+            <button type="button" :title="track.kind === 'graphics' ? (track.muted ? 'Templategeluiden weer aanzetten' : 'Templategeluiden dempen') : (track.muted ? 'Track weer aanzetten' : 'Track dempen')" @click="editor.toggleTrack(track.id, 'muted')"><Icon :name="track.muted ? 'lucide:volume-x' : 'lucide:volume-2'" aria-hidden="true" /></button>
+            <button v-if="track.items.length > 1" type="button" title="Gaten tussen clips sluiten" @click="editor.closeTrackGaps(track.id)"><Icon name="lucide:fold-horizontal" aria-hidden="true" /></button>
+            <button v-if="state.project.tracks.length > 1 && !track.items.length" type="button" title="Lege track verwijderen" @click="editor.removeTrack(track.id)"><Icon name="lucide:x" aria-hidden="true" /></button>
           </div>
           <div
             class="lane"
             :class="{ 'drop-target': dropTrackId === track.id }"
             :data-track-id="track.id"
             :style="{ width: `${contentWidth}px` }"
-            title="Double-click a gap between clips to close it"
+            title="Dubbelklik op een gat tussen clips om het te sluiten"
             @pointerdown="laneClick"
             @click="laneTap"
             @dblclick.self="editor.closeGapAtFrame(track.id, frameAt($event.clientX, $event.currentTarget as Element))"
@@ -701,7 +701,7 @@ defineExpose({ zoomToFit, zoomToSelection })
               class="item"
               :class="[item.type, { selected: state.selectedId === item.id }]"
               :style="itemStyle(item)"
-              :title="item.type === 'video' || item.type === 'audio' ? `${itemLabel(item)} — Alt-drag to slip the source` : itemLabel(item)"
+              :title="item.type === 'video' || item.type === 'audio' ? `${itemLabel(item)} — sleep met Alt om de bron te verschuiven` : itemLabel(item)"
               @pointerdown="startDrag($event, item, 'move')"
               @click.stop="itemTap(item)"
             >
@@ -724,7 +724,7 @@ defineExpose({ zoomToFit, zoomToSelection })
                 class="sfx-tick"
                 :class="{ silent: track.muted || track.hidden }"
                 :style="{ left: `${x(cue.frame)}px` }"
-                :title="`${TEMPLATE_SOUNDS[cue.sound].label} sound`"
+                :title="`Geluid: ${TEMPLATE_SOUNDS[cue.sound].label}`"
               />
               <span class="label">
                 <b v-if="item.type === 'graphic'"><Icon name="lucide:type" aria-hidden="true" /></b>

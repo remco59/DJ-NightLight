@@ -13,7 +13,7 @@ const { state } = editor
 <template>
   <header class="m-header">
     <div class="m-header-row">
-      <NuxtLink to="/admin/post-generator/video" class="icon-button" aria-label="All video projects">
+      <NuxtLink to="/admin/post-generator/video" class="icon-button" aria-label="Alle videoprojecten">
         <Icon name="lucide:arrow-left" aria-hidden="true" />
       </NuxtLink>
       <div class="title">
@@ -22,30 +22,30 @@ const { state } = editor
           class="name"
           type="text"
           maxlength="160"
-          aria-label="Project name"
+          aria-label="Projectnaam"
           @blur="emit('commitName')"
           @keydown.enter="($event.target as HTMLInputElement).blur()"
         >
         <span class="save" :class="state.saveState" role="status" :title="state.saveError || props.saveLabel">
           <i aria-hidden="true" />{{ props.saveLabel }}
-          <button v-if="state.saveState === 'error'" type="button" @click="editor.save()">Retry</button>
+          <button v-if="state.saveState === 'error'" type="button" @click="editor.save()">Opnieuw proberen</button>
         </span>
       </div>
-      <button type="button" class="icon-button" aria-label="Undo" :disabled="!editor.canUndo.value" @click="editor.undo()">
+      <button type="button" class="icon-button" aria-label="Ongedaan maken" :disabled="!editor.canUndo.value" @click="editor.undo()">
         <Icon name="lucide:undo-2" aria-hidden="true" />
       </button>
-      <button type="button" class="icon-button" aria-label="Redo" :disabled="!editor.canRedo.value" @click="editor.redo()">
+      <button type="button" class="icon-button" aria-label="Opnieuw" :disabled="!editor.canRedo.value" @click="editor.redo()">
         <Icon name="lucide:redo-2" aria-hidden="true" />
       </button>
       <button type="button" class="export" :disabled="props.exporting" @click="emit('export')">
-        {{ props.exporting ? 'Queueing…' : 'Export' }}
+        {{ props.exporting ? 'In wachtrij…' : 'Export' }}
       </button>
     </div>
     <div class="m-header-row options">
       <select
         class="aspect"
         :value="state.project.aspect"
-        aria-label="Video format"
+        aria-label="Videoformaat"
         @change="editor.setAspect(($event.target as HTMLSelectElement).value as VideoAspect)"
       >
         <option v-for="key in VIDEO_ASPECT_KEYS" :key="key" :value="key">{{ VIDEO_ASPECTS[key].label }}</option>
@@ -57,7 +57,7 @@ const { state } = editor
           :checked="state.project.showSafeZones"
           @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })"
         >
-        <span>Safe area</span>
+        <span>Veilige zone</span>
       </label>
     </div>
   </header>

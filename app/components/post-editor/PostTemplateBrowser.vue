@@ -34,16 +34,16 @@ watch(open, (value) => {
         <header class="dialog-head">
           <div>
             <h2 id="post-template-browser-title">Templates</h2>
-            <p>Templates define the layout and branding; your text and photo are kept.</p>
+            <p>Templates bepalen de layout en huisstijl; je tekst en foto blijven behouden.</p>
           </div>
-          <button ref="closeRef" type="button" class="close" aria-label="Close" @click="open = false">
+          <button ref="closeRef" type="button" class="close" aria-label="Sluiten" @click="open = false">
             <Icon name="lucide:x" aria-hidden="true" />
           </button>
         </header>
 
-        <div class="filters" role="group" aria-label="Template category">
+        <div class="filters" role="group" aria-label="Templatecategorie">
           <button type="button" :class="{ active: category === 'all' }" :aria-pressed="category === 'all'" @click="category = 'all'">
-            All <span>{{ templates.length }}</span>
+            Alle <span>{{ templates.length }}</span>
           </button>
           <button
             v-for="item in categories"

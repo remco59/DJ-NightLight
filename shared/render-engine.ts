@@ -12,7 +12,7 @@ export const renderEngineSettingSchema = z.enum(RENDER_ENGINE_SETTINGS)
 export const renderSettingsInputSchema = z.object({ engine: renderEngineSettingSchema })
 
 export const RENDER_ENGINE_LABELS: Record<RenderEngineSetting, string> = {
-  auto: 'Automatic',
+  auto: 'Automatisch',
   cpu: 'CPU (software)',
   intel: 'Intel GPU (VAAPI)',
 }
@@ -42,7 +42,7 @@ export function resolveRenderEngine(setting: RenderEngineSetting, capabilities: 
   if (setting === 'auto') return AUTO_PREFERENCE.find(engine => isEngineAvailable(engine, capabilities)) ?? 'cpu'
   if (isEngineAvailable(setting, capabilities)) return setting
   const detail = capabilities.find(capability => capability.id === setting)?.detail
-  throw new Error(`${RENDER_ENGINE_LABELS[setting]} is unavailable${detail ? `: ${detail}` : ''}`)
+  throw new Error(`${RENDER_ENGINE_LABELS[setting]} is niet beschikbaar${detail ? `: ${detail}` : ''}`)
 }
 
 export function parseRenderEngineSetting(value: unknown): RenderEngineSetting {

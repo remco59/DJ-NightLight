@@ -9,7 +9,7 @@ const optionalUrl = nullableString(2000).transform((value, ctx) => {
   if (!value) return null
   const parsed = z.url().safeParse(value)
   if (!parsed.success) {
-    ctx.addIssue({ code: 'custom', message: 'Enter a valid URL' })
+    ctx.addIssue({ code: 'custom', message: 'Vul een geldige URL in' })
     return z.NEVER
   }
   return parsed.data
@@ -19,14 +19,14 @@ const internalMediaUrlPattern = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-
 
 const siteImageUrl = z.string().trim().max(2000).refine(
   value => internalMediaUrlPattern.test(value) || z.url().safeParse(value).success,
-  { message: 'Enter a valid image URL' },
+  { message: 'Vul een geldige afbeeldings-URL in' },
 )
 
 const optionalImageUrl = nullableString(2000).transform((value, ctx) => {
   if (!value) return null
   const parsed = siteImageUrl.safeParse(value)
   if (!parsed.success) {
-    ctx.addIssue({ code: 'custom', message: 'Enter a valid image URL' })
+    ctx.addIssue({ code: 'custom', message: 'Vul een geldige afbeeldings-URL in' })
     return z.NEVER
   }
   return parsed.data
@@ -36,7 +36,7 @@ const optionalEmail = nullableString(320).transform((value, ctx) => {
   if (!value) return null
   const parsed = z.email().safeParse(value)
   if (!parsed.success) {
-    ctx.addIssue({ code: 'custom', message: 'Enter a valid email address' })
+    ctx.addIssue({ code: 'custom', message: 'Vul een geldig e-mailadres in' })
     return z.NEVER
   }
   return parsed.data.toLowerCase()

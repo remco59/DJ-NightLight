@@ -62,14 +62,14 @@ describe('video project model', () => {
 
     const project = createVideoProject()
     project.tracks[2]!.items.push(createGraphicItem('hype-title', 0, 30))
-    expect(() => parseVideoProject(project)).toThrow(/cannot hold graphic/)
+    expect(() => parseVideoProject(project)).toThrow(/kan geen graphic-items bevatten/)
   })
 
   it('rejects duplicate item ids and unknown templates', () => {
     const project = createVideoProject()
     const graphic = project.tracks[1]!.items[0]!
     project.tracks[1]!.items.push({ ...graphic, start: 400 })
-    expect(() => parseVideoProject(project)).toThrow(/Duplicate item id/)
+    expect(() => parseVideoProject(project)).toThrow(/Dubbele item-ID/)
 
     const unknown = createVideoProject() as unknown as { tracks: Array<{ items: Array<Record<string, unknown>> }> }
     unknown.tracks[1]!.items[0]!.templateKey = 'not-a-template'

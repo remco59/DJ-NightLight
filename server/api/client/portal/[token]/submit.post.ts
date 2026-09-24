@@ -19,14 +19,14 @@ export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
   assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:submit`)
   const access = await resolvePortalAccess(token)
-  if (!access) throw createError({ statusCode: 404, statusMessage: 'This portal link is invalid or expired' })
+  if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
   const parsed = submissionSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid submission' })
 
   const form = await getPortalForm(access.gigId)
-  if (form.submission?.status === 'submitted') throw createError({ statusCode: 409, statusMessage: 'This form has already been submitted' })
+  if (form.submission?.status === 'submitted') throw createError({ statusCode: 409, statusMessage: 'Dit formulier is al ingediend' })
   const answerErrors = validateQuestionnaireAnswers(form.version.fields, parsed.data.answers)
-  if (Object.keys(answerErrors).length) throw createError({ statusCode: 422, statusMessage: 'Please complete all required fields', data: { fieldErrors: answerErrors } })
+  if (Object.keys(answerErrors).length) throw createError({ statusCode: 422, statusMessage: 'Vul alle verplichte velden in', data: { fieldErrors: answerErrors } })
   const versionedAnswers = Object.fromEntries(form.version.fields.map(field => [field.id, parsed.data.answers[field.id]]))
   const now = new Date()
 
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
     const [saved] = form.submission
       ? await tx.update(contractSubmissions).set(values).where(eq(contractSubmissions.id, form.submission.id)).returning()
       : await tx.insert(contractSubmissions).values({ gigId: access.gigId, ...values }).returning()
-    if (!saved) throw createError({ statusCode: 500, statusMessage: 'Could not save submission' })
+    if (!saved) throw createError({ statusCode: 500, statusMessage: 'Inzending opslaan is niet gelukt' })
     await tx.delete(musicWishes).where(eq(musicWishes.gigId, access.gigId))
     if (parsed.data.wishes.length) {
       await tx.insert(musicWishes).values(parsed.data.wishes.map(wish => ({

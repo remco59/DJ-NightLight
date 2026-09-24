@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
   assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:checkout`)
   const access = await resolvePortalAccess(token)
-  if (!access) throw createError({ statusCode: 404, statusMessage: 'This portal link is invalid or expired' })
+  if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
 
   const [invoice] = await db.select({
     id: invoices.id, invoiceNumber: invoices.invoiceNumber, totalCents: invoices.totalCents, currency: invoices.currency,
@@ -27,17 +27,17 @@ export default defineEventHandler(async (event) => {
   }).from(invoices).leftJoin(clients, eq(invoices.clientId, clients.id)).where(and(
     eq(invoices.gigId, access.gigId), eq(invoices.status, 'finalized'), ne(invoices.paymentStatus, 'paid'),
   )).orderBy(desc(invoices.finalizedAt)).limit(1)
-  if (!invoice || !invoice.invoiceNumber) throw createError({ statusCode: 404, statusMessage: 'No payable invoice is available' })
-  if (invoice.totalCents <= 0) throw createError({ statusCode: 422, statusMessage: 'This invoice has no outstanding amount' })
+  if (!invoice || !invoice.invoiceNumber) throw createError({ statusCode: 404, statusMessage: 'Er is geen factuur om te betalen' })
+  if (invoice.totalCents <= 0) throw createError({ statusCode: 422, statusMessage: 'Op deze factuur staat geen bedrag meer open' })
 
   const [reserved] = await db.insert(payments).values({
     invoiceId: invoice.id, amountCents: invoice.totalCents, currency: invoice.currency, status: 'pending',
   }).onConflictDoNothing({ target: payments.invoiceId }).returning()
   const payment = reserved || (await db.select().from(payments).where(eq(payments.invoiceId, invoice.id)).limit(1))[0]
-  if (!payment) throw createError({ statusCode: 500, statusMessage: 'Could not reserve payment' })
-  if (payment.status === 'succeeded') throw createError({ statusCode: 409, statusMessage: 'This invoice is already paid' })
+  if (!payment) throw createError({ statusCode: 500, statusMessage: 'Betaling reserveren is niet gelukt' })
+  if (payment.status === 'succeeded') throw createError({ statusCode: 409, statusMessage: 'Deze factuur is al betaald' })
 
-  if (!invoice.clientId) throw createError({ statusCode: 422, statusMessage: 'This invoice has no client' })
+  if (!invoice.clientId) throw createError({ statusCode: 422, statusMessage: 'Deze factuur heeft geen klant' })
   const { stripe, customerId } = await ensureStripeCustomer({
     id: invoice.clientId,
     stripeCustomerId: invoice.clientStripeCustomerId,
@@ -81,7 +81,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `nightlight-${payment.id}-${attempt}` })
-  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL' })
+  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe gaf geen checkout-URL terug' })
 
   await db.update(payments).set({
     providerSessionId: session.id, attemptCount: sql`${payments.attemptCount} + 1`,

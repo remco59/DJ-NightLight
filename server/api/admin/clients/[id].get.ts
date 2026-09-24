@@ -9,12 +9,12 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Client id is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Klant-ID is verplicht' })
   }
 
   const [client] = await db.select().from(clients).where(eq(clients.id, id)).limit(1)
   if (!client) {
-    throw createError({ statusCode: 404, statusMessage: 'Client not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Klant niet gevonden' })
   }
 
   const history = await db

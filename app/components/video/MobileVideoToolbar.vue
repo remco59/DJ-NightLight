@@ -7,14 +7,14 @@ const tool = defineModel<MobileVideoTool>({ required: true })
 const tabs: Array<{ key: MobileVideoTool, label: string, icon: string }> = [
   { key: 'media', label: 'Media', icon: 'lucide:images' },
   { key: 'templates', label: 'Templates', icon: 'lucide:layout-template' },
-  { key: 'edit', label: 'Edit', icon: 'lucide:sliders-horizontal' },
+  { key: 'edit', label: 'Bewerken', icon: 'lucide:sliders-horizontal' },
   { key: 'audio', label: 'Audio', icon: 'lucide:music' },
   { key: 'export', label: 'Export', icon: 'lucide:clapperboard' },
 ]
 </script>
 
 <template>
-  <nav class="m-toolbar" aria-label="Editor tools">
+  <nav class="m-toolbar" aria-label="Editorgereedschap">
     <button
       v-for="tab in tabs"
       :key="tab.key"

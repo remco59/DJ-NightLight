@@ -8,9 +8,9 @@ const schema = z.object({ expiresInDays: z.coerce.number().int().min(1).max(365)
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
   const parsed = schema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Invalid portal link settings' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldige instellingen voor de portaallink' })
 
   const { link, token } = await issuePortalLink({
     gigId,

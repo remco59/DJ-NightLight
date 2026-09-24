@@ -24,7 +24,7 @@ type Settings = {
 }
 
 const {data,refresh}=await useFetch<{settings:Settings}>('/api/admin/business-settings')
-if(!data.value)throw createError({statusCode:500,statusMessage:'Business settings unavailable'})
+if(!data.value)throw createError({statusCode:500,statusMessage:'Bedrijfsinstellingen niet beschikbaar'})
 
 const form=reactive({...data.value.settings})
 const saving=ref(false)
@@ -44,9 +44,9 @@ async function save(){
   try{
     await $fetch('/api/admin/business-settings',{method:'PUT',body:form})
     await refresh()
-    message.value='Business and invoice defaults saved.'
+    message.value='Bedrijfsgegevens en factuurinstellingen opgeslagen.'
   }catch(error:unknown){
-    message.value=apiErrorMessage(error,'Could not save settings.')
+    message.value=apiErrorMessage(error,'Instellingen opslaan is niet gelukt.')
   }finally{
     saving.value=false
   }
@@ -57,7 +57,7 @@ async function changePassword(){
   passwordMessageType.value=''
 
   if(passwordForm.newPassword!==passwordForm.confirmPassword){
-    passwordMessage.value='New passwords do not match.'
+    passwordMessage.value='De nieuwe wachtwoorden komen niet overeen.'
     passwordMessageType.value='error'
     return
   }
@@ -68,75 +68,75 @@ async function changePassword(){
     passwordForm.currentPassword=''
     passwordForm.newPassword=''
     passwordForm.confirmPassword=''
-    passwordMessage.value='Password changed. Other signed-in sessions have been signed out.'
+    passwordMessage.value='Wachtwoord gewijzigd. Andere ingelogde sessies zijn uitgelogd.'
     passwordMessageType.value='success'
   }catch(error:unknown){
-    passwordMessage.value=apiErrorMessage(error,'Could not change password.')
+    passwordMessage.value=apiErrorMessage(error,'Wachtwoord wijzigen is niet gelukt.')
     passwordMessageType.value='error'
   }finally{
     passwordSaving.value=false
   }
 }
 
-useSeoMeta({title:'Settings — DJ NightLight',robots:'noindex, nofollow'})
+useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
 </script>
 
 <template>
   <div class="settings">
     <header>
-      <p class="eyebrow">System</p>
-      <h1>Settings</h1>
-      <p>Manage business defaults, account security and connected services.</p>
+      <p class="eyebrow">Systeem</p>
+      <h1>Instellingen</h1>
+      <p>Beheer bedrijfsgegevens, accountbeveiliging en gekoppelde diensten.</p>
     </header>
 
     <form @submit.prevent="save">
       <section class="card">
-        <h2>Company</h2>
+        <h2>Bedrijf</h2>
         <div class="grid">
-          <label class="wide">Company name<input v-model="form.companyName" required></label>
-          <label class="wide">Address<input v-model="form.address"></label>
-          <label>Postal code<input v-model="form.postalCode"></label>
-          <label>City<input v-model="form.city"></label>
-          <label>Country<input v-model="form.country"></label>
-          <label>Email<input v-model="form.email" type="email"></label>
-          <label>Phone<input v-model="form.phone"></label>
-          <label>Registration / KVK<input v-model="form.registrationNumber"></label>
-          <label>VAT number<input v-model="form.vatNumber"></label>
+          <label class="wide">Bedrijfsnaam<input v-model="form.companyName" required></label>
+          <label class="wide">Adres<input v-model="form.address"></label>
+          <label>Postcode<input v-model="form.postalCode"></label>
+          <label>Plaats<input v-model="form.city"></label>
+          <label>Land<input v-model="form.country"></label>
+          <label>E-mail<input v-model="form.email" type="email"></label>
+          <label>Telefoon<input v-model="form.phone"></label>
+          <label>KvK-nummer<input v-model="form.registrationNumber"></label>
+          <label>Btw-nummer<input v-model="form.vatNumber"></label>
           <label>IBAN<input v-model="form.iban"></label>
         </div>
       </section>
 
       <section class="card">
-        <h2>Invoice defaults</h2>
+        <h2>Standaardinstellingen facturen</h2>
         <div class="grid">
-          <label>Number prefix<input v-model="form.invoicePrefix" required></label>
-          <label>Next sequence<input :value="form.nextInvoiceNumber" disabled><small>Advanced automatically on finalization.</small></label>
-          <label>VAT behavior<select v-model="form.defaultVatMode"><option value="exclusive">Prices excluding VAT</option><option value="inclusive">Prices including VAT</option><option value="exempt">No VAT / exempt</option></select></label>
-          <label>VAT rate (%)<input :value="form.defaultVatRateBasisPoints/100" type="number" min="0" max="100" step="0.01" @input="setVatRate"></label>
-          <label>Payment term (days)<input v-model.number="form.defaultPaymentTermDays" type="number" min="0" max="365"></label>
-          <label class="wide">Payment terms<textarea v-model="form.paymentTerms" rows="3"/></label>
-          <label class="wide">Legal text<textarea v-model="form.legalText" rows="3"/></label>
+          <label>Voorvoegsel factuurnummer<input v-model="form.invoicePrefix" required></label>
+          <label>Volgend nummer<input :value="form.nextInvoiceNumber" disabled><small>Loopt automatisch op bij het definitief maken.</small></label>
+          <label>Btw-berekening<select v-model="form.defaultVatMode"><option value="exclusive">Prijzen exclusief btw</option><option value="inclusive">Prijzen inclusief btw</option><option value="exempt">Geen btw / vrijgesteld</option></select></label>
+          <label>Btw-tarief (%)<input :value="form.defaultVatRateBasisPoints/100" type="number" min="0" max="100" step="0.01" @input="setVatRate"></label>
+          <label>Betalingstermijn (dagen)<input v-model.number="form.defaultPaymentTermDays" type="number" min="0" max="365"></label>
+          <label class="wide">Betalingsvoorwaarden<textarea v-model="form.paymentTerms" rows="3"/></label>
+          <label class="wide">Juridische tekst<textarea v-model="form.legalText" rows="3"/></label>
         </div>
       </section>
 
       <div class="save">
         <span>{{message}}</span>
-        <button :disabled="saving">{{saving?'Saving…':'Save business settings'}}</button>
+        <button :disabled="saving">{{saving?'Opslaan…':'Bedrijfsinstellingen opslaan'}}</button>
       </div>
     </form>
 
     <section class="card security-card">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Account security</p>
-          <h2>Change password</h2>
+          <p class="eyebrow">Accountbeveiliging</p>
+          <h2>Wachtwoord wijzigen</h2>
         </div>
-        <p>Changing your password signs out your other NightLight sessions. This browser stays signed in.</p>
+        <p>Als je je wachtwoord wijzigt, word je uitgelogd uit je andere NightLight-sessies. Deze browser blijft ingelogd.</p>
       </div>
 
       <form class="password-form" @submit.prevent="changePassword">
         <label>
-          Current password
+          Huidig wachtwoord
           <input
             v-model="passwordForm.currentPassword"
             type="password"
@@ -147,7 +147,7 @@ useSeoMeta({title:'Settings — DJ NightLight',robots:'noindex, nofollow'})
           >
         </label>
         <label>
-          New password
+          Nieuw wachtwoord
           <input
             v-model="passwordForm.newPassword"
             type="password"
@@ -156,10 +156,10 @@ useSeoMeta({title:'Settings — DJ NightLight',robots:'noindex, nofollow'})
             maxlength="200"
             required
           >
-          <small>Use at least 12 characters.</small>
+          <small>Gebruik minstens 12 tekens.</small>
         </label>
         <label>
-          Confirm new password
+          Bevestig nieuw wachtwoord
           <input
             v-model="passwordForm.confirmPassword"
             type="password"
@@ -172,7 +172,7 @@ useSeoMeta({title:'Settings — DJ NightLight',robots:'noindex, nofollow'})
 
         <div class="security-actions">
           <span :class="passwordMessageType">{{passwordMessage}}</span>
-          <button :disabled="passwordSaving">{{passwordSaving?'Changing…':'Change password'}}</button>
+          <button :disabled="passwordSaving">{{passwordSaving?'Wijzigen…':'Wachtwoord wijzigen'}}</button>
         </div>
       </form>
     </section>

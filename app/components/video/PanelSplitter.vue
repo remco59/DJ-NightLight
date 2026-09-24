@@ -66,7 +66,7 @@ function keyDown(event: KeyboardEvent) {
     :aria-valuenow="props.value"
     :aria-valuemin="props.min"
     :aria-valuemax="props.max"
-    title="Drag to resize, double-click to reset"
+    title="Sleep om de grootte aan te passen, dubbelklik om te herstellen"
     @pointerdown="pointerDown"
     @keydown="keyDown"
     @dblclick="emit('reset')"
