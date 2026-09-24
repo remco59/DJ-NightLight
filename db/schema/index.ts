@@ -281,6 +281,7 @@ export const calendarSyncSettings = pgTable('calendar_sync_settings', {
   clientId: varchar('client_id', { length: 500 }),
   clientSecretEncrypted: text('client_secret_encrypted'),
   refreshTokenEncrypted: text('refresh_token_encrypted'),
+  icsTokenEncrypted: text('ics_token_encrypted'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
