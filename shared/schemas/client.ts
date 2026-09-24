@@ -20,6 +20,9 @@ export const clientInputSchema = z.object({
   phone: optionalText(64),
   billingAddress: optionalText(1000),
   notes: optionalText(5000),
+  // Template keys that are not sent automatically to this client. Omitted = unchanged.
+  emailAutomationDisabled: z.array(z.string().trim().min(1).max(80)).max(100)
+    .transform(keys => [...new Set(keys)]).optional(),
 }).superRefine((value, ctx) => {
   if (value.type === 'company' && !value.companyName) {
     ctx.addIssue({ code: 'custom', path: ['companyName'], message: 'Company name is required' })

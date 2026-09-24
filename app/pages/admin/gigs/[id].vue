@@ -143,6 +143,8 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <div v-if="canManageGigs" class="save-bar"><div><strong>{{message||'Changes are only stored after saving.'}}</strong><span>Calendar synchronization arrives in phase 5.</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Save gig'}}</button></div>
 </form>
 
+<AdminGigEmails v-if="canManageGigs" :gig-id="id" :portal-url="portalUrl" />
+
 <section class="card activity"><p class="eyebrow">Activity</p><h2>Recent changes</h2><div v-if="!data.activity.length" class="subtle">No activity recorded yet.</div><div v-for="item in data.activity" :key="item.id" class="activity-row"><strong>{{item.action.replaceAll('_',' ')}}<small v-if="item.actorName"> · {{item.actorName}}</small></strong><span>{{activityDate(item.createdAt)}}</span></div></section>
 </div></template>
 

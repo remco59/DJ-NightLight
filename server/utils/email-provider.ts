@@ -6,6 +6,7 @@ type SendInput = {
   text: string
   html: string
   idempotencyKey: string
+  attachments?: Array<{ filename: string, content: Uint8Array }>
 }
 
 export async function emailProviderConfigured() {
@@ -30,6 +31,14 @@ export async function sendEmail(input: SendInput) {
       subject: input.subject,
       text: input.text,
       html: input.html,
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map(attachment => ({
+              filename: attachment.filename,
+              content: Buffer.from(attachment.content).toString('base64'),
+            })),
+          }
+        : {}),
     }),
   })
 
