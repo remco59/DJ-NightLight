@@ -9,6 +9,7 @@ type PublicGig = {
   description: string | null
   startsAt: string
   endsAt: string | null
+  location: string | null
 }
 
 const { data, status } = await useFetch<{ gigs: PublicGig[] }>('/api/public/agenda', { key: 'public-agenda' })
@@ -102,7 +103,6 @@ useSeoMeta({
         <template v-else>
           <div class="list-heading">
             <p class="eyebrow">{{ content.publicCopy.agenda.listEyebrow }}</p>
-            <span>{{ publicCount }} {{ publicCount === 1 ? content.publicCopy.agenda.momentSingular : content.publicCopy.agenda.momentPlural }}</span>
           </div>
 
           <article v-for="(gig,index) in data?.gigs || []" :key="`${gig.startsAt}-${gig.title}`" class="gig">
@@ -117,12 +117,20 @@ useSeoMeta({
             </div>
 
             <div class="copy">
-              <p>{{ fullDate(gig.startsAt) }} · {{ timeRange(gig.startsAt, gig.endsAt) }}</p>
+              <p class="gig-date">{{ fullDate(gig.startsAt) }}</p>
               <h2>{{ gig.title }}</h2>
-              <p v-if="gig.description">{{ gig.description }}</p>
+              <ul class="gig-meta">
+                <li>
+                  <Icon name="lucide:clock" aria-hidden="true" />
+                  <span>{{ timeRange(gig.startsAt, gig.endsAt) }}</span>
+                </li>
+                <li v-if="gig.location">
+                  <Icon name="lucide:map-pin" aria-hidden="true" />
+                  <span>{{ gig.location }}</span>
+                </li>
+              </ul>
+              <p v-if="gig.description" class="gig-description">{{ gig.description }}</p>
             </div>
-
-            <div class="gig-mark" aria-hidden="true"><Icon name="lucide:arrow-up-right" aria-hidden="true" /></div>
           </article>
         </template>
       </section>
@@ -142,7 +150,7 @@ useSeoMeta({
 <style scoped>
 .agenda-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.42fr);gap:clamp(3rem,8vw,8rem);align-items:end}.agenda-intro .display-title{max-width:10ch}.agenda-status{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start;padding:1.3rem 0 1.3rem 1.3rem;border-left:1px solid #302b34}.agenda-status>div:last-child>span{display:block;color:#716b77;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}.agenda-status strong{display:block;margin:.4rem 0 .5rem;font-size:1.45rem;letter-spacing:-.035em}.agenda-status p{max-width:22rem;margin:0;color:#8f8995;font-size:.85rem;line-height:1.55}.signal{position:relative;width:1.15rem;height:1.15rem;margin-top:.08rem;border:1px solid #5c5169;border-radius:50%}.signal i{position:absolute;inset:.28rem;border-radius:50%;background:#cfc1ff;box-shadow:0 0 1rem rgba(174,145,255,.7)}.signal span{position:absolute;inset:-.35rem;border:1px solid rgba(174,145,255,.14);border-radius:50%}
 
-.agenda-list{margin-top:clamp(5rem,9vw,9rem);border-top:1px solid #2a2630}.list-heading{display:flex;justify-content:space-between;gap:2rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid #2a2630}.list-heading>span{color:#706a76;font-size:.72rem}.gig{position:relative;display:grid;grid-template-columns:3rem minmax(10rem,.32fr) minmax(0,1fr) auto;gap:clamp(1rem,3vw,2.5rem);align-items:center;padding:clamp(2rem,4vw,3.2rem) 0;border-bottom:1px solid #2a2630;transition:padding .28s ease,background-color .28s ease}.gig::before{content:"";position:absolute;left:-1rem;top:0;bottom:0;width:2px;background:#bca8ff;opacity:0;transform:scaleY(.35);transition:opacity .28s ease,transform .28s ease}.gig:hover{padding-left:1rem;background:linear-gradient(90deg,rgba(119,73,224,.075),transparent 38%)}.gig:hover::before{opacity:1;transform:scaleY(1)}.gig-index{align-self:start;padding-top:.55rem;color:#5f5965;font-size:.66rem}.date{display:flex;align-items:end;gap:.85rem}.date>strong{font-size:clamp(4.3rem,7vw,7rem);line-height:.75;letter-spacing:-.075em}.date>div{display:grid;gap:.2rem;padding-bottom:.08rem;text-transform:uppercase}.date span{font-size:.78rem;font-weight:750}.date small{color:#6f6975;font-size:.68rem}.copy>p:first-child{margin:0 0 .55rem;color:#78717e;font-size:.76rem;text-transform:capitalize}.copy h2{margin:0;font-size:clamp(1.8rem,3.4vw,3.5rem);line-height:1;letter-spacing:-.05em}.copy>p:last-child{max-width:48rem;margin:.75rem 0 0;color:#9b95a1;line-height:1.65}.gig-mark{display:grid;width:2.8rem;height:2.8rem;place-items:center;border:1px solid #312c35;border-radius:50%;color:#817a87;transition:border-color .25s ease,color .25s ease,transform .25s ease}.gig:hover .gig-mark{border-color:#655b6d;color:#fff;transform:rotate(8deg)}
+.agenda-list{margin-top:clamp(5rem,9vw,9rem);border-top:1px solid #2a2630}.list-heading{padding:1.1rem 0;border-bottom:1px solid #2a2630}.gig{position:relative;display:grid;grid-template-columns:3rem minmax(10rem,.32fr) minmax(0,1fr);gap:clamp(1rem,3vw,2.5rem);align-items:center;padding:clamp(2rem,4vw,3.2rem) 0;border-bottom:1px solid #2a2630;transition:padding .28s ease,background-color .28s ease}.gig::before{content:"";position:absolute;left:-1rem;top:0;bottom:0;width:2px;background:#bca8ff;opacity:0;transform:scaleY(.35);transition:opacity .28s ease,transform .28s ease}.gig:hover{padding-left:1rem;background:linear-gradient(90deg,rgba(119,73,224,.075),transparent 38%)}.gig:hover::before{opacity:1;transform:scaleY(1)}.gig-index{align-self:start;padding-top:.55rem;color:#5f5965;font-size:.66rem}.date{display:flex;align-items:end;gap:.85rem}.date>strong{font-size:clamp(4.3rem,7vw,7rem);line-height:.75;letter-spacing:-.075em}.date>div{display:grid;gap:.2rem;padding-bottom:.08rem;text-transform:uppercase}.date span{font-size:.78rem;font-weight:750}.date small{color:#6f6975;font-size:.68rem}.gig-date{margin:0 0 .55rem;color:#78717e;font-size:.76rem;text-transform:capitalize}.copy h2{margin:0;font-size:clamp(1.8rem,3.4vw,3.5rem);line-height:1;letter-spacing:-.05em}.gig-meta{display:flex;flex-wrap:wrap;gap:.5rem 1.6rem;margin:1rem 0 0;padding:0;list-style:none;color:#a39dab;font-size:.9rem}.gig-meta li{display:flex;align-items:center;gap:.5rem;min-width:0}.gig-meta svg{flex:none;width:1rem;height:1rem;color:#bca8ff}.gig-description{max-width:48rem;margin:.9rem 0 0;color:#9b95a1;line-height:1.65}
 
 .loading-state{display:grid;gap:1rem;padding:4rem 0}.loading-line{display:block;width:70%;height:.8rem;border-radius:999px;background:linear-gradient(90deg,#151219,#211a2a,#151219);background-size:200% 100%;animation:pulse 1.6s linear infinite}.loading-line.short{width:38%}@keyframes pulse{to{background-position:-200% 0}}
 
@@ -150,7 +158,7 @@ useSeoMeta({
 
 .agenda-footer{display:grid;grid-template-columns:.4fr 1fr;gap:clamp(2rem,8vw,8rem);padding:clamp(7rem,12vw,12rem) 0}.agenda-footer h2{margin:0 0 1rem;white-space:pre-line;font-size:clamp(3.2rem,7vw,7rem);line-height:.88;letter-spacing:-.07em}.agenda-footer>div>p{max-width:34rem;color:#9a94a0;line-height:1.7}.agenda-footer .public-button{margin-top:1rem}
 
-@media(max-width:850px){.agenda-intro{grid-template-columns:1fr}.agenda-status{max-width:32rem}.gig{grid-template-columns:2.5rem 10rem 1fr}.gig-mark{display:none}.date>strong{font-size:4.8rem}.empty{grid-template-columns:1fr}.empty-date{opacity:.6}.agenda-footer{grid-template-columns:1fr;gap:1.5rem}}
-@media(max-width:600px){.agenda-status{padding-left:1rem}.list-heading{align-items:flex-start;flex-direction:column;gap:.35rem}.gig{grid-template-columns:2rem 1fr;gap:1rem;padding:2rem 0}.gig:hover{padding-left:.5rem}.date{grid-column:2}.copy{grid-column:2}.gig-index{grid-row:1/3}.empty{padding:4rem 0}.empty-date strong{font-size:8rem}.empty-orbit{right:-15rem;width:32rem;height:32rem}.agenda-footer{padding:6rem 0}}
-@media(prefers-reduced-motion:reduce){.gig,.gig::before,.gig-mark{transition:none}.loading-line{animation:none}.gig:hover{padding-left:0}.gig:hover .gig-mark{transform:none}}
+@media(max-width:850px){.agenda-intro{grid-template-columns:1fr}.agenda-status{max-width:32rem}.gig{grid-template-columns:2.5rem 10rem 1fr}.date>strong{font-size:4.8rem}.empty{grid-template-columns:1fr}.empty-date{opacity:.6}.agenda-footer{grid-template-columns:1fr;gap:1.5rem}}
+@media(max-width:600px){.agenda-status{padding-left:1rem}.gig{grid-template-columns:2rem 1fr;gap:1rem;padding:2rem 0}.gig:hover{padding-left:.5rem}.date{grid-column:2}.copy{grid-column:2}.gig-index{grid-row:1/3}.empty{padding:4rem 0}.empty-date strong{font-size:8rem}.empty-orbit{right:-15rem;width:32rem;height:32rem}.agenda-footer{padding:6rem 0}}
+@media(prefers-reduced-motion:reduce){.gig,.gig::before{transition:none}.loading-line{animation:none}.gig:hover{padding-left:0}}
 </style>
