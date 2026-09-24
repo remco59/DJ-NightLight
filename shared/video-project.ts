@@ -117,6 +117,8 @@ export type GraphicItem = ItemBase & {
   /** Template sound effects; unset (projects from before sounds existed) plays none. */
   sound?: ItemSound
   transform: ItemTransform
+  /** Gig in the agenda the content was filled from; unset = typed by hand. */
+  gigId?: string
 }
 
 export type TimelineItem = VideoClipItem | ImageClipItem | AudioClipItem | GraphicItem
@@ -428,6 +430,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
       volume: z.number().min(0).max(1),
     }).optional(),
     transform: transformSchema,
+    gigId: uuid.optional(),
   }),
 ])
 
