@@ -122,7 +122,7 @@ async function save() {
     message.value = 'Mediagegevens opgeslagen.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Opslaan mislukt.'
+    message.value = apiErrorMessage(error, 'Opslaan mislukt.')
   } finally {
     busy.value = ''
   }
@@ -152,7 +152,7 @@ async function remove() {
     }
     message.value = references?.length
       ? `Kan niet verwijderen: ${references.join(' · ')}`
-      : error instanceof Error ? error.message : 'Verwijderen mislukt.'
+      : apiErrorMessage(error, 'Verwijderen mislukt.')
   } finally {
     busy.value = ''
   }

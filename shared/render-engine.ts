@@ -42,7 +42,7 @@ export function resolveRenderEngine(setting: RenderEngineSetting, capabilities: 
   if (setting === 'auto') return AUTO_PREFERENCE.find(engine => isEngineAvailable(engine, capabilities)) ?? 'cpu'
   if (isEngineAvailable(setting, capabilities)) return setting
   const detail = capabilities.find(capability => capability.id === setting)?.detail
-  throw new Error(`${RENDER_ENGINE_LABELS[setting]} is unavailable${detail ? `: ${detail}` : ''}`)
+  throw new Error(`${RENDER_ENGINE_LABELS[setting]} is niet beschikbaar${detail ? `: ${detail}` : ''}`)
 }
 
 export function parseRenderEngineSetting(value: unknown): RenderEngineSetting {

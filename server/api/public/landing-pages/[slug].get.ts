@@ -4,7 +4,7 @@ import { db } from '../../../utils/db'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')
-  if (!slug) throw createError({ statusCode: 400, statusMessage: 'Landing page slug is required' })
+  if (!slug) throw createError({ statusCode: 400, statusMessage: 'Slug van de landing page is verplicht' })
 
   const [page] = await db
     .select({
@@ -29,6 +29,6 @@ export default defineEventHandler(async (event) => {
     ))
     .limit(1)
 
-  if (!page) throw createError({ statusCode: 404, statusMessage: 'Landing page not found' })
+  if (!page) throw createError({ statusCode: 404, statusMessage: 'Landing page niet gevonden' })
   return { page }
 })

@@ -7,7 +7,7 @@ import { requireStaff } from '../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager', 'dj'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const accessCondition = user.role === 'dj'
     ? and(eq(gigs.id, id), eq(gigs.assignedUserId, user.id))
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     .where(accessCondition)
     .limit(1)
 
-  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const contacts = await db.select().from(gigContacts).where(eq(gigContacts.gigId, id)).orderBy(asc(gigContacts.createdAt))
   const timeline = await db.select().from(gigTimelineItems).where(eq(gigTimelineItems.gigId, id)).orderBy(asc(gigTimelineItems.ordering))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '~/utils/api-error'
 import { emailJobStatusLabels, emailTemplateLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
@@ -94,7 +95,7 @@ async function saveTemplate() {
     message.value = 'Template opgeslagen.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Opslaan mislukt.'
+    message.value = apiErrorMessage(error, 'Opslaan mislukt.')
   } finally {
     busy.value = ''
   }
@@ -125,7 +126,7 @@ async function sendTest() {
     message.value = 'Testmail verzonden.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Testmail versturen mislukt.'
+    message.value = apiErrorMessage(error, 'Testmail versturen mislukt.')
   } finally {
     busy.value = ''
   }
@@ -165,7 +166,7 @@ async function retry(jobId: string) {
     await $fetch('/api/admin/email/retry', { method: 'POST', body: { jobId } })
     message.value = 'E-mail opnieuw verstuurd.'
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Opnieuw proberen mislukt.'
+    message.value = apiErrorMessage(error, 'Opnieuw proberen mislukt.')
   } finally {
     busy.value = ''
     await refresh()

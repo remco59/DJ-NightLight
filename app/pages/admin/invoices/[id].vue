@@ -9,7 +9,7 @@ type Invoice={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'vo
 type Detail={invoice:Invoice;lines:Line[];payment:{providerSessionId:string|null;providerPaymentIntentId:string|null;status:string;attemptCount:number;paidAt:string|null;failureCode:string|null}|null}
 type EditableLine={description:string;quantity:string;unitPrice:string}
 const {data,refresh}=await useFetch<Detail>(`/api/admin/invoices/${id}`)
-if(!data.value)throw createError({statusCode:404,statusMessage:'Invoice not found'})
+if(!data.value)throw createError({statusCode:404,statusMessage:'Factuur niet gevonden'})
 const invoice=data.value.invoice
 const form=reactive({issueDate:invoice.issueDate,dueDate:invoice.dueDate,currency:invoice.currency,vatMode:invoice.vatMode,vatRateBasisPoints:invoice.vatRateBasisPoints,paymentTerms:invoice.paymentTerms,legalText:invoice.legalText,notes:invoice.notes})
 const lines=ref<EditableLine[]>(data.value.lines.map(line=>({description:line.description,quantity:String(line.quantity),unitPrice:(line.unitPriceCents/100).toFixed(2)})))

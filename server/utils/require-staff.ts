@@ -13,7 +13,7 @@ export async function requireStaff(event: unknown, allowed?: readonly StaffRole[
   const sessionUser = session.user
 
   if (!sessionUser?.id) {
-    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+    throw createError({ statusCode: 401, statusMessage: 'Je moet ingelogd zijn' })
   }
 
   const [user] = await db
@@ -24,11 +24,11 @@ export async function requireStaff(event: unknown, allowed?: readonly StaffRole[
 
   if (!user || !user.active || user.sessionVersion !== sessionUser.sessionVersion) {
     await clearUserSession(event as ClearSessionEvent)
-    throw createError({ statusCode: 401, statusMessage: 'Session is no longer valid' })
+    throw createError({ statusCode: 401, statusMessage: 'Je sessie is niet meer geldig' })
   }
 
   if (!roleAllowed(user.role, allowed)) {
-    throw createError({ statusCode: 403, statusMessage: 'Insufficient permissions' })
+    throw createError({ statusCode: 403, statusMessage: 'Onvoldoende rechten' })
   }
 
   return user

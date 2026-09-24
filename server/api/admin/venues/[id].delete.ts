@@ -8,20 +8,20 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Venue id is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Locatie-ID is verplicht' })
   }
 
   const [usage] = await db.select({ value: count() }).from(gigs).where(eq(gigs.venueId, id))
   if ((usage?.value ?? 0) > 0) {
     throw createError({
       statusCode: 409,
-      statusMessage: 'This venue is used by one or more gigs and cannot be deleted',
+      statusMessage: 'Deze locatie is gekoppeld aan een of meer gigs en kan niet worden verwijderd',
     })
   }
 
   const [deleted] = await db.delete(venues).where(eq(venues.id, id)).returning({ id: venues.id })
   if (!deleted) {
-    throw createError({ statusCode: 404, statusMessage: 'Venue not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Locatie niet gevonden' })
   }
 
   return { ok: true }

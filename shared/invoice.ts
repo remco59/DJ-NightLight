@@ -23,22 +23,22 @@ export type InvoiceSnapshot = {
 
 const quantityPattern = /^\d{1,9}(?:\.\d{1,3})?$/
 export function quantityThousandths(quantity: string) {
-  if (!quantityPattern.test(quantity)) throw new Error('Quantity must be a positive number with at most three decimals')
+  if (!quantityPattern.test(quantity)) throw new Error('Het aantal moet een positief getal zijn met maximaal drie decimalen')
   const [whole = '0', fraction = ''] = quantity.split('.')
   const result = Number(whole) * 1000 + Number(fraction.padEnd(3, '0'))
-  if (!Number.isSafeInteger(result) || result <= 0) throw new Error('Quantity must be greater than zero')
+  if (!Number.isSafeInteger(result) || result <= 0) throw new Error('Het aantal moet groter dan nul zijn')
   return result
 }
 
 export function calculateLineTotalCents(line: InvoiceLineInput) {
-  if (!Number.isSafeInteger(line.unitPriceCents) || line.unitPriceCents < 0) throw new Error('Unit price must be a non-negative cent amount')
+  if (!Number.isSafeInteger(line.unitPriceCents) || line.unitPriceCents < 0) throw new Error('De prijs per stuk mag niet negatief zijn')
   return Math.round(line.unitPriceCents * quantityThousandths(line.quantity) / 1000)
 }
 
 export function calculateInvoiceTotals(lines: InvoiceLineInput[], vatMode: VatMode, vatRateBasisPoints: number): InvoiceTotals {
-  if (!Number.isInteger(vatRateBasisPoints) || vatRateBasisPoints < 0 || vatRateBasisPoints > 10000) throw new Error('VAT rate must be between 0 and 100%')
+  if (!Number.isInteger(vatRateBasisPoints) || vatRateBasisPoints < 0 || vatRateBasisPoints > 10000) throw new Error('Het btw-tarief moet tussen 0 en 100% liggen')
   const lineTotal = lines.reduce((sum, line) => sum + calculateLineTotalCents(line), 0)
-  if (!Number.isSafeInteger(lineTotal)) throw new Error('Invoice total is too large')
+  if (!Number.isSafeInteger(lineTotal)) throw new Error('Het factuurtotaal is te groot')
   if (vatMode === 'exempt' || vatRateBasisPoints === 0) return { subtotalCents: lineTotal, vatAmountCents: 0, totalCents: lineTotal }
   if (vatMode === 'inclusive') {
     const subtotalCents = Math.round(lineTotal * 10000 / (10000 + vatRateBasisPoints))
@@ -69,7 +69,7 @@ export const invoiceDraftInputSchema = z.object({
   legalText: z.string().trim().max(5000),
   notes: z.string().trim().max(5000),
   lines: z.array(invoiceLineInputSchema).min(1).max(100),
-}).refine(value => value.dueDate >= value.issueDate, { path: ['dueDate'], message: 'Due date cannot be before issue date' })
+}).refine(value => value.dueDate >= value.issueDate, { path: ['dueDate'], message: 'De vervaldatum kan niet voor de factuurdatum liggen' })
 
 export const businessSettingsInputSchema = z.object({
   companyName: z.string().trim().min(1).max(240),

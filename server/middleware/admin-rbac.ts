@@ -51,6 +51,6 @@ export default defineEventHandler(async (event) => {
   const permission = requiredPermission(pathname, event.method)
 
   if (!permissionAllowed(user.role, permission)) {
-    throw createError({ statusCode: 403, statusMessage: 'Insufficient permissions' })
+    throw createError({ statusCode: 403, statusMessage: 'Onvoldoende rechten' })
   }
 })

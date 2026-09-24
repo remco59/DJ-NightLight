@@ -15,12 +15,12 @@ const schema = z.object({
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
   const key = getRouterParam(event, 'key')
-  if (!key) throw createError({ statusCode: 400, statusMessage: 'Template key is required' })
+  if (!key) throw createError({ statusCode: 400, statusMessage: 'Templatesleutel is verplicht' })
   const input = await readValidatedBody(event, schema.parse)
   const [template] = await db.update(emailTemplates)
     .set({ ...input, updatedAt: new Date() })
     .where(eq(emailTemplates.key, key))
     .returning()
-  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template not found' })
+  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template niet gevonden' })
   return { template }
 })

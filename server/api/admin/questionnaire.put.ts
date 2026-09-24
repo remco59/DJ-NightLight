@@ -7,10 +7,10 @@ import { requireStaff } from '../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const parsed = questionnaireTemplateInputSchema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid questionnaire' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldige vragenlijst' })
 
   const [template] = await db.select().from(questionnaireTemplates).where(eq(questionnaireTemplates.active, true)).limit(1)
-  if (!template) throw createError({ statusCode: 404, statusMessage: 'No active questionnaire found' })
+  if (!template) throw createError({ statusCode: 404, statusMessage: 'Geen actieve vragenlijst gevonden' })
   const [latest] = await db.select({ version: questionnaireTemplateVersions.version }).from(questionnaireTemplateVersions)
     .where(eq(questionnaireTemplateVersions.templateId, template.id)).orderBy(desc(questionnaireTemplateVersions.version)).limit(1)
   const nextVersion = (latest?.version || 0) + 1
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
       fields: parsed.data.fields,
       createdByUserId: user.id,
     }).returning()
-    if (!created) throw createError({ statusCode: 500, statusMessage: 'Could not version questionnaire' })
+    if (!created) throw createError({ statusCode: 500, statusMessage: 'Nieuwe versie van de vragenlijst opslaan is niet gelukt' })
     await tx.insert(auditLogs).values({
       userId: user.id,
       entityType: 'questionnaire_template',

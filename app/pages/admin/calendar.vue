@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '~/utils/api-error'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
@@ -43,7 +44,7 @@ async function sync(gigId?: string) {
       ? `Synchronisatie klaar: ${response.result.status ? labelFor(calendarSyncStatusLabels, response.result.status).toLowerCase() : 'gereed'}.`
       : `Synchronisatie klaar: ${response.result.processed || 0} verwerkt, ${response.result.failed || 0} mislukt.`
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Synchronisatie mislukt.'
+    message.value = apiErrorMessage(error, 'Synchronisatie mislukt.')
   } finally {
     syncing.value = null
     await refresh()

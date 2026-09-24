@@ -77,7 +77,7 @@ async function remove(project: ProjectSummary) {
 }
 
 async function cancelJob(job: RenderJob) {
-  if (!confirm('Cancel this render?')) return
+  if (!confirm('Deze render annuleren?')) return
   busy.value = job.id
   message.value = ''
   try {

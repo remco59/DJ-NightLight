@@ -11,7 +11,7 @@ import { requireStaff } from '../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const input = await readValidatedBody(event, gigInputSchema.parse)
   const { contacts, timeline, assignedUserId, ...gigValues } = input
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     status: gigs.status,
     assignedUserId: gigs.assignedUserId,
   }).from(gigs).where(eq(gigs.id, id)).limit(1)
-  if (!existing) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!existing) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const gig = await db.transaction(async (tx) => {
     const [updated] = await tx
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
       .where(eq(gigs.id, id))
       .returning()
 
-    if (!updated) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+    if (!updated) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
     await tx.delete(gigContacts).where(eq(gigContacts.gigId, id))
     await tx.delete(gigTimelineItems).where(eq(gigTimelineItems.gigId, id))

@@ -444,7 +444,7 @@ export const videoTrackSchema = z.object({
 }).superRefine((track, context) => {
   track.items.forEach((item, index) => {
     if (!trackAccepts(track.kind, item.type)) {
-      context.addIssue({ code: 'custom', path: ['items', index, 'type'], message: `A ${track.kind} track cannot hold ${item.type} items` })
+      context.addIssue({ code: 'custom', path: ['items', index, 'type'], message: `Een ${track.kind}-track kan geen ${item.type}-items bevatten` })
     }
   })
 })
@@ -454,7 +454,7 @@ export const videoProjectSchema = z.object({
   aspect: z.enum(VIDEO_ASPECT_KEYS as [VideoAspect, ...VideoAspect[]]),
   width: z.number().int().min(240).max(3840),
   height: z.number().int().min(240).max(3840),
-  fps: z.number().int().refine(value => (VIDEO_FPS_OPTIONS as readonly number[]).includes(value), 'Unsupported frame rate'),
+  fps: z.number().int().refine(value => (VIDEO_FPS_OPTIONS as readonly number[]).includes(value), 'Niet-ondersteunde framerate'),
   autoDuration: z.boolean(),
   durationFrames: duration,
   background: z.string().regex(/^#[0-9a-f]{6}$/i),
@@ -471,11 +471,11 @@ export const videoProjectSchema = z.object({
   project.tracks.forEach((track, trackIndex) => {
     track.items.forEach((item, itemIndex) => {
       if (ids.has(item.id)) {
-        context.addIssue({ code: 'custom', path: ['tracks', trackIndex, 'items', itemIndex, 'id'], message: 'Duplicate item id' })
+        context.addIssue({ code: 'custom', path: ['tracks', trackIndex, 'items', itemIndex, 'id'], message: 'Dubbele item-ID' })
       }
       ids.add(item.id)
       if (item.start + item.duration > project.fps * MAX_PROJECT_SECONDS) {
-        context.addIssue({ code: 'custom', path: ['tracks', trackIndex, 'items', itemIndex], message: `Items must end within ${MAX_PROJECT_SECONDS} seconds` })
+        context.addIssue({ code: 'custom', path: ['tracks', trackIndex, 'items', itemIndex], message: `Items moeten binnen ${MAX_PROJECT_SECONDS} seconden eindigen` })
       }
     })
   })

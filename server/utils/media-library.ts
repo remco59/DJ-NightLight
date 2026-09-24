@@ -22,7 +22,7 @@ function inspectUploadedImage(buffer: Uint8Array) {
   try {
     return inspectImage(buffer)
   } catch (error) {
-    throw new MediaValidationError(error instanceof Error ? error.message : 'Invalid image')
+    throw new MediaValidationError(error instanceof Error ? error.message : 'Ongeldige afbeelding')
   }
 }
 
@@ -36,10 +36,10 @@ export async function storeMediaImage(input: {
   gigId?: string | null
   venueId?: string | null
 }) {
-  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new MediaValidationError('Image must be between 1 byte and 15 MB')
+  if (!input.data.length || input.data.length > MAX_MEDIA_BYTES) throw new MediaValidationError('Een afbeelding moet tussen 1 byte en 15 MB zijn')
   const info = inspectUploadedImage(input.data)
   if (info.width > 12000 || info.height > 12000 || info.width * info.height > 80_000_000) {
-    throw new MediaValidationError('Image dimensions are too large')
+    throw new MediaValidationError('De afmetingen van de afbeelding zijn te groot')
   }
 
   const storage = getMediaStorage()
@@ -47,9 +47,9 @@ export async function storeMediaImage(input: {
   let thumbnailKey: string | null = null
   try {
     if (input.thumbnail?.length) {
-      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('Thumbnail exceeds 2 MB')
+      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('De thumbnail is groter dan 2 MB')
       const thumbnailInfo = inspectUploadedImage(input.thumbnail)
-      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('Thumbnail dimensions are too large')
+      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('De afmetingen van de thumbnail zijn te groot')
       thumbnailKey = await storage.put(input.thumbnail, thumbnailInfo.extension, 'thumbnails')
     }
     const [asset] = await db.insert(mediaAssets).values({
@@ -109,14 +109,14 @@ export async function storeTimedMedia(input: {
   try {
     info = inspectTimedMedia(input.data)
   } catch (error) {
-    throw new MediaValidationError(error instanceof Error ? error.message : 'Invalid media file')
+    throw new MediaValidationError(error instanceof Error ? error.message : 'Ongeldig mediabestand')
   }
   const limit = info.kind === 'video' ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES
   if (input.data.length > limit) {
-    throw new MediaValidationError(info.kind === 'video' ? 'Video must be 250 MB or smaller' : 'Audio must be 50 MB or smaller')
+    throw new MediaValidationError(info.kind === 'video' ? 'Een video mag maximaal 250 MB zijn' : 'Audio mag maximaal 50 MB zijn')
   }
   const parsed = timedMetadataSchema.safeParse(input.metadata)
-  if (!parsed.success) throw new MediaValidationError('Media metadata (duration and dimensions) is missing or invalid')
+  if (!parsed.success) throw new MediaValidationError('De mediagegevens (duur en afmetingen) ontbreken of zijn ongeldig')
   const metadata: MediaAssetMetadata = {}
   if (parsed.data.peaks?.length) metadata.peaks = parsed.data.peaks.map(value => Math.round(value * 1000) / 1000)
   if (parsed.data.fps) metadata.fps = parsed.data.fps
@@ -127,9 +127,9 @@ export async function storeTimedMedia(input: {
   let thumbnailKey: string | null = null
   try {
     if (input.thumbnail?.length) {
-      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('Thumbnail exceeds 2 MB')
+      if (input.thumbnail.length > MAX_THUMBNAIL_BYTES) throw new MediaValidationError('De thumbnail is groter dan 2 MB')
       const thumbnailInfo = inspectUploadedImage(input.thumbnail)
-      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('Thumbnail dimensions are too large')
+      if (thumbnailInfo.width > 1200 || thumbnailInfo.height > 1200) throw new MediaValidationError('De afmetingen van de thumbnail zijn te groot')
       thumbnailKey = await storage.put(input.thumbnail, thumbnailInfo.extension, 'thumbnails')
     }
     const [asset] = await db.insert(mediaAssets).values({
@@ -164,17 +164,17 @@ export async function getMediaUsage(assetId: string) {
   const content = await db.select().from(siteContent)
   const pages = await db.select().from(landingPages)
   const references: string[] = []
-  if (asset.gigId) references.push('Associated with a gig')
-  if (asset.venueId) references.push('Associated with a venue')
+  if (asset.gigId) references.push('Gekoppeld aan een gig')
+  if (asset.venueId) references.push('Gekoppeld aan een locatie')
   for (const row of content) {
-    if (JSON.stringify(row).includes(needle)) references.push(`Website content: ${row.key}`)
+    if (JSON.stringify(row).includes(needle)) references.push(`Website-inhoud: ${row.key}`)
   }
   for (const page of pages) {
     if (JSON.stringify(page).includes(needle)) references.push(`Landing page: ${page.slug}`)
   }
   const projects = await db.select({ name: videoProjects.name, project: videoProjects.project }).from(videoProjects)
   for (const project of projects) {
-    if (collectProjectAssetIds(project.project).includes(assetId)) references.push(`Video project: ${project.name}`)
+    if (collectProjectAssetIds(project.project).includes(assetId)) references.push(`Videoproject: ${project.name}`)
   }
   return { asset, references: [...new Set(references)] }
 }
