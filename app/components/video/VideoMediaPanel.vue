@@ -214,7 +214,7 @@ async function deleteRender(id: string) {
       </div>
       <div class="m-template-rail">
         <button v-for="template in visibleTemplates" :key="template.key" type="button" class="m-template-card" @click="addTemplate(template.key)">
-          <span class="template-art" :data-template="template.key"><i /><b>{{ template.label }}</b></span>
+          <span class="template-art" :data-template="template.key" aria-hidden="true" />
           <strong>{{ template.label }}</strong>
           <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s</small>
         </button>
@@ -316,7 +316,7 @@ async function deleteRender(id: string) {
           @dragstart="dragTemplate($event, template.key)"
           @click="editor.addTemplate(template.key)"
         >
-          <span class="template-art" :data-template="template.key"><i /><b>{{ template.label.split(' ')[0] }}</b></span>
+          <span class="template-art" :data-template="template.key" aria-hidden="true" />
           <span class="template-copy">
             <strong>{{ template.label }}</strong>
             <small>{{ template.description }}</small>
@@ -575,76 +575,22 @@ h3 {
 
 .template-card:hover { border-color: var(--ve-accent); }
 
+/* Thumbnails show the real logo artwork the templates animate. */
 .template-art {
-  position: relative;
-  display: grid;
+  display: block;
   height: 64px;
-  place-items: center;
   overflow: hidden;
   border-radius: 7px;
-  background: radial-gradient(circle at 30% 20%, #7c3aed88, transparent 60%), #120c1b;
+  background: url("/brand/logo/wordmark-thumb.webp") center / 84% auto no-repeat, radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%), #07040d;
 }
 
-.template-art i {
-  position: absolute;
-  left: -10%;
-  bottom: 30%;
-  width: 120%;
-  height: 6px;
-  transform: rotate(-8deg) skewX(-20deg);
-  background: var(--ve-accent);
-  box-shadow: 0 0 10px var(--ve-accent);
-}
-
-.template-art b {
-  position: relative;
-  transform: rotate(-6deg);
-  font-size: .72rem;
-  font-style: italic;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.template-art[data-template="recap-intro"], .template-art[data-template="hype-title"] {
-  background: radial-gradient(circle at 30% 20%, #ff2d9588, transparent 60%), #1b0c14;
-}
-
-/* Electric set: thumbnails show the real logo artwork these templates animate. */
 .template-art[data-template="neon-logo-reveal"],
 .template-art[data-template="electric-gig-poster"],
 .template-art[data-template="neon-outro"],
-.template-art[data-template="lightning-banner"],
-.template-art[data-template="now-playing"],
-.template-art[data-template="bolt-transition"] {
-  background: center / 84% auto no-repeat, radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%), #07040d;
-}
-
-.template-art[data-template="neon-logo-reveal"],
-.template-art[data-template="electric-gig-poster"],
-.template-art[data-template="neon-outro"] {
+.template-art[data-template="lower-third"],
+.template-art[data-template="photo-drop"] {
   background-image: url("/brand/logo/emblem-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
   background-size: auto 88%, auto;
-}
-
-.template-art[data-template="lightning-banner"],
-.template-art[data-template="now-playing"],
-.template-art[data-template="bolt-transition"] {
-  background-image: url("/brand/logo/wordmark-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
-}
-
-.template-art[data-template="neon-logo-reveal"] i,
-.template-art[data-template="electric-gig-poster"] i,
-.template-art[data-template="neon-outro"] i,
-.template-art[data-template="lightning-banner"] i,
-.template-art[data-template="now-playing"] i,
-.template-art[data-template="bolt-transition"] i,
-.template-art[data-template="neon-logo-reveal"] b,
-.template-art[data-template="electric-gig-poster"] b,
-.template-art[data-template="neon-outro"] b,
-.template-art[data-template="lightning-banner"] b,
-.template-art[data-template="now-playing"] b,
-.template-art[data-template="bolt-transition"] b {
-  display: none;
 }
 
 .template-copy {
@@ -941,15 +887,6 @@ h3 {
 .m-template-card:active .template-art {
   border-color: var(--ve-accent);
   box-shadow: 0 0 16px rgba(124, 58, 237, .5);
-}
-
-.m-template-card .template-art b {
-  max-width: 100%;
-  padding: 0 .5rem;
-  overflow-wrap: anywhere;
-  font-size: .72rem;
-  line-height: 1;
-  text-align: center;
 }
 
 .m-template-card strong { font-size: .8rem; }
