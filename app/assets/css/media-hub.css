@@ -1,0 +1,179 @@
+/* Shared controls for the media hub (library page, inspector, upload drawer
+   and picker). Everything is prefixed `mh-` so it cannot leak into other pages. */
+
+.mh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 2.6rem;
+  border: 1px solid #2f2a37;
+  border-radius: .65rem;
+  padding: .55rem .95rem;
+  background: #131118;
+  color: #e9e5ee;
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.mh-btn:hover { border-color: #463d52; background: #1a1720; color: #fff; }
+.mh-btn:disabled { opacity: .45; cursor: not-allowed; }
+.mh-btn .iconify { width: 1.05em; height: 1.05em; }
+.mh-btn.primary {
+  border-color: #8b5cf6;
+  background: linear-gradient(180deg, #8452f5, #6d37e6);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(157, 92, 255, .18), 0 .5rem 1.6rem rgba(109, 40, 217, .32);
+}
+.mh-btn.primary:hover { background: linear-gradient(180deg, #9061ff, #7640ef); }
+.mh-btn.danger { border-color: #5a2a33; background: #1b0f13; color: #f39aa6; }
+.mh-btn.danger:hover { border-color: #83404c; background: #25131a; color: #ffc0c8; }
+.mh-btn.ghost { border-color: transparent; background: transparent; color: #b8b1c1; }
+.mh-btn.ghost:hover { background: #17141c; color: #fff; }
+.mh-btn.block { width: 100%; }
+
+.mh-icon-btn {
+  display: inline-grid;
+  flex: none;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border: 1px solid #2f2a37;
+  border-radius: .6rem;
+  padding: 0;
+  background: #131118;
+  color: #d9d3df;
+  cursor: pointer;
+}
+.mh-icon-btn:hover { border-color: #4a4056; color: #fff; }
+.mh-icon-btn.active { border-color: #6d4bd1; background: #231a3d; color: #fff; }
+.mh-icon-btn .iconify { width: 1.05rem; height: 1.05rem; }
+
+.mh-input,
+.mh-select,
+.mh-textarea {
+  width: 100%;
+  min-height: 2.6rem;
+  border: 1px solid #2f2a37;
+  border-radius: .6rem;
+  padding: .6rem .75rem;
+  background: #0f0d13;
+  color: #f4f1f7;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 400;
+}
+.mh-textarea { resize: vertical; min-height: 4.5rem; }
+.mh-input::placeholder, .mh-textarea::placeholder { color: #6f6878; }
+.mh-input:focus, .mh-select:focus, .mh-textarea:focus { outline: none; border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .2); }
+
+.mh-field { display: grid; gap: .4rem; color: #c9c2d1; font-size: .8rem; font-weight: 600; }
+.mh-field small { color: #7d7686; font-weight: 400; }
+
+.mh-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  max-width: 100%;
+  border: 1px solid #2e2936;
+  border-radius: 999px;
+  padding: .2rem .62rem;
+  background: #19161f;
+  color: #c9c2d1;
+  font-size: .72rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.mh-tag.removable { cursor: pointer; }
+.mh-tag.removable:hover { border-color: #5a4b6b; color: #fff; }
+
+.mh-panel {
+  z-index: 60;
+  min-width: 14rem;
+  border: 1px solid #332d3b;
+  border-radius: .8rem;
+  padding: .4rem;
+  background: #131118;
+  box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, .55);
+}
+.mh-menu-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  width: 100%;
+  border: 0;
+  border-radius: .5rem;
+  padding: .55rem .65rem;
+  background: transparent;
+  color: #ddd7e3;
+  font: inherit;
+  font-size: .84rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mh-menu-item:hover, .mh-menu-item:focus-visible { background: #201b28; color: #fff; outline: none; }
+.mh-menu-item.danger { color: #f39aa6; }
+.mh-menu-item .iconify { width: 1rem; height: 1rem; color: #8f879a; }
+.mh-menu-item.danger .iconify { color: inherit; }
+.mh-menu-sep { height: 1px; margin: .3rem .2rem; background: #27222e; }
+
+.mh-check {
+  display: grid;
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  place-items: center;
+  border: 1.5px solid rgba(255, 255, 255, .72);
+  border-radius: .35rem;
+  background: rgba(8, 7, 11, .45);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.mh-check.checked { border-color: #9d6bff; background: #7c3aed; }
+.mh-check .iconify { width: .85rem; height: .85rem; }
+
+.mh-backdrop {
+  /* Sits inside a fixed overlay layer; the dialog after it paints on top. */
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 3, 7, .72);
+  backdrop-filter: blur(6px);
+}
+
+.mh-empty {
+  display: grid;
+  justify-items: center;
+  gap: .6rem;
+  padding: 3rem 1rem;
+  border: 1px dashed #332d3b;
+  border-radius: 1rem;
+  color: #8f879a;
+  text-align: center;
+}
+.mh-empty .iconify { width: 2rem; height: 2rem; color: #6f5aa8; }
+.mh-empty strong { color: #e8e3ee; }
+
+.mh-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  max-width: min(36rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  border: 1px solid #3a3244;
+  border-radius: .8rem;
+  padding: .75rem 1rem;
+  background: #16131b;
+  color: #eee9f3;
+  font-size: .86rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
+}
+.mh-toast.error { border-color: #6b3440; }

@@ -38,16 +38,29 @@ Admin → Media creates a max-480px JPEG thumbnail in the browser and uploads it
 
 ## Metadata and associations
 
-Assets can store title, alt text, tags and optional gig/venue associations. The library supports search over those fields. Public assets are served through stable UUID URLs such as `/api/media/<asset-id>`.
+Assets store title, alt text, tags, the original filename, optional gig/venue associations and a `source` (`upload`, `url`, `generated` or `derived`). Public assets are served through stable UUID URLs such as `/api/media/<asset-id>`; add `?download=1` to download the original under its filename.
+
+## Collections
+
+Collections (`media_collections` / `media_collection_items`) group references to existing assets for a purpose (Promo, Website, Recaps, …). They never copy files, and one asset can be in several collections. Deleting a collection keeps its assets.
+
+## Originals and variants
+
+`parent_asset_id` links a derived asset (crop, enhanced edit, social export) to its original, with a short `variant_label`. The API rejects cycles. Every Post generator render is also filed in the library as a `generated` variant of its source photo, inheriting its gig, venue and tags.
+
+## Usage
+
+The library computes where each asset is referenced: website content, landing pages, video projects, video renders and the Post generator. The inspector lists these, and the "Used / unused" filter relies on them.
 
 ## Deletion
 
-Deletion is blocked when an asset:
-- is associated with a gig or venue;
-- appears in website content; or
-- appears in a landing page.
+Deletion is blocked while an asset appears in website content, a landing page, a video project or a video render. A generated post only remembers its source, so it does not block deletion. Gig and venue associations are metadata and do not block deletion either. Bulk delete removes what it can and reports the assets that are still in use.
 
 Remove the reference first, then delete the asset.
+
+## Bulk download
+
+`/api/admin/media/download?ids=…` streams up to 200 originals (1 GB total) as an uncompressed ZIP.
 
 ## Future S3 migration
 

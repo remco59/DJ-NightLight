@@ -149,13 +149,57 @@ export async function probeTimedMedia(file: File): Promise<TimedMediaProbe> {
 }
 
 /** Uploads any supported image, video or audio file to the media library. */
-export async function uploadMediaFile(file: File) {
+export async function uploadMediaFile(file: File, fields: MediaUploadFields = {}) {
+  return await $fetch<{ asset: { id: string } }>('/api/admin/media', { method: 'POST', body: await buildMediaUploadForm(file, fields) })
+}
+
+export type MediaUploadFields = {
+  title?: string
+  altText?: string
+  tags?: string
+  gigId?: string
+  venueId?: string
+  parentAssetId?: string
+  variantLabel?: string
+  collectionIds?: string[]
+  source?: 'upload' | 'url' | 'derived'
+  sourceUrl?: string
+}
+
+export const ACCEPTED_MEDIA_TYPES = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,.mov,.m4a'
+
+/** Rejects files the library cannot store before any bytes are sent. */
+export function checkMediaFile(file: File) {
+  if (!file.size) return 'This file is empty.'
+  if (file.type.startsWith('image/')) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'Only JPEG, PNG and WebP images are supported.'
+    if (file.size > MAX_MEDIA_UPLOAD_BYTES) return 'Images must be 15 MB or smaller.'
+    return null
+  }
+  const isAudio = file.type.startsWith('audio/') || /\.(mp3|m4a|wav|ogg)$/i.test(file.name)
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name)
+  if (!isAudio && !isVideo) return 'Use JPEG, PNG, WebP, MP4, MOV, WebM, MP3, M4A, WAV or OGG.'
+  if (isVideo && file.size > MAX_VIDEO_UPLOAD_BYTES) return 'Videos must be 250 MB or smaller.'
+  if (isAudio && file.size > MAX_AUDIO_UPLOAD_BYTES) return 'Audio must be 50 MB or smaller.'
+  return null
+}
+
+/** Builds the multipart body the media endpoint expects, including the thumbnail and probed metadata. */
+export async function buildMediaUploadForm(file: File, fields: MediaUploadFields = {}) {
+  const problem = checkMediaFile(file)
+  if (problem) throw new Error(problem)
   const form = new FormData()
   form.append('file', file)
-  form.append('title', file.name.replace(/\.[^.]+$/, ''))
-  form.append('tags', '')
-  form.append('gigId', '')
-  form.append('venueId', '')
+  form.append('title', fields.title ?? file.name.replace(/\.[^.]+$/, ''))
+  form.append('altText', fields.altText || '')
+  form.append('tags', fields.tags || '')
+  form.append('gigId', fields.gigId || '')
+  form.append('venueId', fields.venueId || '')
+  form.append('parentAssetId', fields.parentAssetId || '')
+  form.append('variantLabel', fields.variantLabel || '')
+  form.append('collectionIds', (fields.collectionIds || []).join(','))
+  form.append('source', fields.source || '')
+  form.append('sourceUrl', fields.sourceUrl || '')
   if (file.type.startsWith('image/')) {
     form.append('thumbnail', await createMediaThumbnail(file), 'thumbnail.jpg')
   } else {
@@ -163,5 +207,53 @@ export async function uploadMediaFile(file: File) {
     form.append('metadata', JSON.stringify(probe.metadata))
     if (probe.thumbnail) form.append('thumbnail', probe.thumbnail, 'thumbnail.jpg')
   }
-  return await $fetch<{ asset: { id: string } }>('/api/admin/media', { method: 'POST', body: form })
+  return form
+}
+
+/**
+ * Posts an upload with XMLHttpRequest so the caller can show byte progress
+ * ($fetch has no upload progress events).
+ */
+export function sendMediaUpload<T = { asset: { id: string } }>(form: FormData, onProgress?: (fraction: number) => void) {
+  return new Promise<T>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', '/api/admin/media')
+    request.responseType = 'json'
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total)
+    }
+    request.onload = () => {
+      const body = request.response as { statusMessage?: string, message?: string } | null
+      if (request.status >= 200 && request.status < 300) resolve(body as T)
+      else reject(new Error(body?.statusMessage || body?.message || `Upload failed (HTTP ${request.status}).`))
+    }
+    request.onerror = () => reject(new Error('Network error while uploading. Check your connection and try again.'))
+    request.send(form)
+  })
+}
+
+/**
+ * Fetches a remote file in the browser so it goes through the same validation
+ * as a manual upload. Only works for hosts that allow cross-origin downloads.
+ */
+export async function fetchRemoteMedia(url: string) {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error('Enter a full URL starting with https://')
+  }
+  if (!/^https?:$/.test(parsed.protocol)) throw new Error('Only http and https links are supported.')
+  let response: Response
+  try {
+    response = await fetch(parsed, { mode: 'cors', credentials: 'omit' })
+  } catch {
+    throw new Error('This site does not allow downloads from NightLight. Save the file and upload it instead.')
+  }
+  if (!response.ok) throw new Error(`The link returned HTTP ${response.status}.`)
+  const blob = await response.blob()
+  const name = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() || 'remote-media')
+  const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg').replace('quicktime', 'mov').replace('mpeg', 'mp3')
+  const filename = /\.[a-z0-9]{2,5}$/i.test(name) || !extension ? name : `${name}.${extension}`
+  return new File([blob], filename, { type: blob.type })
 }
