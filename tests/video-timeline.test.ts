@@ -9,6 +9,7 @@ import {
   moveItem,
   recordHistory,
   redoHistory,
+  reorderTrack,
   replaceItemAsset,
   slipItem,
   snapFrame,
@@ -165,5 +166,35 @@ describe('undo history', () => {
     expect(history.past).toHaveLength(100)
     const undone = undoHistory(history, 150)!
     expect(recordHistory(undone.history, 7).future).toEqual([])
+  })
+})
+
+describe('track order', () => {
+  function layered() {
+    const project = createVideoProject()
+    // Array (paint order): video, graphics, audio; add an overlay video on top and a second audio.
+    project.tracks.splice(2, 0, { ...project.tracks[0]!, id: 'tr_overlay', name: 'Overlay', items: [] })
+    project.tracks.push({ ...project.tracks.at(-1)!, id: 'tr_audio2', name: 'Audio 2', items: [] })
+    return project
+  }
+  const ids = (project: VideoProject) => project.tracks.map(track => track.name)
+
+  it('moves a visual track to a new layer, top row = top layer', () => {
+    const project = layered()
+    // Display: Overlay, Graphics, Video | Audio, Audio 2. Move Video to the top row.
+    const video = project.tracks.find(track => track.name === 'Video')!
+    const moved = reorderTrack(project, video.id, 0)
+    expect(ids(moved)).toEqual(['Graphics', 'Overlay', 'Video', 'Audio', 'Audio 2'])
+    expect(ids(project)).toEqual(['Video', 'Graphics', 'Overlay', 'Audio', 'Audio 2'])
+  })
+
+  it('keeps visual and audio tracks in their own groups', () => {
+    const project = layered()
+    const overlay = project.tracks.find(track => track.name === 'Overlay')!
+    // Asking for a row inside the audio group lands on the lowest visual row instead.
+    expect(ids(reorderTrack(project, overlay.id, 4))).toEqual(['Overlay', 'Video', 'Graphics', 'Audio', 'Audio 2'])
+    const audio2 = project.tracks.find(track => track.name === 'Audio 2')!
+    expect(ids(reorderTrack(project, audio2.id, 0))).toEqual(['Video', 'Graphics', 'Overlay', 'Audio 2', 'Audio'])
+    expect(reorderTrack(project, overlay.id, 0)).toBe(project)
   })
 })

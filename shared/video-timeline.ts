@@ -12,6 +12,7 @@ import {
   type VideoProject,
   type VideoTrack,
 } from './video-project'
+import { timelineDisplayOrder } from './video-editor-ui'
 
 // Pure timeline editing operations. Every function returns a new project and
 // leaves its input untouched so the editor can keep snapshots for undo/redo.
@@ -266,6 +267,34 @@ export function snapFrame(value: number, targets: number[], threshold: number) {
     }
   }
   return best
+}
+
+// --- Track order -------------------------------------------------------------------
+
+/**
+ * Moves a track to `displayIndex` in the timeline's top-to-bottom order.
+ * Visual tracks only move among visual tracks (top row = top layer) and audio
+ * among audio, which stays below them. The array keeps visual tracks first
+ * (painted bottom to top), then audio.
+ */
+export function reorderTrack(project: VideoProject, trackId: string, displayIndex: number) {
+  const display = timelineDisplayOrder(project.tracks)
+  const track = display.find(entry => entry.id === trackId)
+  if (!track) return project
+  const isAudio = track.kind === 'audio'
+  const group = display.filter(entry => (entry.kind === 'audio') === isAudio)
+  const firstIndex = isAudio ? display.length - group.length : 0
+  const from = group.indexOf(track)
+  const to = Math.max(0, Math.min(group.length - 1, Math.round(displayIndex) - firstIndex))
+  if (from === to) return project
+  group.splice(from, 1)
+  group.splice(to, 0, track)
+  const visual = isAudio ? display.filter(entry => entry.kind !== 'audio') : group
+  const audio = isAudio ? group : display.filter(entry => entry.kind === 'audio')
+  const next = clone(project)
+  const byId = new Map(next.tracks.map(entry => [entry.id, entry]))
+  next.tracks = [...[...visual].reverse(), ...audio].map(entry => byId.get(entry.id)!)
+  return next
 }
 
 // --- Markers -------------------------------------------------------------------
