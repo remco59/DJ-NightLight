@@ -1,8 +1,8 @@
 import { and, eq, isNull, isNotNull } from 'drizzle-orm'
-import { gigs, venues } from '../../../../../db/schema'
-import { db } from '../../../../utils/db'
-import { validIcsToken } from '../../../../utils/calendar-subscription'
-import { gigTitleSql } from '../../../../utils/gig-title'
+import { gigs, venues } from '../../../../db/schema'
+import { db } from '../../../utils/db'
+import { validIcsToken } from '../../../utils/calendar-subscription'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 function escapeIcs(value: string) {
   return value
