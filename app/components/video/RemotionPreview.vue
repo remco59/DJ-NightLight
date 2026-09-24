@@ -79,7 +79,8 @@ onMounted(async () => {
         clickToPlay: false,
         doubleClickToFullscreen: false,
         spaceKeyToPlayOrPause: false,
-        numberOfSharedAudioTags: 8,
+        // Music, clip audio and template sound effects share these; see graphicSounds().
+        numberOfSharedAudioTags: 16,
         acknowledgeRemotionLicense: true,
       }))
     }

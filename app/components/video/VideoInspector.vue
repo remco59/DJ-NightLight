@@ -29,6 +29,7 @@ import {
   textProp,
   type TemplateField,
 } from '~~/shared/video-templates'
+import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { MAX_BPM, MIN_BPM, withDownbeatAt, type BeatGrid } from '~~/shared/beat-grid'
@@ -45,6 +46,19 @@ const headingTag = computed(() => props.mobile ? 'summary' : 'h3')
 const item = computed(() => editor.selection.value?.item || null)
 const template = computed(() => item.value?.type === 'graphic' ? MOTION_TEMPLATES[item.value.templateKey] : null)
 const fps = computed(() => state.project.fps)
+// What the selected graphic would play with its sound on, for the hint list.
+const soundCues = computed(() => {
+  const current = item.value
+  if (current?.type !== 'graphic') return []
+  return graphicSoundCues({ ...current, sound: { ...DEFAULT_ITEM_SOUND, ...current.sound, enabled: true } })
+})
+const soundTrackMuted = computed(() => editor.selection.value?.track.muted ?? false)
+
+function setSound(change: Partial<ItemSound>, key = '') {
+  patch((target) => {
+    if (target.type === 'graphic') target.sound = { ...DEFAULT_ITEM_SOUND, ...target.sound, ...change }
+  }, key)
+}
 
 function patch(mutator: (target: TimelineItem) => void, key = '') {
   if (!item.value) return
@@ -390,6 +404,22 @@ const assetTitle = computed(() => {
           <input type="range" min="0" max="60" :value="item.exitFrames" @input="patch(target => { if (target.type === 'graphic') target.exitFrames = Number(($event.target as HTMLInputElement).value) }, 'exitFrames')">
           <output>{{ seconds(item.exitFrames) }}s</output>
         </label>
+      </component>
+
+      <component :is="sectionTag" v-if="item.type === 'graphic'" class="block">
+        <component :is="headingTag">Sound</component>
+        <template v-if="soundCues.length">
+          <label class="row check"><span>Template sounds</span>
+            <input type="checkbox" :checked="item.sound?.enabled ?? false" @change="setSound({ enabled: ($event.target as HTMLInputElement).checked })">
+          </label>
+          <label class="row"><span>Volume</span>
+            <input type="range" min="0" max="1" step="0.01" :disabled="!item.sound?.enabled" :value="item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume" @input="setSound({ volume: Number(($event.target as HTMLInputElement).value) }, 'soundVolume')">
+            <output>{{ Math.round((item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume) * 100) }}%</output>
+          </label>
+          <p class="note">{{ soundCues.map(cue => `${TEMPLATE_SOUNDS[cue.sound].label} at ${seconds(cue.frame)}s`).join(' · ') }}</p>
+          <p v-if="soundTrackMuted && item.sound?.enabled" class="note">The track is muted, so these sounds are silent.</p>
+        </template>
+        <p v-else class="note">This template has no sound hits. Whip, zoom and glitch entrances or exits add one.</p>
       </component>
 
       <!-- Transform for everything visual -->

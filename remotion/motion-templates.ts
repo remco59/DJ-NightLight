@@ -4,6 +4,7 @@ import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 're
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import type { LucideIconName } from '../shared/lucide-icons'
 import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
+import { boltTransitionMid, clipRecapSlot, hypeTitleLineFrames } from '../shared/template-sounds'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
 import { BODY_FONT_FAMILY, DISPLAY_FONT_FAMILY } from './fonts'
@@ -417,7 +418,8 @@ const LowerThird: React.FC<TemplateRenderProps> = ({ item, frame, width, height 
 const HypeTitle: React.FC<TemplateRenderProps> = ({ item, frame }) => {
   const colors = colorsFor(item)
   const lines = listProp(item.templateProps, 'lines').filter(Boolean).slice(0, 4)
-  const perLine = Math.max(4, Math.floor((item.duration * 0.6) / Math.max(1, lines.length)))
+  // Shared with the sound cues so every punch lands on its line.
+  const lineFrames = hypeTitleLineFrames(item.duration, lines.length)
   return h(
     AbsoluteFill,
     { style: { alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 60 } },
@@ -425,7 +427,7 @@ const HypeTitle: React.FC<TemplateRenderProps> = ({ item, frame }) => {
       'div',
       { style: { transform: 'rotate(-6deg)' } },
       lines.map((line, index) => {
-        const local = frame - index * perLine
+        const local = frame - lineFrames[index]!
         if (local < 0) return null
         const punch = interpolate(local, [0, 4, 8], [1.6, 0.94, 1], { extrapolateRight: 'clamp' })
         return h(
@@ -501,7 +503,7 @@ const ClipRecap: React.FC<TemplateRenderProps> = ({ item, frame, width, height, 
   const colors = colorsFor(item)
   const media = listProp(item.templateProps, 'media').filter(Boolean).slice(0, 5)
   const count = Math.max(1, media.length)
-  const slot = Math.max(1, Math.floor(item.duration / count))
+  const slot = clipRecapSlot(item.duration, count)
   return h(
     AbsoluteFill,
     null,
@@ -1037,7 +1039,7 @@ const BoltTransition: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
   const word = textProp(item.templateProps, 'word')
   const duration = Math.max(6, item.duration)
   // The white flash peaks at the midpoint, so a cut placed there is hidden.
-  const mid = Math.floor(duration / 2)
+  const mid = boltTransitionMid(item.duration)
   const tail = Math.max(3, Math.round(duration * 0.35))
   const wash = interpolate(frame, [0, mid - 2, mid, duration - 1], [0, 0.9, 1, 0], clamp)
   const drop = interpolate(frame, [0, Math.max(1, mid - 1)], [-1, 0], { ...clamp, easing: t => t * t })
