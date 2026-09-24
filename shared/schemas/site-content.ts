@@ -139,8 +139,6 @@ export const sitePublicCopySchema = z.object({
     emptyBody: copy(900),
     emptyCta: copy(160),
     listEyebrow: copy(160),
-    momentSingular: copy(80),
-    momentPlural: copy(80),
     footerEyebrow: copy(200),
     footerTitle: copy(300),
     footerBody: copy(600),

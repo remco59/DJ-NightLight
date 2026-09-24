@@ -84,8 +84,6 @@ export const defaultPublicCopy: SitePublicCopy = {
     emptyBody: 'Dat betekent niet dat NightLight stil staat. Besloten bruiloften, bedrijfsfeesten en privé-events worden bewust niet in deze agenda getoond.',
     emptyCta: 'Plan je eigen avond',
     listEyebrow: 'Aankomende openbare shows',
-    momentSingular: 'moment',
-    momentPlural: 'momenten',
     footerEyebrow: 'Niet openbaar ≠ niet beschikbaar',
     footerTitle: 'Zelf iets\nte vieren?',
     footerBody: 'Stuur de datum en locatie. Dan kijken we of NightLight nog vrij is.',

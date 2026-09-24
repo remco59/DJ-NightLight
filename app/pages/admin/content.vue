@@ -560,10 +560,6 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
             </summary>
             <div class="section-body">
               <label>List eyebrow<input v-model="form.publicCopy.agenda.listEyebrow"></label>
-              <div class="field-grid two">
-                <label>One moment<input v-model="form.publicCopy.agenda.momentSingular"></label>
-                <label>Multiple moments<input v-model="form.publicCopy.agenda.momentPlural"></label>
-              </div>
             </div>
           </details>
 
