@@ -15,10 +15,7 @@ export function gigDisplayTitle(gig: TitledGig) {
   return gig.title?.trim() || gig.venueName?.trim() || gig.eventType?.trim() || UNTITLED_GIG
 }
 
-/**
- * Name used for a gig on the public site. The internal title may name a
- * client ("Wedding Jansen"), so only the public title or the venue is shown.
- */
-export function publicGigTitle(gig: { publicTitle?: string | null, venueName?: string | null }) {
-  return gig.publicTitle?.trim() || gig.venueName?.trim() || 'DJ NightLight'
+/** Name used for a public gig: the public title when set, otherwise the display title. */
+export function publicGigTitle(gig: TitledGig & { publicTitle?: string | null }) {
+  return gig.publicTitle?.trim() || gigDisplayTitle(gig)
 }

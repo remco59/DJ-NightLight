@@ -13,10 +13,11 @@ describe('gig titles', () => {
     expect(gigDisplayTitle({ title: null, venueName: null, eventType: null })).toBe('Gig')
   })
 
-  it('never shows the internal title on the public site', () => {
-    expect(publicGigTitle({ publicTitle: 'Kerstborrel', venueName: 'Het Portiertje' })).toBe('Kerstborrel')
-    expect(publicGigTitle({ publicTitle: null, venueName: 'Het Portiertje' })).toBe('Het Portiertje')
-    expect(publicGigTitle({ publicTitle: null, venueName: null })).toBe('DJ NightLight')
+  it('prefers the public title on the public site, then the display title', () => {
+    expect(publicGigTitle({ publicTitle: 'Kerstborrel', title: 'Bedrijfsfeest', venueName: 'Het Portiertje' })).toBe('Kerstborrel')
+    expect(publicGigTitle({ publicTitle: null, title: 'Bedrijfsfeest', venueName: 'Het Portiertje' })).toBe('Bedrijfsfeest')
+    expect(publicGigTitle({ publicTitle: ' ', title: null, venueName: 'Het Portiertje' })).toBe('Het Portiertje')
+    expect(publicGigTitle({ publicTitle: null, title: null, venueName: null, eventType: 'Club night' })).toBe('Club night')
   })
 
   it('accepts a gig without a title', () => {

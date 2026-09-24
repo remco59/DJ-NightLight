@@ -12,7 +12,7 @@ export const VIDEO_EDITOR_ROLES = ['owner', 'content_editor'] as const
 /**
  * Booked gigs that have not ended yet, soonest first, for the announce
  * templates. Editors without access to the gig admin only get the gigs that
- * are already public on the agenda, under their public title.
+ * are already public on the agenda.
  */
 export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<TemplateGig[]> {
   const now = new Date()
@@ -42,7 +42,7 @@ export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<Tem
   return rows.flatMap(row => row.startsAt
     ? [{
         id: row.id,
-        title: canReadGigs ? row.publicTitle || row.title : publicGigTitle(row),
+        title: publicGigTitle(row),
         startsAt: row.startsAt,
         endsAt: row.endsAt,
         venueName: row.venueName,
