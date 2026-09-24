@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-09-19',
   devtools: { enabled: true },
   modules: ['@nuxt/eslint', '@nuxt/icon', 'nuxt-auth-utils'],
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/media-hub.css'],
   icon: {
     // Lucide ships with the app: icons used in components are bundled into the
     // client, anything else is served by our own server. Never call the Iconify CDN.

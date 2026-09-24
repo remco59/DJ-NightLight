@@ -127,4 +127,27 @@ export type MediaAssetMetadata = {
   peaks?: number[]
   fps?: number
   hasAudio?: boolean
+  /** Where a `url`-sourced asset was fetched from. */
+  sourceUrl?: string
+}
+
+/**
+ * How an asset entered the library: uploaded by hand, fetched from a URL,
+ * rendered by a NightLight generator, or an edit (crop, enhanced export) of
+ * another asset.
+ */
+export const MEDIA_SOURCES = ['upload', 'url', 'generated', 'derived'] as const
+export type MediaSource = typeof MEDIA_SOURCES[number]
+
+export function isMediaSource(value: unknown): value is MediaSource {
+  return typeof value === 'string' && (MEDIA_SOURCES as readonly string[]).includes(value)
+}
+
+/** `JDS_0119.jpg` → `JDS 0119`: a readable default title from a filename. */
+export function humanizeFilename(filename: string) {
+  return filename
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

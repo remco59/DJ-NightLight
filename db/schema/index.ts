@@ -8,6 +8,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -17,7 +18,7 @@ import {
 import type { InvoiceSnapshot, VatMode } from '../../shared/invoice'
 import type { QuestionnaireField } from '../../shared/questionnaire'
 import type { SitePublicCopy } from '../../shared/schemas/site-content'
-import type { MediaAssetMetadata } from '../../shared/media'
+import type { MediaAssetMetadata, MediaSource } from '../../shared/media'
 import type { VideoProject } from '../../shared/video-project'
 import type { RenderEngineCapability } from '../../shared/render-engine'
 import type { EmailAttachment } from '../../shared/email-automation'
@@ -370,8 +371,32 @@ export const mediaAssets = pgTable('media_assets', {
   tags: jsonb('tags').$type<string[]>().default([]).notNull(),
   gigId: uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
   venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
+  source: varchar('source', { length: 20 }).$type<MediaSource>().default('upload').notNull(),
+  /** The original this asset was derived from (crop, enhanced edit, generated post). */
+  parentAssetId: uuid('parent_asset_id').references((): AnyPgColumn => mediaAssets.id, { onDelete: 'set null' }),
+  variantLabel: varchar('variant_label', { length: 80 }).default('').notNull(),
+  ...timestamps,
+}, table => [
+  index('media_assets_parent_idx').on(table.parentAssetId),
+  index('media_assets_source_idx').on(table.source),
+])
+
+export const mediaCollections = pgTable('media_collections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 80 }).notNull(),
+  description: varchar('description', { length: 240 }).default('').notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
   ...timestamps,
 })
+
+export const mediaCollectionItems = pgTable('media_collection_items', {
+  collectionId: uuid('collection_id').notNull().references(() => mediaCollections.id, { onDelete: 'cascade' }),
+  assetId: uuid('asset_id').notNull().references(() => mediaAssets.id, { onDelete: 'cascade' }),
+  addedAt: timestamp('added_at', { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  primaryKey({ columns: [table.collectionId, table.assetId] }),
+  index('media_collection_items_asset_idx').on(table.assetId),
+])
 
 export const generatedPosts = pgTable('generated_posts', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -546,6 +571,7 @@ export type EmailJob = typeof emailJobs.$inferSelect
 export type EmailDeliveryAttempt = typeof emailDeliveryAttempts.$inferSelect
 export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
+export type MediaCollection = typeof mediaCollections.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
 export type VideoRenderJob = typeof videoRenderJobs.$inferSelect
 export type VideoProjectRow = typeof videoProjects.$inferSelect

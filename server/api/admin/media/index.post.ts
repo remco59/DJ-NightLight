@@ -1,9 +1,18 @@
 import { z } from 'zod'
-import { normalizeTags } from '../../../../shared/media'
-import { MediaValidationError, isImageUpload, storeMediaImage, storeTimedMedia } from '../../../utils/media-library'
+import { isMediaSource, normalizeTags } from '../../../../shared/media'
+import {
+  MediaValidationError,
+  isImageUpload,
+  mediaAssetUrls,
+  storeMediaImage,
+  storeTimedMedia,
+  validateParentAsset,
+} from '../../../utils/media-library'
 import { requireStaff } from '../../../utils/require-staff'
 
 const optionalUuid = z.string().uuid().or(z.literal('')).transform(value => value || null)
+const uuidList = z.string().transform(value => value.split(',').map(item => item.trim()).filter(Boolean)).pipe(z.array(z.string().uuid()).max(50))
+const sourceUrl = z.string().max(2000).url().refine(value => /^https?:\/\//i.test(value)).or(z.literal(''))
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
@@ -18,8 +27,24 @@ export default defineEventHandler(async (event) => {
   const gigId = optionalUuid.safeParse(text('gigId'))
   const venueId = optionalUuid.safeParse(text('venueId'))
   if (!gigId.success || !venueId.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldige koppeling met gig of locatie' })
+  const parentAssetId = optionalUuid.safeParse(text('parentAssetId'))
+  const collectionIds = uuidList.safeParse(text('collectionIds'))
+  const origin = sourceUrl.safeParse(text('sourceUrl'))
+  if (!parentAssetId.success || !collectionIds.success || !origin.success) {
+    throw createError({ statusCode: 422, statusMessage: 'Ongeldig origineel bestand, collectie of bron-URL' })
+  }
+  const requestedSource = text('source') || undefined
+  if (requestedSource !== undefined && !isMediaSource(requestedSource)) throw createError({ statusCode: 422, statusMessage: 'Onbekende mediabron' })
 
   try {
+    const placement = {
+      // Generated assets are only created by NightLight's own generators.
+      source: requestedSource === 'generated' ? undefined : requestedSource,
+      parentAssetId: await validateParentAsset(parentAssetId.data),
+      variantLabel: text('variantLabel'),
+      sourceUrl: origin.data || undefined,
+      collectionIds: collectionIds.data,
+    }
     if (!isImageUpload(file.data)) {
       let metadata: unknown = null
       try {
@@ -33,18 +58,14 @@ export default defineEventHandler(async (event) => {
         metadata,
         thumbnail: part('thumbnail')?.data || null,
         title: text('title'),
+        altText: text('altText'),
         tags: normalizeTags(text('tags')),
         gigId: gigId.data,
         venueId: venueId.data,
+        ...placement,
       })
       event.node.res.statusCode = 201
-      return {
-        asset: {
-          ...asset,
-          url: `/api/media/${asset.id}`,
-          thumbnailUrl: asset.thumbnailKey ? `/api/media/${asset.id}?variant=thumb` : null,
-        },
-      }
+      return { asset: { ...asset, ...mediaAssetUrls(asset) } }
     }
 
     const asset = await storeMediaImage({
@@ -56,15 +77,10 @@ export default defineEventHandler(async (event) => {
       tags: normalizeTags(text('tags')),
       gigId: gigId.data,
       venueId: venueId.data,
+      ...placement,
     })
     event.node.res.statusCode = 201
-    return {
-      asset: {
-        ...asset,
-        url: `/api/media/${asset.id}`,
-        thumbnailUrl: `/api/media/${asset.id}?variant=thumb`,
-      },
-    }
+    return { asset: { ...asset, ...mediaAssetUrls(asset) } }
   } catch (error) {
     if (error instanceof MediaValidationError) {
       throw createError({

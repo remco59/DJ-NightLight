@@ -1,8 +1,4 @@
-import { eq } from 'drizzle-orm'
-import { mediaAssets } from '../../../../db/schema'
-import { db } from '../../../utils/db'
-import { getMediaUsage } from '../../../utils/media-library'
-import { getMediaStorage } from '../../../utils/media-storage'
+import { deleteMediaAssets, getMediaUsage } from '../../../utils/media-library'
 import { requireStaff } from '../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
@@ -20,9 +16,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await db.delete(mediaAssets).where(eq(mediaAssets.id, id))
-  const storage = getMediaStorage()
-  await storage.delete(usage.asset.storageKey)
-  await storage.delete(usage.asset.thumbnailKey)
+  const result = await deleteMediaAssets([id])
+  if (result.blocked.length) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: 'Het mediabestand wordt nog gebruikt',
+      data: { references: result.blocked[0]!.references },
+    })
+  }
   return { ok: true }
 })

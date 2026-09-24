@@ -3,6 +3,7 @@ import { generatedPosts } from '../../../../db/schema'
 import { inspectImage } from '../../../../shared/media'
 import { POST_PRESETS, POST_TEMPLATE_KEYS } from '../../../../shared/post-generator'
 import { db } from '../../../utils/db'
+import { storeGeneratedImage } from '../../../utils/media-library'
 import { getGeneratedStorage } from '../../../utils/media-storage'
 import { requireStaff } from '../../../utils/require-staff'
 
@@ -108,8 +109,19 @@ export default defineEventHandler(async (event) => {
       outputMimeType: info.mimeType,
     }).returning()
     if (!post) throw new Error('Gegenereerde post opslaan is niet gelukt')
+    const libraryAsset = await storeGeneratedImage({
+      data: file.data,
+      originalFilename: `nightlight-${design.templateKey}-${design.preset}.png`,
+      title: design.headline.trim().slice(0, 200) || `Gegenereerde post ${expected.label}`,
+      variantLabel: `Post ${expected.label}`,
+      parentAssetId: sourceMediaAssetId,
+    }).catch((error) => {
+      // The post itself is saved; a library copy is a convenience.
+      console.error('Generated post could not be added to the media library', error)
+      return null
+    })
     event.node.res.statusCode = 201
-    return { post: { ...post, imageUrl: `/api/generated-posts/${post.id}` } }
+    return { post: { ...post, imageUrl: `/api/generated-posts/${post.id}`, mediaAssetId: libraryAsset?.id || null } }
   } catch (error) {
     await storage.delete(outputKey)
     throw error

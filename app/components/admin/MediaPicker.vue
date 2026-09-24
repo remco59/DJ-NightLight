@@ -1,23 +1,12 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '~/utils/api-error'
-import { createMediaThumbnail } from '~/utils/media-upload'
-type MediaAsset = {
-  id: string
-  originalFilename: string
-  mimeType?: string
-  title: string
-  altText: string
-  tags: string[]
-  width: number
-  height: number
-  durationMs?: number | null
-  url: string
-  thumbnailUrl: string | null
-}
+import MediaAssetCard from '~/components/media/MediaAssetCard.vue'
+import MediaUploadDrawer from '~/components/media/MediaUploadDrawer.vue'
+import { useMediaLibrary } from '~/composables/useMediaLibrary'
+import { defaultMediaFilters, filterMediaItems, mediaDisplayTitle, sortMediaItems, type MediaLibraryItem } from '~~/shared/media-library'
 
-type MediaData = {
-  assets: MediaAsset[]
-}
+// The one media picker for the back office (website editor, post generator,
+// video editor, landing pages). It browses the same library model as the
+// Media page and uploads through the same drawer.
 
 const props = withDefaults(defineProps<{
   modelValue: string | null
@@ -28,6 +17,8 @@ const props = withDefaults(defineProps<{
   /** Render only the picker dialog; the parent opens it with `v-model:open`. */
   bare?: boolean
   uploadTags?: string
+  /** Enables the "This gig" tab. */
+  gigId?: string | null
 }>(), {
   label: 'Afbeelding',
   description: '',
@@ -35,27 +26,22 @@ const props = withDefaults(defineProps<{
   allowExternal: true,
   bare: false,
   uploadTags: 'website',
+  gigId: null,
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | null]
-  selected: [asset: MediaAsset]
+  selected: [asset: MediaLibraryItem]
 }>()
 
-const mediaEndpoint = computed(() => props.kind === 'all' ? '/api/admin/media?kind=all' : '/api/admin/media')
+const { assets, collections, gigs, venues, refresh, byId } = await useMediaLibrary()
 
-const { data, refresh } = await useFetch<MediaData>(mediaEndpoint, {
-  key: () => `admin-media-picker-assets-${props.kind}`,
-})
-
+type PickerTab = 'all' | 'recent' | 'gig' | 'generated'
 const open = defineModel<boolean>('open', { default: false })
 const search = ref('')
-const uploadFile = ref<File | null>(null)
-const uploadTitle = ref('')
-const uploadAlt = ref('')
-const uploadBusy = ref(false)
-const uploadMessage = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
+const tab = ref<PickerTab>('all')
+const collectionId = ref('')
+const uploadOpen = ref(false)
 
 function isExternalUrl(value: string | null) {
   return props.allowExternal && Boolean(value && /^https?:\/\//i.test(value))
@@ -71,25 +57,31 @@ function applyExternalUrl() {
   emit('update:modelValue', externalUrl.value.trim() || null)
 }
 
-const selectedAsset = computed(() =>
-  data.value?.assets.find(asset => asset.url === props.modelValue) || null,
-)
-
+const pool = computed(() => props.kind === 'all' ? assets.value : assets.value.filter(asset => asset.mimeType.startsWith('image/')))
+const selectedAsset = computed(() => pool.value.find(asset => asset.url === props.modelValue) || null)
 const selectedPreview = computed(() => selectedAsset.value?.thumbnailUrl || props.modelValue)
 const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'afbeelding')
 const chooseLabel = computed(() => props.kind === 'all' ? 'Media kiezen' : 'Afbeelding kiezen')
+const tabs = computed(() => [
+  { value: 'all' as const, label: 'Alles' },
+  { value: 'recent' as const, label: 'Recent' },
+  ...(props.gigId ? [{ value: 'gig' as const, label: 'Deze gig' }] : []),
+  { value: 'generated' as const, label: 'Gegenereerd' },
+])
 
 const filteredAssets = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  const assets = data.value?.assets || []
-  if (!q) return assets
-  return assets.filter(asset =>
-    [asset.title, asset.altText, asset.originalFilename, asset.tags.join(' ')]
-      .some(value => value.toLowerCase().includes(q)),
-  )
+  const filters = {
+    ...defaultMediaFilters(),
+    query: search.value,
+    type: tab.value === 'generated' ? 'generated' as const : 'all' as const,
+    gigId: tab.value === 'gig' && props.gigId ? props.gigId : '',
+    collectionId: collectionId.value,
+  }
+  const sorted = sortMediaItems(filterMediaItems(pool.value, filters), 'newest')
+  return tab.value === 'recent' ? sorted.slice(0, 48) : sorted
 })
 
-function selectAsset(asset: MediaAsset) {
+function selectAsset(asset: MediaLibraryItem) {
   externalUrl.value = ''
   emit('update:modelValue', asset.url)
   emit('selected', asset)
@@ -102,48 +94,18 @@ function clearSelection() {
   emit('update:modelValue', null)
 }
 
-function chooseFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0] || null
-  uploadFile.value = file
-  if (file && !uploadTitle.value) {
-    uploadTitle.value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
-  }
+async function onUploaded(ids: string[]) {
+  await refresh()
+  // A single upload is what the editor asked for: use it straight away.
+  const asset = ids.length === 1 ? byId.value.get(ids[0]!) : null
+  if (asset) selectAsset(asset)
 }
 
-async function upload() {
-  if (!uploadFile.value) return
-  uploadBusy.value = true
-  uploadMessage.value = ''
-  try {
-    const thumbnail = await createMediaThumbnail(uploadFile.value)
-    const form = new FormData()
-    form.append('file', uploadFile.value)
-    form.append('thumbnail', thumbnail, 'thumbnail.jpg')
-    form.append('title', uploadTitle.value)
-    form.append('altText', uploadAlt.value)
-    form.append('tags', props.uploadTags)
-    form.append('gigId', '')
-    form.append('venueId', '')
-    const result = await $fetch<{ asset: MediaAsset }>('/api/admin/media', {
-      method: 'POST',
-      body: form,
-    })
-    await refresh()
-    externalUrl.value = ''
-    emit('update:modelValue', result.asset.url)
-    emit('selected', result.asset)
-    uploadFile.value = null
-    uploadTitle.value = ''
-    uploadAlt.value = ''
-    if (fileInput.value) fileInput.value.value = ''
-    uploadMessage.value = 'Geüpload en gekozen.'
-    open.value = false
-  } catch (error) {
-    uploadMessage.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Uploaden mislukt.')
-  } finally {
-    uploadBusy.value = false
-  }
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape' && open.value && !uploadOpen.value) open.value = false
 }
+onMounted(() => document.addEventListener('keydown', onKey))
+onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <template>
@@ -163,7 +125,7 @@ async function upload() {
       <img v-if="selectedPreview" :src="selectedPreview" :alt="selectedAsset?.altText || selectedAsset?.title || label">
       <div v-else class="media-placeholder"><Icon name="lucide:film" aria-hidden="true" /></div>
       <div class="selected-copy">
-        <strong>{{ selectedAsset?.title || selectedAsset?.originalFilename || 'Externe afbeelding' }}</strong>
+        <strong>{{ selectedAsset ? mediaDisplayTitle(selectedAsset) : 'Externe afbeelding' }}</strong>
         <span v-if="selectedAsset">{{ selectedAsset.width }}<IconTimes />{{ selectedAsset.height }} · Mediabibliotheek</span>
         <span v-else>Externe URL</span>
         <button type="button" class="remove" @click="clearSelection">Verwijderen</button>
@@ -174,7 +136,7 @@ async function upload() {
       <span>＋</span>
       <div>
         <strong>Kiezen uit Media</strong>
-        <small>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload een nieuwe afbeelding.' : 'Of upload een nieuwe afbeelding zonder deze editor te verlaten.' }}</small>
+        <small>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload nieuwe media.' : 'Of upload een nieuwe afbeelding zonder deze editor te verlaten.' }}</small>
       </div>
     </div>
 
@@ -189,77 +151,78 @@ async function upload() {
         <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`">
           <header class="picker-header">
             <div>
-              <p class="eyebrow">Mediabibliotheek</p>
+              <p class="picker-eyebrow">Mediabibliotheek</p>
               <h2>{{ label }} kiezen</h2>
-              <p>{{ kind === 'all' ? 'Kies een bestaande afbeelding of video, of upload een nieuwe afbeelding.' : 'Kies een bestaande afbeelding of upload een nieuwe.' }}</p>
             </div>
-            <button type="button" class="close" aria-label="Sluiten" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
+            <div class="header-actions">
+              <button type="button" class="mh-btn primary" @click="uploadOpen = true"><Icon name="lucide:plus" aria-hidden="true" />Uploaden</button>
+              <button type="button" class="mh-icon-btn" aria-label="Sluiten" @click="open = false"><Icon name="lucide:x" aria-hidden="true" /></button>
+            </div>
           </header>
 
           <div class="picker-toolbar">
-            <input v-model="search" type="search" placeholder="Zoek op titel, bestandsnaam of tag">
+            <label class="picker-search">
+              <Icon name="lucide:search" aria-hidden="true" />
+              <input v-model="search" type="search" :placeholder="`Zoek ${kind === 'all' ? 'media' : 'afbeeldingen'} op titel, tag, gig of locatie…`" :aria-label="`${kind === 'all' ? 'Media' : 'Afbeeldingen'} zoeken`">
+            </label>
+            <div class="picker-tabs" role="tablist">
+              <button
+                v-for="entry in tabs"
+                :key="entry.value"
+                type="button"
+                role="tab"
+                :aria-selected="tab === entry.value"
+                :class="{ active: tab === entry.value }"
+                @click="tab = entry.value"
+              >
+                {{ entry.label }}
+              </button>
+            </div>
+            <select v-if="collections.length" v-model="collectionId" class="mh-select picker-collection" aria-label="Collectie">
+              <option value="">Alle collecties</option>
+              <option v-for="collection in collections" :key="collection.id" :value="collection.id">{{ collection.name }} ({{ collection.itemCount }})</option>
+            </select>
           </div>
 
           <div class="picker-body">
-            <div class="library">
-              <button
-                v-for="asset in filteredAssets"
-                :key="asset.id"
-                type="button"
-                class="asset"
-                :class="{ active: asset.url === modelValue }"
-                @click="selectAsset(asset)"
-              >
-                <img v-if="asset.thumbnailUrl" :src="asset.thumbnailUrl" :alt="asset.altText || asset.title || asset.originalFilename" loading="lazy">
-                <span v-else class="asset-placeholder"><Icon name="lucide:film" aria-hidden="true" /></span>
-                <span>
-                  <strong>{{ asset.title || asset.originalFilename }}</strong>
-                  <small>{{ asset.width }}<IconTimes />{{ asset.height }}</small>
-                </span>
-              </button>
-              <p v-if="!filteredAssets.length" class="no-results">Geen {{ kind === 'all' ? 'media' : 'afbeeldingen' }} gevonden voor je zoekopdracht.</p>
+            <MediaAssetCard
+              v-for="asset in filteredAssets"
+              :key="asset.id"
+              :item="asset"
+              :interactive="false"
+              :active="asset.url === modelValue"
+              @open="selectAsset(asset)"
+            />
+            <div v-if="!filteredAssets.length" class="mh-empty no-results">
+              <Icon name="lucide:images" aria-hidden="true" />
+              <strong>Nog geen {{ kind === 'all' ? 'media' : 'afbeeldingen' }} hier</strong>
+              <button type="button" class="mh-btn" @click="uploadOpen = true"><Icon name="lucide:upload" aria-hidden="true" />{{ kind === 'all' ? 'Media' : 'Afbeelding' }} uploaden</button>
             </div>
-
-            <aside class="upload-panel">
-              <p class="eyebrow">Nieuwe afbeelding</p>
-              <h3>Uploaden naar Media</h3>
-              <p>JPEG, PNG of WebP · max. 15 MB.</p>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                @change="chooseFile"
-              >
-              <label>
-                <span>Titel</span>
-                <input v-model="uploadTitle" placeholder="Titel van de afbeelding">
-              </label>
-              <label>
-                <span>Alt-tekst</span>
-                <textarea v-model="uploadAlt" rows="3" placeholder="Beschrijf de afbeelding" />
-              </label>
-              <p v-if="uploadMessage" class="upload-message">{{ uploadMessage }}</p>
-              <button
-                type="button"
-                class="primary"
-                :disabled="!uploadFile || uploadBusy"
-                @click="upload"
-              >
-                {{ uploadBusy ? 'Uploaden…' : 'Uploaden & gebruiken' }}
-              </button>
-            </aside>
           </div>
+          <footer class="picker-footer">
+            <span>{{ filteredAssets.length }} item{{ filteredAssets.length === 1 ? '' : 's' }}</span>
+            <NuxtLink to="/admin/media" target="_blank">Beheren in Mediabibliotheek<Icon name="lucide:arrow-up-right" aria-hidden="true" /></NuxtLink>
+          </footer>
         </section>
       </div>
     </Teleport>
+
+    <MediaUploadDrawer
+      v-model:open="uploadOpen"
+      :assets="assets"
+      :collections="collections"
+      :gigs="gigs"
+      :venues="venues"
+      :preset="{ tags: uploadTags, gigId: gigId || '' }"
+      :images-only="kind === 'image'"
+      @uploaded="onUploaded"
+    />
   </div>
 </template>
 
 <style scoped>
 .media-field{display:grid;gap:.65rem}.media-field.bare{display:contents}.field-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem}.field-heading>div{display:grid;gap:.2rem}.field-heading strong{color:#d8d2de;font-size:.82rem}.field-heading span{color:#81798a;font-size:.72rem;line-height:1.45}.text-button,.remove{border:0;padding:0;background:transparent;color:#b8a5d1;font-size:.75rem;cursor:pointer}.selected-media{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.8rem;align-items:center;padding:.65rem;border:1px solid #312b37;border-radius:.8rem;background:#0b0a0d}.selected-media img,.media-placeholder{width:8rem;height:5.5rem;border-radius:.55rem;background:#070609}.selected-media img{object-fit:cover}.media-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.3rem}.selected-copy{display:grid;gap:.25rem;min-width:0}.selected-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f3eff6;font-size:.82rem}.selected-copy span{color:#81798a;font-size:.7rem}.selected-copy .remove{justify-self:start;margin-top:.15rem;color:#df9ca7}.empty-media{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px dashed #41394a;border-radius:.8rem;background:#0b0a0d;cursor:pointer}.empty-media>span{display:grid;width:2.4rem;height:2.4rem;place-items:center;border-radius:.7rem;background:#1b1621;color:#c7b5de;font-size:1.25rem}.empty-media div{display:grid;gap:.2rem}.empty-media strong{color:#ddd7e2;font-size:.82rem}.empty-media small{color:#7f7888;font-size:.72rem}.external{color:#797282;font-size:.72rem}.external summary{cursor:pointer}.external input{width:100%;margin-top:.55rem;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}
-
-.picker-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(12px)}.picker-modal{width:min(1120px,100%);max-height:calc(100dvh - 2rem);overflow:hidden;border:1px solid #342e3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 30px 100px rgba(0,0,0,.62)}.picker-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.15rem 1.25rem;border-bottom:1px solid #28232d}.picker-header h2{margin:.15rem 0 .25rem;font-size:1.75rem;letter-spacing:-.035em}.picker-header p:last-child{margin:0;color:#81798a;font-size:.8rem}.eyebrow{margin:0;color:#8f8798;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.close{display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #342e3b;border-radius:.7rem;background:#151119;color:#d4ced9;font-size:1.15rem;cursor:pointer}.picker-toolbar{padding:.85rem 1.25rem;border-bottom:1px solid #242027}.picker-toolbar input{width:100%;border:1px solid #342e3b;border-radius:.7rem;padding:.75rem .85rem;background:#151119;color:#f5f1f7}.picker-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:28rem;max-height:calc(100dvh - 12rem)}.library{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;align-content:start;overflow:auto;padding:1rem}.asset{overflow:hidden;padding:0;border:1px solid #2e2934;border-radius:.8rem;background:#111014;color:#fff;text-align:left;cursor:pointer}.asset:hover,.asset.active{border-color:#806f91}.asset img,.asset-placeholder{display:block;width:100%;aspect-ratio:4/3;background:#08070a}.asset img{object-fit:cover}.asset-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.6rem}.asset>span{display:grid;gap:.2rem;padding:.65rem}.asset strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.asset small{color:#7f7888;font-size:.66rem}.no-results{grid-column:1/-1;padding:2rem;color:#81798a;text-align:center}.upload-panel{overflow:auto;padding:1rem;border-left:1px solid #28232d;background:#100e14}.upload-panel h3{margin:.25rem 0;font-size:1.15rem}.upload-panel>p:not(.eyebrow):not(.upload-message){margin:.2rem 0 1rem;color:#81798a;font-size:.72rem}.upload-panel>input[type=file]{width:100%;font-size:.72rem}.upload-panel label{display:grid;gap:.35rem;margin-top:.8rem;color:#a9a2b0;font-size:.72rem}.upload-panel input,.upload-panel textarea{width:100%;border:1px solid #342e3b;border-radius:.65rem;padding:.68rem;background:#17131b;color:#fff}.upload-panel .primary{width:100%;margin-top:1rem;border:0;border-radius:.65rem;padding:.72rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.upload-panel .primary:disabled{opacity:.45;cursor:not-allowed}.upload-message{color:#b6a5ca;font-size:.72rem}
-
-@media(max-width:800px){.picker-body{grid-template-columns:1fr;overflow:auto}.library{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}.upload-panel{border-top:1px solid #28232d;border-left:0}.selected-media{grid-template-columns:6rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:6rem;height:4.5rem}}
-@media(max-width:520px){.picker-backdrop{padding:0}.picker-modal{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.picker-body{max-height:calc(100dvh - 11rem)}.library{grid-template-columns:1fr 1fr;padding:.75rem}.field-heading{align-items:start;flex-direction:column}.selected-media{grid-template-columns:5rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:5rem;height:4rem}}
+.picker-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(12px)}.picker-modal{display:flex;flex-direction:column;width:min(1180px,100%);height:min(52rem,calc(100dvh - 2rem));overflow:hidden;border:1px solid #342e3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 30px 100px rgba(0,0,0,.62)}.picker-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.25rem .8rem}.picker-header h2{margin:.15rem 0 0;font-size:1.6rem;letter-spacing:-.035em}.picker-eyebrow{margin:0;color:#8f8798;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.header-actions{display:flex;gap:.5rem}.picker-toolbar{display:flex;flex-wrap:wrap;gap:.6rem;padding:0 1.25rem .9rem;border-bottom:1px solid #242027}.picker-search{display:flex;flex:1 1 18rem;align-items:center;gap:.55rem;min-height:2.6rem;border:1px solid #2f2a37;border-radius:.65rem;padding:0 .75rem;background:#0f0d13;color:#8f879a}.picker-search input{flex:1;min-width:0;border:0;background:transparent;color:#f4f1f7;font:inherit;font-size:.86rem;outline:none}.picker-search:focus-within{border-color:#7a57de}.picker-tabs{display:flex;gap:.2rem;border:1px solid #2f2a37;border-radius:.65rem;padding:.2rem;background:#0f0d13}.picker-tabs button{border:1px solid transparent;border-radius:.5rem;padding:.35rem .8rem;background:transparent;color:#a79fb2;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap}.picker-tabs button.active{border-color:#5b3fb0;background:#231a3d;color:#fff}.picker-collection{flex:0 1 13rem;width:auto}.picker-body{display:grid;flex:1;grid-template-columns:repeat(auto-fill,minmax(12.5rem,1fr));gap:.8rem;align-content:start;overflow:auto;padding:1rem 1.25rem}.no-results{grid-column:1/-1}.picker-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 1.25rem;border-top:1px solid #242027;color:#8f879a;font-size:.78rem}.picker-footer a{display:inline-flex;align-items:center;gap:.3rem;color:#b69cff;text-decoration:none}
+@media(max-width:800px){.selected-media{grid-template-columns:6rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:6rem;height:4.5rem}.picker-body{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.picker-backdrop{padding:0}.picker-modal{width:100%;height:100dvh;border:0;border-radius:0}.picker-tabs{flex:1 1 100%;overflow-x:auto}.picker-tabs button{flex:1}.picker-collection{flex:1 1 100%}.picker-body{padding:.75rem;gap:.6rem}.field-heading{align-items:start;flex-direction:column}.selected-media{grid-template-columns:5rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:5rem;height:4rem}}
 </style>

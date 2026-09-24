@@ -23,10 +23,15 @@ export default defineEventHandler(async (event) => {
   const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, id)).limit(1)
   if (!asset) throw createError({ statusCode: 404, statusMessage: 'Mediabestand niet gevonden' })
 
-  const variant = String(getQuery(event).variant || 'original')
+  const query = getQuery(event)
+  const variant = String(query.variant || 'original')
   const useThumbnail = variant === 'thumb' && Boolean(asset.thumbnailKey)
   const key = useThumbnail ? asset.thumbnailKey! : asset.storageKey
   const storage = getMediaStorage()
+  if (query.download && !useThumbnail) {
+    const filename = asset.originalFilename.replace(/["\\\r\n]+/g, '_')
+    setHeader(event, 'content-disposition', `attachment; filename="${filename.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(filename)}`)
+  }
 
   if (!useThumbnail && !asset.mimeType.startsWith('image/')) {
     // Video and audio are streamed with byte-range support so players can seek.
