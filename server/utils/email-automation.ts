@@ -22,6 +22,7 @@ import {
 import { db } from './db'
 import { sendEmail } from './email-provider'
 import { loadEmailIntegration } from './integration-settings'
+import { gigTitleSql } from './gig-title'
 
 function clientName(input: { firstName: string | null, lastName: string | null, companyName: string | null }) {
   return input.companyName || [input.firstName, input.lastName].filter(Boolean).join(' ') || 'daar'
@@ -36,7 +37,7 @@ export async function loadGigEmailContext(gigId: string) {
   const [row] = await db
     .select({
       gigId: gigs.id,
-      gigTitle: gigs.title,
+      gigTitle: gigTitleSql(),
       gigStatus: gigs.status,
       startsAt: gigs.startsAt,
       endsAt: gigs.endsAt,
@@ -77,7 +78,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
       totalCents: invoices.totalCents,
       currency: invoices.currency,
       gigId: invoices.gigId,
-      gigTitle: gigs.title,
+      gigTitle: gigTitleSql(),
       clientEmail: clients.email,
       firstName: clients.firstName,
       lastName: clients.lastName,
@@ -338,7 +339,7 @@ export async function materializeScheduledEmailJobs() {
         firstName: clients.firstName,
         lastName: clients.lastName,
         companyName: clients.companyName,
-        title: gigs.title,
+        title: gigTitleSql(),
       })
       .from(gigs)
       .leftJoin(clients, eq(gigs.clientId, clients.id))

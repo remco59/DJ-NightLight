@@ -1,16 +1,18 @@
 import { and, asc, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
 import { gigs, mediaAssets, venues, videoProjects, videoRenderJobs } from '../../db/schema'
 import { permissionAllowed, type StaffRole } from '../../shared/auth'
+import { publicGigTitle } from '../../shared/gig-title'
 import type { TemplateGig } from '../../shared/template-gigs'
 import { collectProjectAssetIds, parseVideoProject, type VideoProject } from '../../shared/video-project'
 import { db } from './db'
+import { gigTitleSql } from './gig-title'
 
 export const VIDEO_EDITOR_ROLES = ['owner', 'content_editor'] as const
 
 /**
  * Booked gigs that have not ended yet, soonest first, for the announce
  * templates. Editors without access to the gig admin only get the gigs that
- * are already public on the agenda, under their public title.
+ * are already public on the agenda.
  */
 export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<TemplateGig[]> {
   const now = new Date()
@@ -24,7 +26,7 @@ export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<Tem
   const rows = await db
     .select({
       id: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       publicTitle: gigs.publicTitle,
       startsAt: gigs.startsAt,
       endsAt: gigs.endsAt,
@@ -40,7 +42,7 @@ export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<Tem
   return rows.flatMap(row => row.startsAt
     ? [{
         id: row.id,
-        title: row.publicTitle || (canReadGigs ? row.title : 'DJ NightLight'),
+        title: publicGigTitle(row),
         startsAt: row.startsAt,
         endsAt: row.endsAt,
         venueName: row.venueName,

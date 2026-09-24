@@ -8,6 +8,7 @@ import {
 } from '../../shared/calendar'
 import { db } from './db'
 import { googleCalendarFetch } from './google-calendar'
+import { gigTitleSql } from './gig-title'
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message.slice(0, 1500) : String(error).slice(0, 1500)
@@ -48,7 +49,7 @@ async function loadGig(gigId: string) {
   const [row] = await db
     .select({
       id: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       eventType: gigs.eventType,
       status: gigs.status,
       startsAt: gigs.startsAt,

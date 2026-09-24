@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
+import { gigTitleSql } from '../../../utils/gig-title'
 import { requireStaff } from '../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
@@ -16,6 +17,7 @@ export default defineEventHandler(async (event) => {
     .select({
       id: gigs.id,
       title: gigs.title,
+      displayTitle: gigTitleSql(),
       eventType: gigs.eventType,
       clientId: gigs.clientId,
       venueId: gigs.venueId,

@@ -2,6 +2,7 @@ import { and, asc, count, eq, gt, isNull, ne } from 'drizzle-orm'
 import { gigs, invoices, venues } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { requireStaff } from '../../utils/require-staff'
+import { gigTitleSql } from '../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event)
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
   const [leadCountRow] = await db.select({ value: count() }).from(gigs).where(leadWhere)
 
   const upcoming = await db
-    .select({ id: gigs.id, title: gigs.title, eventType: gigs.eventType, startsAt: gigs.startsAt, venueName: venues.name })
+    .select({ id: gigs.id, title: gigTitleSql(), eventType: gigs.eventType, startsAt: gigs.startsAt, venueName: venues.name })
     .from(gigs)
     .leftJoin(venues, eq(gigs.venueId, venues.id))
     .where(upcomingWhere)
