@@ -4,13 +4,14 @@ import { gigRemovalMode } from '../../../../shared/gig-rules'
 import { recordAudit } from '../../../utils/audit'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
 
-  const [gig] = await db.select({ id: gigs.id, status: gigs.status, title: gigs.title }).from(gigs).where(eq(gigs.id, id)).limit(1)
+  const [gig] = await db.select({ id: gigs.id, status: gigs.status, title: gigTitleSql() }).from(gigs).where(eq(gigs.id, id)).limit(1)
   if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
 
   if (gig.status !== 'declined') {

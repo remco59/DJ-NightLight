@@ -37,7 +37,7 @@ export const gigTimelineInputSchema = z.object({
 })
 
 export const gigInputSchema = z.object({
-  title: z.string().trim().min(1).max(240),
+  title: optionalText(240),
   eventType: optionalText(120),
   clientId: optionalId,
   venueId: optionalId,

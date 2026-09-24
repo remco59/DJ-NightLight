@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { gigDisplayTitle } from '~~/shared/gig-title'
 import type { QuestionnaireField } from '~~/shared/questionnaire'
 
 definePageMeta({layout:'admin'})
@@ -12,7 +13,7 @@ type VenueOption={id:string;name:string;city:string|null}
 type DjOption={id:string;name:string;email:string}
 type Contact={id?:string;name:string;role:string|null;email:string|null;phone:string|null;notes:string|null}
 type Timeline={id?:string;time:string|null;title:string;description:string|null;ordering?:number}
-type Gig={id:string;title:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null}
+type Gig={id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null}
 type Activity={id:string;action:string;metadata:Record<string,unknown>|null;createdAt:string;actorName:string|null;actorEmail:string|null}
 type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
 type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
@@ -37,7 +38,8 @@ function stripeLabel(invoice:InvoiceSummary){
 }
 
 const g=data.value.gig
-const form=reactive({title:g.title,eventType:g.eventType||'',clientId:g.clientId||'',venueId:g.venueId||'',assignedUserId:g.assignedUserId||'',status:g.status,startsAt:localDate(g.startsAt),endsAt:localDate(g.endsAt),loadInAt:localDate(g.loadInAt),fee:g.fee||'',currency:g.currency,publicVisibility:g.publicVisibility,publicTitle:g.publicTitle||'',publicDescription:g.publicDescription||'',internalNotes:g.internalNotes||'',source:g.source||''})
+const form=reactive({title:g.title||'',eventType:g.eventType||'',clientId:g.clientId||'',venueId:g.venueId||'',assignedUserId:g.assignedUserId||'',status:g.status,startsAt:localDate(g.startsAt),endsAt:localDate(g.endsAt),loadInAt:localDate(g.loadInAt),fee:g.fee||'',currency:g.currency,publicVisibility:g.publicVisibility,publicTitle:g.publicTitle||'',publicDescription:g.publicDescription||'',internalNotes:g.internalNotes||'',source:g.source||''})
+const titlePlaceholder=computed(()=>`Optional: leave empty to show “${gigDisplayTitle({venueName:data.value?.options.venues.find(v=>v.id===form.venueId)?.name,eventType:form.eventType})}”`)
 const contacts=ref(data.value.contacts.map(c=>({name:c.name,role:c.role||'',email:c.email||'',phone:c.phone||'',notes:c.notes||''})))
 const timeline=ref(data.value.timeline.map(t=>({time:t.time||'',title:t.title,description:t.description||''})))
 const saving=ref(false);const message=ref('')
@@ -95,16 +97,16 @@ async function copyPortalUrl(){
 function portalDate(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Never'}
 function answerValue(value:unknown){return Array.isArray(value)?value.join(', '):value===true?'Yes':value===false?'No':String(value??'—')}
 
-useSeoMeta({title:()=>`${data.value?.gig.title||'Gig'} — DJ NightLight`,robots:'noindex, nofollow'})
+useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`,robots:'noindex, nofollow'})
 </script>
 
 <template><div v-if="data" class="detail" :class="{readonly:!canManageGigs}">
 <NuxtLink to="/admin/gigs" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Gigs</NuxtLink>
-<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.title}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div v-if="canManageGigs" class="hero-actions"><button class="secondary" type="button" @click="duplicate">Duplicate</button><button v-if="canDeleteGig&&form.status==='declined'" class="danger" type="button" @click="remove">Remove</button></div></header>
+<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.displayTitle}}</h1><div class="summary"><span>{{data.gig.status}}</span><span>{{data.gig.clientCompanyName||[data.gig.clientFirstName,data.gig.clientLastName].filter(Boolean).join(' ')||'No client'}}</span><span>{{data.gig.venueName||'No venue'}}</span></div></div><div v-if="canManageGigs" class="hero-actions"><button class="secondary" type="button" @click="duplicate">Duplicate</button><button v-if="canDeleteGig&&form.status==='declined'" class="danger" type="button" @click="remove">Remove</button></div></header>
 
 <div v-if="!canManageGigs" class="readonly-note">This gig is assigned to you. DJ access is read-only; a manager or owner can change booking details.</div>
 <form @submit.prevent="save">
-<section class="card"><p class="eyebrow">Overview</p><div class="grid"><label class="wide">Title<input v-model="form.title" required></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Booked</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select></label><label>Event type<input v-model="form.eventType"></label><label>Client<select v-model="form.clientId"><option value="">No client</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Venue<select v-model="form.venueId"><option value="">No venue</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Assigned DJ<select v-model="form.assignedUserId"><option value="">Unassigned</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Fee<input v-model="form.fee" inputmode="decimal"></label><label>Currency<input v-model="form.currency" maxlength="3"></label><label>Source<input v-model="form.source"></label></div></section>
+<section class="card"><p class="eyebrow">Overview</p><div class="grid"><label class="wide">Title<input v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Booked</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select></label><label>Event type<input v-model="form.eventType"></label><label>Client<select v-model="form.clientId"><option value="">No client</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Venue<select v-model="form.venueId"><option value="">No venue</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Assigned DJ<select v-model="form.assignedUserId"><option value="">Unassigned</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Fee<input v-model="form.fee" inputmode="decimal"></label><label>Currency<input v-model="form.currency" maxlength="3"></label><label>Source<input v-model="form.source"></label></div></section>
 
 <section v-if="canManageGigs" class="card invoice-card">
   <div class="section-title invoice-heading">

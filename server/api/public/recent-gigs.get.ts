@@ -1,5 +1,6 @@
 import { and, desc, eq, isNull, lt } from 'drizzle-orm'
 import { gigs, venues } from '../../../db/schema'
+import { publicGigTitle } from '../../../shared/gig-title'
 import { db } from '../../utils/db'
 
 export default defineEventHandler(async () => {
@@ -24,7 +25,7 @@ export default defineEventHandler(async () => {
 
   return {
     gigs: rows.map(row => ({
-      title: row.publicTitle || 'DJ NightLight',
+      title: publicGigTitle(row),
       description: row.publicDescription,
       startsAt: row.startsAt,
       venue: row.venueName,

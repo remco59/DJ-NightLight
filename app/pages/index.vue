@@ -25,7 +25,8 @@ function recentGigDate(value: string) {
 }
 
 function recentGigLocation(gig: RecentGig) {
-  return [gig.venue, gig.city].filter(Boolean).join(' · ')
+  // A gig without a public title is already named after its venue.
+  return [gig.venue === gig.title ? null : gig.venue, gig.city].filter(Boolean).join(' · ')
 }
 
 const heroFallback = {

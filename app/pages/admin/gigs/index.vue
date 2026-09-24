@@ -210,7 +210,7 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
             <section class="form-section">
               <div class="section-heading"><strong>Basics</strong><span>What is the booking?</span></div>
               <div class="form-grid">
-                <label class="wide">Title<input v-model="form.title" required autofocus placeholder="Wedding Jansen, Club Night…"></label>
+                <label class="wide">Title<input v-model="form.title" autofocus placeholder="Optional: leave empty to use the venue name"></label>
                 <label>Event type<input v-model="form.eventType" placeholder="Wedding, club…"></label>
                 <label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Booked</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select></label>
               </div>

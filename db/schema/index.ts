@@ -82,7 +82,7 @@ export const venues = pgTable('venues', {
 
 export const gigs = pgTable('gigs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  title: varchar('title', { length: 240 }).notNull(),
+  title: varchar('title', { length: 240 }),
   eventType: varchar('event_type', { length: 120 }),
   clientId: uuid('client_id').references(() => clients.id, { onDelete: 'restrict' }),
   venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),

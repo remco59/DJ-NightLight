@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { clients, gigs, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const history = await db
     .select({
       id: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       status: gigs.status,
       startsAt: gigs.startsAt,
       fee: gigs.fee,

@@ -9,6 +9,7 @@ import {
 import { db } from '../../../utils/db'
 import { emailProviderConfigured } from '../../../utils/email-provider'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
     lastError: emailJobs.lastError,
     sentAt: emailJobs.sentAt,
     createdAt: emailJobs.createdAt,
-    gigTitle: gigs.title,
+    gigTitle: gigTitleSql(),
   }).from(emailJobs)
     .leftJoin(gigs, eq(emailJobs.gigId, gigs.id))
     .orderBy(desc(emailJobs.createdAt))
@@ -40,12 +41,12 @@ export default defineEventHandler(async (event) => {
     id: gigEmailSuppressions.id,
     gigId: gigEmailSuppressions.gigId,
     templateKey: gigEmailSuppressions.templateKey,
-    gigTitle: gigs.title,
+    gigTitle: gigTitleSql(),
   }).from(gigEmailSuppressions)
     .innerJoin(gigs, eq(gigEmailSuppressions.gigId, gigs.id))
     .orderBy(desc(gigEmailSuppressions.createdAt))
 
-  const gigOptions = await db.select({ id: gigs.id, title: gigs.title, startsAt: gigs.startsAt, status: gigs.status })
+  const gigOptions = await db.select({ id: gigs.id, title: gigTitleSql(), startsAt: gigs.startsAt, status: gigs.status })
     .from(gigs).orderBy(desc(gigs.startsAt)).limit(150)
 
   return {

@@ -1,5 +1,6 @@
 import { and, asc, eq, gte, isNull } from 'drizzle-orm'
-import { gigs } from '../../../db/schema'
+import { gigs, venues } from '../../../db/schema'
+import { publicGigTitle } from '../../../shared/gig-title'
 import { db } from '../../utils/db'
 
 export default defineEventHandler(async () => {
@@ -9,8 +10,10 @@ export default defineEventHandler(async () => {
       publicDescription: gigs.publicDescription,
       startsAt: gigs.startsAt,
       endsAt: gigs.endsAt,
+      venueName: venues.name,
     })
     .from(gigs)
+    .leftJoin(venues, eq(gigs.venueId, venues.id))
     .where(and(
       eq(gigs.status, 'booked'),
       eq(gigs.publicVisibility, true),
@@ -22,7 +25,7 @@ export default defineEventHandler(async () => {
 
   return {
     gigs: rows.map(row => ({
-      title: row.publicTitle || 'DJ NightLight',
+      title: publicGigTitle(row),
       description: row.publicDescription,
       startsAt: row.startsAt,
       endsAt: row.endsAt,

@@ -3,6 +3,7 @@ import { gigs, mediaAssets, venues } from '../../../../db/schema'
 import { mediaKindFromMime } from '../../../../shared/media'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
@@ -30,7 +31,7 @@ export default defineEventHandler(async (event) => {
     createdAt: mediaAssets.createdAt,
     updatedAt: mediaAssets.updatedAt,
     hasThumbnail: mediaAssets.thumbnailKey,
-    gigTitle: gigs.title,
+    gigTitle: gigTitleSql(),
     venueName: venues.name,
   }).from(mediaAssets)
     .leftJoin(gigs, eq(mediaAssets.gigId, gigs.id))
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
       thumbnailUrl: row.hasThumbnail || mediaKindFromMime(row.mimeType) === 'image' ? `/api/media/${row.id}?variant=thumb` : null,
     }))
 
-  const gigOptions = await db.select({ id: gigs.id, title: gigs.title }).from(gigs).orderBy(desc(gigs.startsAt)).limit(250)
+  const gigOptions = await db.select({ id: gigs.id, title: gigTitleSql() }).from(gigs).orderBy(desc(gigs.startsAt)).limit(250)
   const venueOptions = await db.select({ id: venues.id, name: venues.name }).from(venues).orderBy(venues.name).limit(250)
   return { assets, options: { gigs: gigOptions, venues: venueOptions } }
 })

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { auditLogs, businessSettings, gigs, invoiceLineItems, invoices } from '../../../../../db/schema'
 import { calculateInvoiceTotals } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
+import { gigTitleSql } from '../../../../utils/gig-title'
 import { requireStaff } from '../../../../utils/require-staff'
 
 function dateOnly(value: Date) { return value.toISOString().slice(0, 10) }
@@ -10,8 +11,9 @@ export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const gigId = getRouterParam(event, 'id')
   if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
-  const [gig] = await db.select().from(gigs).where(eq(gigs.id, gigId)).limit(1)
-  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  const [row] = await db.select({ gig: gigs, displayTitle: gigTitleSql() }).from(gigs).where(eq(gigs.id, gigId)).limit(1)
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  const { gig, displayTitle } = row
   if (!gig.clientId) throw createError({ statusCode: 422, statusMessage: 'Link a client before creating an invoice' })
   const [settings] = await db.select().from(businessSettings).where(eq(businessSettings.key, 'default')).limit(1)
   if (!settings) throw createError({ statusCode: 500, statusMessage: 'Business settings are not initialized' })
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
   const issue = gig.startsAt ? new Date(gig.startsAt) : new Date()
   const due = new Date(issue); due.setUTCDate(due.getUTCDate() + settings.defaultPaymentTermDays)
   const unitPriceCents = Math.round(Number(gig.fee || 0) * 100)
-  const lines = [{ description: `DJ services — ${gig.title}`, quantity: '1.000', unitPriceCents }]
+  const lines = [{ description: `DJ services — ${displayTitle}`, quantity: '1.000', unitPriceCents }]
   const totals = calculateInvoiceTotals(lines, settings.defaultVatMode, settings.defaultVatRateBasisPoints)
 
   const invoice = await db.transaction(async (tx) => {

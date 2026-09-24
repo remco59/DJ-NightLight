@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   const created = await db.transaction(async (tx) => {
     const [gig] = await tx.insert(gigs).values({
-      title: `${source.title} (copy)`,
+      title: source.title ? `${source.title} (copy)` : null,
       eventType: source.eventType,
       clientId: source.clientId,
       venueId: source.venueId,
