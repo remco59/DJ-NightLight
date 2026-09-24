@@ -231,7 +231,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'photo-drop': {
     key: 'photo-drop',
     label: 'Photo Drop',
-    description: 'Photo drops into the logo\'s ring, with a caption.',
+    description: 'Polaroid that drops in, lights up with an electric edge and carries a caption.',
     category: 'Recap',
     defaultDurationSeconds: 3,
     defaultAccent: 'ultraviolet',

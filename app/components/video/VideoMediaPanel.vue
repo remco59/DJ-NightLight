@@ -587,8 +587,7 @@ h3 {
 .template-art[data-template="neon-logo-reveal"],
 .template-art[data-template="electric-gig-poster"],
 .template-art[data-template="neon-outro"],
-.template-art[data-template="lower-third"],
-.template-art[data-template="photo-drop"] {
+.template-art[data-template="lower-third"] {
   background-image: url("/brand/logo/emblem-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
   background-size: auto 88%, auto;
 }

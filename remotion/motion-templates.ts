@@ -807,53 +807,112 @@ const HypeTitle: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   )
 }
 
-const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, width, height, assets }) => {
+const PhotoDrop: React.FC<TemplateRenderProps> = ({ item, frame, height, assets }) => {
   const colors = colorsFor(item)
   const assetId = textProp(item.templateProps, 'photo')
   const caption = textProp(item.templateProps, 'caption')
-  const badgeWidth = Math.min(width, height * 0.72) * 0.95
-  const photoSize = ((2 * EMBLEM_RING.radius * badgeWidth) / BRAND_LOGOS.emblem.width) * 0.94
-  const drop = reveal(frame, 0, 14)
+  const cardWidth = 760
+  const cardHeight = cardWidth - 56 + 138
+  const drop = reveal(frame, 0, 16)
+  // Once the polaroid lands its neon edge switches on and the logo's arcs crackle around it.
+  const landed = 12
+  const edge = frame < landed ? 0 : Math.max(0.6, flicker(frame, `photo-edge-${item.id}`, landed))
+  const flash = interpolate(frame, [landed, landed + 2, landed + 10], [0, 0.35, 0], clamp)
+  const [, , boltW, boltH] = BRAND_LOGOS.emblem.layers.bolt
   return h(
     AbsoluteFill,
-    { style: { alignItems: 'center', justifyContent: 'center', gap: 10 } },
+    { style: { alignItems: 'center', justifyContent: 'center' } },
     h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 45%, ${colors.glow}44, transparent 60%)`, opacity: reveal(frame, 0, 20) } }),
     h(
-      RingBadge,
-      { colors, width: badgeWidth, frame, start: 6, seed: `photo-ring-${item.id}` },
+      'div',
+      {
+        style: {
+          position: 'relative',
+          width: cardWidth,
+          height: cardHeight,
+          transform: `translateY(${(1 - drop) * -height}px) rotate(${interpolate(drop, [0, 1], [-18, -4])}deg)`,
+        },
+      },
+      ...[0, 180].map(turn =>
+        h(Img, {
+          key: turn,
+          src: staticFile('brand/logo/emblem-arcs.webp'),
+          style: {
+            position: 'absolute',
+            left: -cardWidth * 0.14,
+            top: -cardHeight * 0.12,
+            width: cardWidth * 1.28,
+            height: cardHeight * 1.24,
+            maxWidth: 'none',
+            filter: artTint(colors),
+            transform: `rotate(${turn}deg)`,
+            opacity: flicker(frame, `photo-arcs-${turn}-${item.id}`, landed + 2),
+          },
+        }),
+      ),
       h(
         'div',
         {
           style: {
-            position: 'relative',
-            width: photoSize,
-            height: photoSize,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            background: '#111',
-            transform: `translateY(${(1 - drop) * -height}px) rotate(${interpolate(drop, [0, 1], [-14, 0])}deg)`,
+            position: 'absolute',
+            inset: 0,
+            padding: '28px 28px 0',
+            background: '#f4f1ea',
+            border: `3px solid ${colors.soft}`,
+            boxShadow: [
+              `0 0 0 ${5 * edge}px ${colors.accent}`,
+              `0 0 ${26 * edge}px ${6 * edge}px ${colors.glow}`,
+              `0 0 ${90 * edge}px ${16 * edge}px ${colors.glow}99`,
+              `inset 0 0 ${26 * edge}px ${colors.accent}66`,
+              '0 40px 90px rgba(0,0,0,.6)',
+            ].join(', '),
           },
         },
-        h(MediaFill, { asset: assetId ? assets[assetId] : undefined, muted: true }),
-        h(AbsoluteFill, { style: { borderRadius: '50%', boxShadow: `inset 0 0 60px ${colors.glow}aa, inset 0 0 12px ${colors.glow}` } }),
-      ),
-    ),
-    caption
-      ? h(
+        h(
           'div',
-          {
-            style: {
-              ...gradientText(colors, 18),
-              fontSize: Math.min(64, (width - 160) / (0.74 * Math.max(10, caption.length))),
-              letterSpacing: 1,
-              whiteSpace: 'nowrap',
-              transform: `${TILT} skewX(-8deg)`,
-              ...wipe(reveal(frame, 18, 14)),
-            },
-          },
-          caption,
-        )
-      : null,
+          { style: { position: 'relative', width: '100%', aspectRatio: '1 / 1', overflow: 'hidden', background: '#111' } },
+          h(MediaFill, { asset: assetId ? assets[assetId] : undefined, muted: true }),
+          h(AbsoluteFill, { style: { boxShadow: `inset 0 0 40px ${colors.glow}66` } }),
+        ),
+        caption
+          ? h(
+              'div',
+              {
+                style: {
+                  ...display,
+                  height: 110,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  whiteSpace: 'nowrap',
+                  fontSize: Math.min(40, (cardWidth - 80) / (0.72 * Math.max(10, caption.length))),
+                  color: 'transparent',
+                  backgroundImage: `linear-gradient(180deg, #15101c 30%, ${colors.glow})`,
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  transform: 'rotate(-2deg)',
+                  ...wipe(reveal(frame, landed + 4, 12)),
+                },
+              },
+              caption,
+            )
+          : null,
+      ),
+      // The logo's bolt pins the polaroid like a strip of tape.
+      h(Img, {
+        src: staticFile('brand/logo/emblem-bolt.webp'),
+        style: slam(reveal(frame, landed + 2, 6), 1.8, {
+          position: 'absolute',
+          top: -70,
+          right: -60,
+          width: 170,
+          height: (170 * boltH) / boltW,
+          maxWidth: 'none',
+          filter: artTint(colors),
+        }),
+      }),
+    ),
+    h(AbsoluteFill, { style: { background: colors.soft, opacity: flash } }),
   )
 }
 
