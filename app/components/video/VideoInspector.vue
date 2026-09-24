@@ -147,10 +147,10 @@ const playheadSourceTime = computed(() => {
 const gridNote = computed(() => {
   const clip = item.value
   if (clip?.type !== 'audio') return ''
-  if (waveformState.value === 'loading') return 'Analysing the track…'
+  if (waveformState.value === 'loading') return 'Track analyseren…'
   const detected = waveforms.get(clip.assetId)?.grid
-  if (clip.beatGrid) return detected ? `Adjusted by hand (detected ${detected.bpm.toFixed(2)} BPM).` : 'Set by hand.'
-  return detected ? 'Detected from the kicks. Clips snap to these beats.' : 'No clear beat found in this track.'
+  if (clip.beatGrid) return detected ? `Handmatig aangepast (gedetecteerd: ${detected.bpm.toFixed(2)} BPM).` : 'Handmatig ingesteld.'
+  return detected ? 'Gedetecteerd op basis van de kicks. Clips klikken vast op deze beats.' : 'Geen duidelijke beat gevonden in deze track.'
 })
 
 function setGrid(grid: BeatGrid | undefined) {
@@ -190,6 +190,7 @@ function setField(field: TemplateField, value: string | string[]) {
 
 // --- Gig data (announce templates) ------------------------------------------------
 
+const cropSideLabels = { top: 'Boven', right: 'Rechts', bottom: 'Onder', left: 'Links' } as const
 const gigKind = computed(() => item.value?.type === 'graphic' ? gigTemplateKind(item.value.templateKey) : null)
 const linkedGigId = computed(() => item.value?.type === 'graphic' ? item.value.gigId || '' : '')
 /** A linked gig leaves the picker once it has passed; keep showing that it is linked. */
@@ -197,8 +198,8 @@ const linkedGigMissing = computed(() => Boolean(linkedGigId.value) && !state.gig
 /** Only public gigs are filled in automatically; private ones can still be picked by hand. */
 const publicGigs = computed(() => upcomingPublicGigs(state.gigs))
 const gigNote = computed(() => {
-  if (linkedGigId.value) return 'Date, time and venue come from this gig. Editing them switches to manual.'
-  return state.gigs.length ? 'Pick a gig to fill in date, time and venue.' : 'No upcoming booked gigs in the agenda.'
+  if (linkedGigId.value) return 'Datum, tijd en locatie komen uit deze gig. Als je ze bewerkt, schakel je over op handmatig.'
+  return state.gigs.length ? 'Kies een gig om datum, tijd en locatie in te vullen.' : 'Geen aankomende geboekte gigs in de agenda.'
 })
 
 function selectGig(gigId: string) {
@@ -307,7 +308,7 @@ function setFps(value: number) {
 const assetTitle = computed(() => {
   if (!item.value || item.value.type === 'graphic') return ''
   const asset = editor.mediaById.value.get(item.value.assetId)
-  return asset?.title || asset?.originalFilename || 'Missing media'
+  return asset?.title || asset?.originalFilename || 'Media ontbreekt'
 })
 </script>
 
@@ -317,17 +318,17 @@ const assetTitle = computed(() => {
     <template v-if="!item">
       <div v-if="props.mobile" class="empty-state">
         <Icon name="lucide:mouse-pointer-click" aria-hidden="true" />
-        <p>Select a clip, image, text or audio item in the timeline to edit it.</p>
+        <p>Kies een clip, afbeelding, tekst of audio-item in de timeline om het te bewerken.</p>
       </div>
       <header v-else class="head">
         <div>
           <h2>Project</h2>
-          <small>Select a clip or graphic to edit it</small>
+          <small>Kies een clip of graphic om te bewerken</small>
         </div>
       </header>
       <component :is="sectionTag" class="block">
-        <component :is="headingTag">{{ props.mobile ? 'Project settings' : 'Output' }}</component>
-        <label class="row"><span>Format</span>
+        <component :is="headingTag">{{ props.mobile ? 'Projectinstellingen' : 'Uitvoer' }}</component>
+        <label class="row"><span>Formaat</span>
           <select :value="state.project.aspect" @change="editor.setAspect(($event.target as HTMLSelectElement).value as VideoAspect)">
             <option v-for="key in VIDEO_ASPECT_KEYS" :key="key" :value="key">{{ VIDEO_ASPECTS[key].label }}</option>
           </select>
@@ -337,33 +338,33 @@ const assetTitle = computed(() => {
             <option v-for="value in VIDEO_FPS_OPTIONS" :key="value" :value="value">{{ value }} fps</option>
           </select>
         </label>
-        <label class="row"><span>Background</span>
+        <label class="row"><span>Achtergrond</span>
           <input type="color" :value="state.project.background" @input="editor.patchProject(project => { project.background = ($event.target as HTMLInputElement).value }, 'project.background')">
         </label>
-        <label class="row check"><span>Duration follows timeline</span>
+        <label class="row check"><span>Duur volgt de timeline</span>
           <input type="checkbox" :checked="state.project.autoDuration" @change="editor.patchProject(project => { project.autoDuration = ($event.target as HTMLInputElement).checked })">
         </label>
-        <label v-if="!state.project.autoDuration" class="row"><span>Duration (s)</span>
+        <label v-if="!state.project.autoDuration" class="row"><span>Duur (s)</span>
           <input type="number" min="1" :max="MAX_PROJECT_SECONDS" step="0.5" :value="seconds(state.project.durationFrames)" @change="setProjectDuration(Number(($event.target as HTMLInputElement).value))">
         </label>
-        <p class="note">{{ state.project.width }}<IconTimes />{{ state.project.height }} · length {{ seconds(editor.duration.value) }}s</p>
-        <label class="row check"><span>Show Reels / Stories safe zones</span>
+        <p class="note">{{ state.project.width }}<IconTimes />{{ state.project.height }} · lengte {{ seconds(editor.duration.value) }}s</p>
+        <label class="row check"><span>Veilige zones voor Reels / Stories tonen</span>
           <input type="checkbox" :checked="state.project.showSafeZones" @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })">
         </label>
       </component>
       <section v-if="!props.mobile">
-        <h3>Shortcuts</h3>
+        <h3>Sneltoetsen</h3>
         <dl class="shortcuts">
-          <dt>Space</dt><dd>Play / pause</dd>
-          <dt>S</dt><dd>Split at playhead</dd>
-          <dt>Delete</dt><dd>Delete selection</dd>
-          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> D</dt><dd>Duplicate</dd>
-          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> Z</dt><dd>Undo (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> to redo)</dd>
-          <dt><Icon name="lucide:arrow-left" role="img" aria-label="Left" /> <Icon name="lucide:arrow-right" role="img" aria-label="Right" /></dt><dd>Step one frame (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> one second)</dd>
-          <dt><Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> Delete</dt><dd>Ripple delete (close the hole)</dd>
-          <dt>M</dt><dd>Add marker at playhead</dd>
-          <dt>[ ]</dt><dd>Previous / next marker</dd>
-          <dt>\</dt><dd>Zoom timeline to fit (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> selected clip)</dd>
+          <dt>Spatie</dt><dd>Afspelen / pauzeren</dd>
+          <dt>S</dt><dd>Splitsen bij de afspeelpositie</dd>
+          <dt>Delete</dt><dd>Selectie verwijderen</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> D</dt><dd>Dupliceren</dd>
+          <dt>Ctrl/<Icon name="lucide:command" role="img" aria-label="Cmd" /> Z</dt><dd>Ongedaan maken (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> om opnieuw te doen)</dd>
+          <dt><Icon name="lucide:arrow-left" role="img" aria-label="Links" /> <Icon name="lucide:arrow-right" role="img" aria-label="Rechts" /></dt><dd>Eén frame verder (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> één seconde)</dd>
+          <dt><Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> Delete</dt><dd>Ripple delete (gat sluiten)</dd>
+          <dt>M</dt><dd>Marker toevoegen bij de afspeelpositie</dd>
+          <dt>[ ]</dt><dd>Vorige / volgende marker</dd>
+          <dt>\</dt><dd>Timeline passend zoomen (<Icon name="lucide:arrow-big-up" role="img" aria-label="Shift" /> gekozen clip)</dd>
         </dl>
       </section>
     </template>
@@ -372,19 +373,19 @@ const assetTitle = computed(() => {
       <header class="head">
         <div>
           <h2>{{ template ? template.label : assetTitle }}</h2>
-          <small>{{ template ? 'Motion Graphic Template' : item.type === 'audio' ? 'Audio clip' : item.type === 'video' ? 'Video clip' : 'Image' }}</small>
+          <small>{{ template ? 'Motion Graphic Template' : item.type === 'audio' ? 'Audioclip' : item.type === 'video' ? 'Videoclip' : 'Afbeelding' }}</small>
         </div>
-        <button type="button" class="ghost" title="Deselect" aria-label="Deselect" @click="state.selectedId = null"><Icon name="lucide:x" aria-hidden="true" /></button>
+        <button type="button" class="ghost" title="Deselecteren" aria-label="Deselecteren" @click="state.selectedId = null"><Icon name="lucide:x" aria-hidden="true" /></button>
       </header>
 
       <!-- Motion graphic content -->
       <component :is="sectionTag" v-if="item.type === 'graphic' && template" class="block" :open="props.mobile || undefined">
-        <component :is="headingTag">Content</component>
+        <component :is="headingTag">Inhoud</component>
         <template v-if="gigKind === 'single'">
           <label class="stack"><span>Gig</span>
             <select :value="linkedGigId" @change="selectGig(($event.target as HTMLSelectElement).value)">
-              <option value="">Manual input</option>
-              <option v-if="linkedGigMissing" :value="linkedGigId">Linked gig (no longer upcoming)</option>
+              <option value="">Handmatig invullen</option>
+              <option v-if="linkedGigMissing" :value="linkedGigId">Gekoppelde gig (niet meer aankomend)</option>
               <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
             </select>
           </label>
@@ -399,7 +400,7 @@ const assetTitle = computed(() => {
           </label>
           <label v-else-if="field.kind === 'icon'" class="row"><span>{{ field.label }}</span>
             <select :value="iconValue(field) || ''" @change="setField(field, ($event.target as HTMLSelectElement).value)">
-              <option value="">None</option>
+              <option value="">Geen</option>
               <optgroup v-for="(names, group) in LUCIDE_ICON_GROUPS" :key="group" :label="group">
                 <option v-for="name in names" :key="name" :value="name">{{ LUCIDE_ICONS[name].label }}</option>
               </optgroup>
@@ -413,29 +414,29 @@ const assetTitle = computed(() => {
                 <span>{{ column.label }}</span>
                 <input type="text" :maxlength="column.maxLength" :placeholder="column.placeholder" :value="splitListRow(row, field.columns)[column.key]" @input="setListColumn(field, index, column.key, ($event.target as HTMLInputElement).value)">
               </label>
-              <button type="button" class="ghost remove-row" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Remove</button>
+              <button type="button" class="ghost remove-row" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Verwijderen</button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
+            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Regel toevoegen</button>
             <template v-if="gigKind === 'list'">
               <select
                 v-if="state.gigs.length && listValue(field).length < (field.maxItems || 6)"
-                aria-label="Add a gig from the agenda"
+                aria-label="Een gig uit de agenda toevoegen"
                 @change="addGigRow(field, $event.target as HTMLSelectElement)"
               >
-                <option value="">Add gig from agenda…</option>
+                <option value="">Gig uit de agenda toevoegen…</option>
                 <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
               </select>
-              <button type="button" class="ghost" :disabled="!publicGigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Fill with next public gigs</button>
-              <p v-if="!publicGigs.length" class="note">No upcoming public gigs in the agenda.</p>
+              <button type="button" class="ghost" :disabled="!publicGigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Vullen met de volgende publieke gigs</button>
+              <p v-if="!publicGigs.length" class="note">Geen aankomende publieke gigs in de agenda.</p>
             </template>
           </div>
           <div v-else-if="field.kind === 'list'" class="stack">
             <span>{{ field.label }}</span>
             <div v-for="(row, index) in listValue(field)" :key="index" class="list-row">
               <input type="text" :maxlength="field.maxLength" :placeholder="field.placeholder" :value="row" @input="setListRow(field, index, ($event.target as HTMLInputElement).value)">
-              <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
+              <button type="button" class="ghost" title="Verwijderen" aria-label="Verwijderen" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
+            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Regel toevoegen</button>
           </div>
           <AdminMediaPicker
             v-else-if="field.kind === 'asset'"
@@ -456,104 +457,104 @@ const assetTitle = computed(() => {
                 @selected="setListRow(field, index, $event.id)"
                 @update:model-value="clearListAssetField(field, index, $event)"
               />
-              <button type="button" class="ghost remove-media" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Remove</button>
+              <button type="button" class="ghost remove-media" title="Verwijderen" aria-label="Verwijderen" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Verwijderen</button>
             </div>
-            <button v-if="listValue(field).length < (field.maxItems || 5)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add media</button>
+            <button v-if="listValue(field).length < (field.maxItems || 5)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Media toevoegen</button>
           </div>
         </template>
       </component>
 
       <component :is="sectionTag" v-if="item.type === 'graphic'" class="block">
-        <component :is="headingTag">{{ props.mobile ? 'Style & animation' : 'Style' }}</component>
-        <label class="row"><span>Accent style</span>
+        <component :is="headingTag">{{ props.mobile ? 'Stijl & animatie' : 'Stijl' }}</component>
+        <label class="row"><span>Accentstijl</span>
           <select :value="item.accent" @change="patch(target => { if (target.type === 'graphic') target.accent = ($event.target as HTMLSelectElement).value as typeof target.accent })">
             <option v-for="(accent, key) in MOTION_ACCENTS" :key="key" :value="key">{{ accent.label }}</option>
           </select>
         </label>
-        <label class="row"><span>Background</span>
+        <label class="row"><span>Achtergrond</span>
           <select :value="item.backdropStyle || 'dim'" @change="patch(target => { if (target.type === 'graphic') target.backdropStyle = ($event.target as HTMLSelectElement).value as typeof target.backdropStyle })">
             <option v-for="(label, key) in BACKDROP_STYLES" :key="key" :value="key">{{ label }}</option>
           </select>
         </label>
-        <label class="row"><span>Background strength</span>
+        <label class="row"><span>Sterkte achtergrond</span>
           <input type="range" min="0" :max="MAX_BACKDROP" step="0.05" :value="graphicBackdrop(item)" @input="patch(target => { if (target.type === 'graphic') target.backdrop = Number(($event.target as HTMLInputElement).value) }, 'backdrop')">
           <output>{{ Math.round(graphicBackdrop(item) * 100) }}%</output>
         </label>
-        <label class="row"><span>Entrance</span>
+        <label class="row"><span>Animatie in</span>
           <select :value="item.entrance" @change="patch(target => { if (target.type === 'graphic') target.entrance = ($event.target as HTMLSelectElement).value as typeof target.entrance })">
             <option v-for="(label, key) in ENTRANCE_ANIMATIONS" :key="key" :value="key">{{ label }}</option>
           </select>
         </label>
-        <label class="row"><span>Entrance length</span>
+        <label class="row"><span>Duur animatie in</span>
           <input type="range" min="0" max="60" :value="item.entranceFrames" @input="patch(target => { if (target.type === 'graphic') target.entranceFrames = Number(($event.target as HTMLInputElement).value) }, 'entranceFrames')">
           <output>{{ seconds(item.entranceFrames) }}s</output>
         </label>
-        <label class="row"><span>Exit</span>
+        <label class="row"><span>Animatie uit</span>
           <select :value="item.exit" @change="patch(target => { if (target.type === 'graphic') target.exit = ($event.target as HTMLSelectElement).value as typeof target.exit })">
             <option v-for="(label, key) in EXIT_ANIMATIONS" :key="key" :value="key">{{ label }}</option>
           </select>
         </label>
-        <label class="row"><span>Exit length</span>
+        <label class="row"><span>Duur animatie uit</span>
           <input type="range" min="0" max="60" :value="item.exitFrames" @input="patch(target => { if (target.type === 'graphic') target.exitFrames = Number(($event.target as HTMLInputElement).value) }, 'exitFrames')">
           <output>{{ seconds(item.exitFrames) }}s</output>
         </label>
       </component>
 
       <component :is="sectionTag" v-if="item.type === 'graphic'" class="block">
-        <component :is="headingTag">Sound</component>
+        <component :is="headingTag">Geluid</component>
         <template v-if="soundCues.length">
-          <label class="row check"><span>Template sounds</span>
+          <label class="row check"><span>Templategeluiden</span>
             <input type="checkbox" :checked="item.sound?.enabled ?? false" @change="setSound({ enabled: ($event.target as HTMLInputElement).checked })">
           </label>
           <label class="row"><span>Volume</span>
             <input type="range" min="0" max="1" step="0.01" :disabled="!item.sound?.enabled" :value="item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume" @input="setSound({ volume: Number(($event.target as HTMLInputElement).value) }, 'soundVolume')">
             <output>{{ Math.round((item.sound?.volume ?? DEFAULT_ITEM_SOUND.volume) * 100) }}%</output>
           </label>
-          <p class="note">{{ soundCues.map(cue => `${TEMPLATE_SOUNDS[cue.sound].label} at ${seconds(cue.frame)}s`).join(' · ') }}</p>
-          <p v-if="soundTrackMuted && item.sound?.enabled" class="note">The track is muted, so these sounds are silent.</p>
+          <p class="note">{{ soundCues.map(cue => `${TEMPLATE_SOUNDS[cue.sound].label} op ${seconds(cue.frame)}s`).join(' · ') }}</p>
+          <p v-if="soundTrackMuted && item.sound?.enabled" class="note">De track is gedempt, dus deze geluiden zijn niet te horen.</p>
         </template>
-        <p v-else class="note">This template has no sound hits. Whip, zoom and glitch entrances or exits add one.</p>
+        <p v-else class="note">Dit template heeft geen geluidseffecten. Whip-, zoom- en glitch-animaties (in of uit) voegen er een toe.</p>
       </component>
 
       <!-- Transform for everything visual -->
       <component :is="sectionTag" v-if="'transform' in item" class="block">
-        <component :is="headingTag">Transform <button type="button" class="ghost small" @click.prevent="resetTransform">Reset</button></component>
-        <label v-if="'crop' in item" class="row"><span>Frame</span>
+        <component :is="headingTag">Transformatie <button type="button" class="ghost small" @click.prevent="resetTransform">Herstellen</button></component>
+        <label v-if="'crop' in item" class="row"><span>Kader</span>
           <select :value="currentFit" @change="setFit(($event.target as HTMLSelectElement).value as MediaFit)">
-            <option value="cover">Fill (crop to frame)</option>
-            <option value="contain">Fit (show whole clip)</option>
+            <option value="cover">Vullen (bijsnijden tot kader)</option>
+            <option value="contain">Passend (hele clip tonen)</option>
           </select>
         </label>
-        <div class="row"><span>Position</span>
+        <div class="row"><span>Positie</span>
           <div class="pair">
             <label><ScrubLabel :value="item.transform.x" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('x', $event)" @end="scrubEnd">X</ScrubLabel> <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
             <label><ScrubLabel :value="item.transform.y" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('y', $event)" @end="scrubEnd">Y</ScrubLabel> <input type="number" step="10" :value="item.transform.y" @input="setTransform('y', Number(($event.target as HTMLInputElement).value))"></label>
           </div>
         </div>
-        <label class="row"><ScrubLabel :value="item.transform.scale" :step="0.005" :min="0.1" :max="3" :precision="3" @start="scrubStart" @scrub="scrubTransform('scale', $event)" @end="scrubEnd">Scale</ScrubLabel>
+        <label class="row"><ScrubLabel :value="item.transform.scale" :step="0.005" :min="0.1" :max="3" :precision="3" @start="scrubStart" @scrub="scrubTransform('scale', $event)" @end="scrubEnd">Schaal</ScrubLabel>
           <input type="range" min="0.1" max="3" step="0.01" :value="item.transform.scale" @input="setTransform('scale', Number(($event.target as HTMLInputElement).value))">
           <output>{{ Math.round(item.transform.scale * 100) }}%</output>
         </label>
-        <label class="row"><ScrubLabel :value="item.transform.rotation" :step="0.5" :min="-180" :max="180" :precision="1" @start="scrubStart" @scrub="scrubTransform('rotation', $event)" @end="scrubEnd">Rotation</ScrubLabel>
+        <label class="row"><ScrubLabel :value="item.transform.rotation" :step="0.5" :min="-180" :max="180" :precision="1" @start="scrubStart" @scrub="scrubTransform('rotation', $event)" @end="scrubEnd">Rotatie</ScrubLabel>
           <input type="range" min="-180" max="180" step="1" :value="item.transform.rotation" @input="setTransform('rotation', Number(($event.target as HTMLInputElement).value))">
           <output>{{ item.transform.rotation }}°</output>
         </label>
-        <label class="row"><span>Opacity</span>
+        <label class="row"><span>Dekking</span>
           <input type="range" min="0" max="1" step="0.01" :value="item.opacity" @input="patch(target => { target.opacity = Number(($event.target as HTMLInputElement).value) }, 'opacity')">
           <output>{{ Math.round(item.opacity * 100) }}%</output>
         </label>
       </component>
 
       <component :is="sectionTag" v-if="'crop' in item" class="block">
-        <component :is="headingTag">Crop</component>
-        <label v-for="side in (['top', 'right', 'bottom', 'left'] as const)" :key="side" class="row"><span>{{ side[0]!.toUpperCase() + side.slice(1) }}</span>
+        <component :is="headingTag">Bijsnijden</component>
+        <label v-for="side in (['top', 'right', 'bottom', 'left'] as const)" :key="side" class="row"><span>{{ cropSideLabels[side] }}</span>
           <input type="range" min="0" max="45" step="1" :value="Math.round(item.crop[side] * 100)" @input="setCrop(side, Number(($event.target as HTMLInputElement).value))">
           <output>{{ Math.round(item.crop[side] * 100) }}%</output>
         </label>
       </component>
 
       <component :is="sectionTag" v-if="item.type === 'image'" class="block" :open="props.mobile || undefined">
-        <component :is="headingTag">Motion</component>
+        <component :is="headingTag">Beweging</component>
         <label class="row"><span>Ken Burns</span>
           <input type="range" min="0" max="1" step="0.05" :value="item.kenBurns" @input="patch(target => { if (target.type === 'image') target.kenBurns = Number(($event.target as HTMLInputElement).value) }, 'kenBurns')">
           <output>{{ Math.round(item.kenBurns * 100) }}%</output>
@@ -561,8 +562,8 @@ const assetTitle = computed(() => {
       </component>
 
       <component :is="sectionTag" v-if="item.type === 'video'" class="block" :open="props.mobile || undefined">
-        <component :is="headingTag">Playback</component>
-        <label class="row"><span>Speed</span>
+        <component :is="headingTag">Afspelen</component>
+        <label class="row"><span>Snelheid</span>
           <select :value="item.speed" @change="patch(target => { if (target.type === 'video') target.speed = Number(($event.target as HTMLSelectElement).value) })">
             <option v-for="speed in [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]" :key="speed" :value="speed">{{ speed }}×</option>
           </select>
@@ -571,7 +572,7 @@ const assetTitle = computed(() => {
           <input type="range" min="0" max="1" step="0.01" :value="item.volume" @input="patch(target => { if (target.type === 'video') target.volume = Number(($event.target as HTMLInputElement).value) }, 'volume')">
           <output>{{ Math.round(item.volume * 100) }}%</output>
         </label>
-        <label class="row check"><span>Mute clip audio</span>
+        <label class="row check"><span>Audio van clip dempen</span>
           <input type="checkbox" :checked="item.muted" @change="patch(target => { if (target.type === 'video') target.muted = ($event.target as HTMLInputElement).checked })">
         </label>
       </component>
@@ -594,22 +595,22 @@ const assetTitle = computed(() => {
 
       <component :is="sectionTag" v-if="item.type === 'audio'" class="block" :open="props.mobile || undefined">
         <component :is="headingTag">
-          Beat grid
-          <button v-if="item.beatGrid" type="button" class="ghost small" title="Use the detected tempo and downbeat again" @click.prevent="setGrid(undefined)">Use detected</button>
+          Beatgrid
+          <button v-if="item.beatGrid" type="button" class="ghost small" title="Het gedetecteerde tempo en de downbeat weer gebruiken" @click.prevent="setGrid(undefined)">Gedetecteerd gebruiken</button>
         </component>
         <template v-if="beatGrid">
           <label class="row"><span>Tempo (BPM)</span>
             <input type="number" :min="MIN_BPM / 2" :max="MAX_BPM * 2" step="0.01" :value="beatGrid.bpm" @change="setGrid({ ...beatGrid, bpm: Number(($event.target as HTMLInputElement).value) })">
           </label>
-          <div class="row"><span>Adjust</span>
+          <div class="row"><span>Aanpassen</span>
             <div class="pair">
-              <button type="button" class="ghost small" title="Half the tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm / 2 })">½×</button>
-              <button type="button" class="ghost small" title="Double the tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm * 2 })">2×</button>
+              <button type="button" class="ghost small" title="Halve tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm / 2 })">½×</button>
+              <button type="button" class="ghost small" title="Dubbele tempo" @click="setGrid({ ...beatGrid, bpm: beatGrid.bpm * 2 })">2×</button>
             </div>
           </div>
-          <button type="button" class="ghost small wide" title="Make the beat under the playhead the first beat of a bar" @click="downbeatAtPlayhead">Set downbeat at playhead</button>
+          <button type="button" class="ghost small wide" title="Maak de beat onder de afspeelpositie de eerste tel van een maat" @click="downbeatAtPlayhead">Downbeat op afspeelpositie zetten</button>
         </template>
-        <button v-else-if="waveformState !== 'loading'" type="button" class="ghost small wide" @click="setGrid(withDownbeatAt({ bpm: 125, offset: 0 }, playheadSourceTime))">Add a 125 BPM grid from the playhead</button>
+        <button v-else-if="waveformState !== 'loading'" type="button" class="ghost small wide" @click="setGrid(withDownbeatAt({ bpm: 125, offset: 0 }, playheadSourceTime))">Beatgrid van 125 BPM toevoegen vanaf de afspeelpositie</button>
         <p class="note">{{ gridNote }}</p>
       </component>
 
@@ -618,10 +619,10 @@ const assetTitle = computed(() => {
         <label class="row"><span>Start (s)</span>
           <input type="number" min="0" step="0.1" :value="seconds(item.start)" @change="setTiming('start', Number(($event.target as HTMLInputElement).value))">
         </label>
-        <label class="row"><span>Duration (s)</span>
+        <label class="row"><span>Duur (s)</span>
           <input type="number" min="0.1" step="0.1" :value="seconds(item.duration)" @change="setTiming('duration', Number(($event.target as HTMLInputElement).value))">
         </label>
-        <p v-if="item.type === 'video' || item.type === 'audio'" class="note">Trimmed {{ seconds(item.trimStart) }}s from the start of the source.</p>
+        <p v-if="item.type === 'video' || item.type === 'audio'" class="note">{{ seconds(item.trimStart) }}s ingekort aan het begin van de bron.</p>
       </component>
     </template>
   </aside>

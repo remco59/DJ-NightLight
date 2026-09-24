@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     .limit(1)
 
   if (!user?.active || !user.passwordHash || !(await verifyPassword(user.passwordHash, body.password))) {
-    throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
+    throw createError({ statusCode: 401, statusMessage: 'Ongeldig e-mailadres of wachtwoord' })
   }
 
   clearLoginRateLimit(rateKey)

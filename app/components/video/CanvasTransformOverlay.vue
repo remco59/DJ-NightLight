@@ -157,7 +157,7 @@ function handleDown(event: PointerEvent) {
     :class="{ dragging }"
     tabindex="0"
     role="application"
-    aria-label="Preview. Click a clip to select it; arrow keys move the selected clip."
+    aria-label="Voorbeeld. Klik op een clip om die te kiezen; met de pijltjestoetsen verplaats je de gekozen clip."
     @pointerdown="pointerDown"
   >
     <div v-if="outline" class="outline" :style="outline">
@@ -166,11 +166,11 @@ function handleDown(event: PointerEvent) {
         :key="corner"
         class="handle"
         :class="corner"
-        title="Drag to scale"
+        title="Sleep om te schalen"
         @pointerdown="handleDown"
       />
     </div>
-    <span v-if="outline" class="nudge-hint">Arrow keys move · Shift ×10</span>
+    <span v-if="outline" class="nudge-hint">Pijltjestoetsen verplaatsen · Shift ×10</span>
     <i v-for="line in guides.vertical" :key="`v${line}`" class="guide vertical" :style="{ left: `${line * props.scale}px` }" />
     <i v-for="line in guides.horizontal" :key="`h${line}`" class="guide horizontal" :style="{ top: `${line * props.scale}px` }" />
   </div>

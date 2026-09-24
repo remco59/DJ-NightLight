@@ -82,7 +82,7 @@ function click(event: MouseEvent) {
   <span
     class="scrub-label"
     :class="{ active }"
-    title="Drag sideways to change (Shift: faster, Alt: finer)"
+    title="Sleep opzij om te wijzigen (Shift: sneller, Alt: fijner)"
     @pointerdown="pointerDown"
     @click="click"
   ><slot /></span>

@@ -10,10 +10,10 @@ import { requireStaff } from '../../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'content_editor'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Video render job id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Render-ID is verplicht' })
 
   const [job] = await db.select({ id: videoRenderJobs.id }).from(videoRenderJobs).where(eq(videoRenderJobs.id, id)).limit(1)
-  if (!job) throw createError({ statusCode: 404, statusMessage: 'Video render job not found' })
+  if (!job) throw createError({ statusCode: 404, statusMessage: 'Render niet gevonden' })
 
   // The status check is part of the update so a job that completes at the same
   // moment keeps its video.
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     eq(videoRenderJobs.id, id),
     inArray(videoRenderJobs.status, [...CANCELLABLE_RENDER_STATUSES]),
   )).returning()
-  if (!updated) throw createError({ statusCode: 409, statusMessage: 'Only queued, rendering or failed renders can be cancelled' })
+  if (!updated) throw createError({ statusCode: 409, statusMessage: 'Alleen renders die in de wachtrij staan, bezig zijn of mislukt zijn, kunnen worden geannuleerd' })
 
   return { job: updated }
 })

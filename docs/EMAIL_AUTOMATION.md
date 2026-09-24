@@ -36,15 +36,15 @@ Timing anchors are event, gig start, gig end or invoice due date. Offsets are st
 
 ## Per-client automation
 
-Every client page has an **Automatic emails** section with a switch per template. Switched-off templates are stored on the client (`clients.email_automation_disabled`), so templates added later are sent automatically by default. The worker checks the client's choice right before delivery; a job for a switched-off template is marked `suppressed` with the reason "Automatic sending is turned off for this client".
+Every client page has an **Automatische e-mails** section with a switch per template. Switched-off templates are stored on the client (`clients.email_automation_disabled`), so templates added later are sent automatically by default. The worker checks the client's choice right before delivery; a job for a switched-off template is marked `suppressed` with the reason "Automatisch versturen staat uit voor deze klant".
 
 A template that is disabled in Admin → Email stays off for every client.
 
 ## Sending by hand from a gig
 
-The gig page has a **Client emails** card. It shows every automatic and manual email for the gig and lets you write one yourself:
+The gig page has an **E-mails naar de klant** card. It shows every automatic and manual email for the gig and lets you write one yourself:
 
-- start from any template (or the *Custom message* template, which never runs automatically), prefilled with the gig's details;
+- start from any template (or the *Eigen bericht* (`custom_message`) template, which never runs automatically), prefilled with the gig's details;
 - edit the recipient, subject and text, and preview the branded email;
 - optionally attach up to 5 files (10 MB each, 20 MB in total) and/or the PDF of a finalized invoice of the gig.
 

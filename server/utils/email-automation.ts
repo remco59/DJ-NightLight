@@ -225,7 +225,7 @@ async function loadAttachments(attachments: EmailAttachment[]) {
       return { filename: attachment.filename, content: await storage.read(attachment.storageKey) }
     }
     const detail = await getInvoiceDetail(attachment.invoiceId)
-    if (!detail?.invoice.documentSnapshot) throw new Error(`Invoice ${attachment.filename} is no longer available`)
+    if (!detail?.invoice.documentSnapshot) throw new Error(`Factuur ${attachment.filename} is niet meer beschikbaar`)
     return { filename: attachment.filename, content: buildInvoicePdf(detail.invoice.documentSnapshot) }
   }))
 }
@@ -234,19 +234,19 @@ async function shouldSkipCurrentState(job: typeof emailJobs.$inferSelect) {
   if (job.templateKey === 'portal_reminder' && job.gigId) {
     const [submission] = await db.select({ status: contractSubmissions.status })
       .from(contractSubmissions).where(eq(contractSubmissions.gigId, job.gigId)).limit(1)
-    if (submission?.status === 'submitted') return 'Client portal was already submitted'
+    if (submission?.status === 'submitted') return 'Het klantportaal is al ingediend'
   }
 
   if (['pre_gig_reminder', 'thank_you', 'review_request', 'booking_accepted'].includes(job.templateKey) && job.gigId) {
     const [gig] = await db.select({ status: gigs.status }).from(gigs).where(eq(gigs.id, job.gigId)).limit(1)
-    if (!gig || gig.status !== 'booked') return 'Gig is no longer booked'
+    if (!gig || gig.status !== 'booked') return 'De gig is niet meer geboekt'
   }
 
   if (['payment_reminder', 'overdue_reminder', 'invoice_sent', 'payment_received'].includes(job.templateKey) && job.invoiceId) {
     const [invoice] = await db.select({ status: invoices.status, paymentStatus: invoices.paymentStatus })
       .from(invoices).where(eq(invoices.id, job.invoiceId)).limit(1)
-    if (!invoice || invoice.status === 'void') return 'Invoice is no longer payable'
-    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'Invoice is already paid'
+    if (!invoice || invoice.status === 'void') return 'De factuur hoeft niet meer betaald te worden'
+    if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'De factuur is al betaald'
   }
   return null
 }
@@ -260,11 +260,11 @@ export async function processEmailJob(jobId: string) {
   const skipReason = job.manual
     ? null
     : !template?.enabled
-      ? 'Template is disabled'
+      ? 'Het template is uitgeschakeld'
       : await isSuppressed(job.gigId, job.templateKey)
-        ? 'Automation is suppressed for this gig'
+        ? 'Automatisering is uitgeschakeld voor deze gig'
         : await clientTurnedOffAutomation(job.gigId, job.templateKey)
-          ? 'Automatic sending is turned off for this client'
+          ? 'Automatisch versturen staat uit voor deze klant'
           : await shouldSkipCurrentState(job)
 
   if (skipReason) {
@@ -479,6 +479,6 @@ export async function queueManualEmail(input: {
     attachments: input.attachments,
     createdByUserId: input.userId,
   }).returning()
-  if (!job) throw new Error('Could not queue email')
+  if (!job) throw new Error('E-mail kon niet in de wachtrij worden gezet')
   return job
 }

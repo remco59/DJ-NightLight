@@ -5,7 +5,7 @@ const optionalEmail = z.string().trim().max(320).optional().transform((value, ct
   if (!value) return null
   const parsed = z.email().safeParse(value)
   if (!parsed.success) {
-    ctx.addIssue({ code: 'custom', message: 'Invalid email address' })
+    ctx.addIssue({ code: 'custom', message: 'Ongeldig e-mailadres' })
     return z.NEVER
   }
   return parsed.data.toLowerCase()
@@ -25,10 +25,10 @@ export const clientInputSchema = z.object({
     .transform(keys => [...new Set(keys)]).optional(),
 }).superRefine((value, ctx) => {
   if (value.type === 'company' && !value.companyName) {
-    ctx.addIssue({ code: 'custom', path: ['companyName'], message: 'Company name is required' })
+    ctx.addIssue({ code: 'custom', path: ['companyName'], message: 'Bedrijfsnaam is verplicht' })
   }
   if (value.type === 'person' && !value.firstName && !value.lastName) {
-    ctx.addIssue({ code: 'custom', path: ['firstName'], message: 'Enter a first or last name' })
+    ctx.addIssue({ code: 'custom', path: ['firstName'], message: 'Vul een voor- of achternaam in' })
   }
 })
 

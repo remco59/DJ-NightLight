@@ -10,7 +10,7 @@ function readUInt24LE(buffer: Uint8Array, offset: number) {
 }
 
 export function inspectImage(buffer: Uint8Array): ImageInfo {
-  if (buffer.length < 24) throw new Error('Image is too small')
+  if (buffer.length < 24) throw new Error('De afbeelding is te klein')
 
   if (
     buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
@@ -19,7 +19,7 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
     const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
     const width = view.getUint32(16)
     const height = view.getUint32(20)
-    if (!width || !height) throw new Error('Invalid PNG dimensions')
+    if (!width || !height) throw new Error('Ongeldige PNG-afmetingen')
     return { mimeType: 'image/png', extension: 'png', width, height }
   }
 
@@ -36,12 +36,12 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
       if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
         const height = (buffer[offset + 3]! << 8) | buffer[offset + 4]!
         const width = (buffer[offset + 5]! << 8) | buffer[offset + 6]!
-        if (!width || !height) throw new Error('Invalid JPEG dimensions')
+        if (!width || !height) throw new Error('Ongeldige JPEG-afmetingen')
         return { mimeType: 'image/jpeg', extension: 'jpg', width, height }
       }
       offset += length
     }
-    throw new Error('JPEG dimensions could not be read')
+    throw new Error('De JPEG-afmetingen konden niet worden gelezen')
   }
 
   const ascii = (start: number, length: number) => String.fromCharCode(...buffer.slice(start, start + length))
@@ -72,10 +72,10 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
         height: (buffer[28]! | (buffer[29]! << 8)) & 0x3fff,
       }
     }
-    throw new Error('Unsupported WebP encoding')
+    throw new Error('Niet-ondersteunde WebP-codering')
   }
 
-  throw new Error('Only JPEG, PNG and WebP images are supported')
+  throw new Error('Alleen JPEG-, PNG- en WebP-afbeeldingen worden ondersteund')
 }
 
 export function normalizeTags(value: string | string[]) {
@@ -95,7 +95,7 @@ export type TimedMediaInfo = {
 
 /** Detects the supported video and audio containers from their magic bytes. */
 export function inspectTimedMedia(buffer: Uint8Array): TimedMediaInfo {
-  if (buffer.length < 16) throw new Error('Media file is too small')
+  if (buffer.length < 16) throw new Error('Het mediabestand is te klein')
   const ascii = (start: number, length: number) => String.fromCharCode(...buffer.slice(start, start + length))
 
   if (ascii(4, 4) === 'ftyp') {
@@ -113,7 +113,7 @@ export function inspectTimedMedia(buffer: Uint8Array): TimedMediaInfo {
     return { kind: 'audio', mimeType: 'audio/mpeg', extension: 'mp3' }
   }
 
-  throw new Error('Only MP4, MOV, WebM, MP3, M4A, WAV and OGG files are supported')
+  throw new Error('Alleen MP4-, MOV-, WebM-, MP3-, M4A-, WAV- en OGG-bestanden worden ondersteund')
 }
 
 export function mediaKindFromMime(mimeType: string): 'image' | 'video' | 'audio' {

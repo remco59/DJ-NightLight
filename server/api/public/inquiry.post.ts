@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
       phone: input.phone,
     }).returning()
 
-    if (!client) throw createError({ statusCode: 500, statusMessage: 'Could not create inquiry' })
+    if (!client) throw createError({ statusCode: 500, statusMessage: 'Aanvraag versturen is niet gelukt' })
 
     const [gig] = await tx.insert(gigs).values({
       title: `${input.eventType || 'Booking request'} — ${input.name}`,
@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
       source: 'website',
     }).returning()
 
-    if (!gig) throw createError({ statusCode: 500, statusMessage: 'Could not create inquiry' })
+    if (!gig) throw createError({ statusCode: 500, statusMessage: 'Aanvraag versturen is niet gelukt' })
     return { client, gig }
   })
 

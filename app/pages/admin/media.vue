@@ -94,10 +94,10 @@ async function upload() {
     uploadGigId.value = ''
     uploadVenueId.value = ''
     if (fileInput.value) fileInput.value.value = ''
-    message.value = 'Image uploaded and thumbnail created.'
+    message.value = 'Afbeelding geüpload en thumbnail gemaakt.'
     await refresh()
   } catch (error) {
-    message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Upload failed.')
+    message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Uploaden mislukt.')
   } finally {
     busy.value = ''
   }
@@ -119,24 +119,24 @@ async function save() {
         venueId: edit.venueId || null,
       },
     })
-    message.value = 'Media metadata saved.'
+    message.value = 'Mediagegevens opgeslagen.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Save failed.'
+    message.value = apiErrorMessage(error, 'Opslaan mislukt.')
   } finally {
     busy.value = ''
   }
 }
 
 async function remove() {
-  if (!selected.value || !confirm(`Delete ${selected.value.title || selected.value.originalFilename}? NightLight will block deletion when the asset is still referenced.`)) return
+  if (!selected.value || !confirm(`${selected.value.title || selected.value.originalFilename} verwijderen? NightLight blokkeert het verwijderen als het bestand nog ergens wordt gebruikt.`)) return
   busy.value = 'delete'
   message.value = ''
   try {
     const path = `/api/admin/media/${selected.value.id}` as `/api/admin/media/${string}`
     await $fetch(path, { method: 'DELETE' })
     selectedId.value = ''
-    message.value = 'Media asset deleted.'
+    message.value = 'Mediabestand verwijderd.'
     await refresh()
   } catch (error: unknown) {
     let references: string[] | undefined
@@ -151,8 +151,8 @@ async function remove() {
       }
     }
     message.value = references?.length
-      ? `Cannot delete: ${references.join(' · ')}`
-      : error instanceof Error ? error.message : 'Delete failed.'
+      ? `Kan niet verwijderen: ${references.join(' · ')}`
+      : apiErrorMessage(error, 'Verwijderen mislukt.')
   } finally {
     busy.value = ''
   }
@@ -169,21 +169,21 @@ function formatBytes(bytes: number) {
     <header class="header">
       <div>
         <p class="eyebrow">Content</p>
-        <h1>Media library</h1>
-        <p>Persistent originals and generated thumbnails stored outside the application container.</p>
+        <h1>Mediabibliotheek</h1>
+        <p>Originele bestanden en gegenereerde thumbnails, blijvend opgeslagen buiten de applicatiecontainer.</p>
       </div>
     </header>
 
     <AdminFilterBar
       :has-active-filters="Boolean(search)"
-      :results-label="`${filteredAssets.length} images`"
+      :results-label="`${filteredAssets.length} afbeeldingen`"
       @clear-all="search = ''"
     >
       <template #primary>
-        <input v-model="search" type="search" placeholder="Search title, tag, gig or venue">
+        <input v-model="search" type="search" placeholder="Zoek op titel, tag, gig of locatie">
       </template>
       <template #chips>
-        <AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search = ''" />
+        <AdminFilterChip v-if="search" :label="`Zoeken: ${search}`" @remove="search = ''" />
       </template>
     </AdminFilterBar>
 
@@ -191,23 +191,23 @@ function formatBytes(bytes: number) {
 
     <section class="panel upload">
       <div>
-        <h2>Upload image</h2>
-        <p>JPEG, PNG or WebP · max 15 MB. File signatures and dimensions are validated server-side.</p>
+        <h2>Afbeelding uploaden</h2>
+        <p>JPEG, PNG of WebP · max. 15 MB. Bestandstype en afmetingen worden op de server gecontroleerd.</p>
       </div>
       <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" @change="chooseFile">
-      <input v-model="uploadTitle" placeholder="Title">
-      <input v-model="uploadAlt" placeholder="Alt text">
-      <input v-model="uploadTags" placeholder="Tags, comma separated">
+      <input v-model="uploadTitle" placeholder="Titel">
+      <input v-model="uploadAlt" placeholder="Alt-tekst">
+      <input v-model="uploadTags" placeholder="Tags, gescheiden door komma’s">
       <select v-model="uploadGigId">
-        <option value="">No gig association</option>
+        <option value="">Niet gekoppeld aan een gig</option>
         <option v-for="gig in data?.options.gigs" :key="gig.id" :value="gig.id">{{ gig.title }}</option>
       </select>
       <select v-model="uploadVenueId">
-        <option value="">No venue association</option>
+        <option value="">Niet gekoppeld aan een locatie</option>
         <option v-for="venue in data?.options.venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
       </select>
       <button class="primary" type="button" :disabled="!uploadFile || busy === 'upload'" @click="upload">
-        {{ busy === 'upload' ? 'Uploading…' : 'Upload' }}
+        {{ busy === 'upload' ? 'Uploaden…' : 'Uploaden' }}
       </button>
     </section>
 
@@ -230,35 +230,35 @@ function formatBytes(bytes: number) {
             </span>
           </span>
         </button>
-        <p v-if="!filteredAssets.length" class="empty">No images match this filter.</p>
+        <p v-if="!filteredAssets.length" class="empty">Geen afbeeldingen gevonden met dit filter.</p>
       </section>
 
       <aside v-if="selected" class="panel inspector">
         <img :src="selected.url" :alt="selected.altText || selected.title" class="preview">
         <h2>{{ selected.title || selected.originalFilename }}</h2>
         <p>{{ selected.mimeType }} · {{ selected.width }}<IconTimes />{{ selected.height }} · {{ formatBytes(selected.byteSize) }}</p>
-        <label><span>Title</span><input v-model="edit.title"></label>
-        <label><span>Alt text</span><textarea v-model="edit.altText" rows="3" /></label>
+        <label><span>Titel</span><input v-model="edit.title"></label>
+        <label><span>Alt-tekst</span><textarea v-model="edit.altText" rows="3" /></label>
         <label><span>Tags</span><input v-model="edit.tags"></label>
         <label>
           <span>Gig</span>
           <select v-model="edit.gigId">
-            <option value="">None</option>
+            <option value="">Geen</option>
             <option v-for="gig in data?.options.gigs" :key="gig.id" :value="gig.id">{{ gig.title }}</option>
           </select>
         </label>
         <label>
-          <span>Venue</span>
+          <span>Locatie</span>
           <select v-model="edit.venueId">
-            <option value="">None</option>
+            <option value="">Geen</option>
             <option v-for="venue in data?.options.venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
           </select>
         </label>
         <div class="actions">
-          <button class="primary" type="button" :disabled="busy === 'save'" @click="save">Save metadata</button>
-          <button class="with-icon danger" type="button" :disabled="busy === 'delete'" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+          <button class="primary" type="button" :disabled="busy === 'save'" @click="save">Gegevens opslaan</button>
+          <button class="with-icon danger" type="button" :disabled="busy === 'delete'" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button>
         </div>
-        <small>Deletion is blocked when the image is associated with a gig/venue or referenced by website/landing-page content.</small>
+        <small>Verwijderen is geblokkeerd als de afbeelding gekoppeld is aan een gig of locatie, of gebruikt wordt op de website of een landing page.</small>
       </aside>
     </div>
   </div>

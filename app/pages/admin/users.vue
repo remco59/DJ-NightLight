@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { labelFor, roleLabels } from '~~/shared/labels'
 definePageMeta({ layout: 'admin' })
 
 type Role = 'owner'|'dj'|'manager'|'content_editor'
@@ -18,9 +19,9 @@ async function createUser(){
     await $fetch('/api/admin/users',{method:'POST',body:createForm})
     Object.assign(createForm,{name:'',email:'',role:'dj',password:''})
     showCreate.value=false
-    message.value='Account created.'
+    message.value='Account aangemaakt.'
     await refresh()
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not create account.')}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Account aanmaken is niet gelukt.')}
   finally{saving.value=false}
 }
 
@@ -30,53 +31,53 @@ async function saveUser(item:UserRow){
     const body:Record<string,unknown>={name:item.name,email:item.email,active:item.active}
     if(item.role!=='owner')body.role=item.role
     await $fetch(`/api/admin/users/${item.id}`,{method:'PUT',body})
-    message.value='Account updated. Role or active-state changes revoke existing sessions.'
+    message.value='Account bijgewerkt. Na een wijziging van rol of actieve status worden bestaande sessies beëindigd.'
     await refresh()
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not update account.');await refresh()}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Account bijwerken is niet gelukt.');await refresh()}
   finally{saving.value=false}
 }
 
 async function resetPassword(item:UserRow){
   const password=resetPasswords[item.id]||''
-  if(password.length<12){message.value='A reset password must be at least 12 characters.';return}
+  if(password.length<12){message.value='Een nieuw wachtwoord moet minstens 12 tekens hebben.';return}
   saving.value=true;message.value=''
   try{
     await $fetch(`/api/admin/users/${item.id}/password`,{method:'POST',body:{password}})
     resetPasswords[item.id]=''
-    message.value=`Password reset for ${item.name}; their existing sessions were revoked.`
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not reset password.')}
+    message.value=`Wachtwoord opnieuw ingesteld voor ${item.name}; bestaande sessies zijn beëindigd.`
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Wachtwoord opnieuw instellen is niet gelukt.')}
   finally{saving.value=false}
 }
 
-function roleLabel(role:Role){return role==='content_editor'?'Content Editor':role.charAt(0).toUpperCase()+role.slice(1)}
-useSeoMeta({title:'Users — DJ NightLight',robots:'noindex, nofollow'})
+function roleLabel(role:Role){return labelFor(roleLabels,role)}
+useSeoMeta({title:'Gebruikers — DJ NightLight',robots:'noindex, nofollow'})
 </script>
 
 <template>
 <div class="users-page">
-<header class="page-header"><div><p class="eyebrow">System</p><h1>Users</h1><p>Create staff accounts, assign roles and revoke access without deleting history.</p></div><button class="with-icon primary" @click="showCreate=!showCreate"><Icon :name="showCreate?'lucide:x':'lucide:plus'" aria-hidden="true" />{{showCreate?'Close':'New user'}}</button></header>
+<header class="page-header"><div><p class="eyebrow">Systeem</p><h1>Gebruikers</h1><p>Maak accounts voor medewerkers aan, wijs rollen toe en trek toegang in zonder geschiedenis te verwijderen.</p></div><button class="with-icon primary" @click="showCreate=!showCreate"><Icon :name="showCreate?'lucide:x':'lucide:plus'" aria-hidden="true" />{{showCreate?'Sluiten':'Nieuwe gebruiker'}}</button></header>
 
 <form v-if="showCreate" class="card create" @submit.prevent="createUser">
-<h2>New staff account</h2>
-<div class="grid"><label>Name<input v-model="createForm.name" required></label><label>Email<input v-model="createForm.email" type="email" required></label><label>Role<select v-model="createForm.role"><option value="dj">DJ</option><option value="manager">Manager</option><option value="content_editor">Content Editor</option></select></label><label>Initial password<input v-model="createForm.password" type="password" minlength="12" required><small>The user can change this from My account.</small></label></div>
-<button class="primary" :disabled="saving">Create account</button>
+<h2>Nieuw account voor medewerker</h2>
+<div class="grid"><label>Naam<input v-model="createForm.name" required></label><label>E-mail<input v-model="createForm.email" type="email" required></label><label>Rol<select v-model="createForm.role"><option value="dj">DJ</option><option value="manager">Manager</option><option value="content_editor">Contentredacteur</option></select></label><label>Eerste wachtwoord<input v-model="createForm.password" type="password" minlength="12" required><small>De gebruiker kan dit wijzigen via Mijn account.</small></label></div>
+<button class="primary" :disabled="saving">Account aanmaken</button>
 </form>
 
 <p v-if="message" class="message">{{message}}</p>
 <section class="list">
 <article v-for="item in data?.users||[]" :key="item.id" class="card user-card">
-<div class="user-heading"><div><strong>{{item.name}}</strong><span>{{item.email}}</span></div><span class="badge" :data-active="item.active">{{item.active?'Active':'Disabled'}}</span></div>
+<div class="user-heading"><div><strong>{{item.name}}</strong><span>{{item.email}}</span></div><span class="badge" :data-active="item.active">{{item.active?'Actief':'Uitgeschakeld'}}</span></div>
 <div class="grid">
-<label>Name<input v-model="item.name"></label>
-<label>Email<input v-model="item.email" type="email"></label>
-<label>Role
-<select v-if="item.role!=='owner'" v-model="item.role"><option value="dj">DJ</option><option value="manager">Manager</option><option value="content_editor">Content Editor</option></select>
+<label>Naam<input v-model="item.name"></label>
+<label>E-mail<input v-model="item.email" type="email"></label>
+<label>Rol
+<select v-if="item.role!=='owner'" v-model="item.role"><option value="dj">DJ</option><option value="manager">Manager</option><option value="content_editor">Contentredacteur</option></select>
 <input v-else :value="roleLabel(item.role)" disabled>
 </label>
-<label class="toggle"><input v-model="item.active" type="checkbox" :disabled="item.role==='owner'"> Active account</label>
+<label class="toggle"><input v-model="item.active" type="checkbox" :disabled="item.role==='owner'"> Actief account</label>
 </div>
-<div class="row-actions"><button class="secondary" :disabled="saving" @click="saveUser(item)">Save changes</button><span>Created {{new Date(item.createdAt).toLocaleDateString('nl-NL')}}</span></div>
-<div v-if="item.role!=='owner'" class="password-reset"><label>Set new password<input v-model="resetPasswords[item.id]" type="password" minlength="12" placeholder="At least 12 characters"></label><button class="secondary" :disabled="saving" @click="resetPassword(item)">Reset password</button></div>
+<div class="row-actions"><button class="secondary" :disabled="saving" @click="saveUser(item)">Wijzigingen opslaan</button><span>Aangemaakt {{new Date(item.createdAt).toLocaleDateString('nl-NL')}}</span></div>
+<div v-if="item.role!=='owner'" class="password-reset"><label>Nieuw wachtwoord instellen<input v-model="resetPasswords[item.id]" type="password" minlength="12" placeholder="Minstens 12 tekens"></label><button class="secondary" :disabled="saving" @click="resetPassword(item)">Wachtwoord opnieuw instellen</button></div>
 </article>
 </section>
 </div>

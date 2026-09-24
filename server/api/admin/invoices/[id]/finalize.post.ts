@@ -10,16 +10,16 @@ import { requireStaff } from '../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Invoice id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
   const detail = await getInvoiceDetail(id)
-  if (!detail) throw createError({ statusCode: 404, statusMessage: 'Invoice not found' })
-  if (detail.invoice.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'Invoice is already finalized' })
+  if (!detail) throw createError({ statusCode: 404, statusMessage: 'Factuur niet gevonden' })
+  if (detail.invoice.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'De factuur is al definitief' })
   const lineInputs = detail.lines.map(line => ({ description: line.description, quantity: line.quantity, unitPriceCents: line.unitPriceCents }))
   const totals = calculateInvoiceTotals(lineInputs, detail.invoice.vatMode, detail.invoice.vatRateBasisPoints)
 
   const finalized = await db.transaction(async (tx) => {
     const [settings] = await tx.update(businessSettings).set({ nextInvoiceNumber: sql`${businessSettings.nextInvoiceNumber} + 1` }).where(eq(businessSettings.key, 'default')).returning()
-    if (!settings) throw createError({ statusCode: 500, statusMessage: 'Business settings are not initialized' })
+    if (!settings) throw createError({ statusCode: 500, statusMessage: 'Bedrijfsinstellingen zijn nog niet ingesteld' })
     const sequence = settings.nextInvoiceNumber - 1
     const invoiceNumber = formatInvoiceNumber(settings.invoicePrefix, Number(detail.invoice.issueDate.slice(0, 4)), sequence)
     const snapshot: InvoiceSnapshot = {
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     const [invoice] = await tx.update(invoices).set({
       invoiceNumber, status: 'finalized', ...totals, documentSnapshot: snapshot, documentHash, finalizedAt: new Date(), updatedAt: new Date(),
     }).where(and(eq(invoices.id, id), eq(invoices.status, 'draft'))).returning()
-    if (!invoice) throw createError({ statusCode: 409, statusMessage: 'Invoice was finalized by another request' })
+    if (!invoice) throw createError({ statusCode: 409, statusMessage: 'De factuur is intussen via een ander verzoek definitief gemaakt' })
     await tx.insert(auditLogs).values({ userId: user.id, entityType: 'invoice', entityId: id, action: 'invoice_finalized', metadata: { invoiceNumber, documentHash } })
     return invoice
   })

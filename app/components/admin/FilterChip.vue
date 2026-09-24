@@ -4,7 +4,7 @@ const emit = defineEmits<{ remove: [] }>()
 </script>
 
 <template>
-  <button class="filter-chip" type="button" :aria-label="`Remove ${label} filter`" @click="emit('remove')">
+  <button class="filter-chip" type="button" :aria-label="`Filter ${label} verwijderen`" @click="emit('remove')">
     <span>{{ label }}</span>
     <Icon name="lucide:x" aria-hidden="true" />
   </button>

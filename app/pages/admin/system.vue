@@ -47,7 +47,7 @@ const issues = computed(() => {
 })
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return 'Never'
+  if (!value) return 'Nooit'
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 </script>
@@ -56,85 +56,85 @@ function formatDate(value: string | null | undefined) {
   <div class="page">
     <header class="header">
       <div>
-        <p class="eyebrow">System</p>
-        <h1>Production status</h1>
-        <p>Operational failures, integration state and backup visibility in one place.</p>
+        <p class="eyebrow">Systeem</p>
+        <h1>Systeemstatus</h1>
+        <p>Storingen, de status van koppelingen en back-ups op één plek.</p>
       </div>
       <button type="button" :disabled="pending" @click="refresh()">
-        {{ pending ? 'Refreshing…' : 'Refresh' }}
+        {{ pending ? 'Vernieuwen…' : 'Vernieuwen' }}
       </button>
     </header>
 
     <section class="summary" :class="{ alert: issues > 0 }">
-      <strong>{{ issues === 0 ? 'No active production failures' : `${issues} production issue(s) need attention` }}</strong>
-      <span>Generated {{ formatDate(data?.generatedAt) }}</span>
+      <strong>{{ issues === 0 ? 'Geen actieve storingen' : `${issues} storing(en) vragen aandacht` }}</strong>
+      <span>Bijgewerkt {{ formatDate(data?.generatedAt) }}</span>
     </section>
 
     <section class="cards">
       <article>
-        <span>Email failures</span>
+        <span>Mislukte e-mails</span>
         <strong>{{ data?.health.failedEmails ?? '—' }}</strong>
-        <NuxtLink to="/admin/email">Open email automation</NuxtLink>
+        <NuxtLink to="/admin/email">E-mailautomatisering openen</NuxtLink>
       </article>
       <article>
-        <span>Calendar failures</span>
+        <span>Mislukte agendasynchronisaties</span>
         <strong>{{ data?.health.failedCalendarSyncs ?? '—' }}</strong>
-        <NuxtLink to="/admin/calendar">Open Calendar</NuxtLink>
+        <NuxtLink to="/admin/calendar">Agenda openen</NuxtLink>
       </article>
       <article>
-        <span>Failed payments</span>
+        <span>Mislukte betalingen</span>
         <strong>{{ data?.health.failedPayments ?? '—' }}</strong>
-        <NuxtLink to="/admin/invoices">Open invoices</NuxtLink>
+        <NuxtLink to="/admin/invoices">Facturen openen</NuxtLink>
       </article>
       <article>
-        <span>Stale outbox</span>
+        <span>Vastgelopen outbox</span>
         <strong>{{ data?.health.staleOutbox ?? '—' }}</strong>
-        <small>{{ data?.health.pendingOutbox ?? 0 }} pending total</small>
+        <small>{{ data?.health.pendingOutbox ?? 0 }} in wachtrij totaal</small>
       </article>
     </section>
 
     <section class="panel">
       <div class="panel-title">
         <div>
-          <h2>Integrations</h2>
-          <p>Connection health reflects the effective configuration from Settings or the server environment.</p>
+          <h2>Koppelingen</h2>
+          <p>De status toont de configuratie die echt gebruikt wordt, uit Instellingen of uit de serveromgeving.</p>
         </div>
-        <NuxtLink to="/admin/settings#integrations">Manage integrations</NuxtLink>
+        <NuxtLink to="/admin/settings#integrations">Koppelingen beheren</NuxtLink>
       </div>
       <div class="rows">
         <div>
-          <span>Google Calendar credentials</span>
+          <span>Inloggegevens Google Calendar</span>
           <strong :class="{ ok: data?.integrations.calendarConfigured }">
-            {{ data?.integrations.calendarConfigured ? 'Configured' : 'Missing' }}
+            {{ data?.integrations.calendarConfigured ? 'Ingesteld' : 'Ontbreekt' }}
           </strong>
-          <small>{{ data?.integrations.calendarSource === 'settings' ? 'Settings' : data?.integrations.calendarSource === 'environment' ? 'Server environment' : 'No credentials' }}</small>
+          <small>{{ data?.integrations.calendarSource === 'settings' ? 'Instellingen' : data?.integrations.calendarSource === 'environment' ? 'Serveromgeving' : 'Geen inloggegevens' }}</small>
         </div>
         <div>
-          <span>Email provider</span>
+          <span>E-mailprovider</span>
           <strong :class="{ ok: data?.integrations.emailConfigured }">
-            {{ data?.integrations.emailConfigured ? 'Configured' : 'Missing' }}
+            {{ data?.integrations.emailConfigured ? 'Ingesteld' : 'Ontbreekt' }}
           </strong>
-          <small>{{ data?.integrations.emailSource === 'settings' ? 'Settings' : data?.integrations.emailSource === 'environment' ? 'Server environment' : 'No provider settings' }}</small>
+          <small>{{ data?.integrations.emailSource === 'settings' ? 'Instellingen' : data?.integrations.emailSource === 'environment' ? 'Serveromgeving' : 'Geen providerinstellingen' }}</small>
         </div>
         <div>
-          <span>Video render worker</span>
+          <span>Video-renderworker</span>
           <strong :class="{ ok: data?.renderWorker.online }">
-            {{ data?.renderWorker.online ? `Online · ${data.renderWorker.activeEngine ? RENDER_ENGINE_LABELS[data.renderWorker.activeEngine] : 'engine unavailable'}` : 'Offline' }}
+            {{ data?.renderWorker.online ? `Online · ${data.renderWorker.activeEngine ? RENDER_ENGINE_LABELS[data.renderWorker.activeEngine] : 'engine niet beschikbaar'}` : 'Offline' }}
           </strong>
           <small>
-            {{ data?.renderWorker.heartbeatAt ? `Last seen ${formatDate(data.renderWorker.heartbeatAt)}` : 'Never reported' }}
-            · <NuxtLink to="/admin/settings#rendering">Rendering settings</NuxtLink>
+            {{ data?.renderWorker.heartbeatAt ? `Laatst gezien ${formatDate(data.renderWorker.heartbeatAt)}` : 'Nog nooit gemeld' }}
+            · <NuxtLink to="/admin/settings#rendering">Renderinstellingen</NuxtLink>
           </small>
         </div>
         <div>
-          <span>Stripe payments</span>
+          <span>Stripe-betalingen</span>
           <strong :class="{ ok: data?.integrations.stripe.configured }">
-            {{ data?.integrations.stripe.configured ? (data.integrations.stripe.livemode ? 'Configured · live' : 'Configured · test') : 'Missing setup' }}
+            {{ data?.integrations.stripe.configured ? (data.integrations.stripe.livemode ? 'Ingesteld · live' : 'Ingesteld · test') : 'Nog niet ingesteld' }}
           </strong>
           <small>
-            {{ data?.integrations.stripe.source === 'settings' ? 'Settings' : data?.integrations.stripe.source === 'environment' ? 'Server environment' : 'No credentials' }}
+            {{ data?.integrations.stripe.source === 'settings' ? 'Instellingen' : data?.integrations.stripe.source === 'environment' ? 'Serveromgeving' : 'Geen inloggegevens' }}
             <template v-if="data?.integrations.stripe.lastEvent">
-              · Last webhook {{ data.integrations.stripe.lastEvent.eventType }} · {{ formatDate(data.integrations.stripe.lastEvent.processedAt) }}
+              · Laatste webhook {{ data.integrations.stripe.lastEvent.eventType }} · {{ formatDate(data.integrations.stripe.lastEvent.processedAt) }}
             </template>
           </small>
         </div>
@@ -142,13 +142,13 @@ function formatDate(value: string | null | undefined) {
     </section>
 
     <section class="panel">
-      <h2>Backups</h2>
+      <h2>Back-ups</h2>
       <div v-if="data?.backup" class="backup">
         <strong>{{ data.backup.name }}</strong>
-        <span>Last filesystem backup detected {{ formatDate(data.backup.updatedAt) }}</span>
+        <span>Laatste back-up op schijf gevonden {{ formatDate(data.backup.updatedAt) }}</span>
       </div>
-      <p v-else>No backup directory is currently visible to the web container.</p>
-      <small>Restore validity is also checked automatically in CI against a separate PostgreSQL database.</small>
+      <p v-else>De webcontainer ziet op dit moment geen back-upmap.</p>
+      <small>Of een back-up terug te zetten is, wordt ook automatisch in CI gecontroleerd tegen een aparte PostgreSQL-database.</small>
     </section>
   </div>
 </template>

@@ -9,10 +9,10 @@ import { requireStaff } from '../../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
   const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const details = await loadGigEmailDetails(gigId)
-  if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const templates = await db.select({
     key: emailTemplates.key,

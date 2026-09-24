@@ -34,9 +34,9 @@ const CLICK_SLOP = 4
 const SNAP_PIXELS = 8
 
 const formatLabels: Record<PostPreset, string> = {
-  square: 'Instagram post (1:1)',
-  portrait: 'Instagram post (4:5)',
-  story: 'Instagram story (9:16)',
+  square: 'Instagram-post (1:1)',
+  portrait: 'Instagram-post (4:5)',
+  story: 'Instagram-story (9:16)',
 }
 const compactFormatLabels: Record<PostPreset, string> = {
   square: 'Post 1:1',
@@ -353,8 +353,8 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
       <button
         type="button"
         class="panel-toggle"
-        :aria-label="inspectorCollapsed ? 'Show inspector' : 'Hide inspector'"
-        :title="inspectorCollapsed ? 'Show inspector' : 'Hide inspector'"
+        :aria-label="inspectorCollapsed ? 'Inspector tonen' : 'Inspector verbergen'"
+        :title="inspectorCollapsed ? 'Inspector tonen' : 'Inspector verbergen'"
         :aria-expanded="!inspectorCollapsed"
         aria-controls="post-tool-panel"
         @click="inspectorCollapsed = !inspectorCollapsed"
@@ -363,7 +363,7 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
       </button>
       <label class="format-select">
         <Icon name="lucide:instagram" aria-hidden="true" />
-        <select v-model="design.preset" aria-label="Post format">
+        <select v-model="design.preset" aria-label="Formaat post">
           <option v-for="[key] in presetOptions" :key="key" :value="key">{{ formatOptionLabels[key] }}</option>
         </select>
         <Icon class="select-chevron" name="lucide:chevron-down" aria-hidden="true" />
@@ -376,26 +376,26 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
         type="button"
         class="header-button"
         :class="{ active: design.showSafeArea }"
-        aria-label="Safe-area guides"
+        aria-label="Hulplijnen veilige zone"
         :aria-pressed="design.showSafeArea"
-        title="Show safe-area guides (preview only, never exported)"
+        title="Hulplijnen voor de veilige zone tonen (alleen in het voorbeeld, nooit in de export)"
         @click="design.showSafeArea = !design.showSafeArea"
       >
         <Icon :name="design.showSafeArea ? 'lucide:square-dashed' : 'lucide:eye-off'" aria-hidden="true" />
-        <span class="header-button-label">Safe area</span>
-        <span class="state">{{ design.showSafeArea ? 'On' : 'Off' }}</span>
+        <span class="header-button-label">Veilige zone</span>
+        <span class="state">{{ design.showSafeArea ? 'Aan' : 'Uit' }}</span>
       </button>
       <button
         type="button"
         class="header-button"
         :class="{ active: zoomMode === 'fit' }"
-        aria-label="Fit to screen"
+        aria-label="Passend maken"
         :aria-pressed="zoomMode === 'fit'"
-        title="Fit to screen (Shift + 1)"
+        title="Passend maken (Shift + 1)"
         @click="setZoom('fit')"
       >
         <Icon name="lucide:scan" aria-hidden="true" />
-        <span class="header-button-label">Fit to screen</span>
+        <span class="header-button-label">Passend maken</span>
       </button>
     </div>
 
@@ -411,7 +411,7 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
             tabindex="0"
             role="group"
             aria-roledescription="canvas"
-            :aria-label="`Post preview, ${formatLabels[design.preset]}. Drag or use the arrow keys to move the photo.`"
+            :aria-label="`Voorbeeld van de post, ${formatLabels[design.preset]}. Sleep of gebruik de pijltjestoetsen om de foto te verplaatsen.`"
             @keydown="onFrameKey"
           >
             <canvas
@@ -463,41 +463,41 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
 
           <div v-else class="no-source">
             <span class="empty-icon"><Icon name="lucide:image" aria-hidden="true" /></span>
-            <strong>Choose a source photo</strong>
-            <small>Upload a photo or pick one from the media library.</small>
-            <button type="button" class="empty-action" @click="emit('activate-tool', 'media')">Open media</button>
+            <strong>Kies een bronfoto</strong>
+            <small>Upload een foto of kies er een uit de mediabibliotheek.</small>
+            <button type="button" class="empty-action" @click="emit('activate-tool', 'media')">Media openen</button>
           </div>
         </div>
       </div>
 
       <p v-if="editor.selectedAsset.value" class="stage-hint" :class="{ active: dragging }">
         <Icon name="lucide:move" aria-hidden="true" />
-        {{ pointer.mode === 'scale' ? `Scale ${Math.round(design.zoom * 100)}%` : dragging ? 'Repositioning photo' : 'Drag to reposition · click text to edit it' }}
+        {{ pointer.mode === 'scale' ? `Schaal ${Math.round(design.zoom * 100)}%` : dragging ? 'Foto verplaatsen' : 'Sleep om te verplaatsen · klik op tekst om die te bewerken' }}
       </p>
     </div>
 
     <div class="zoom-bar" role="toolbar" aria-label="Zoom">
       <div class="zoom-group">
-        <button type="button" class="zoom-button" aria-label="Zoom out" title="Zoom out (Ctrl/⌘ −)" :disabled="scale <= POST_STAGE_MIN_ZOOM + .001" @click="zoomBy(-1)">
+        <button type="button" class="zoom-button" aria-label="Uitzoomen" title="Uitzoomen (Ctrl/⌘ −)" :disabled="scale <= POST_STAGE_MIN_ZOOM + .001" @click="zoomBy(-1)">
           <Icon name="lucide:zoom-out" aria-hidden="true" />
         </button>
         <label class="zoom-select">
-          <span class="visually-hidden">Zoom level</span>
+          <span class="visually-hidden">Zoomniveau</span>
           <select :value="zoomSelectValue" @change="onZoomSelect">
-            <option value="fit">Fit ({{ Math.round(fitScale * 100) }}%)</option>
+            <option value="fit">Passend ({{ Math.round(fitScale * 100) }}%)</option>
             <option v-if="zoomSelectValue === 'custom'" value="custom">{{ zoomPercent }}%</option>
             <option v-for="preset in POST_STAGE_ZOOM_PRESETS" :key="preset" :value="String(preset)">{{ Math.round(preset * 100) }}%</option>
           </select>
           <span class="zoom-value" aria-hidden="true">{{ zoomPercent }}%</span>
           <Icon class="select-chevron" name="lucide:chevron-down" aria-hidden="true" />
         </label>
-        <button type="button" class="zoom-button" aria-label="Zoom in" title="Zoom in (Ctrl/⌘ +)" :disabled="scale >= POST_STAGE_MAX_ZOOM - .001" @click="zoomBy(1)">
+        <button type="button" class="zoom-button" aria-label="Inzoomen" title="Inzoomen (Ctrl/⌘ +)" :disabled="scale >= POST_STAGE_MAX_ZOOM - .001" @click="zoomBy(1)">
           <Icon name="lucide:zoom-in" aria-hidden="true" />
         </button>
       </div>
-      <button type="button" class="zoom-group fit-button" :class="{ active: zoomMode === 'fit' }" :aria-pressed="zoomMode === 'fit'" title="Fit to screen (Shift + 1)" @click="setZoom('fit')">
+      <button type="button" class="zoom-group fit-button" :class="{ active: zoomMode === 'fit' }" :aria-pressed="zoomMode === 'fit'" title="Passend maken (Shift + 1)" @click="setZoom('fit')">
         <Icon name="lucide:scan" aria-hidden="true" />
-        Fit
+        Passend
       </button>
     </div>
   </section>

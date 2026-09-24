@@ -16,10 +16,10 @@ export default defineEventHandler(async (event) => {
     lastError: null,
     updatedAt: new Date(),
   }).where(eq(emailJobs.id, jobId)).returning()
-  if (!job) throw createError({ statusCode: 404, statusMessage: 'Email job not found' })
+  if (!job) throw createError({ statusCode: 404, statusMessage: 'E-mailtaak niet gevonden' })
   try {
     return { result: await processEmailJob(job.id) }
   } catch (error) {
-    throw createError({ statusCode: 502, statusMessage: error instanceof Error ? error.message : 'Retry failed' })
+    throw createError({ statusCode: 502, statusMessage: error instanceof Error ? error.message : 'Opnieuw proberen mislukt' })
   }
 })

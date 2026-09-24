@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { apiErrorMessage } from '~/utils/api-error'
+import { emailJobStatusLabels, emailTemplateLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
+
 definePageMeta({ layout: 'admin' })
 
 type Template = {
@@ -89,10 +92,10 @@ async function saveTemplate() {
   message.value = ''
   try {
     await $fetch(`/api/admin/email/templates/${selected.value.key}`, { method: 'PUT', body: form })
-    message.value = 'Template saved.'
+    message.value = 'Template opgeslagen.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Saving failed.'
+    message.value = apiErrorMessage(error, 'Opslaan mislukt.')
   } finally {
     busy.value = ''
   }
@@ -120,10 +123,10 @@ async function sendTest() {
       method: 'POST',
       body: { templateKey: selected.value.key, recipient: testRecipient.value, variables: sampleVariables },
     })
-    message.value = 'Test email sent.'
+    message.value = 'Testmail verzonden.'
     await refresh()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Test send failed.'
+    message.value = apiErrorMessage(error, 'Testmail versturen mislukt.')
   } finally {
     busy.value = ''
   }
@@ -134,7 +137,7 @@ async function runAutomation() {
   message.value = ''
   try {
     const result = await $fetch<{ processed: number, failed: number }>('/api/admin/email/run', { method: 'POST' })
-    message.value = `Automation run: ${result.processed} processed, ${result.failed} failed.`
+    message.value = `Automatisering uitgevoerd: ${result.processed} verwerkt, ${result.failed} mislukt.`
     await refresh()
   } finally {
     busy.value = ''
@@ -161,9 +164,9 @@ async function retry(jobId: string) {
   message.value = ''
   try {
     await $fetch('/api/admin/email/retry', { method: 'POST', body: { jobId } })
-    message.value = 'Email retry completed.'
+    message.value = 'E-mail opnieuw verstuurd.'
   } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Retry failed.'
+    message.value = apiErrorMessage(error, 'Opnieuw proberen mislukt.')
   } finally {
     busy.value = ''
     await refresh()
@@ -175,11 +178,20 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
+const anchorLabels: Record<Template['scheduleAnchor'], string> = {
+  event: 'de gebeurtenis',
+  gig_start: 'start gig',
+  gig_end: 'einde gig',
+  invoice_due: 'vervaldatum factuur',
+}
 function offsetLabel(template: Template) {
-  if (template.scheduleAnchor === 'event') return `${template.offsetMinutes} min after event`
+  if (template.scheduleAnchor === 'event') return `${template.offsetMinutes} min na de gebeurtenis`
   const amount = Math.abs(template.offsetMinutes)
-  const direction = template.offsetMinutes < 0 ? 'before' : 'after'
-  return `${amount} min ${direction} ${template.scheduleAnchor.replace('_', ' ')}`
+  const direction = template.offsetMinutes < 0 ? 'voor' : 'na'
+  return `${amount} min ${direction} ${anchorLabels[template.scheduleAnchor]}`
+}
+function templateName(key: string, fallback?: string) {
+  return emailTemplateLabels[key] ?? fallback ?? labelFor(emailTemplateLabels, key)
 }
 </script>
 
@@ -187,17 +199,17 @@ function offsetLabel(template: Template) {
   <div class="page">
     <header class="header">
       <div>
-        <p class="eyebrow">Operations</p>
+        <p class="eyebrow">Communicatie</p>
         <h1>Email</h1>
-        <p>Editable templates, persistent automation jobs and delivery history.</p>
+        <p>Bewerkbare templates, blijvende automatiseringstaken en verzendgeschiedenis.</p>
       </div>
       <div class="actions">
         <span class="provider" :class="{ ok: data?.providerConfigured }">
-          {{ data?.providerConfigured ? 'Provider ready' : 'Provider missing' }}
+          {{ data?.providerConfigured ? 'Provider klaar' : 'Provider ontbreekt' }}
         </span>
-        <NuxtLink class="settings-link" to="/admin/settings#integrations">Provider settings</NuxtLink>
+        <NuxtLink class="settings-link" to="/admin/settings#integrations">Providerinstellingen</NuxtLink>
         <button type="button" :disabled="busy === 'run'" @click="runAutomation">
-          {{ busy === 'run' ? 'Running…' : 'Run automations' }}
+          {{ busy === 'run' ? 'Bezig…' : 'Automatiseringen uitvoeren' }}
         </button>
       </div>
     </header>
@@ -213,8 +225,8 @@ function offsetLabel(template: Template) {
           :class="{ active: selectedKey === template.key }"
           @click="selectedKey = template.key"
         >
-          <strong>{{ template.name }}</strong>
-          <span>{{ template.enabled ? offsetLabel(template) : 'Disabled' }}</span>
+          <strong>{{ templateName(template.key, template.name) }}</strong>
+          <span>{{ template.enabled ? offsetLabel(template) : 'Uitgeschakeld' }}</span>
         </button>
       </aside>
 
@@ -222,58 +234,58 @@ function offsetLabel(template: Template) {
         <div class="editor-head">
           <div>
             <p class="eyebrow">Template</p>
-            <h2>{{ selected.name }}</h2>
+            <h2>{{ templateName(selected.key, selected.name) }}</h2>
           </div>
-          <label class="toggle"><input v-model="form.enabled" type="checkbox"> Enabled</label>
+          <label class="toggle"><input v-model="form.enabled" type="checkbox"> Ingeschakeld</label>
         </div>
 
         <label>
-          <span>Subject</span>
+          <span>Onderwerp</span>
           <input v-model="form.subject">
         </label>
         <label>
-          <span>Body</span>
+          <span>Tekst</span>
           <textarea v-model="form.body" rows="11" />
         </label>
 
         <div class="timing">
           <label>
-            <span>Timing anchor</span>
+            <span>Moment</span>
             <select v-model="form.scheduleAnchor">
-              <option value="event">Event trigger</option>
-              <option value="gig_start">Gig start</option>
-              <option value="gig_end">Gig end</option>
-              <option value="invoice_due">Invoice due date</option>
+              <option value="event">Bij gebeurtenis</option>
+              <option value="gig_start">Start gig</option>
+              <option value="gig_end">Einde gig</option>
+              <option value="invoice_due">Vervaldatum factuur</option>
             </select>
           </label>
           <label>
-            <span>Offset in minutes</span>
+            <span>Verschuiving in minuten</span>
             <input v-model.number="form.offsetMinutes" type="number">
           </label>
         </div>
 
         <div class="row-actions">
-          <button class="primary" type="button" :disabled="busy === 'save'" @click="saveTemplate">Save</button>
-          <button type="button" :disabled="busy === 'preview'" @click="makePreview">Preview with sample data</button>
+          <button class="primary" type="button" :disabled="busy === 'save'" @click="saveTemplate">Opslaan</button>
+          <button type="button" :disabled="busy === 'preview'" @click="makePreview">Voorbeeld met testgegevens</button>
         </div>
 
         <div v-if="preview" class="preview">
           <div class="preview-head">
-            <span>Email preview</span>
+            <span>Voorbeeld e-mail</span>
             <strong>{{ preview.subject }}</strong>
           </div>
           <iframe
             class="email-preview"
             :srcdoc="preview.html"
-            title="Branded email preview"
+            title="Voorbeeld van de e-mail in huisstijl"
             sandbox=""
           />
         </div>
 
         <div class="test-send">
-          <input v-model="testRecipient" type="email" placeholder="Test recipient email">
+          <input v-model="testRecipient" type="email" placeholder="E-mailadres voor testmail">
           <button type="button" :disabled="busy === 'test' || !data?.providerConfigured" @click="sendTest">
-            {{ busy === 'test' ? 'Sending…' : 'Send test' }}
+            {{ busy === 'test' ? 'Versturen…' : 'Testmail versturen' }}
           </button>
         </div>
       </div>
@@ -281,52 +293,52 @@ function offsetLabel(template: Template) {
 
     <section class="panel suppression">
       <div>
-        <h2>Per-gig suppression</h2>
-        <p>Disable one automation for one specific gig without changing the global template.</p>
+        <h2>Per gig uitschakelen</h2>
+        <p>Schakel één automatisering uit voor één specifieke gig, zonder het algemene template te wijzigen.</p>
       </div>
       <select v-model="suppressionGigId">
-        <option value="">Select gig</option>
-        <option v-for="gig in data?.gigOptions" :key="gig.id" :value="gig.id">{{ gig.title }} · {{ gig.status }}</option>
+        <option value="">Kies een gig</option>
+        <option v-for="gig in data?.gigOptions" :key="gig.id" :value="gig.id">{{ gig.title }} · {{ labelFor(gigStatusLabels, gig.status) }}</option>
       </select>
       <select v-model="suppressionTemplateKey">
-        <option value="">Select template</option>
-        <option v-for="template in data?.templates" :key="template.key" :value="template.key">{{ template.name }}</option>
+        <option value="">Kies een template</option>
+        <option v-for="template in data?.templates" :key="template.key" :value="template.key">{{ templateName(template.key, template.name) }}</option>
       </select>
       <button type="button" :disabled="busy === 'suppression' || !suppressionGigId || !suppressionTemplateKey" @click="toggleSuppression">
-        {{ isSuppressed ? 'Enable for this gig' : 'Suppress for this gig' }}
+        {{ isSuppressed ? 'Inschakelen voor deze gig' : 'Uitschakelen voor deze gig' }}
       </button>
     </section>
 
     <section class="panel">
       <div class="section-head">
         <div>
-          <h2>Delivery jobs</h2>
-          <p>Jobs survive restarts. Failed jobs keep their error and can be retried.</p>
+          <h2>Verzendtaken</h2>
+          <p>Taken blijven bewaard na een herstart. Mislukte taken houden hun foutmelding en kun je opnieuw proberen.</p>
         </div>
-        <button class="with-icon" type="button" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
+        <button class="with-icon" type="button" @click="refresh()"><Icon name="lucide:refresh-cw" aria-hidden="true" />Vernieuwen</button>
       </div>
       <div class="history">
         <article v-for="job in data?.jobs" :key="job.id" class="history-row">
           <div>
-            <strong>{{ job.templateKey }}</strong>
+            <strong>{{ templateName(job.templateKey) }}</strong>
             <span>{{ job.gigTitle || job.recipient }}</span>
           </div>
           <div>
-            <span class="pill" :data-status="job.status">{{ job.status }}</span>
-            <small>{{ job.attemptCount }} attempt(s) · run {{ formatDate(job.runAt) }}</small>
+            <span class="pill" :data-status="job.status">{{ labelFor(emailJobStatusLabels, job.status) }}</span>
+            <small>{{ job.attemptCount }} poging(en) · gepland {{ formatDate(job.runAt) }}</small>
             <small v-if="job.lastError" class="error">{{ job.lastError }}</small>
           </div>
-          <button v-if="job.status === 'failed'" class="with-icon" type="button" :disabled="busy === job.id" @click="retry(job.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
+          <button v-if="job.status === 'failed'" class="with-icon" type="button" :disabled="busy === job.id" @click="retry(job.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Opnieuw proberen</button>
         </article>
-        <p v-if="!data?.jobs.length" class="empty">No email jobs yet.</p>
+        <p v-if="!data?.jobs.length" class="empty">Nog geen e-mailtaken.</p>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Delivery attempts</h2>
+      <h2>Verzendpogingen</h2>
       <div class="attempts">
         <div v-for="attempt in data?.attempts.slice(0, 30)" :key="attempt.id" class="attempt">
-          <span class="pill" :data-status="attempt.status">{{ attempt.status }}</span>
+          <span class="pill" :data-status="attempt.status">{{ labelFor(emailJobStatusLabels, attempt.status) }}</span>
           <span>{{ formatDate(attempt.attemptedAt) }}</span>
           <span>{{ attempt.providerMessageId || attempt.error || '—' }}</span>
         </div>

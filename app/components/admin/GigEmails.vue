@@ -11,6 +11,7 @@ import {
   renderBrandedEmailHtml,
   renderEmailTemplate,
 } from '~~/shared/email-automation'
+import { emailJobStatusLabels, emailTemplateLabels, labelFor } from '~~/shared/labels'
 
 const props = defineProps<{ gigId: string, portalUrl?: string }>()
 
@@ -42,7 +43,7 @@ const draft = reactive({
 })
 
 const acceptedExtensions = EMAIL_ATTACHMENT_EXTENSIONS.map(ext => `.${ext}`).join(',')
-const templateName = (key: string) => data.value?.templates.find(template => template.key === key)?.name || key.replaceAll('_', ' ')
+const templateName = (key: string) => labelFor(emailTemplateLabels, key)
 const automaticTemplates = computed(() => data.value?.templates.filter(template => template.automatic) || [])
 const automaticForClient = computed(() => automaticTemplates.value.filter(template =>
   template.enabled && clientAllowsAutomaticEmail(data.value?.client?.emailAutomationDisabled, template.key)))
@@ -81,7 +82,7 @@ function openComposer(key = 'custom_message') {
 
 function onTemplateChange(event: Event) {
   const key = (event.target as HTMLSelectElement).value
-  if ((draft.subject || draft.body) && !confirm('Replace the subject and text with this template?')) {
+  if ((draft.subject || draft.body) && !confirm('Onderwerp en tekst vervangen door dit template?')) {
     (event.target as HTMLSelectElement).value = draft.templateKey
     return
   }
@@ -95,20 +96,20 @@ function addFiles(event: Event) {
   message.value = ''
   for (const file of picked) {
     if (attachmentCount.value >= MAX_EMAIL_ATTACHMENTS) {
-      message.value = `You can attach at most ${MAX_EMAIL_ATTACHMENTS} files.`
+      message.value = `Je kunt maximaal ${MAX_EMAIL_ATTACHMENTS} bijlagen toevoegen.`
       break
     }
     if (!EMAIL_ATTACHMENT_EXTENSIONS.includes(attachmentExtension(file.name))) {
-      message.value = `${file.name} is not an allowed file type.`
+      message.value = `${file.name} is geen toegestaan bestandstype.`
       continue
     }
     if (file.size > MAX_EMAIL_ATTACHMENT_BYTES) {
-      message.value = `${file.name} is larger than 10 MB.`
+      message.value = `${file.name} is groter dan 10 MB.`
       continue
     }
     const total = draft.files.reduce((sum, item) => sum + item.size, 0) + file.size
     if (total > MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES) {
-      message.value = 'Attachments may be 20 MB in total.'
+      message.value = 'Bijlagen mogen samen maximaal 20 MB zijn.'
       break
     }
     draft.files.push(file)
@@ -117,7 +118,7 @@ function addFiles(event: Event) {
 
 function toggleInvoice(id: string, on: boolean) {
   if (on && attachmentCount.value >= MAX_EMAIL_ATTACHMENTS) {
-    message.value = `You can attach at most ${MAX_EMAIL_ATTACHMENTS} files.`
+    message.value = `Je kunt maximaal ${MAX_EMAIL_ATTACHMENTS} bijlagen toevoegen.`
     return
   }
   draft.invoiceIds = on ? [...draft.invoiceIds, id] : draft.invoiceIds.filter(item => item !== id)
@@ -125,7 +126,7 @@ function toggleInvoice(id: string, on: boolean) {
 
 async function send() {
   if (!draft.templateKey || !draft.recipient || !draft.subject.trim() || !draft.body.trim()) {
-    message.value = 'Fill in a recipient, subject and text.'
+    message.value = 'Vul een ontvanger, onderwerp en tekst in.'
     return
   }
   sending.value = true
@@ -142,14 +143,14 @@ async function send() {
     const result = await $fetch<{ status: string, error?: string }>(`/api/admin/gigs/${props.gigId}/emails`, { method: 'POST', body })
     if (result.status === 'sent') {
       composing.value = false
-      message.value = `Email sent to ${draft.recipient}.`
+      message.value = `E-mail verstuurd naar ${draft.recipient}.`
     } else {
-      message.value = `Sending failed: ${result.error || result.status}. It will be retried automatically.`
+      message.value = `Versturen mislukt: ${result.error || result.status}. Er wordt automatisch opnieuw geprobeerd.`
       composing.value = false
     }
     await refresh()
   } catch (error: unknown) {
-    message.value = apiErrorMessage(error, 'Could not send the email.')
+    message.value = apiErrorMessage(error, 'E-mail versturen is niet gelukt.')
   } finally {
     sending.value = false
   }
@@ -163,10 +164,9 @@ function when(job: Job) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 function statusLabel(job: Job) {
-  if (job.status === 'sent') return 'Sent'
-  if (job.status === 'pending') return new Date(job.runAt).getTime() > Date.now() ? 'Scheduled' : 'Sending'
-  if (job.status === 'suppressed') return 'Not sent'
-  return job.status.charAt(0).toUpperCase() + job.status.slice(1)
+  if (job.status === 'pending') return new Date(job.runAt).getTime() > Date.now() ? 'Gepland' : 'In wachtrij'
+  if (job.status === 'suppressed') return 'Niet verstuurd'
+  return labelFor(emailJobStatusLabels, job.status)
 }
 
 watch(() => props.portalUrl, (url) => {
@@ -178,22 +178,22 @@ watch(() => props.portalUrl, (url) => {
   <section v-if="data" class="card emails">
     <div class="section-title">
       <div>
-        <p class="eyebrow">Email</p>
-        <h2>Client emails</h2>
+        <p class="eyebrow">E-mail</p>
+        <h2>E-mails naar de klant</h2>
         <span class="subtle-copy">
-          <template v-if="!data.client">No client linked, so nothing is sent automatically.</template>
-          <template v-else-if="!data.client.email">{{ data.client.name }} has no email address, so nothing is sent automatically.</template>
-          <template v-else>{{ automaticForClient.length }} of {{ automaticTemplates.length }} emails go out automatically to {{ data.client.name }}. <NuxtLink :to="`/admin/clients/${data.client.id}`">Change per client</NuxtLink></template>
+          <template v-if="!data.client">Geen klant gekoppeld, dus er wordt niets automatisch verstuurd.</template>
+          <template v-else-if="!data.client.email">{{ data.client.name }} heeft geen e-mailadres, dus er wordt niets automatisch verstuurd.</template>
+          <template v-else>{{ automaticForClient.length }} van {{ automaticTemplates.length }} e-mails gaan automatisch naar {{ data.client.name }}. <NuxtLink :to="`/admin/clients/${data.client.id}`">Aanpassen bij de klant</NuxtLink></template>
         </span>
       </div>
-      <button v-if="!composing" type="button" class="secondary with-icon" @click="openComposer()"><Icon name="lucide:mail-plus" aria-hidden="true" />Write email</button>
+      <button v-if="!composing" type="button" class="secondary with-icon" @click="openComposer()"><Icon name="lucide:mail-plus" aria-hidden="true" />E-mail schrijven</button>
     </div>
 
-    <p v-if="!data.providerConfigured" class="warn">The email provider is not configured yet; emails cannot be delivered.</p>
+    <p v-if="!data.providerConfigured" class="warn">De e-mailprovider is nog niet ingesteld; e-mails kunnen niet worden verstuurd.</p>
 
     <div v-if="portalUrl && !composing && !invitationAutomatic" class="notice">
-      <span>A new portal link is ready. The invitation is not sent automatically to this client.</span>
-      <button type="button" class="text-button" @click="openComposer('client_portal_invitation')">Send invitation by hand</button>
+      <span>Er is een nieuwe portaallink. De uitnodiging gaat niet automatisch naar deze klant.</span>
+      <button type="button" class="text-button" @click="openComposer('client_portal_invitation')">Uitnodiging zelf versturen</button>
     </div>
 
     <div v-if="composing" class="composer">
@@ -201,59 +201,59 @@ watch(() => props.portalUrl, (url) => {
         <label>Template
           <select :value="draft.templateKey" @change="onTemplateChange">
             <option v-for="template in data.templates" :key="template.key" :value="template.key">
-              {{ template.name }}{{ template.automatic ? (sendsAutomatically(template) ? ' · automatic' : ' · not automatic') : '' }}
+              {{ templateName(template.key) }}{{ template.automatic ? (sendsAutomatically(template) ? ' · automatisch' : ' · niet automatisch') : '' }}
             </option>
           </select>
         </label>
-        <label>To<input v-model="draft.recipient" type="email" required placeholder="client@example.com"></label>
-        <label class="wide">Subject<input v-model="draft.subject" maxlength="300" required></label>
-        <label class="wide">Text<textarea v-model="draft.body" rows="10" required /></label>
+        <label>Aan<input v-model="draft.recipient" type="email" required placeholder="klant@voorbeeld.nl"></label>
+        <label class="wide">Onderwerp<input v-model="draft.subject" maxlength="300" required></label>
+        <label class="wide">Tekst<textarea v-model="draft.body" rows="10" required /></label>
       </div>
-      <p v-if="selectedTemplate?.automatic && sendsAutomatically(selectedTemplate)" class="hint">This email is also sent automatically to this client.</p>
-      <p v-if="needsPortalLink" class="hint warn">Create a portal link below first to include the portal button, or paste a link into the text.</p>
+      <p v-if="selectedTemplate?.automatic && sendsAutomatically(selectedTemplate)" class="hint">Deze e-mail gaat ook automatisch naar deze klant.</p>
+      <p v-if="needsPortalLink" class="hint warn">Maak eerst hieronder een portaallink aan om de portaalknop mee te sturen, of plak een link in de tekst.</p>
 
       <div class="attachments">
         <div class="attachments-head">
-          <strong>Attachments <small>optional · max {{ MAX_EMAIL_ATTACHMENTS }} files, 10 MB each</small></strong>
-          <button type="button" class="text-button" :disabled="attachmentCount >= MAX_EMAIL_ATTACHMENTS" @click="fileInput?.click()"><Icon name="lucide:paperclip" aria-hidden="true" /> Add file</button>
+          <strong>Bijlagen <small>optioneel · max. {{ MAX_EMAIL_ATTACHMENTS }} bestanden, 10 MB per stuk</small></strong>
+          <button type="button" class="text-button" :disabled="attachmentCount >= MAX_EMAIL_ATTACHMENTS" @click="fileInput?.click()"><Icon name="lucide:paperclip" aria-hidden="true" /> Bestand toevoegen</button>
           <input ref="fileInput" type="file" multiple hidden :accept="acceptedExtensions" @change="addFiles">
         </div>
         <label v-for="invoice in data.invoices" :key="invoice.id" class="checkbox">
           <input type="checkbox" :checked="draft.invoiceIds.includes(invoice.id)" @change="toggleInvoice(invoice.id, ($event.target as HTMLInputElement).checked)">
-          Invoice {{ invoice.invoiceNumber }} (PDF)
+          Factuur {{ invoice.invoiceNumber }} (pdf)
         </label>
         <div v-for="(file, index) in draft.files" :key="`${file.name}-${index}`" class="file-row">
           <span><Icon name="lucide:file" aria-hidden="true" /> {{ file.name }} <small>{{ fileSize(file.size) }}</small></span>
-          <button type="button" aria-label="Remove attachment" title="Remove attachment" @click="draft.files.splice(index, 1)"><Icon name="lucide:x" aria-hidden="true" /></button>
+          <button type="button" aria-label="Bijlage verwijderen" title="Bijlage verwijderen" @click="draft.files.splice(index, 1)"><Icon name="lucide:x" aria-hidden="true" /></button>
         </div>
       </div>
 
       <div v-if="showPreview" class="preview">
-        <div class="preview-head"><span>Preview</span><strong>{{ draft.subject }}</strong></div>
-        <iframe class="email-preview" :srcdoc="previewHtml" title="Email preview" sandbox="" />
+        <div class="preview-head"><span>Voorbeeld</span><strong>{{ draft.subject }}</strong></div>
+        <iframe class="email-preview" :srcdoc="previewHtml" title="Voorbeeld van de e-mail" sandbox="" />
       </div>
 
       <div class="composer-actions">
-        <button type="button" class="text-button" @click="showPreview = !showPreview">{{ showPreview ? 'Hide preview' : 'Preview' }}</button>
+        <button type="button" class="text-button" @click="showPreview = !showPreview">{{ showPreview ? 'Voorbeeld verbergen' : 'Voorbeeld' }}</button>
         <span class="spacer" />
-        <button type="button" class="secondary" :disabled="sending" @click="composing = false">Cancel</button>
-        <button type="button" class="primary with-icon" :disabled="sending || !data.providerConfigured" @click="send"><Icon name="lucide:send" aria-hidden="true" />{{ sending ? 'Sending…' : 'Send now' }}</button>
+        <button type="button" class="secondary" :disabled="sending" @click="composing = false">Annuleren</button>
+        <button type="button" class="primary with-icon" :disabled="sending || !data.providerConfigured" @click="send"><Icon name="lucide:send" aria-hidden="true" />{{ sending ? 'Versturen…' : 'Nu versturen' }}</button>
       </div>
     </div>
     <p v-if="message" class="message">{{ message }}</p>
 
-    <h3>History</h3>
-    <div v-if="!data.jobs.length" class="subtle">No emails for this gig yet.</div>
+    <h3>Geschiedenis</h3>
+    <div v-if="!data.jobs.length" class="subtle">Nog geen e-mails voor deze gig.</div>
     <div v-for="job in data.jobs" :key="job.id" class="job-row">
       <div class="job-main">
         <strong>{{ job.subjectOverride || templateName(job.templateKey) }}</strong>
-        <span>{{ job.manual ? 'Sent by hand' : 'Automatic' }} · {{ templateName(job.templateKey) }} · {{ job.recipient }} · {{ when(job) }}</span>
+        <span>{{ job.manual ? 'Handmatig' : 'Automatisch' }} · {{ templateName(job.templateKey) }} · {{ job.recipient }} · {{ when(job) }}</span>
         <span v-if="job.attachments.length" class="job-files"><Icon name="lucide:paperclip" aria-hidden="true" /> {{ job.attachments.join(', ') }}</span>
         <small v-if="job.lastError && job.status !== 'sent'">{{ job.lastError }}</small>
       </div>
       <div class="job-side">
         <span class="state" :data-state="job.status">{{ statusLabel(job) }}</span>
-        <button v-if="!job.manual && job.status !== 'sent'" type="button" class="text-button" @click="openComposer(job.templateKey)">Send by hand</button>
+        <button v-if="!job.manual && job.status !== 'sent'" type="button" class="text-button" @click="openComposer(job.templateKey)">Zelf versturen</button>
       </div>
     </div>
   </section>

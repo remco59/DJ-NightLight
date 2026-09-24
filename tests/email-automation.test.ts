@@ -85,9 +85,9 @@ describe('email automation helpers', () => {
   })
 
   it('describes when a template is sent', () => {
-    expect(emailScheduleLabel('event', 0)).toBe('Sent right away when it happens')
-    expect(emailScheduleLabel('gig_start', -10080)).toBe('7 days before the gig starts')
-    expect(emailScheduleLabel('gig_end', 1440)).toBe('1 day after the gig ends')
-    expect(emailScheduleLabel('invoice_due', -120)).toBe('2 hours before the invoice due date')
+    expect(emailScheduleLabel('event', 0)).toBe('Direct wanneer het gebeurt')
+    expect(emailScheduleLabel('gig_start', -10080)).toBe('7 dagen voor de start van de gig')
+    expect(emailScheduleLabel('gig_end', 1440)).toBe('1 dag na het einde van de gig')
+    expect(emailScheduleLabel('invoice_due', -120)).toBe('2 uur voor de vervaldatum van de factuur')
   })
 })

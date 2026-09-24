@@ -16,7 +16,7 @@ export async function emailProviderConfigured() {
 
 export async function sendEmail(input: SendInput) {
   const { config: email } = await loadEmailIntegration()
-  if (!email.apiKey || !email.from) throw new Error('Email provider is not configured')
+  if (!email.apiKey || !email.from) throw new Error('De e-mailprovider is niet ingesteld')
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -44,7 +44,7 @@ export async function sendEmail(input: SendInput) {
 
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 1000)
-    throw new Error(`Email provider failed (${response.status}): ${detail}`)
+    throw new Error(`E-mailprovider gaf een fout (${response.status}): ${detail}`)
   }
 
   const payload = await response.json() as { id?: string }

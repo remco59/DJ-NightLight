@@ -41,7 +41,7 @@ const route = useRoute()
 const id = String(route.params.id)
 const { data, error } = await useFetch<ProjectResponse>(`/api/admin/video-projects/${id}`)
 if (error.value || !data.value) {
-  throw createError({ statusCode: error.value?.statusCode || 404, statusMessage: 'Video project not found', fatal: true })
+  throw createError({ statusCode: error.value?.statusCode || 404, statusMessage: 'Videoproject niet gevonden', fatal: true })
 }
 
 const editor = createVideoEditor({
@@ -128,7 +128,7 @@ async function refreshMedia() {
     const result = await $fetch<{ assets: EditorMediaAsset[] }>('/api/admin/media', { query: { kind: 'all' } })
     state.media = result.assets
   } catch (fetchError) {
-    message.value = apiErrorMessage(fetchError, 'Media library could not be loaded.')
+    message.value = apiErrorMessage(fetchError, 'Mediabibliotheek laden is niet gelukt.')
   }
 }
 
@@ -362,10 +362,10 @@ function commitName() {
 }
 
 const saveLabel = computed(() => {
-  if (state.saveState === 'saving') return 'Saving…'
-  if (state.saveState === 'dirty') return 'Unsaved changes'
+  if (state.saveState === 'saving') return 'Opslaan…'
+  if (state.saveState === 'dirty') return 'Niet-opgeslagen wijzigingen'
   if (state.saveState === 'error') return state.saveError
-  return 'All changes saved'
+  return 'Alle wijzigingen opgeslagen'
 })
 
 async function exportVideo() {
@@ -379,7 +379,7 @@ async function exportVideo() {
     mobileTool.value = 'export'
     await refreshRenders()
   } catch (exportError) {
-    message.value = apiErrorMessage(exportError, exportError instanceof Error ? exportError.message : 'Export could not be queued.')
+    message.value = apiErrorMessage(exportError, exportError instanceof Error ? exportError.message : 'Export in de wachtrij zetten is niet gelukt.')
   } finally {
     exporting.value = false
   }
@@ -429,7 +429,7 @@ onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
 })
 
-useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, nofollow' })
+useSeoMeta({ title: () => `${state.name} — Video-editor`, robots: 'noindex, nofollow' })
 </script>
 
 <template>
@@ -448,43 +448,43 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         class="menu-button"
         type="button"
         title="Menu"
-        aria-label="Open menu"
+        aria-label="Menu openen"
         aria-controls="editor-nav"
         :aria-expanded="navOpen"
         @click="navOpen = true"
       >
         <Icon name="lucide:menu" aria-hidden="true" />
       </button>
-      <input v-model="nameDraft" class="name" type="text" maxlength="160" aria-label="Project name" @blur="commitName" @keydown.enter="($event.target as HTMLInputElement).blur()">
+      <input v-model="nameDraft" class="name" type="text" maxlength="160" aria-label="Projectnaam" @blur="commitName" @keydown.enter="($event.target as HTMLInputElement).blur()">
       <span class="format"><Icon name="lucide:rectangle-vertical" aria-hidden="true" /> {{ VIDEO_ASPECTS[state.project.aspect].label }}</span>
       <span class="save" :class="state.saveState" :title="state.saveError">
         <i />{{ saveLabel }}
-        <button v-if="state.saveState === 'error'" class="with-icon" type="button" @click="editor.save()"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
+        <button v-if="state.saveState === 'error'" class="with-icon" type="button" @click="editor.save()"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Opnieuw proberen</button>
       </span>
-      <button class="export" type="button" :disabled="exporting" @click="exportVideo"><Icon name="lucide:download" aria-hidden="true" /> {{ exporting ? 'Queueing…' : 'Export MP4' }}</button>
+      <button class="export" type="button" :disabled="exporting" @click="exportVideo"><Icon name="lucide:download" aria-hidden="true" /> {{ exporting ? 'In wachtrij zetten…' : 'Export MP4' }}</button>
     </header>
 
     <template v-if="!isMobile">
       <aside id="editor-nav" ref="navDrawer" class="nav-drawer" :class="{ open: navOpen }" :inert="!navOpen" aria-label="Back office">
         <AdminNav />
       </aside>
-      <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="Close menu" @click="navOpen = false" />
+      <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="Menu sluiten" @click="navOpen = false" />
     </template>
 
-    <p v-if="message" class="banner">{{ message }} <button type="button" aria-label="Dismiss" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button></p>
+    <p v-if="message" class="banner">{{ message }} <button type="button" aria-label="Sluiten" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button></p>
 
     <div class="workspace">
-      <nav v-if="!isMobile" class="rail" aria-label="Editor panels">
+      <nav v-if="!isMobile" class="rail" aria-label="Editorpanelen">
         <button type="button" :class="{ active: tab === 'media' }" @click="tab = 'media'"><Icon name="lucide:images" aria-hidden="true" />Media</button>
         <button type="button" :class="{ active: tab === 'templates' }" @click="tab = 'templates'"><Icon name="lucide:layout-template" aria-hidden="true" />Templates</button>
         <button type="button" :class="{ active: tab === 'exports' }" @click="tab = 'exports'"><Icon name="lucide:clapperboard" aria-hidden="true" />Exports</button>
-        <NuxtLink to="/admin/post-generator/video"><Icon name="lucide:folder-open" aria-hidden="true" />Projects</NuxtLink>
+        <NuxtLink to="/admin/post-generator/video"><Icon name="lucide:folder-open" aria-hidden="true" />Projecten</NuxtLink>
       </nav>
 
       <VideoMediaPanel v-if="!isMobile" class="side" :tab="tab" @refresh-media="refreshMedia" @refresh-renders="refreshRenders" />
 
       <main class="stage-column">
-        <div v-if="!isMobile" class="stage-title">Preview</div>
+        <div v-if="!isMobile" class="stage-title">Voorbeeld</div>
         <div ref="stage" class="stage" @pointerdown.self="state.selectedId = null">
           <div class="preview-wrap" :style="{ width: `${previewSize.width}px`, height: `${previewSize.height}px` }">
             <CanvasGhost v-if="!state.playing" :scale="previewSize.scale" />
@@ -504,7 +504,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
               v-if="safeZone"
               class="safe-zone"
               :style="{ top: `${safeZone.top}px`, bottom: `${safeZone.bottom}px`, left: `${safeZone.left}px`, right: `${safeZone.right}px` }"
-              title="Keep text inside this area so Instagram UI does not cover it"
+              title="Houd tekst binnen dit gebied, zodat de Instagram-interface hem niet bedekt"
             />
           </div>
         </div>
@@ -516,7 +516,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
           @fullscreen="preview?.requestFullscreen()"
         />
         <div v-else class="transport">
-          <button type="button" :title="state.playing ? 'Pause (Space)' : 'Play (Space)'" @click="togglePlay"><Icon :name="state.playing ? 'lucide:pause' : 'lucide:play'" aria-hidden="true" /></button>
+          <button type="button" :title="state.playing ? 'Pauzeren (spatie)' : 'Afspelen (spatie)'" @click="togglePlay"><Icon :name="state.playing ? 'lucide:pause' : 'lucide:play'" aria-hidden="true" /></button>
           <span class="time">{{ formatTimecode(state.frame, state.project.fps) }} / {{ formatTimecode(editor.duration.value, state.project.fps) }}</span>
           <input
             class="scrub"
@@ -524,11 +524,11 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
             min="0"
             :max="editor.duration.value - 1"
             :value="state.frame"
-            aria-label="Playhead"
+            aria-label="Afspeelpositie"
             @input="seek(Number(($event.target as HTMLInputElement).value))"
           >
-          <label class="volume" title="Preview volume"><Icon :name="volume > 0 ? 'lucide:volume-2' : 'lucide:volume-x'" aria-hidden="true" /> <input v-model.number="volume" type="range" min="0" max="1" step="0.05"></label>
-          <button type="button" title="Fullscreen" aria-label="Fullscreen" @click="preview?.requestFullscreen()"><Icon name="lucide:maximize" aria-hidden="true" /></button>
+          <label class="volume" title="Volume voorbeeld"><Icon :name="volume > 0 ? 'lucide:volume-2' : 'lucide:volume-x'" aria-hidden="true" /> <input v-model.number="volume" type="range" min="0" max="1" step="0.05"></label>
+          <button type="button" title="Volledig scherm" aria-label="Volledig scherm" @click="preview?.requestFullscreen()"><Icon name="lucide:maximize" aria-hidden="true" /></button>
         </div>
       </main>
 
@@ -538,7 +538,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         <PanelSplitter
           class="split-side"
           orientation="vertical"
-          label="Resize media panel"
+          label="Grootte mediapaneel aanpassen"
           :value="panels.side"
           :min="PANEL_LIMITS.side.min"
           :max="panelMax.side"
@@ -552,7 +552,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
           v-if="!viewport.compact"
           class="split-inspector"
           orientation="vertical"
-          label="Resize inspector"
+          label="Grootte inspector aanpassen"
           :value="panels.inspector"
           :min="PANEL_LIMITS.inspector.min"
           :max="panelMax.inspector"
@@ -565,7 +565,7 @@ useSeoMeta({ title: () => `${state.name} — Video editor`, robots: 'noindex, no
         <PanelSplitter
           class="split-timeline"
           orientation="horizontal"
-          label="Resize timeline"
+          label="Grootte timeline aanpassen"
           :value="panels.timeline"
           :min="PANEL_LIMITS.timeline.min"
           :max="panelMax.timeline"

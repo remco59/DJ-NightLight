@@ -11,7 +11,7 @@ export async function issuePortalLink(input: {
   action: 'portal_link_created' | 'portal_invitation_resent'
 }) {
   const [gig] = await db.select({ id: gigs.id }).from(gigs).where(eq(gigs.id, input.gigId)).limit(1)
-  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const token = createPortalToken()
   const expiresAt = portalExpiry(input.expiresInDays)
@@ -30,7 +30,7 @@ export async function issuePortalLink(input: {
       expiresAt,
       createdByUserId: input.userId,
     }).returning({ id: portalLinks.id, expiresAt: portalLinks.expiresAt })
-    if (!link) throw createError({ statusCode: 500, statusMessage: 'Could not create portal link' })
+    if (!link) throw createError({ statusCode: 500, statusMessage: 'Portaallink aanmaken is niet gelukt' })
 
     await tx.insert(auditLogs).values({
       userId: input.userId,

@@ -7,17 +7,17 @@ definePageMeta({ layout: 'admin' })
 type EditableField = QuestionnaireField & { optionsText: string }
 type TemplateResponse = { template: { name: string, version: number, fields: QuestionnaireField[], createdAt: string } }
 const { data, refresh } = await useFetch<TemplateResponse>('/api/admin/questionnaire')
-if (!data.value) throw createError({ statusCode: 404, statusMessage: 'Questionnaire not found' })
+if (!data.value) throw createError({ statusCode: 404, statusMessage: 'Vragenlijst niet gevonden' })
 const name = ref(data.value.template.name)
 const fields = ref<EditableField[]>(data.value.template.fields.map(field => ({ ...field, helpText: field.helpText || '', optionsText: (field.options || []).join('\n') })))
 const saving = ref(false)
 const message = ref('')
 const typeLabels: Record<QuestionnaireFieldType, string> = {
-  short_text: 'Short text', long_text: 'Long text', email: 'Email', phone: 'Phone', number: 'Number', date: 'Date', time: 'Time', select: 'Select', multi_select: 'Multi-select', checkbox: 'Checkbox', acknowledgement: 'Acknowledgement / terms', url: 'URL',
+  short_text: 'Korte tekst', long_text: 'Lange tekst', email: 'E-mail', phone: 'Telefoon', number: 'Getal', date: 'Datum', time: 'Tijd', select: 'Keuzelijst', multi_select: 'Meerkeuze', checkbox: 'Selectievakje', acknowledgement: 'Akkoord / voorwaarden', url: 'URL',
 }
 
 function addField() {
-  fields.value.push({ id: `field_${Date.now()}`, type: 'short_text', label: 'New question', helpText: '', required: false, optionsText: '' })
+  fields.value.push({ id: `field_${Date.now()}`, type: 'short_text', label: 'Nieuwe vraag', helpText: '', required: false, optionsText: '' })
 }
 function move(index: number, direction: number) {
   const target = index + direction
@@ -37,23 +37,23 @@ async function save() {
       })),
     } })
     await refresh()
-    message.value = `Version ${data.value?.template.version || ''} saved. Existing submissions keep their original version.`
-  } catch (error: unknown) { message.value = apiErrorMessage(error, 'Could not save questionnaire.') } finally { saving.value = false }
+    message.value = `Versie ${data.value?.template.version || ''} opgeslagen. Bestaande inzendingen houden hun oorspronkelijke versie.`
+  } catch (error: unknown) { message.value = apiErrorMessage(error, 'Vragenlijst opslaan is niet gelukt.') } finally { saving.value = false }
 }
-useSeoMeta({ title: 'Client portal — DJ NightLight', robots: 'noindex, nofollow' })
+useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
 <template>
   <div class="editor">
-    <header class="page-header"><div><p class="eyebrow">Client portal</p><h1>Questionnaire</h1><p>Every save creates a new immutable version. Submitted gigs keep the exact questions they received.</p></div><button class="primary" :disabled="saving" @click="save">{{ saving ? 'Saving…' : 'Save new version' }}</button></header>
-    <section class="card meta"><label>Template name<input v-model="name"></label><span>Current version {{ data?.template.version }}</span></section>
+    <header class="page-header"><div><p class="eyebrow">Klantportaal</p><h1>Vragenlijst</h1><p>Elke keer opslaan maakt een nieuwe, vaste versie. Ingediende gigs houden precies de vragen die ze kregen.</p></div><button class="primary" :disabled="saving" @click="save">{{ saving ? 'Opslaan…' : 'Nieuwe versie opslaan' }}</button></header>
+    <section class="card meta"><label>Naam template<input v-model="name"></label><span>Huidige versie {{ data?.template.version }}</span></section>
     <section class="field-list">
       <article v-for="(field,index) in fields" :key="field.id" class="card field-card">
-        <div class="field-heading"><strong>Question {{ index + 1 }}</strong><div><button aria-label="Move up" title="Move up" @click="move(index,-1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button><button aria-label="Move down" title="Move down" @click="move(index,1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button><button class="remove" @click="fields.splice(index,1)">Remove</button></div></div>
-        <div class="grid"><label class="wide">Label<input v-model="field.label" required></label><label>Field type<select v-model="field.type"><option v-for="type in questionnaireFieldTypes" :key="type" :value="type">{{ typeLabels[type] }}</option></select></label><label>Stable field id<input v-model="field.id" pattern="[a-z0-9_]+"></label><label class="wide">Help text<input v-model="field.helpText"></label><label v-if="field.type==='select'||field.type==='multi_select'" class="wide">Options (one per line)<textarea v-model="field.optionsText" rows="4"/></label><label class="check"><input v-model="field.required" type="checkbox"> Required</label></div>
+        <div class="field-heading"><strong>Vraag {{ index + 1 }}</strong><div><button aria-label="Omhoog" title="Omhoog" @click="move(index,-1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button><button aria-label="Omlaag" title="Omlaag" @click="move(index,1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button><button class="remove" @click="fields.splice(index,1)">Verwijderen</button></div></div>
+        <div class="grid"><label class="wide">Label<input v-model="field.label" required></label><label>Soort veld<select v-model="field.type"><option v-for="type in questionnaireFieldTypes" :key="type" :value="type">{{ typeLabels[type] }}</option></select></label><label>Vaste veld-ID<input v-model="field.id" pattern="[a-z0-9_]+"></label><label class="wide">Hulptekst<input v-model="field.helpText"></label><label v-if="field.type==='select'||field.type==='multi_select'" class="wide">Opties (één per regel)<textarea v-model="field.optionsText" rows="4"/></label><label class="check"><input v-model="field.required" type="checkbox"> Verplicht</label></div>
       </article>
     </section>
-    <button class="add" @click="addField"><Icon name="lucide:plus" aria-hidden="true" /> Add question</button><p v-if="message" class="message">{{ message }}</p>
+    <button class="add" @click="addField"><Icon name="lucide:plus" aria-hidden="true" /> Vraag toevoegen</button><p v-if="message" class="message">{{ message }}</p>
   </div>
 </template>
 

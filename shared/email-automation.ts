@@ -40,13 +40,13 @@ export function attachmentExtension(filename: string) {
 }
 
 export function emailScheduleLabel(anchor: string, offsetMinutes: number) {
-  if (anchor === 'event') return 'Sent right away when it happens'
+  if (anchor === 'event') return 'Direct wanneer het gebeurt'
   const days = Math.round(Math.abs(offsetMinutes) / 1440)
   const hours = Math.round(Math.abs(offsetMinutes) / 60)
-  const amount = days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${hours} hour${hours === 1 ? '' : 's'}`
-  const reference = anchor === 'gig_start' ? 'the gig starts' : anchor === 'gig_end' ? 'the gig ends' : 'the invoice due date'
-  if (offsetMinutes === 0) return `When ${reference}`
-  return `${amount} ${offsetMinutes < 0 ? 'before' : 'after'} ${reference}`
+  const amount = days >= 1 ? `${days} ${days === 1 ? 'dag' : 'dagen'}` : `${hours} uur`
+  const reference = anchor === 'gig_start' ? 'de start van de gig' : anchor === 'gig_end' ? 'het einde van de gig' : 'de vervaldatum van de factuur'
+  if (offsetMinutes === 0) return `Bij ${reference}`
+  return `${amount} ${offsetMinutes < 0 ? 'voor' : 'na'} ${reference}`
 }
 
 type EmailDetail = {

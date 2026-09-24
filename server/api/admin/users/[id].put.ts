@@ -8,25 +8,25 @@ import { requireStaff } from '../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const actor = await requireStaff(event, ['owner'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'User id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gebruikers-ID is verplicht' })
 
   const input = await readValidatedBody(event, updateManagedUserSchema.parse)
   const [existing] = await db.select().from(users).where(eq(users.id, id)).limit(1)
-  if (!existing) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  if (!existing) throw createError({ statusCode: 404, statusMessage: 'Gebruiker niet gevonden' })
 
   if (existing.role === 'owner' && input.role) {
-    throw createError({ statusCode: 409, statusMessage: 'The owner role cannot be changed here' })
+    throw createError({ statusCode: 409, statusMessage: 'De rol van eigenaar kan hier niet worden gewijzigd' })
   }
   if (existing.role === 'owner' && input.active === false) {
-    throw createError({ statusCode: 409, statusMessage: 'The owner account cannot be disabled' })
+    throw createError({ statusCode: 409, statusMessage: 'Het account van de eigenaar kan niet worden uitgeschakeld' })
   }
   if (actor.id === id && input.active === false) {
-    throw createError({ statusCode: 409, statusMessage: 'You cannot disable your own account' })
+    throw createError({ statusCode: 409, statusMessage: 'Je kunt je eigen account niet uitschakelen' })
   }
 
   if (input.email && input.email !== existing.email) {
     const [duplicate] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1)
-    if (duplicate) throw createError({ statusCode: 409, statusMessage: 'An account with this email already exists' })
+    if (duplicate) throw createError({ statusCode: 409, statusMessage: 'Er bestaat al een account met dit e-mailadres' })
   }
 
   const nextRole = existing.role === 'owner' ? 'owner' : (input.role ?? existing.role)
@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
     updatedAt: users.updatedAt,
   })
 
-  if (!updated) throw createError({ statusCode: 500, statusMessage: 'Could not update account' })
+  if (!updated) throw createError({ statusCode: 500, statusMessage: 'Account bijwerken is niet gelukt' })
 
   await recordAudit({
     userId: actor.id,

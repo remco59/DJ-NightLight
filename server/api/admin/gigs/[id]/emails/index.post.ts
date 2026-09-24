@@ -30,17 +30,17 @@ function parseJson(value: string, fallback: unknown) {
   try {
     return JSON.parse(value)
   } catch {
-    throw createError({ statusCode: 422, statusMessage: 'Invalid email form' })
+    throw createError({ statusCode: 422, statusMessage: 'Ongeldig e-mailformulier' })
   }
 }
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
   const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const parts = await readMultipartFormData(event)
-  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Multipart form is required' })
+  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Multipart-formulier is verplicht' })
   const text = (name: string) => parts.find(part => part.name === name && !part.filename)?.data?.toString('utf8') || ''
   const parsed = schema.safeParse({
     templateKey: text('templateKey'),
@@ -51,32 +51,32 @@ export default defineEventHandler(async (event) => {
     invoiceIds: parseJson(text('invoiceIds'), []),
   })
   if (!parsed.success) {
-    throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid email form' })
+    throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldig e-mailformulier' })
   }
   const input = parsed.data
 
   const details = await loadGigEmailDetails(gigId)
-  if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
   const [template] = await db.select({ key: emailTemplates.key }).from(emailTemplates).where(eq(emailTemplates.key, input.templateKey)).limit(1)
-  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template not found' })
+  if (!template) throw createError({ statusCode: 404, statusMessage: 'Template niet gevonden' })
 
   const files = parts.filter(part => part.name === 'attachments' && part.filename && part.data?.length)
   if (files.length + input.invoiceIds.length > MAX_EMAIL_ATTACHMENTS) {
-    throw createError({ statusCode: 422, statusMessage: `Attach at most ${MAX_EMAIL_ATTACHMENTS} files` })
+    throw createError({ statusCode: 422, statusMessage: `Voeg maximaal ${MAX_EMAIL_ATTACHMENTS} bijlagen toe` })
   }
   let totalBytes = 0
   for (const file of files) {
     const filename = sanitizeAttachmentFilename(file.filename || '')
     if (!EMAIL_ATTACHMENT_EXTENSIONS.includes(attachmentExtension(filename))) {
-      throw createError({ statusCode: 422, statusMessage: `${filename} is not an allowed attachment type` })
+      throw createError({ statusCode: 422, statusMessage: `${filename} is geen toegestaan bestandstype` })
     }
     if (file.data.length > MAX_EMAIL_ATTACHMENT_BYTES) {
-      throw createError({ statusCode: 413, statusMessage: `${filename} is larger than 10 MB` })
+      throw createError({ statusCode: 413, statusMessage: `${filename} is groter dan 10 MB` })
     }
     totalBytes += file.data.length
   }
   if (totalBytes > MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES) {
-    throw createError({ statusCode: 413, statusMessage: 'Attachments may be 20 MB in total' })
+    throw createError({ statusCode: 413, statusMessage: 'Bijlagen mogen samen maximaal 20 MB zijn' })
   }
 
   const invoiceRows = input.invoiceIds.length
@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
       ))
     : []
   if (invoiceRows.length !== new Set(input.invoiceIds).size) {
-    throw createError({ statusCode: 422, statusMessage: 'Only finalized invoices of this gig can be attached' })
+    throw createError({ statusCode: 422, statusMessage: 'Alleen definitieve facturen van deze gig kunnen worden bijgevoegd' })
   }
 
   const storage = getMediaStorage()
@@ -135,7 +135,7 @@ export default defineEventHandler(async (event) => {
     return {
       jobId: job.id,
       status: 'failed' as const,
-      error: error instanceof Error ? error.message : 'Email could not be sent',
+      error: error instanceof Error ? error.message : 'E-mail kon niet worden verstuurd',
     }
   }
 })

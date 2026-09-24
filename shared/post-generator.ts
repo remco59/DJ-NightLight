@@ -118,7 +118,7 @@ export function coverImageRect(input: {
 }) {
   const { sourceWidth, sourceHeight, targetWidth, targetHeight } = input
   if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
-    throw new Error('Image dimensions must be positive')
+    throw new Error('Afmetingen van de afbeelding moeten positief zijn')
   }
   const zoom = Math.max(1, Math.min(input.zoom, 3))
   const baseScale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight)
@@ -142,7 +142,7 @@ export function safeAreaInsets(preset: PostPreset) {
 
 export const POST_BRAND_PRESETS = ['night', 'mono', 'warm'] as const
 
-export type PostTemplateCategory = 'General' | 'Minimal' | 'Announcements' | 'Recaps' | 'Upcoming gigs'
+export type PostTemplateCategory = 'Algemeen' | 'Minimaal' | 'Aankondigingen' | 'Terugblikken' | 'Aankomende gigs'
 
 /** Text fields the editor exposes; each template renders a subset of them. */
 export type PostTextField = 'headline' | 'subline' | 'date' | 'time' | 'location' | 'cta' | 'gigList'
@@ -163,12 +163,12 @@ export type PostTemplateInfo = {
 const FLEXIBLE_FIELDS: PostTextField[] = ['headline', 'subline', 'date', 'time', 'location', 'cta']
 
 export const POST_TEMPLATES: PostTemplateInfo[] = [
-  { key: 'gradient', label: 'Gradient', description: 'Atmospheric photo with cinematic fade.', category: 'General', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Cinematic fade behind the text.' },
-  { key: 'poster', label: 'Poster', description: 'Bold framed event poster.', category: 'General', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Darkening wash under the poster frame.' },
-  { key: 'minimal', label: 'Minimal', description: 'Clean editorial panel.', category: 'Minimal', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Opacity of the editorial side panel.' },
-  { key: 'gig-announcement', label: 'Gig announcement', description: 'Bold event promo with date, time, location and CTA.', category: 'Announcements', fields: ['headline', 'subline', 'date', 'time', 'location', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
-  { key: 'recap', label: 'Recap', description: 'High-energy post-event recap inspired by Sneekweek.', category: 'Recaps', fields: ['headline', 'subline', 'date', 'location', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
-  { key: 'upcoming-gigs', label: 'Upcoming gigs', description: 'Planning layout with an editable list of upcoming dates.', category: 'Upcoming gigs', fields: ['headline', 'subline', 'gigList', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
+  { key: 'gradient', label: 'Gradient', description: 'Sfeervolle foto met filmische fade.', category: 'Algemeen', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Filmische fade achter de tekst.' },
+  { key: 'poster', label: 'Poster', description: 'Krachtige eventposter met kader.', category: 'Algemeen', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Donkere laag onder het posterkader.' },
+  { key: 'minimal', label: 'Minimaal', description: 'Strak redactioneel paneel.', category: 'Minimaal', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Dekking van het redactionele zijpaneel.' },
+  { key: 'gig-announcement', label: 'Gig-aankondiging', description: 'Krachtige eventpromo met datum, tijd, locatie en CTA.', category: 'Aankondigingen', fields: ['headline', 'subline', 'date', 'time', 'location', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
+  { key: 'recap', label: 'Recap', description: 'Energieke terugblik na een event, geïnspireerd op Sneekweek.', category: 'Terugblikken', fields: ['headline', 'subline', 'date', 'location', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
+  { key: 'upcoming-gigs', label: 'Aankomende gigs', description: 'Planningslayout met een bewerkbare lijst van aankomende data.', category: 'Aankomende gigs', fields: ['headline', 'subline', 'gigList', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
 ]
 
 export function postTemplateInfo(key: PostTemplateKey) {

@@ -43,14 +43,14 @@ watch(open, (value) => {
         <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="post-exports-title">
           <header class="drawer-head">
             <div>
-              <h2 id="post-exports-title">Recent exports</h2>
-              <p>Download an exported PNG or load its design back into the editor.</p>
+              <h2 id="post-exports-title">Recente exports</h2>
+              <p>Download een geëxporteerde PNG of laad het ontwerp terug in de editor.</p>
             </div>
             <div class="head-actions">
-              <button type="button" class="icon-button" aria-label="Refresh" title="Refresh" :disabled="refreshing" @click="refresh">
+              <button type="button" class="icon-button" aria-label="Vernieuwen" title="Vernieuwen" :disabled="refreshing" @click="refresh">
                 <Icon name="lucide:refresh-cw" aria-hidden="true" />
               </button>
-              <button ref="closeRef" type="button" class="icon-button" aria-label="Close" @click="open = false">
+              <button ref="closeRef" type="button" class="icon-button" aria-label="Sluiten" @click="open = false">
                 <Icon name="lucide:x" aria-hidden="true" />
               </button>
             </div>
@@ -58,7 +58,7 @@ watch(open, (value) => {
 
           <ul v-if="editor.posts.value.length" class="export-list">
             <li v-for="post in editor.posts.value" :key="post.id" class="export-item">
-              <a class="export-image" :href="post.imageUrl" target="_blank" rel="noopener" :aria-label="`Open ${templateLabel(post.templateKey)} export in a new tab`">
+              <a class="export-image" :href="post.imageUrl" target="_blank" rel="noopener" :aria-label="`Export ${templateLabel(post.templateKey)} openen in een nieuw tabblad`">
                 <img :src="post.imageUrl" alt="" loading="lazy">
               </a>
               <div class="export-copy">
@@ -66,16 +66,16 @@ watch(open, (value) => {
                 <small>{{ post.width }}<IconTimes />{{ post.height }} · {{ formatDate(post.createdAt) }}</small>
                 <div class="export-actions">
                   <a class="action" :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'">
-                    <Icon name="lucide:download" aria-hidden="true" />Download
+                    <Icon name="lucide:download" aria-hidden="true" />Downloaden
                   </a>
                   <button type="button" class="action" @click="reuse(post)">
-                    <Icon name="lucide:pencil" aria-hidden="true" />Edit again
+                    <Icon name="lucide:pencil" aria-hidden="true" />Opnieuw bewerken
                   </button>
                   <button
                     type="button"
                     class="action danger"
-                    :aria-label="'Delete ' + templateLabel(post.templateKey) + ' export'"
-                    title="Delete"
+                    :aria-label="'Export ' + templateLabel(post.templateKey) + ' verwijderen'"
+                    title="Verwijderen"
                     :disabled="busy === post.id"
                     @click="editor.deletePost(post)"
                   >
@@ -88,8 +88,8 @@ watch(open, (value) => {
 
           <div v-else class="empty">
             <Icon name="lucide:images" aria-hidden="true" />
-            <strong>No exports yet</strong>
-            <small>Exported posts appear here, ready to download or reuse.</small>
+            <strong>Nog geen exports</strong>
+            <small>Geëxporteerde posts verschijnen hier, klaar om te downloaden of opnieuw te gebruiken.</small>
           </div>
         </aside>
       </div>
