@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
 import { gigEndFromDuration } from '~~/shared/gig-duration'
 import { apiErrorMessage } from '~/utils/api-error'
 
@@ -121,48 +122,133 @@ async function closeCreate(){
     await navigateTo({path:route.path,query:nextQuery},{replace:true})
   }
 }
+const clientInput=ref<HTMLInputElement|null>(null)
+const venueInput=ref<HTMLInputElement|null>(null)
+const clientCreatePanel=ref<HTMLElement|null>(null)
+const venueCreatePanel=ref<HTMLElement|null>(null)
+const clientActive=ref(0)
+const venueActive=ref(0)
+// Typing a name that isn't selected yet offers "Create …" as the first option.
+const clientCanCreate=computed(()=>!form.clientId&&!!clientSearch.value.trim())
+const venueCanCreate=computed(()=>!form.venueId&&!!venueSearch.value.trim())
+const clientOffset=computed(()=>clientCanCreate.value?1:0)
+const venueOffset=computed(()=>venueCanCreate.value?1:0)
+
+// Enter picks the first match when there is one, otherwise it creates a new record.
+function defaultActive(canCreate:boolean,matches:number){return canCreate&&matches?1:0}
+function resetClientActive(){clientActive.value=defaultActive(clientCanCreate.value,filteredClients.value.length)}
+function resetVenueActive(){venueActive.value=defaultActive(venueCanCreate.value,filteredVenues.value.length)}
+function openClientPicker(){clientPickerOpen.value=true;resetClientActive()}
+function openVenuePicker(){venuePickerOpen.value=true;resetVenueActive()}
+function onClientInput(){form.clientId='';openClientPicker()}
+function onVenueInput(){form.venueId='';openVenuePicker()}
+
+function onPickerKeydown(event:KeyboardEvent,open:Ref<boolean>,active:Ref<number>,total:number,choose:(index:number)=>void,listId:string,reset:()=>void){
+  if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+    event.preventDefault()
+    if(!open.value){open.value=true;reset();return}
+    if(!total)return
+    active.value=(active.value+(event.key==='ArrowDown'?1:-1)+total)%total
+    nextTick(()=>document.getElementById(`${listId}-${active.value}`)?.scrollIntoView({block:'nearest'}))
+  }else if(event.key==='Enter'&&open.value){
+    event.preventDefault()
+    if(total)choose(active.value)
+  }else if(event.key==='Escape'&&open.value){
+    event.preventDefault()
+    event.stopPropagation()
+    open.value=false
+  }
+}
+function chooseClient(index:number){
+  if(clientCanCreate.value&&index===0)return startClientCreate()
+  const client=filteredClients.value[index-clientOffset.value]
+  if(client)selectClient(client)
+}
+function chooseVenue(index:number){
+  if(venueCanCreate.value&&index===0)return startVenueCreate()
+  const venue=filteredVenues.value[index-venueOffset.value]
+  if(venue)selectVenue(venue)
+}
+function onClientKeydown(event:KeyboardEvent){
+  onPickerKeydown(event,clientPickerOpen,clientActive,clientOffset.value+filteredClients.value.length,chooseClient,'gig-client-options',resetClientActive)
+}
+function onVenueKeydown(event:KeyboardEvent){
+  onPickerKeydown(event,venuePickerOpen,venueActive,venueOffset.value+filteredVenues.value.length,chooseVenue,'gig-venue-options',resetVenueActive)
+}
+
 function selectClient(client:ClientOption){
   form.clientId=client.id
   clientSearch.value=clientName(client)
   clientPickerOpen.value=false
+  showClientCreate.value=false
 }
 function clearClient(){
   form.clientId=''
   clientSearch.value=''
-  clientPickerOpen.value=true
+  clientInput.value?.focus()
+  openClientPicker()
 }
 function selectVenue(venue:VenueOption){
   form.venueId=venue.id
   venueSearch.value=venueName(venue)
   venuePickerOpen.value=false
+  showVenueCreate.value=false
 }
 function clearVenue(){
   form.venueId=''
   venueSearch.value=''
-  venuePickerOpen.value=true
+  venueInput.value?.focus()
+  openVenuePicker()
+}
+
+function startClientCreate(){
+  const name=clientSearch.value.trim()
+  const [firstName='',...lastName]=name.split(/\s+/)
+  // Prefill both shapes so switching the type keeps the typed name.
+  Object.assign(newClient,{type:'person',firstName,lastName:lastName.join(' '),companyName:name,email:'',phone:''})
+  clientError.value=''
+  clientPickerOpen.value=false
+  showClientCreate.value=true
+  nextTick(()=>clientCreatePanel.value?.querySelector<HTMLInputElement>('input[type=email]')?.focus())
+}
+function startVenueCreate(){
+  Object.assign(newVenue,{name:venueSearch.value.trim(),city:'',address:''})
+  venueError.value=''
+  venuePickerOpen.value=false
+  showVenueCreate.value=true
+  nextTick(()=>venueCreatePanel.value?.querySelector<HTMLInputElement>('input[name=city]')?.focus())
+}
+function cancelClientCreate(){showClientCreate.value=false;clientInput.value?.focus()}
+function cancelVenueCreate(){showVenueCreate.value=false;venueInput.value?.focus()}
+// Enter inside the inline create panel creates the record instead of submitting the gig.
+function onCreatePanelEnter(event:KeyboardEvent,create:()=>void){
+  if((event.target as HTMLElement).tagName!=='INPUT')return
+  event.preventDefault()
+  create()
 }
 
 async function createClient(){
+  if(clientSaving.value)return
   clientSaving.value=true
   clientError.value=''
   try{
-    const result=await $fetch<{client:ClientOption}>('/api/admin/clients',{method:'POST',body:newClient})
+    const body=newClient.type==='company'?{...newClient,firstName:'',lastName:''}:{...newClient,companyName:''}
+    const result=await $fetch<{client:ClientOption}>('/api/admin/clients',{method:'POST',body})
     await refresh()
     selectClient(result.client)
-    showClientCreate.value=false
     Object.assign(newClient,{type:'person',firstName:'',lastName:'',companyName:'',email:'',phone:''})
   }catch(error:unknown){clientError.value=apiErrorMessage(error,'Could not create client.')}
   finally{clientSaving.value=false}
 }
 
 async function createVenue(){
+  if(venueSaving.value)return
   venueSaving.value=true
   venueError.value=''
   try{
     const result=await $fetch<{venue:VenueOption}>('/api/admin/venues',{method:'POST',body:newVenue})
     await refresh()
     selectVenue(result.venue)
-    showVenueCreate.value=false
     Object.assign(newVenue,{name:'',city:'',address:''})
   }catch(error:unknown){venueError.value=apiErrorMessage(error,'Could not create venue.')}
   finally{venueSaving.value=false}
@@ -220,28 +306,40 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
               <div class="section-heading"><strong>Client & venue</strong><span>Search existing records or create them without leaving this gig.</span></div>
               <div class="form-grid relation-grid">
                 <div class="field">
-                  <span class="field-label">Client</span>
+                  <label class="field-label" for="gig-client-search">Client</label>
                   <div class="picker">
                     <div class="picker-input-row">
                       <input
+                        id="gig-client-search"
+                        ref="clientInput"
                         v-model="clientSearch"
                         type="search"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="gig-client-options"
+                        :aria-expanded="clientPickerOpen"
+                        :aria-activedescendant="clientPickerOpen&&(clientCanCreate||filteredClients.length)?`gig-client-options-${clientActive}`:undefined"
                         autocomplete="off"
-                        placeholder="Search clients…"
-                        @focus="clientPickerOpen=true"
-                        @input="form.clientId='';clientPickerOpen=true"
+                        placeholder="Search or create a client…"
+                        @focus="openClientPicker"
+                        @blur="clientPickerOpen=false"
+                        @input="onClientInput"
+                        @keydown="onClientKeydown"
                       >
                       <button v-if="form.clientId" class="text-button" type="button" @click="clearClient">Clear</button>
                     </div>
-                    <div v-if="clientPickerOpen" class="picker-menu">
-                      <button v-for="client in filteredClients" :key="client.id" class="picker-option" type="button" :data-selected="form.clientId===client.id" @mousedown.prevent="selectClient(client)">
+                    <div v-if="clientPickerOpen" id="gig-client-options" class="picker-menu" role="listbox">
+                      <button v-if="clientCanCreate" id="gig-client-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="clientActive===0" :data-active="clientActive===0" @mouseenter="clientActive=0" @mousedown.prevent="startClientCreate">
+                        <strong><Icon name="lucide:plus" aria-hidden="true" />Create “{{clientSearch.trim()}}”</strong><span>New client</span>
+                      </button>
+                      <button v-for="(client,index) in filteredClients" :id="`gig-client-options-${index+clientOffset}`" :key="client.id" class="picker-option" type="button" role="option" :aria-selected="clientActive===index+clientOffset" :data-active="clientActive===index+clientOffset" :data-selected="form.clientId===client.id" @mouseenter="clientActive=index+clientOffset" @mousedown.prevent="selectClient(client)">
                         <strong>{{clientName(client)}}</strong><span>{{client.type==='company'?'Company':'Person'}}</span>
                       </button>
-                      <div v-if="!filteredClients.length" class="picker-empty">No clients match “{{clientSearch}}”.</div>
+                      <div v-if="!clientCanCreate&&!filteredClients.length" class="picker-empty">Start typing to add a client.</div>
                     </div>
                   </div>
-                  <button class="add-link" type="button" @click="showClientCreate=!showClientCreate;clientPickerOpen=false"><Icon :name="showClientCreate?'lucide:x':'lucide:plus'" aria-hidden="true" /> {{showClientCreate?'Cancel new client':'Create new client'}}</button>
-                  <div v-if="showClientCreate" class="inline-create">
+                  <div v-if="showClientCreate" ref="clientCreatePanel" class="inline-create" @keydown.enter="onCreatePanelEnter($event,createClient)">
+                    <div class="inline-create-header"><strong>New client</strong><button class="text-button" type="button" @click="cancelClientCreate">Cancel</button></div>
                     <div class="compact-grid">
                       <label>Type<select v-model="newClient.type"><option value="person">Person</option><option value="company">Company</option></select></label>
                       <label v-if="newClient.type==='company'">Company name<input v-model="newClient.companyName" placeholder="Company"></label>
@@ -255,31 +353,43 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                 </div>
 
                 <div class="field">
-                  <span class="field-label">Venue</span>
+                  <label class="field-label" for="gig-venue-search">Venue</label>
                   <div class="picker">
                     <div class="picker-input-row">
                       <input
+                        id="gig-venue-search"
+                        ref="venueInput"
                         v-model="venueSearch"
                         type="search"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="gig-venue-options"
+                        :aria-expanded="venuePickerOpen"
+                        :aria-activedescendant="venuePickerOpen&&(venueCanCreate||filteredVenues.length)?`gig-venue-options-${venueActive}`:undefined"
                         autocomplete="off"
-                        placeholder="Search venues…"
-                        @focus="venuePickerOpen=true"
-                        @input="form.venueId='';venuePickerOpen=true"
+                        placeholder="Search or create a venue…"
+                        @focus="openVenuePicker"
+                        @blur="venuePickerOpen=false"
+                        @input="onVenueInput"
+                        @keydown="onVenueKeydown"
                       >
                       <button v-if="form.venueId" class="text-button" type="button" @click="clearVenue">Clear</button>
                     </div>
-                    <div v-if="venuePickerOpen" class="picker-menu">
-                      <button v-for="venue in filteredVenues" :key="venue.id" class="picker-option" type="button" :data-selected="form.venueId===venue.id" @mousedown.prevent="selectVenue(venue)">
+                    <div v-if="venuePickerOpen" id="gig-venue-options" class="picker-menu" role="listbox">
+                      <button v-if="venueCanCreate" id="gig-venue-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="venueActive===0" :data-active="venueActive===0" @mouseenter="venueActive=0" @mousedown.prevent="startVenueCreate">
+                        <strong><Icon name="lucide:plus" aria-hidden="true" />Create “{{venueSearch.trim()}}”</strong><span>New venue</span>
+                      </button>
+                      <button v-for="(venue,index) in filteredVenues" :id="`gig-venue-options-${index+venueOffset}`" :key="venue.id" class="picker-option" type="button" role="option" :aria-selected="venueActive===index+venueOffset" :data-active="venueActive===index+venueOffset" :data-selected="form.venueId===venue.id" @mouseenter="venueActive=index+venueOffset" @mousedown.prevent="selectVenue(venue)">
                         <strong>{{venue.name}}</strong><span>{{venue.city||'City not set'}}</span>
                       </button>
-                      <div v-if="!filteredVenues.length" class="picker-empty">No venues match “{{venueSearch}}”.</div>
+                      <div v-if="!venueCanCreate&&!filteredVenues.length" class="picker-empty">Start typing to add a venue.</div>
                     </div>
                   </div>
-                  <button class="add-link" type="button" @click="showVenueCreate=!showVenueCreate;venuePickerOpen=false"><Icon :name="showVenueCreate?'lucide:x':'lucide:plus'" aria-hidden="true" /> {{showVenueCreate?'Cancel new venue':'Create new venue'}}</button>
-                  <div v-if="showVenueCreate" class="inline-create">
+                  <div v-if="showVenueCreate" ref="venueCreatePanel" class="inline-create" @keydown.enter="onCreatePanelEnter($event,createVenue)">
+                    <div class="inline-create-header"><strong>New venue</strong><button class="text-button" type="button" @click="cancelVenueCreate">Cancel</button></div>
                     <div class="compact-grid">
                       <label>Name<input v-model="newVenue.name" placeholder="Venue name"></label>
-                      <label>City<input v-model="newVenue.city"></label>
+                      <label>City<input v-model="newVenue.city" name="city"></label>
                       <label class="wide">Address<input v-model="newVenue.address"></label>
                     </div>
                     <p v-if="venueError" class="error">{{venueError}}</p>
@@ -410,9 +520,9 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
 </template>
 
 <style scoped>
-.gigs-page{max-width:1180px;margin-inline:auto}.notice{margin-bottom:1rem;padding:.85rem 1rem;border:1px solid #324137;border-radius:.8rem;background:#121b16;color:#b8d7c2}.page-header{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.05em}.page-header p:last-child{margin:0;color:#8e8797}.primary,.secondary,.icon-button,.text-button,.add-link,.picker-option{font:inherit}.primary{border:0;border-radius:.7rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.secondary{border:1px solid #393240;border-radius:.7rem;padding:.7rem .95rem;background:#17131c;color:#f6f3fa;font-weight:700;cursor:pointer}.primary:disabled,.secondary:disabled{opacity:.55;cursor:not-allowed}label,.field{display:grid;gap:.35rem;color:#aaa4b1;font-size:.8rem}input,select,textarea{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.7rem;background:#0b0a0d;color:#f6f3fa}.wide{grid-column:1/-1}.checkbox{display:flex;align-items:center;gap:.6rem}.checkbox input{width:auto}.sort-control{display:flex;align-items:center;gap:.55rem;color:#8e8797;font-size:.78rem}.sort-control span{white-space:nowrap}.gig-list{overflow:hidden;border:1px solid #292530;border-radius:1rem}.gig-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.95rem 1rem;border-bottom:1px solid #242029;text-decoration:none}.gig-row:last-child{border-bottom:0}.gig-row:hover{background:#141119}.date{display:grid;place-items:center;padding:.45rem;border-radius:.7rem;background:#1c1822}.date span{font-size:.62rem;color:#8d8696;text-transform:uppercase}.main{min-width:0}.title-line{display:flex;align-items:center;gap:.45rem;min-width:0}.main>span,.right span{display:block;color:#817a8b;font-size:.78rem}.status,.public{padding:.18rem .4rem;border-radius:999px;font-size:.65rem;text-transform:uppercase}.status{background:#27222e;color:#b8afc2}.status[data-status=booked]{background:#14251d;color:#9be6ba}.status[data-status=declined],.status[data-status=cancelled]{background:#2a181c;color:#e7a2ad}.public{background:#1a2030;color:#aebff8}.right{text-align:right}.right strong{display:block}.empty{padding:2rem;border:1px dashed #302a38;border-radius:1rem;color:#817a8b}.error{color:#ff9c9c}
+.gigs-page{max-width:1180px;margin-inline:auto}.notice{margin-bottom:1rem;padding:.85rem 1rem;border:1px solid #324137;border-radius:.8rem;background:#121b16;color:#b8d7c2}.page-header{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.05em}.page-header p:last-child{margin:0;color:#8e8797}.primary,.secondary,.icon-button,.text-button,.picker-option{font:inherit}.primary{border:0;border-radius:.7rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.secondary{border:1px solid #393240;border-radius:.7rem;padding:.7rem .95rem;background:#17131c;color:#f6f3fa;font-weight:700;cursor:pointer}.primary:disabled,.secondary:disabled{opacity:.55;cursor:not-allowed}label,.field{display:grid;gap:.35rem;color:#aaa4b1;font-size:.8rem}input,select,textarea{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.7rem;background:#0b0a0d;color:#f6f3fa}.wide{grid-column:1/-1}.checkbox{display:flex;align-items:center;gap:.6rem}.checkbox input{width:auto}.sort-control{display:flex;align-items:center;gap:.55rem;color:#8e8797;font-size:.78rem}.sort-control span{white-space:nowrap}.gig-list{overflow:hidden;border:1px solid #292530;border-radius:1rem}.gig-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.95rem 1rem;border-bottom:1px solid #242029;text-decoration:none}.gig-row:last-child{border-bottom:0}.gig-row:hover{background:#141119}.date{display:grid;place-items:center;padding:.45rem;border-radius:.7rem;background:#1c1822}.date span{font-size:.62rem;color:#8d8696;text-transform:uppercase}.main{min-width:0}.title-line{display:flex;align-items:center;gap:.45rem;min-width:0}.main>span,.right span{display:block;color:#817a8b;font-size:.78rem}.status,.public{padding:.18rem .4rem;border-radius:999px;font-size:.65rem;text-transform:uppercase}.status{background:#27222e;color:#b8afc2}.status[data-status=booked]{background:#14251d;color:#9be6ba}.status[data-status=declined],.status[data-status=cancelled]{background:#2a181c;color:#e7a2ad}.public{background:#1a2030;color:#aebff8}.right{text-align:right}.right strong{display:block}.empty{padding:2rem;border:1px dashed #302a38;border-radius:1rem;color:#817a8b}.error{color:#ff9c9c}
 
-.modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(10px)}.modal-card{width:min(940px,100%);max-height:calc(100dvh - 2rem);overflow:auto;border:1px solid #342d3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 28px 100px rgba(0,0,0,.6)}.modal-header{position:sticky;top:0;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.35rem;border-bottom:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}.modal-header h2{margin:.12rem 0 .2rem;font-size:1.8rem;letter-spacing:-.035em}.modal-header p:last-child{margin:0;color:#837b8c;font-size:.86rem}.icon-button{display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #342e3b;border-radius:.7rem;background:#151119;color:#c8c0d0;font-size:1.15rem;cursor:pointer}.modal-form{padding:0 1.35rem 1.35rem}.form-section{display:grid;grid-template-columns:10rem minmax(0,1fr);gap:1.2rem;padding:1.25rem 0;border-bottom:1px solid #211d25}.section-heading{display:grid;align-content:start;gap:.25rem}.section-heading strong{color:#f4eff8}.section-heading span{color:#777080;font-size:.75rem;line-height:1.45}.form-grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.timing-grid{grid-template-columns:1.35fr .8fr 1.35fr}.relation-grid{align-items:start}.field-label{color:#aaa4b1}.picker{position:relative}.picker-input-row{display:flex;gap:.45rem}.picker-input-row input{min-width:0}.text-button{border:1px solid #332e39;border-radius:.65rem;padding:0 .7rem;background:#151119;color:#aaa3b3;cursor:pointer}.picker-menu{position:absolute;z-index:7;top:calc(100% + .35rem);left:0;right:0;max-height:15rem;overflow:auto;padding:.35rem;border:1px solid #39313f;border-radius:.75rem;background:#131017;box-shadow:0 16px 45px rgba(0,0,0,.45)}.picker-option{display:flex;width:100%;align-items:center;justify-content:space-between;gap:.75rem;border:0;border-radius:.55rem;padding:.65rem .7rem;background:transparent;color:#f4eff8;text-align:left;cursor:pointer}.picker-option:hover,.picker-option[data-selected=true]{background:#211a29}.picker-option span{color:#81798a;font-size:.72rem}.picker-empty{padding:.8rem;color:#777080;font-size:.78rem}.add-link{justify-self:start;border:0;padding:.2rem 0;background:transparent;color:#b9a5d4;font-size:.75rem;cursor:pointer}.inline-create{display:grid;gap:.75rem;margin-top:.35rem;padding:.8rem;border:1px solid #302938;border-radius:.8rem;background:#121016}.compact-grid{gap:.6rem}.compact-grid label{font-size:.75rem}.inline-create .secondary{justify-self:start;font-size:.78rem}.modal-error{margin:1rem 0 0}.modal-actions{position:sticky;bottom:-1.35rem;z-index:4;display:flex;justify-content:flex-end;gap:.65rem;margin:0 -1.35rem -1.35rem;padding:1rem 1.35rem;border-top:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}
+.modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(10px)}.modal-card{width:min(940px,100%);max-height:calc(100dvh - 2rem);overflow:auto;border:1px solid #342d3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 28px 100px rgba(0,0,0,.6)}.modal-header{position:sticky;top:0;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.35rem;border-bottom:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}.modal-header h2{margin:.12rem 0 .2rem;font-size:1.8rem;letter-spacing:-.035em}.modal-header p:last-child{margin:0;color:#837b8c;font-size:.86rem}.icon-button{display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #342e3b;border-radius:.7rem;background:#151119;color:#c8c0d0;font-size:1.15rem;cursor:pointer}.modal-form{padding:0 1.35rem 1.35rem}.form-section{display:grid;grid-template-columns:10rem minmax(0,1fr);gap:1.2rem;padding:1.25rem 0;border-bottom:1px solid #211d25}.section-heading{display:grid;align-content:start;gap:.25rem}.section-heading strong{color:#f4eff8}.section-heading span{color:#777080;font-size:.75rem;line-height:1.45}.form-grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.timing-grid{grid-template-columns:1.35fr .8fr 1.35fr}.relation-grid{align-items:start}.field-label{color:#aaa4b1}.picker{position:relative}.picker-input-row{display:flex;gap:.45rem}.picker-input-row input{min-width:0}.text-button{border:1px solid #332e39;border-radius:.65rem;padding:0 .7rem;background:#151119;color:#aaa3b3;cursor:pointer}.picker-menu{position:absolute;z-index:7;top:calc(100% + .35rem);left:0;right:0;max-height:15rem;overflow:auto;padding:.35rem;border:1px solid #39313f;border-radius:.75rem;background:#131017;box-shadow:0 16px 45px rgba(0,0,0,.45)}.picker-option{display:flex;width:100%;align-items:center;justify-content:space-between;gap:.75rem;border:0;border-radius:.55rem;padding:.65rem .7rem;background:transparent;color:#f4eff8;text-align:left;cursor:pointer}.picker-option[data-active=true],.picker-option[data-selected=true]{background:#211a29}.picker-option strong{display:flex;align-items:center;gap:.45rem;min-width:0;overflow-wrap:anywhere}.create-option strong{color:#d7c6ef}.picker-option span{color:#81798a;font-size:.72rem}.picker-empty{padding:.8rem;color:#777080;font-size:.78rem}.inline-create-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#f4eff8;font-size:.82rem}.inline-create-header .text-button{padding:.35rem .6rem;font-size:.72rem}.inline-create{display:grid;gap:.75rem;margin-top:.35rem;padding:.8rem;border:1px solid #302938;border-radius:.8rem;background:#121016}.compact-grid{gap:.6rem}.compact-grid label{font-size:.75rem}.inline-create .secondary{justify-self:start;font-size:.78rem}.modal-error{margin:1rem 0 0}.modal-actions{position:sticky;bottom:-1.35rem;z-index:4;display:flex;justify-content:flex-end;gap:.65rem;margin:0 -1.35rem -1.35rem;padding:1rem 1.35rem;border-top:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}
 
 @media(max-width:900px){.form-section{grid-template-columns:1fr;gap:.75rem}.section-heading{max-width:34rem}.timing-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.page-header{align-items:start;flex-direction:column}.page-header .primary{width:100%}.form-grid,.compact-grid,.timing-grid{grid-template-columns:1fr}.wide{grid-column:auto}.gig-row{grid-template-columns:3.2rem minmax(0,1fr)}.right{grid-column:2;text-align:left}.title-line{flex-wrap:wrap}.modal-backdrop{padding:0}.modal-card{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.modal-header{padding:1rem}.modal-form{padding:0 1rem 1rem}.form-section{padding:1rem 0}.modal-actions{bottom:-1rem;margin:0 -1rem -1rem;padding:1rem}.modal-actions .primary,.modal-actions .secondary{flex:1}}
