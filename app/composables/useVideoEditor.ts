@@ -21,6 +21,10 @@ import {
 } from '~~/shared/video-project'
 import {
   addItem,
+  addMarker,
+  adjacentMarker,
+  deleteMarker,
+  updateMarker,
   createHistory,
   deleteItem,
   duplicateItem,
@@ -75,6 +79,10 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     revision: initial.revision,
     project: initial.project as VideoProject,
     selectedId: null as string | null,
+    /** Selected timeline marker; exclusive with a clip selection. */
+    selectedMarkerId: null as string | null,
+    /** Marker whose label/colour editor is open on the timeline. */
+    editingMarkerId: null as string | null,
     frame: 0,
     playing: false,
     /** Timeline zoom in pixels per second. */
@@ -130,6 +138,7 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     lastCoalesceAt = now
     state.project = next
     if (state.selectedId && !findItem(next, state.selectedId)) state.selectedId = null
+    if (state.selectedMarkerId && !next.markers?.some(marker => marker.id === state.selectedMarkerId)) state.selectedMarkerId = null
     syncHistoryFlags()
     scheduleSave()
   }
@@ -306,6 +315,39 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     state.selectedId = null
   }
 
+  /** Adds a marker at the playhead and opens its editor; an existing marker there is opened instead. */
+  function addMarkerAtPlayhead() {
+    const existing = state.project.markers?.find(marker => marker.frame === state.frame)
+    if (existing) {
+      state.selectedId = null
+      state.selectedMarkerId = existing.id
+      state.editingMarkerId = existing.id
+      return existing.id
+    }
+    const result = addMarker(state.project, state.frame)
+    if (!result.markerId) return null
+    commit(result.project)
+    state.selectedId = null
+    state.selectedMarkerId = result.markerId
+    state.editingMarkerId = result.markerId
+    return result.markerId
+  }
+
+  function patchMarker(markerId: string, patch: Parameters<typeof updateMarker>[2]) {
+    commit(updateMarker(state.project, markerId, patch), `marker:${markerId}`)
+  }
+
+  function deleteSelectedMarker() {
+    if (!state.selectedMarkerId) return
+    commit(deleteMarker(state.project, state.selectedMarkerId))
+    state.selectedMarkerId = null
+  }
+
+  /** Playhead frame of the previous/next marker, or null. */
+  function markerFrom(frame: number, direction: -1 | 1) {
+    return adjacentMarker(state.project, frame, direction)
+  }
+
   function replaceSelectedAsset(asset: EditorMediaAsset) {
     if (!state.selectedId) return false
     const next = replaceItemAsset(state.project, state.selectedId, asset)
@@ -396,6 +438,10 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     duplicateSelected,
     deleteSelected,
     replaceSelectedAsset,
+    addMarkerAtPlayhead,
+    patchMarker,
+    deleteSelectedMarker,
+    markerFrom,
     patchItem,
     patchProject,
     setAspect,

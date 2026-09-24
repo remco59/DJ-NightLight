@@ -128,6 +128,17 @@ export type VideoTrack = {
   items: TimelineItem[]
 }
 
+export const MARKER_COLORS = ['#facc15', '#f472b6', '#38bdf8', '#4ade80'] as const
+export type MarkerColor = typeof MARKER_COLORS[number]
+
+/** Editing aid on the timeline (e.g. "Drop"); never rendered in the video. */
+export type TimelineMarker = {
+  id: string
+  frame: number
+  label?: string
+  color?: MarkerColor
+}
+
 export type VideoProject = {
   version: typeof VIDEO_PROJECT_VERSION
   aspect: VideoAspect
@@ -140,6 +151,7 @@ export type VideoProject = {
   background: string
   showSafeZones: boolean
   tracks: VideoTrack[]
+  markers?: TimelineMarker[]
 }
 
 /** Minimal asset info the composition needs to resolve an assetId. */
@@ -437,6 +449,12 @@ export const videoProjectSchema = z.object({
   background: z.string().regex(/^#[0-9a-f]{6}$/i),
   showSafeZones: z.boolean(),
   tracks: z.array(videoTrackSchema).min(1).max(12),
+  markers: z.array(z.object({
+    id: itemId,
+    frame,
+    label: z.string().trim().max(40).optional(),
+    color: z.enum(MARKER_COLORS).optional(),
+  })).max(100).optional(),
 }).superRefine((project, context) => {
   const ids = new Set<string>()
   project.tracks.forEach((track, trackIndex) => {

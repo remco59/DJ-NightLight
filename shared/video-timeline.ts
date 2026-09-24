@@ -6,7 +6,9 @@ import {
   mediaKind,
   newId,
   trackAccepts,
+  MARKER_COLORS,
   type TimelineItem,
+  type TimelineMarker,
   type VideoProject,
   type VideoTrack,
 } from './video-project'
@@ -237,9 +239,12 @@ export function replaceItemAsset(
   })
 }
 
-/** Frames that dragged edges should stick to: 0, the playhead and every clip edge. */
+/** Frames that dragged edges should stick to: 0, the playhead, markers and every clip edge. */
 export function snapTargets(project: VideoProject, playhead: number, ignoreId?: string) {
   const targets = new Set<number>([0, Math.round(playhead)])
+  for (const marker of project.markers || []) {
+    if (marker.id !== ignoreId) targets.add(marker.frame)
+  }
   for (const track of project.tracks) {
     for (const item of track.items) {
       if (item.id === ignoreId) continue
@@ -261,6 +266,57 @@ export function snapFrame(value: number, targets: number[], threshold: number) {
     }
   }
   return best
+}
+
+// --- Markers -------------------------------------------------------------------
+
+export const MAX_MARKERS = 100
+
+function sortMarkers(markers: TimelineMarker[]) {
+  return markers.sort((a, b) => a.frame - b.frame)
+}
+
+/** Adds a marker at `frame` (one per frame; colours cycle so neighbours differ). */
+export function addMarker(project: VideoProject, frame: number, label?: string) {
+  const at = Math.max(0, Math.min(maxFrame(project), Math.round(frame)))
+  const markers = project.markers || []
+  if (markers.length >= MAX_MARKERS || markers.some(marker => marker.frame === at)) return { project, markerId: null }
+  const marker: TimelineMarker = { id: newId('mk'), frame: at, color: MARKER_COLORS[markers.length % MARKER_COLORS.length] }
+  if (label?.trim()) marker.label = label.trim().slice(0, 40)
+  const next = clone(project)
+  next.markers = sortMarkers([...markers.map(entry => ({ ...entry })), marker])
+  return { project: next, markerId: marker.id }
+}
+
+export function updateMarker(project: VideoProject, markerId: string, patch: Partial<Omit<TimelineMarker, 'id'>>) {
+  const markers = project.markers || []
+  if (!markers.some(marker => marker.id === markerId)) return project
+  const next = clone(project)
+  next.markers = sortMarkers(next.markers!.map((marker) => {
+    if (marker.id !== markerId) return marker
+    const updated = { ...marker, ...patch }
+    updated.frame = Math.max(0, Math.min(maxFrame(project), Math.round(updated.frame)))
+    const label = updated.label?.trim().slice(0, 40)
+    if (label) updated.label = label
+    else delete updated.label
+    return updated
+  }))
+  return next
+}
+
+export function deleteMarker(project: VideoProject, markerId: string) {
+  if (!(project.markers || []).some(marker => marker.id === markerId)) return project
+  const next = clone(project)
+  next.markers = next.markers!.filter(marker => marker.id !== markerId)
+  return next
+}
+
+/** Frame of the nearest marker before (-1) or after (1) `frame`, or null. */
+export function adjacentMarker(project: VideoProject, frame: number, direction: -1 | 1) {
+  const frames = (project.markers || []).map(marker => marker.frame)
+  const candidates = direction < 0 ? frames.filter(value => value < frame) : frames.filter(value => value > frame)
+  if (!candidates.length) return null
+  return direction < 0 ? Math.max(...candidates) : Math.min(...candidates)
 }
 
 // --- Undo / redo ------------------------------------------------------------

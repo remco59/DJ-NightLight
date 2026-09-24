@@ -104,6 +104,11 @@ watch(() => state.notice, (notice) => {
   state.notice = ''
 })
 
+// A clip and a marker are never selected at the same time.
+watch(() => state.selectedId, (id) => {
+  if (id) state.selectedMarkerId = null
+})
+
 watch(() => state.selectedId, () => {
   replaceKind.value = null
 })
@@ -281,7 +286,19 @@ function onKey(event: KeyboardEvent) {
   } else if (!mod && key === 's') {
     event.preventDefault()
     editor.splitSelected()
+  } else if (!mod && key === 'm') {
+    event.preventDefault()
+    editor.addMarkerAtPlayhead()
+  } else if (!mod && (key === '[' || key === ']')) {
+    event.preventDefault()
+    const target = editor.markerFrom(state.frame, key === '[' ? -1 : 1)
+    if (target !== null) seek(target)
   } else if (key === 'delete' || key === 'backspace') {
+    if (state.selectedMarkerId) {
+      event.preventDefault()
+      editor.deleteSelectedMarker()
+      return
+    }
     if (!state.selectedId) return
     event.preventDefault()
     editor.deleteSelected()
@@ -295,6 +312,7 @@ function onKey(event: KeyboardEvent) {
     seek(editor.duration.value - 1)
   } else if (key === 'escape') {
     state.selectedId = null
+    state.selectedMarkerId = null
   }
 }
 
