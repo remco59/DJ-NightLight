@@ -680,6 +680,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
   // Shrink the rows when they would not fit (square canvases, six gigs).
   const listSpace = landscape ? height - 220 : height - (safe.top - 60) - safe.bottom - 500
   const k = Math.min(1, listSpace / Math.max(1, gigs.length * 153 + 20))
+  const dateSize = 42 * k
   const iconStyle = (size: number): React.CSSProperties => ({ display: 'flex', flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 8px ${colors.glow})`, fontSize: size })
   // A straight card, so long lists keep their icons inside, with the electric edge.
   const rows = gigs.map((gig, index) => {
@@ -709,8 +710,9 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
           h(
             'div',
             null,
-            gig.day ? h('div', { style: { ...body, fontSize: 22 * k, fontWeight: 800, letterSpacing: 6 * k, color: colors.soft, lineHeight: 1.1 } }, gig.day) : null,
-            h('div', { style: { ...gradientText(colors, 14), fontSize: 42 * k, lineHeight: 1.05, whiteSpace: 'nowrap' } }, gig.date),
+            // Same italic as the date and indented along its slant, so both start on one line.
+            gig.day ? h('div', { style: { ...display, fontSize: 22 * k, letterSpacing: 5 * k, color: colors.soft, lineHeight: 1.1, paddingLeft: dateSize * 0.28 } }, gig.day) : null,
+            h('div', { style: { ...gradientText(colors, 14), fontSize: dateSize, lineHeight: 1.05, whiteSpace: 'nowrap' } }, gig.date),
           ),
         ),
         h(
