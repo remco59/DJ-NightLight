@@ -19,6 +19,7 @@ import {
   type EditorRender,
 } from '~/composables/useVideoEditor'
 import { VIDEO_ASPECTS, formatTimecode, type MediaKind, type VideoProject } from '~~/shared/video-project'
+import type { TemplateGig } from '~~/shared/template-gigs'
 import {
   PANEL_LIMITS,
   clampPanelSizes,
@@ -128,6 +129,15 @@ async function refreshMedia() {
     state.media = result.assets
   } catch (fetchError) {
     message.value = apiErrorMessage(fetchError, 'Media library could not be loaded.')
+  }
+}
+
+async function refreshGigs() {
+  try {
+    const result = await $fetch<{ gigs: TemplateGig[] }>('/api/admin/video-projects/gigs')
+    state.gigs = result.gigs
+  } catch {
+    // Without the agenda the announce templates are simply filled in by hand.
   }
 }
 
@@ -390,6 +400,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   void refreshMedia()
+  void refreshGigs()
   window.addEventListener('keydown', onKey)
   window.addEventListener('beforeunload', beforeUnload)
   resizeObserver = new ResizeObserver(([entry]) => {

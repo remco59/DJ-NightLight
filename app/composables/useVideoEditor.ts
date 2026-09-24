@@ -43,6 +43,7 @@ import {
 } from '~~/shared/video-timeline'
 import type { VideoRenderStatus } from '~~/shared/video-generator'
 import type { MotionTemplateKey } from '~~/shared/video-templates'
+import { applyGigDefaults, type TemplateGig } from '~~/shared/template-gigs'
 
 export type EditorMediaAsset = {
   id: string
@@ -100,6 +101,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     lastSavedAt: Date.now(),
     media: [] as EditorMediaAsset[],
     renders: [] as EditorRender[],
+    /** Upcoming gigs for the announce templates, soonest first. */
+    gigs: [] as TemplateGig[],
     /** One-off message for the user (e.g. why an add was shortened or refused); the page shows and clears it. */
     notice: '',
   })
@@ -280,7 +283,7 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
   }
 
   function addTemplate(key: MotionTemplateKey, trackId?: string, start = state.frame) {
-    insertItem(createGraphicItem(key, start, state.project.fps), trackId)
+    insertItem(applyGigDefaults(createGraphicItem(key, start, state.project.fps), state.gigs), trackId)
   }
 
   function move(itemId: string, start: number, trackId?: string) {

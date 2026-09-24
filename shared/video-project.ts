@@ -114,6 +114,8 @@ export type GraphicItem = ItemBase & {
   backdrop?: number
   backdropStyle?: BackdropStyle
   transform: ItemTransform
+  /** Gig in the agenda the content was filled from; unset = typed by hand. */
+  gigId?: string
 }
 
 export type TimelineItem = VideoClipItem | ImageClipItem | AudioClipItem | GraphicItem
@@ -420,6 +422,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     backdrop: z.number().min(0).max(MAX_BACKDROP).optional(),
     backdropStyle: z.enum(BACKDROP_STYLE_KEYS as [BackdropStyle, ...BackdropStyle[]]).optional(),
     transform: transformSchema,
+    gigId: uuid.optional(),
   }),
 ])
 

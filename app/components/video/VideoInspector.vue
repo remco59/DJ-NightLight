@@ -29,6 +29,15 @@ import {
   textProp,
   type TemplateField,
 } from '~~/shared/video-templates'
+import {
+  gigFieldKeys,
+  gigListProps,
+  gigListRow,
+  gigPickerLabel,
+  gigTemplateKind,
+  gigTemplateProps,
+  upcomingGigs,
+} from '~~/shared/template-gigs'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { MAX_BPM, MIN_BPM, withDownbeatAt, type BeatGrid } from '~~/shared/beat-grid'
@@ -156,8 +165,48 @@ function resetTransform() {
 
 function setField(field: TemplateField, value: string | string[]) {
   patch((target) => {
-    if (target.type === 'graphic') target.templateProps[field.key] = value
+    if (target.type !== 'graphic') return
+    target.templateProps[field.key] = value
+    // Typing over the gig's date, time or venue makes the content manual again.
+    if (target.gigId && gigFieldKeys(target.templateKey).includes(field.key)) delete target.gigId
   }, `field.${field.key}`)
+}
+
+// --- Gig data (announce templates) ------------------------------------------------
+
+const gigKind = computed(() => item.value?.type === 'graphic' ? gigTemplateKind(item.value.templateKey) : null)
+const linkedGigId = computed(() => item.value?.type === 'graphic' ? item.value.gigId || '' : '')
+/** A linked gig leaves the picker once it has passed; keep showing that it is linked. */
+const linkedGigMissing = computed(() => Boolean(linkedGigId.value) && !state.gigs.some(gig => gig.id === linkedGigId.value))
+const gigNote = computed(() => {
+  if (linkedGigId.value) return 'Date, time and venue come from this gig. Editing them switches to manual.'
+  return state.gigs.length ? 'Pick a gig to fill in date, time and venue.' : 'No upcoming booked gigs in the agenda.'
+})
+
+function selectGig(gigId: string) {
+  const gig = state.gigs.find(entry => entry.id === gigId)
+  patch((target) => {
+    if (target.type !== 'graphic') return
+    if (!gig) {
+      delete target.gigId
+      return
+    }
+    Object.assign(target.templateProps, gigTemplateProps(target.templateKey, gig))
+    target.gigId = gig.id
+  })
+}
+
+function fillNextGigs() {
+  const props = gigListProps(upcomingGigs(state.gigs))
+  patch((target) => {
+    if (target.type === 'graphic') Object.assign(target.templateProps, props)
+  })
+}
+
+function addGigRow(field: TemplateField, select: HTMLSelectElement) {
+  const gig = state.gigs.find(entry => entry.id === select.value)
+  select.value = ''
+  if (gig) addListRow(field, gigListRow(gig).slice(0, field.maxLength || 120))
 }
 
 function listValue(field: TemplateField) {
@@ -306,6 +355,16 @@ const assetTitle = computed(() => {
       <!-- Motion graphic content -->
       <component :is="sectionTag" v-if="item.type === 'graphic' && template" class="block" :open="props.mobile || undefined">
         <component :is="headingTag">Content</component>
+        <template v-if="gigKind === 'single'">
+          <label class="stack"><span>Gig</span>
+            <select :value="linkedGigId" @change="selectGig(($event.target as HTMLSelectElement).value)">
+              <option value="">Manual input</option>
+              <option v-if="linkedGigMissing" :value="linkedGigId">Linked gig (no longer upcoming)</option>
+              <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
+            </select>
+          </label>
+          <p class="note">{{ gigNote }}</p>
+        </template>
         <template v-for="field in template.fields" :key="field.key">
           <label v-if="field.kind === 'text'" class="row"><span>{{ field.label }}</span>
             <input type="text" :maxlength="field.maxLength" :value="textValue(field)" @input="setField(field, ($event.target as HTMLInputElement).value)">
@@ -329,6 +388,18 @@ const assetTitle = computed(() => {
               <button type="button" class="ghost" title="Remove" aria-label="Remove" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
             <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
+            <template v-if="gigKind === 'list'">
+              <select
+                v-if="state.gigs.length && listValue(field).length < (field.maxItems || 6)"
+                aria-label="Add a gig from the agenda"
+                @change="addGigRow(field, $event.target as HTMLSelectElement)"
+              >
+                <option value="">Add gig from agenda…</option>
+                <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
+              </select>
+              <button type="button" class="ghost" :disabled="!state.gigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Fill with next gigs</button>
+              <p v-if="!state.gigs.length" class="note">No upcoming booked gigs in the agenda.</p>
+            </template>
           </div>
           <AdminMediaPicker
             v-else-if="field.kind === 'asset'"

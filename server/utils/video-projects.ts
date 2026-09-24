@@ -1,9 +1,54 @@
-import { desc, eq, inArray } from 'drizzle-orm'
-import { mediaAssets, videoProjects, videoRenderJobs } from '../../db/schema'
+import { and, asc, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
+import { gigs, mediaAssets, venues, videoProjects, videoRenderJobs } from '../../db/schema'
+import { permissionAllowed, type StaffRole } from '../../shared/auth'
+import type { TemplateGig } from '../../shared/template-gigs'
 import { collectProjectAssetIds, parseVideoProject, type VideoProject } from '../../shared/video-project'
 import { db } from './db'
 
 export const VIDEO_EDITOR_ROLES = ['owner', 'content_editor'] as const
+
+/**
+ * Booked gigs that have not ended yet, soonest first, for the announce
+ * templates. Editors without access to the gig admin only get the gigs that
+ * are already public on the agenda, under their public title.
+ */
+export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<TemplateGig[]> {
+  const now = new Date()
+  const canReadGigs = permissionAllowed(role, 'gigs:read')
+  const conditions = [
+    eq(gigs.status, 'booked'),
+    isNull(gigs.deletedAt),
+    or(gte(gigs.endsAt, now), and(isNull(gigs.endsAt), gte(gigs.startsAt, now))),
+  ]
+  if (!canReadGigs) conditions.push(eq(gigs.publicVisibility, true))
+  const rows = await db
+    .select({
+      id: gigs.id,
+      title: gigs.title,
+      publicTitle: gigs.publicTitle,
+      startsAt: gigs.startsAt,
+      endsAt: gigs.endsAt,
+      publicVisibility: gigs.publicVisibility,
+      venueName: venues.name,
+      venueCity: venues.city,
+    })
+    .from(gigs)
+    .leftJoin(venues, eq(gigs.venueId, venues.id))
+    .where(and(...conditions))
+    .orderBy(asc(gigs.startsAt))
+    .limit(limit)
+  return rows.flatMap(row => row.startsAt
+    ? [{
+        id: row.id,
+        title: row.publicTitle || (canReadGigs ? row.title : 'DJ NightLight'),
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        venueName: row.venueName,
+        venueCity: row.venueCity,
+        publicVisibility: row.publicVisibility,
+      }]
+    : [])
+}
 
 export function validateProject(value: unknown): VideoProject {
   try {
