@@ -4,19 +4,18 @@ Admin → Post generator creates NightLight-branded still images and queued 9:16
 
 ## Workflow
 
-1. Select an existing media-library image or upload a fresh JPEG/PNG/WebP.
-2. Choose an output preset:
-   - 1:1 — 1080×1080
-   - 4:5 — 1080×1350
-   - 9:16 — 1080×1920
-3. Choose Gradient, Poster or Minimal.
-4. Choose a brand preset and edit headline, subline, date/location and brand text.
-5. Adjust zoom, horizontal/vertical crop, overlay, text alignment and text position.
-6. Use safe-area guides while editing.
-7. Render & save.
-8. Export the persisted PNG from generated history.
+1. **Media** — upload a JPEG/PNG/WebP or pick a photo from the library ("See all" opens the shared media picker). Position the photo by dragging it on the canvas, dragging a corner handle to scale, the arrow keys, or the precise Scale / Position X / Position Y controls; all stay in sync.
+2. **Template** — pick Gradient, Poster, Minimal, Gig announcement, Recap or Upcoming gigs. Cards preview the current photo and copy; "See all" opens the template browser with category filters. Templates own the composition (campaign templates switch to 9:16 and centre their text); copy you wrote is kept, while empty fields and untouched sample copy take the new template's sample copy.
+3. **Text** — the fields the template renders, each with a show/hide switch, plus the gig list for Upcoming gigs and text alignment/position for the flexible templates. Clicking text on the canvas opens this tool.
+4. **Design** — brand style (NightLight, Mono, Warm) and the logo label.
+5. **Effects** — overlay strength.
+6. **Export post** renders and saves the PNG. **Recent exports** lists earlier exports to download, delete or load back into the editor ("Edit again").
 
-Safe-area guides only exist in preview and are deliberately excluded from the saved image.
+The output format (1:1 — 1080×1080, 4:5 — 1080×1350, 9:16 — 1080×1920), safe-area guides and zoom/fit live with the canvas. Zoom only changes the preview. Undo/redo (Ctrl/⌘ Z, Ctrl/⌘ Shift Z) covers design and photo changes; a canvas drag is one step. Shift 1 or Ctrl/⌘ 0 fits the post to the screen, Ctrl/⌘ +/− zoom.
+
+On desktop the editor fills the viewport: the inspector and the canvas stage scroll independently and the inspector can collapse to an icon rail. Below 720 px the phone editor (preview with a bottom sheet per tool) is used instead. Both layouts share one editor state (`app/composables/usePostEditor.ts`), so resizing across the breakpoint keeps every edit.
+
+Safe-area guides only exist in preview and are deliberately excluded from the saved image; Preview shows the post exactly as it will be exported.
 
 ## Rendering
 

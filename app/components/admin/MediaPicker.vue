@@ -25,11 +25,16 @@ const props = withDefaults(defineProps<{
   description?: string
   kind?: 'image' | 'all'
   allowExternal?: boolean
+  /** Render only the picker dialog; the parent opens it with `v-model:open`. */
+  bare?: boolean
+  uploadTags?: string
 }>(), {
   label: 'Image',
   description: '',
   kind: 'image',
   allowExternal: true,
+  bare: false,
+  uploadTags: 'website',
 })
 
 const emit = defineEmits<{
@@ -43,7 +48,7 @@ const { data, refresh } = await useFetch<MediaData>(mediaEndpoint, {
   key: () => `admin-media-picker-assets-${props.kind}`,
 })
 
-const open = ref(false)
+const open = defineModel<boolean>('open', { default: false })
 const search = ref('')
 const uploadFile = ref<File | null>(null)
 const uploadTitle = ref('')
@@ -115,7 +120,7 @@ async function upload() {
     form.append('thumbnail', thumbnail, 'thumbnail.jpg')
     form.append('title', uploadTitle.value)
     form.append('altText', uploadAlt.value)
-    form.append('tags', 'website')
+    form.append('tags', props.uploadTags)
     form.append('gigId', '')
     form.append('venueId', '')
     const result = await $fetch<{ asset: MediaAsset }>('/api/admin/media', {
@@ -141,7 +146,8 @@ async function upload() {
 </script>
 
 <template>
-  <div class="media-field">
+  <div class="media-field" :class="{ bare }">
+    <template v-if="!bare">
     <div class="field-heading">
       <div>
         <strong>{{ label }}</strong>
@@ -175,6 +181,7 @@ async function upload() {
       <summary>Use an external image URL</summary>
       <input v-model="externalUrl" type="url" placeholder="https://…" @change="applyExternalUrl">
     </details>
+    </template>
 
     <Teleport to="body">
       <div v-if="open" class="picker-backdrop" @click.self="open = false">
@@ -248,7 +255,7 @@ async function upload() {
 </template>
 
 <style scoped>
-.media-field{display:grid;gap:.65rem}.field-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem}.field-heading>div{display:grid;gap:.2rem}.field-heading strong{color:#d8d2de;font-size:.82rem}.field-heading span{color:#81798a;font-size:.72rem;line-height:1.45}.text-button,.remove{border:0;padding:0;background:transparent;color:#b8a5d1;font-size:.75rem;cursor:pointer}.selected-media{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.8rem;align-items:center;padding:.65rem;border:1px solid #312b37;border-radius:.8rem;background:#0b0a0d}.selected-media img,.media-placeholder{width:8rem;height:5.5rem;border-radius:.55rem;background:#070609}.selected-media img{object-fit:cover}.media-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.3rem}.selected-copy{display:grid;gap:.25rem;min-width:0}.selected-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f3eff6;font-size:.82rem}.selected-copy span{color:#81798a;font-size:.7rem}.selected-copy .remove{justify-self:start;margin-top:.15rem;color:#df9ca7}.empty-media{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px dashed #41394a;border-radius:.8rem;background:#0b0a0d;cursor:pointer}.empty-media>span{display:grid;width:2.4rem;height:2.4rem;place-items:center;border-radius:.7rem;background:#1b1621;color:#c7b5de;font-size:1.25rem}.empty-media div{display:grid;gap:.2rem}.empty-media strong{color:#ddd7e2;font-size:.82rem}.empty-media small{color:#7f7888;font-size:.72rem}.external{color:#797282;font-size:.72rem}.external summary{cursor:pointer}.external input{width:100%;margin-top:.55rem;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}
+.media-field{display:grid;gap:.65rem}.media-field.bare{display:contents}.field-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem}.field-heading>div{display:grid;gap:.2rem}.field-heading strong{color:#d8d2de;font-size:.82rem}.field-heading span{color:#81798a;font-size:.72rem;line-height:1.45}.text-button,.remove{border:0;padding:0;background:transparent;color:#b8a5d1;font-size:.75rem;cursor:pointer}.selected-media{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.8rem;align-items:center;padding:.65rem;border:1px solid #312b37;border-radius:.8rem;background:#0b0a0d}.selected-media img,.media-placeholder{width:8rem;height:5.5rem;border-radius:.55rem;background:#070609}.selected-media img{object-fit:cover}.media-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.3rem}.selected-copy{display:grid;gap:.25rem;min-width:0}.selected-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f3eff6;font-size:.82rem}.selected-copy span{color:#81798a;font-size:.7rem}.selected-copy .remove{justify-self:start;margin-top:.15rem;color:#df9ca7}.empty-media{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px dashed #41394a;border-radius:.8rem;background:#0b0a0d;cursor:pointer}.empty-media>span{display:grid;width:2.4rem;height:2.4rem;place-items:center;border-radius:.7rem;background:#1b1621;color:#c7b5de;font-size:1.25rem}.empty-media div{display:grid;gap:.2rem}.empty-media strong{color:#ddd7e2;font-size:.82rem}.empty-media small{color:#7f7888;font-size:.72rem}.external{color:#797282;font-size:.72rem}.external summary{cursor:pointer}.external input{width:100%;margin-top:.55rem;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}
 
 .picker-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(12px)}.picker-modal{width:min(1120px,100%);max-height:calc(100dvh - 2rem);overflow:hidden;border:1px solid #342e3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 30px 100px rgba(0,0,0,.62)}.picker-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.15rem 1.25rem;border-bottom:1px solid #28232d}.picker-header h2{margin:.15rem 0 .25rem;font-size:1.75rem;letter-spacing:-.035em}.picker-header p:last-child{margin:0;color:#81798a;font-size:.8rem}.eyebrow{margin:0;color:#8f8798;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.close{display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #342e3b;border-radius:.7rem;background:#151119;color:#d4ced9;font-size:1.15rem;cursor:pointer}.picker-toolbar{padding:.85rem 1.25rem;border-bottom:1px solid #242027}.picker-toolbar input{width:100%;border:1px solid #342e3b;border-radius:.7rem;padding:.75rem .85rem;background:#151119;color:#f5f1f7}.picker-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:28rem;max-height:calc(100dvh - 12rem)}.library{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;align-content:start;overflow:auto;padding:1rem}.asset{overflow:hidden;padding:0;border:1px solid #2e2934;border-radius:.8rem;background:#111014;color:#fff;text-align:left;cursor:pointer}.asset:hover,.asset.active{border-color:#806f91}.asset img,.asset-placeholder{display:block;width:100%;aspect-ratio:4/3;background:#08070a}.asset img{object-fit:cover}.asset-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.6rem}.asset>span{display:grid;gap:.2rem;padding:.65rem}.asset strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.asset small{color:#7f7888;font-size:.66rem}.no-results{grid-column:1/-1;padding:2rem;color:#81798a;text-align:center}.upload-panel{overflow:auto;padding:1rem;border-left:1px solid #28232d;background:#100e14}.upload-panel h3{margin:.25rem 0;font-size:1.15rem}.upload-panel>p:not(.eyebrow):not(.upload-message){margin:.2rem 0 1rem;color:#81798a;font-size:.72rem}.upload-panel>input[type=file]{width:100%;font-size:.72rem}.upload-panel label{display:grid;gap:.35rem;margin-top:.8rem;color:#a9a2b0;font-size:.72rem}.upload-panel input,.upload-panel textarea{width:100%;border:1px solid #342e3b;border-radius:.65rem;padding:.68rem;background:#17131b;color:#fff}.upload-panel .primary{width:100%;margin-top:1rem;border:0;border-radius:.65rem;padding:.72rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}.upload-panel .primary:disabled{opacity:.45;cursor:not-allowed}.upload-message{color:#b6a5ca;font-size:.72rem}
 

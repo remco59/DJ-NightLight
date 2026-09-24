@@ -80,3 +80,45 @@ export function pinchPostZoom(startZoom: number, startDistance: number, distance
   if (startDistance <= 0 || distance <= 0) return clampPostZoom(startZoom)
   return clampPostZoom(startZoom * (distance / startDistance))
 }
+
+// --- Desktop canvas stage ----------------------------------------------------
+
+/** Preview zoom levels, as on-screen CSS pixels per exported pixel. */
+export const POST_STAGE_ZOOM_PRESETS = [.25, .33, .5, .75, 1, 1.5, 2] as const
+export const POST_STAGE_MIN_ZOOM = .1
+export const POST_STAGE_MAX_ZOOM = 2
+
+export function clampStageZoom(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return POST_STAGE_MIN_ZOOM
+  return Math.max(POST_STAGE_MIN_ZOOM, Math.min(POST_STAGE_MAX_ZOOM, value))
+}
+
+/** Next preset above (direction 1) or below (-1) the current preview zoom. */
+export function stepStageZoom(current: number, direction: 1 | -1) {
+  const epsilon = .001
+  const presets = [...POST_STAGE_ZOOM_PRESETS]
+  const next = direction > 0
+    ? presets.find(preset => preset > current + epsilon)
+    : presets.reverse().find(preset => preset < current - epsilon)
+  return clampStageZoom(next ?? (direction > 0 ? POST_STAGE_MAX_ZOOM : Math.min(current, POST_STAGE_ZOOM_PRESETS[0])))
+}
+
+/** Snap a normalised crop position (-1…1) to the centre when it is close. */
+export function snapToCentre(value: number, threshold: number) {
+  return Math.abs(value) <= threshold ? { value: 0, snapped: true } : { value, snapped: false }
+}
+
+export type PostCanvasBox = { x: number, y: number, width: number, height: number }
+
+/** Index of the last (top-most) box containing the point, or -1. */
+export function hitTestBoxes(boxes: PostCanvasBox[], x: number, y: number, padding = 0) {
+  for (let index = boxes.length - 1; index >= 0; index -= 1) {
+    const box = boxes[index]!
+    if (
+      x >= box.x - padding && x <= box.x + box.width + padding
+      && y >= box.y - padding && y <= box.y + box.height + padding
+    ) return index
+  }
+  return -1
+}
+
