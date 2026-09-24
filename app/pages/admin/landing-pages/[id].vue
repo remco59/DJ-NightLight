@@ -12,7 +12,7 @@ type LandingPage={
 }
 
 const {data,refresh}=await useFetch<{page:LandingPage}>(`/api/admin/landing-pages/${id}`)
-if(!data.value)throw createError({statusCode:404,statusMessage:'Landing page not found'})
+if(!data.value)throw createError({statusCode:404,statusMessage:'Landing page niet gevonden'})
 
 const p=data.value.page
 const form=reactive({
@@ -30,14 +30,14 @@ async function save(){
     await $fetch(`/api/admin/landing-pages/${id}`,{method:'PUT',body:form})
     await refresh()
     await refreshNuxtData('landing-navigation')
-    message.value='Landing page saved.'
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Could not save landing page.')}
+    message.value='Landing page opgeslagen.'
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Landing page opslaan is niet gelukt.')}
   finally{saving.value=false}
 }
 async function remove(){
-  if(!confirm('Delete this landing page permanently?'))return
+  if(!confirm('Deze landing page definitief verwijderen?'))return
   try{await $fetch(`/api/admin/landing-pages/${id}`,{method:'DELETE'});await refreshNuxtData('landing-navigation');await navigateTo('/admin/landing-pages')}
-  catch(error:unknown){message.value=apiErrorMessage(error,'Could not delete landing page.')}
+  catch(error:unknown){message.value=apiErrorMessage(error,'Landing page verwijderen is niet gelukt.')}
 }
 
 useSeoMeta({title:()=>`${form.navLabel||'Landing page'} — DJ NightLight`,robots:'noindex, nofollow'})
@@ -45,19 +45,19 @@ useSeoMeta({title:()=>`${form.navLabel||'Landing page'} — DJ NightLight`,robot
 
 <template>
   <div class="editor">
-    <div class="topline"><NuxtLink to="/admin/landing-pages"><Icon name="lucide:arrow-left" aria-hidden="true" /> Landing pages</NuxtLink><div class="actions"><NuxtLink v-if="form.published" :to="`/diensten/${form.slug}`" target="_blank">Preview <Icon name="lucide:external-link" aria-hidden="true" /></NuxtLink><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button></div></div>
+    <div class="topline"><NuxtLink to="/admin/landing-pages"><Icon name="lucide:arrow-left" aria-hidden="true" /> Landing pages</NuxtLink><div class="actions"><NuxtLink v-if="form.published" :to="`/diensten/${form.slug}`" target="_blank">Voorbeeld <Icon name="lucide:external-link" aria-hidden="true" /></NuxtLink><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></div></div>
     <header><p class="eyebrow">Landing page</p><h1>{{form.navLabel}}</h1><p>/diensten/{{form.slug}}</p></header>
 
     <form @submit.prevent="save">
-      <section class="card"><p class="eyebrow">Publishing</p><div class="toggles"><label><input v-model="form.published" type="checkbox"><span><strong>Published</strong><small>Controls whether the public URL exists.</small></span></label><label><input v-model="form.showInNavigation" type="checkbox"><span><strong>Show in navigation</strong><small>Independent from publishing.</small></span></label><label><input v-model="form.indexable" type="checkbox"><span><strong>Search indexable</strong><small>Independent from navigation visibility.</small></span></label></div></section>
+      <section class="card"><p class="eyebrow">Publicatie</p><div class="toggles"><label><input v-model="form.published" type="checkbox"><span><strong>Gepubliceerd</strong><small>Bepaalt of de publieke URL bestaat.</small></span></label><label><input v-model="form.showInNavigation" type="checkbox"><span><strong>Tonen in navigatie</strong><small>Los van publiceren.</small></span></label><label><input v-model="form.indexable" type="checkbox"><span><strong>Vindbaar in zoekmachines</strong><small>Los van zichtbaarheid in de navigatie.</small></span></label></div></section>
 
-      <section class="card"><p class="eyebrow">Page</p><div class="grid"><label>Slug<input v-model="form.slug" required></label><label>Navigation label<input v-model="form.navLabel" required></label><label>Eyebrow<input v-model="form.eyebrow" required></label><label>Order<input v-model.number="form.ordering" type="number" min="0"></label><label class="wide">Title<input v-model="form.title" required></label><label class="wide">Intro<textarea v-model="form.intro" rows="3" required/></label><label class="wide">Body<textarea v-model="form.body" rows="8" required/></label><label class="wide">Hero image URL<input v-model="form.heroImageUrl" type="url"></label></div></section>
+      <section class="card"><p class="eyebrow">Pagina</p><div class="grid"><label>Slug<input v-model="form.slug" required></label><label>Label in navigatie<input v-model="form.navLabel" required></label><label>Bovenregel<input v-model="form.eyebrow" required></label><label>Volgorde<input v-model.number="form.ordering" type="number" min="0"></label><label class="wide">Titel<input v-model="form.title" required></label><label class="wide">Intro<textarea v-model="form.intro" rows="3" required/></label><label class="wide">Tekst<textarea v-model="form.body" rows="8" required/></label><label class="wide">URL hero-afbeelding<input v-model="form.heroImageUrl" type="url"></label></div></section>
 
-      <section class="card"><p class="eyebrow">Call to action</p><div class="grid"><label>CTA label<input v-model="form.ctaLabel" required></label><label>CTA destination<input v-model="form.ctaHref" required placeholder="/boeken"></label></div></section>
+      <section class="card"><p class="eyebrow">Call to action</p><div class="grid"><label>CTA-tekst<input v-model="form.ctaLabel" required></label><label>CTA-bestemming<input v-model="form.ctaHref" required placeholder="/boeken"></label></div></section>
 
-      <section class="card"><p class="eyebrow">SEO</p><div class="grid"><label class="wide">SEO title<input v-model="form.seoTitle" required></label><label class="wide">SEO description<textarea v-model="form.seoDescription" rows="3" required/></label><label class="wide">Social image URL<input v-model="form.seoImageUrl" type="url"></label></div></section>
+      <section class="card"><p class="eyebrow">SEO</p><div class="grid"><label class="wide">SEO-titel<input v-model="form.seoTitle" required></label><label class="wide">SEO-beschrijving<textarea v-model="form.seoDescription" rows="3" required/></label><label class="wide">URL social-afbeelding<input v-model="form.seoImageUrl" type="url"></label></div></section>
 
-      <div class="save-bar"><span>{{message||'Publishing, navigation and search indexing are separate controls.'}}</span><button class="primary" type="submit" :disabled="saving">{{saving?'Saving…':'Save page'}}</button></div>
+      <div class="save-bar"><span>{{message||'Publiceren, navigatie en indexering door zoekmachines stel je los van elkaar in.'}}</span><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Pagina opslaan'}}</button></div>
     </form>
   </div>
 </template>

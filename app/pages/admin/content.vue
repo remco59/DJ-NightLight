@@ -8,16 +8,16 @@ type PageKey = 'home' | 'about' | 'media' | 'agenda' | 'booking' | 'shared'
 type PickerAsset = { altText: string, title: string }
 
 const pages: Array<{ key: PageKey, label: string, hint: string, href: string }> = [
-  { key: 'home', label: 'Homepage', hint: 'Hero, sections & CTA', href: '/' },
-  { key: 'about', label: 'About', hint: 'Story & principles', href: '/about' },
-  { key: 'media', label: 'Media', hint: 'Showreel & gallery', href: '/media' },
-  { key: 'agenda', label: 'Agenda', hint: 'Status, list & empty state', href: '/agenda' },
-  { key: 'booking', label: 'Booking', hint: 'Intro, form & success', href: '/boeken' },
-  { key: 'shared', label: 'Shared & SEO', hint: 'Navigation, footer & metadata', href: '/' },
+  { key: 'home', label: 'Homepage', hint: 'Hero, secties & CTA', href: '/' },
+  { key: 'about', label: 'Over', hint: 'Verhaal & principes', href: '/about' },
+  { key: 'media', label: 'Media', hint: 'Showreel & galerij', href: '/media' },
+  { key: 'agenda', label: 'Agenda', hint: 'Status, lijst & lege staat', href: '/agenda' },
+  { key: 'booking', label: 'Boeken', hint: 'Intro, formulier & bevestiging', href: '/boeken' },
+  { key: 'shared', label: 'Algemeen & SEO', hint: 'Navigatie, footer & metadata', href: '/' },
 ]
 
 const { data } = await useFetch<{ content: PublicSiteContent }>('/api/admin/content')
-if (!data.value) throw createError({ statusCode: 500, statusMessage: 'Could not load website content' })
+if (!data.value) throw createError({ statusCode: 500, statusMessage: 'Website-inhoud laden is niet gelukt' })
 
 const form = reactive({
   ...data.value.content,
@@ -28,7 +28,7 @@ const form = reactive({
 
 const activePage = ref<PageKey>('home')
 const saving = ref(false)
-const message = ref('No unsaved changes.')
+const message = ref('Geen niet-opgeslagen wijzigingen.')
 const messageKind = ref<'idle' | 'dirty' | 'saving' | 'success' | 'error'>('idle')
 
 const activePageMeta = computed(() => pages.find(page => page.key === activePage.value) ?? pages[0]!)
@@ -38,7 +38,7 @@ watch(
   () => {
     if (saving.value) return
     messageKind.value = 'dirty'
-    message.value = 'Unsaved changes.'
+    message.value = 'Niet-opgeslagen wijzigingen.'
   },
   { deep: true },
 )
@@ -83,34 +83,34 @@ function updateStringList(list: string[], event: Event) {
 }
 
 function addPrinciple() {
-  form.publicCopy.about.principles.push({ title: 'New principle', body: 'Describe this principle.' })
+  form.publicCopy.about.principles.push({ title: 'Nieuw principe', body: 'Beschrijf dit principe.' })
 }
 
 async function save() {
   saving.value = true
   messageKind.value = 'saving'
-  message.value = 'Saving website…'
+  message.value = 'Website opslaan…'
   try {
     await $fetch('/api/admin/content', { method: 'PUT', body: form })
     messageKind.value = 'success'
-    message.value = 'Website saved. Changes are public.'
+    message.value = 'Website opgeslagen. De wijzigingen zijn live.'
     await refreshNuxtData('nightlight-site-content')
   } catch (error: unknown) {
     messageKind.value = 'error'
-    message.value = apiErrorMessage(error, 'Could not save website content.')
+    message.value = apiErrorMessage(error, 'Website-inhoud opslaan is niet gelukt.')
   } finally {
     saving.value = false
   }
 }
 
-useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofollow' })
+useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
 <template>
   <form class="content-editor" novalidate @submit.prevent="save">
     <header class="editor-topbar">
       <div class="topbar-title">
-        <p class="eyebrow">Website editor</p>
+        <p class="eyebrow">Website-editor</p>
         <h1>{{ activePageMeta.label }}</h1>
         <p>{{ activePageMeta.hint }}</p>
       </div>
@@ -122,10 +122,10 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
       <div class="topbar-actions">
         <NuxtLink :to="activePageMeta.href" target="_blank" class="secondary-button">
-          View page <Icon name="lucide:external-link" aria-hidden="true" />
+          Pagina bekijken <Icon name="lucide:external-link" aria-hidden="true" />
         </NuxtLink>
         <button class="primary-button" type="submit" :disabled="saving">
-          {{ saving ? 'Saving…' : 'Save website' }}
+          {{ saving ? 'Opslaan…' : 'Website opslaan' }}
         </button>
       </div>
     </header>
@@ -133,11 +133,11 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
     <div class="editor-shell">
       <aside class="page-sidebar">
         <div class="sidebar-label">
-          <span>Pages</span>
-          <small>Edit content where visitors see it</small>
+          <span>Pagina’s</span>
+          <small>Bewerk de inhoud waar bezoekers hem zien</small>
         </div>
 
-        <nav aria-label="Public website pages">
+        <nav aria-label="Pagina’s van de publieke website">
           <button
             v-for="page in pages"
             :key="page.key"
@@ -152,116 +152,116 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
         <div class="sidebar-note">
           <strong>Landing pages</strong>
-          <p>Individual service landing pages stay in the dedicated Landing pages editor.</p>
-          <NuxtLink to="/admin/landing-pages">Open landing pages <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
+          <p>Landing pages per dienst bewerk je in de aparte editor voor Landing pages.</p>
+          <NuxtLink to="/admin/landing-pages">Landing pages openen <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
         </div>
       </aside>
 
       <main class="page-workspace">
         <section v-if="activePage === 'home'" class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Public page · /</p>
+            <p class="eyebrow">Publieke pagina · /</p>
             <h2>Homepage</h2>
-            <p>Sections are ordered exactly like the public homepage. Open only the part you are working on.</p>
+            <p>De secties staan in dezelfde volgorde als op de publieke homepage. Open alleen het deel waar je aan werkt.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Hero</strong><small>Opening copy, image and primary actions</small></span>
+              <span><strong>Hero</strong><small>Openingstekst, afbeelding en hoofdknoppen</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
               <div class="field-grid two">
-                <label>Eyebrow<input v-model="form.heroEyebrow"></label>
-                <label>Primary button<input v-model="form.heroCtaLabel"></label>
+                <label>Bovenregel<input v-model="form.heroEyebrow"></label>
+                <label>Hoofdknop<input v-model="form.heroCtaLabel"></label>
               </div>
-              <label>Headline<textarea v-model="form.heroTitle" rows="3" /></label>
-              <label>Intro text<textarea v-model="form.heroBody" rows="5" /></label>
+              <label>Kop<textarea v-model="form.heroTitle" rows="3" /></label>
+              <label>Introtekst<textarea v-model="form.heroBody" rows="5" /></label>
               <AdminMediaPicker
                 v-model="form.heroImageUrl"
-                label="Hero image"
-                description="Large background image behind the opening copy."
+                label="Hero-afbeelding"
+                description="Grote achtergrondafbeelding achter de openingstekst."
               />
               <div class="field-grid two">
-                <label>Secondary button<input v-model="form.publicCopy.home.secondaryCta"></label>
-                <label>Scroll label<input v-model="form.publicCopy.home.scrollLabel"></label>
+                <label>Tweede knop<input v-model="form.publicCopy.home.secondaryCta"></label>
+                <label>Scrolltekst<input v-model="form.publicCopy.home.scrollLabel"></label>
               </div>
-              <label>Image caption<input v-model="form.publicCopy.home.heroCaption"></label>
+              <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.heroCaption"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Feature visual</strong><small>Large visual moment directly below the hero</small></span>
+              <span><strong>Uitgelicht beeld</strong><small>Groot beeldmoment direct onder de hero</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.publicCopy.home.visualEyebrow"></label>
-              <label>Supporting text<textarea v-model="form.publicCopy.home.visualBody" rows="4" /></label>
-              <AdminMediaPicker v-model="form.publicCopy.visuals.homeFeatureImageUrl" label="Feature image" />
+              <label>Bovenregel<input v-model="form.publicCopy.home.visualEyebrow"></label>
+              <label>Ondersteunende tekst<textarea v-model="form.publicCopy.home.visualBody" rows="4" /></label>
+              <AdminMediaPicker v-model="form.publicCopy.visuals.homeFeatureImageUrl" label="Uitgelichte afbeelding" />
               <div class="field-grid two">
-                <label>Image caption<input v-model="form.publicCopy.home.visualCaption"></label>
-                <label>Image alt text<input v-model="form.publicCopy.visuals.homeFeatureAlt"></label>
+                <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.visualCaption"></label>
+                <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeFeatureAlt"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>About teaser</strong><small>Homepage introduction to NightLight</small></span>
+              <span><strong>Teaser Over</strong><small>Introductie van NightLight op de homepage</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">The heading and body are shared with the About page. Editing them here changes both locations.</p>
-              <label>Eyebrow<input v-model="form.aboutEyebrow"></label>
-              <label>Heading<input v-model="form.aboutTitle"></label>
-              <label>Body<textarea v-model="form.aboutBody" rows="6" /></label>
-              <AdminMediaPicker v-model="form.publicCopy.visuals.homeAboutImageUrl" label="Homepage About image" />
+              <p class="section-note">De kop en tekst worden gedeeld met de Over-pagina. Als je ze hier wijzigt, veranderen ze op beide plekken.</p>
+              <label>Bovenregel<input v-model="form.aboutEyebrow"></label>
+              <label>Kop<input v-model="form.aboutTitle"></label>
+              <label>Tekst<textarea v-model="form.aboutBody" rows="6" /></label>
+              <AdminMediaPicker v-model="form.publicCopy.visuals.homeAboutImageUrl" label="Afbeelding Over op homepage" />
               <div class="field-grid two">
-                <label>Link label<input v-model="form.publicCopy.home.aboutCta"></label>
-                <label>Image caption<input v-model="form.publicCopy.home.aboutImageCaption"></label>
+                <label>Linktekst<input v-model="form.publicCopy.home.aboutCta"></label>
+                <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.aboutImageCaption"></label>
               </div>
-              <label>Image alt text<input v-model="form.publicCopy.visuals.homeAboutAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeAboutAlt"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Services</strong><small>Homepage service cards and introduction</small></span>
+              <span><strong>Diensten</strong><small>Dienstkaarten en introductie op de homepage</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
               <div class="field-grid two">
-                <label>Section eyebrow<input v-model="form.publicCopy.home.servicesEyebrow"></label>
-                <label>Section intro<textarea v-model="form.publicCopy.home.servicesBody" rows="3" /></label>
+                <label>Bovenregel sectie<input v-model="form.publicCopy.home.servicesEyebrow"></label>
+                <label>Intro sectie<textarea v-model="form.publicCopy.home.servicesBody" rows="3" /></label>
               </div>
 
               <div class="subsection-heading">
                 <div>
-                  <h3>Service cards</h3>
-                  <p>These cards appear on the homepage. Full service pages are edited under Landing pages.</p>
+                  <h3>Dienstkaarten</h3>
+                  <p>Deze kaarten staan op de homepage. Volledige dienstpagina’s bewerk je onder Landing pages.</p>
                 </div>
-                <button type="button" class="secondary-button" @click="addService"><Icon name="lucide:plus" aria-hidden="true" /> Add service</button>
+                <button type="button" class="secondary-button" @click="addService"><Icon name="lucide:plus" aria-hidden="true" /> Dienst toevoegen</button>
               </div>
 
               <div class="repeat-list">
                 <article v-for="(service, index) in form.services" :key="index" class="repeat-card">
                   <div class="repeat-top">
-                    <strong>Service {{ index + 1 }}</strong>
+                    <strong>Dienst {{ index + 1 }}</strong>
                     <div>
-                      <button type="button" :disabled="index === 0" aria-label="Move up" title="Move up" @click="moveService(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
-                      <button type="button" :disabled="index === form.services.length - 1" aria-label="Move down" title="Move down" @click="moveService(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
-                      <button type="button" class="danger-text" @click="form.services.splice(index, 1)">Remove</button>
+                      <button type="button" :disabled="index === 0" aria-label="Omhoog" title="Omhoog" @click="moveService(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
+                      <button type="button" :disabled="index === form.services.length - 1" aria-label="Omlaag" title="Omlaag" @click="moveService(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
+                      <button type="button" class="danger-text" @click="form.services.splice(index, 1)">Verwijderen</button>
                     </div>
                   </div>
-                  <label>Title<input v-model="service.title"></label>
-                  <label>Description<textarea v-model="service.body" rows="4" /></label>
+                  <label>Titel<input v-model="service.title"></label>
+                  <label>Beschrijving<textarea v-model="service.body" rows="4" /></label>
                   <AdminMediaPicker
                     v-model="service.imageUrl"
-                    label="Card image"
-                    description="Optional dedicated image for this service."
+                    label="Afbeelding kaart"
+                    description="Optionele eigen afbeelding voor deze dienst."
                   />
-                  <label>Image alt text<input v-model="service.imageAlt"></label>
+                  <label>Alt-tekst afbeelding<input v-model="service.imageAlt"></label>
                 </article>
               </div>
             </div>
@@ -269,14 +269,14 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
           <details class="editor-section">
             <summary>
-              <span><strong>Social proof</strong><small>Quote and event-type chips</small></span>
+              <span><strong>Social proof</strong><small>Quote en labels voor soorten evenementen</small></span>
               <b>05</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.publicCopy.home.proofEyebrow"></label>
+              <label>Bovenregel<input v-model="form.publicCopy.home.proofEyebrow"></label>
               <label>Quote<textarea v-model="form.publicCopy.home.proofQuote" rows="4" /></label>
               <label>
-                Tags · one per line
+                Tags · één per regel
                 <textarea
                   :value="form.publicCopy.home.proofTags.join('\n')"
                   rows="6"
@@ -288,127 +288,127 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
           <details class="editor-section">
             <summary>
-              <span><strong>Closing booking CTA</strong><small>Final homepage call to action</small></span>
+              <span><strong>Afsluitende boekings-CTA</strong><small>Laatste call to action op de homepage</small></span>
               <b>06</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">This intro copy is also used at the top of the Booking page.</p>
-              <label>Eyebrow<input v-model="form.bookingEyebrow"></label>
-              <label>Heading<input v-model="form.bookingTitle"></label>
-              <label>Body<textarea v-model="form.bookingBody" rows="5" /></label>
-              <label>Button label<input v-model="form.publicCopy.home.bookingCta"></label>
+              <p class="section-note">Deze introtekst wordt ook bovenaan de Boeken-pagina gebruikt.</p>
+              <label>Bovenregel<input v-model="form.bookingEyebrow"></label>
+              <label>Kop<input v-model="form.bookingTitle"></label>
+              <label>Tekst<textarea v-model="form.bookingBody" rows="5" /></label>
+              <label>Knoptekst<input v-model="form.publicCopy.home.bookingCta"></label>
             </div>
           </details>
         </section>
 
         <section v-else-if="activePage === 'about'" class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Public page · /about</p>
-            <h2>About</h2>
-            <p>Edit the About page in the same order visitors move through it.</p>
+            <p class="eyebrow">Publieke pagina · /about</p>
+            <h2>Over</h2>
+            <p>Bewerk de Over-pagina in dezelfde volgorde als bezoekers erdoorheen gaan.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Intro</strong><small>Page title, lead copy and opening image</small></span>
+              <span><strong>Intro</strong><small>Paginatitel, openingstekst en openingsafbeelding</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">The main heading and body are also reused in the homepage About teaser.</p>
-              <label>Eyebrow<input v-model="form.aboutEyebrow"></label>
-              <label>Heading<input v-model="form.aboutTitle"></label>
-              <label>Lead copy<textarea v-model="form.aboutBody" rows="6" /></label>
-              <AdminMediaPicker v-model="form.publicCopy.visuals.aboutLeadImageUrl" label="Lead image" />
+              <p class="section-note">De hoofdkop en tekst worden ook gebruikt in de Over-teaser op de homepage.</p>
+              <label>Bovenregel<input v-model="form.aboutEyebrow"></label>
+              <label>Kop<input v-model="form.aboutTitle"></label>
+              <label>Openingstekst<textarea v-model="form.aboutBody" rows="6" /></label>
+              <AdminMediaPicker v-model="form.publicCopy.visuals.aboutLeadImageUrl" label="Openingsafbeelding" />
               <div class="field-grid two">
-                <label>Image eyebrow<input v-model="form.publicCopy.about.imageEyebrow"></label>
-                <label>Image caption<input v-model="form.publicCopy.about.imageCaption"></label>
+                <label>Bovenregel afbeelding<input v-model="form.publicCopy.about.imageEyebrow"></label>
+                <label>Bijschrift afbeelding<input v-model="form.publicCopy.about.imageCaption"></label>
               </div>
-              <label>Image alt text<input v-model="form.publicCopy.visuals.aboutLeadAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutLeadAlt"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Story</strong><small>Long-form story section</small></span>
+              <span><strong>Verhaal</strong><small>Sectie met het uitgebreide verhaal</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
-              <label>Story title<textarea v-model="form.publicCopy.about.storyTitle" rows="3" /></label>
-              <label>Paragraph 1<textarea v-model="form.publicCopy.about.storyBody1" rows="5" /></label>
-              <label>Paragraph 2<textarea v-model="form.publicCopy.about.storyBody2" rows="5" /></label>
+              <label>Titel verhaal<textarea v-model="form.publicCopy.about.storyTitle" rows="3" /></label>
+              <label>Alinea 1<textarea v-model="form.publicCopy.about.storyBody1" rows="5" /></label>
+              <label>Alinea 2<textarea v-model="form.publicCopy.about.storyBody2" rows="5" /></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Moment visual</strong><small>Full-width room image and quote</small></span>
+              <span><strong>Sfeerbeeld</strong><small>Afbeelding over de volle breedte met quote</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
-              <AdminMediaPicker v-model="form.publicCopy.visuals.aboutRoomImageUrl" label="Room image" />
-              <label>Image alt text<input v-model="form.publicCopy.visuals.aboutRoomAlt"></label>
-              <label>Eyebrow<input v-model="form.publicCopy.about.momentEyebrow"></label>
+              <AdminMediaPicker v-model="form.publicCopy.visuals.aboutRoomImageUrl" label="Sfeerafbeelding" />
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutRoomAlt"></label>
+              <label>Bovenregel<input v-model="form.publicCopy.about.momentEyebrow"></label>
               <label>Quote<textarea v-model="form.publicCopy.about.momentQuote" rows="3" /></label>
-              <label>Supporting text<textarea v-model="form.publicCopy.about.momentBody" rows="4" /></label>
+              <label>Ondersteunende tekst<textarea v-model="form.publicCopy.about.momentBody" rows="4" /></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Principles</strong><small>Numbered values or working principles</small></span>
+              <span><strong>Principes</strong><small>Genummerde waarden of werkprincipes</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
               <div class="field-grid two">
-                <label>Eyebrow<input v-model="form.publicCopy.about.principlesEyebrow"></label>
-                <label>Title<input v-model="form.publicCopy.about.principlesTitle"></label>
+                <label>Bovenregel<input v-model="form.publicCopy.about.principlesEyebrow"></label>
+                <label>Titel<input v-model="form.publicCopy.about.principlesTitle"></label>
               </div>
 
               <div class="repeat-list">
                 <article v-for="(principle, index) in form.publicCopy.about.principles" :key="index" class="repeat-card">
                   <div class="repeat-top">
-                    <strong>Principle {{ index + 1 }}</strong>
-                    <button type="button" class="danger-text" @click="form.publicCopy.about.principles.splice(index, 1)">Remove</button>
+                    <strong>Principe {{ index + 1 }}</strong>
+                    <button type="button" class="danger-text" @click="form.publicCopy.about.principles.splice(index, 1)">Verwijderen</button>
                   </div>
-                  <label>Title<input v-model="principle.title"></label>
-                  <label>Body<textarea v-model="principle.body" rows="3" /></label>
+                  <label>Titel<input v-model="principle.title"></label>
+                  <label>Tekst<textarea v-model="principle.body" rows="3" /></label>
                 </article>
               </div>
-              <button type="button" class="secondary-button add-button" @click="addPrinciple"><Icon name="lucide:plus" aria-hidden="true" /> Add principle</button>
+              <button type="button" class="secondary-button add-button" @click="addPrinciple"><Icon name="lucide:plus" aria-hidden="true" /> Principe toevoegen</button>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Final CTA</strong><small>Closing prompt to book NightLight</small></span>
+              <span><strong>Afsluitende CTA</strong><small>Afsluitende uitnodiging om NightLight te boeken</small></span>
               <b>05</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.publicCopy.about.ctaEyebrow"></label>
-              <label>Title<textarea v-model="form.publicCopy.about.ctaTitle" rows="3" /></label>
-              <label>Button label<input v-model="form.publicCopy.about.ctaLabel"></label>
+              <label>Bovenregel<input v-model="form.publicCopy.about.ctaEyebrow"></label>
+              <label>Titel<textarea v-model="form.publicCopy.about.ctaTitle" rows="3" /></label>
+              <label>Knoptekst<input v-model="form.publicCopy.about.ctaLabel"></label>
             </div>
           </details>
         </section>
 
         <section v-else-if="activePage === 'media'" class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Public page · /media</p>
+            <p class="eyebrow">Publieke pagina · /media</p>
             <h2>Media</h2>
-            <p>Manage the page intro, featured showreel and gallery without mixing them with other pages.</p>
+            <p>Beheer de intro, de uitgelichte showreel en de galerij, los van de andere pagina’s.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Intro</strong><small>Page title, description and media-type chips</small></span>
+              <span><strong>Intro</strong><small>Paginatitel, beschrijving en labels voor soorten media</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.mediaEyebrow"></label>
-              <label>Heading<input v-model="form.mediaTitle"></label>
-              <label>Body<textarea v-model="form.mediaBody" rows="5" /></label>
+              <label>Bovenregel<input v-model="form.mediaEyebrow"></label>
+              <label>Kop<input v-model="form.mediaTitle"></label>
+              <label>Tekst<textarea v-model="form.mediaBody" rows="5" /></label>
               <label>
-                Media type chips · one per line
+                Labels soorten media · één per regel
                 <textarea
                   :value="form.publicCopy.media.typeLabels.join('\n')"
                   rows="5"
@@ -420,59 +420,59 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
           <details class="editor-section">
             <summary>
-              <span><strong>Showreel</strong><small>Featured video link, image and supporting copy</small></span>
+              <span><strong>Showreel</strong><small>Link naar uitgelichte video, afbeelding en ondersteunende tekst</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
-              <label>Showreel URL<input v-model="form.showreelUrl" type="url" placeholder="https://…"></label>
-              <AdminMediaPicker v-model="form.publicCopy.visuals.mediaShowreelImageUrl" label="Showreel background image" />
-              <label>Image alt text<input v-model="form.publicCopy.visuals.mediaShowreelAlt"></label>
+              <label>Showreel-URL<input v-model="form.showreelUrl" type="url" placeholder="https://…"></label>
+              <AdminMediaPicker v-model="form.publicCopy.visuals.mediaShowreelImageUrl" label="Achtergrondafbeelding showreel" />
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.mediaShowreelAlt"></label>
               <div class="field-grid two">
-                <label>Eyebrow<input v-model="form.publicCopy.media.showreelEyebrow"></label>
-                <label>External-link label<input v-model="form.publicCopy.media.showreelExternalLabel"></label>
+                <label>Bovenregel<input v-model="form.publicCopy.media.showreelEyebrow"></label>
+                <label>Tekst externe link<input v-model="form.publicCopy.media.showreelExternalLabel"></label>
               </div>
-              <label>Title<input v-model="form.publicCopy.media.showreelTitle"></label>
-              <label>Body<textarea v-model="form.publicCopy.media.showreelBody" rows="4" /></label>
+              <label>Titel<input v-model="form.publicCopy.media.showreelTitle"></label>
+              <label>Tekst<textarea v-model="form.publicCopy.media.showreelBody" rows="4" /></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Gallery</strong><small>Image pool, captions and count labels</small></span>
+              <span><strong>Galerij</strong><small>Afbeeldingen, bijschriften en teksten voor aantallen</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
               <div class="field-grid three">
-                <label>Gallery eyebrow<input v-model="form.publicCopy.media.galleryEyebrow"></label>
-                <label>Singular image word<input v-model="form.publicCopy.media.imageSingular"></label>
-                <label>Plural image word<input v-model="form.publicCopy.media.imagePlural"></label>
+                <label>Bovenregel galerij<input v-model="form.publicCopy.media.galleryEyebrow"></label>
+                <label>Woord voor één afbeelding<input v-model="form.publicCopy.media.imageSingular"></label>
+                <label>Woord voor meerdere afbeeldingen<input v-model="form.publicCopy.media.imagePlural"></label>
               </div>
 
               <div class="subsection-heading">
                 <div>
-                  <h3>Gallery images</h3>
-                  <p>The order here is the order used on the public media page.</p>
+                  <h3>Afbeeldingen galerij</h3>
+                  <p>De volgorde hier is de volgorde op de publieke mediapagina.</p>
                 </div>
-                <button type="button" class="secondary-button" @click="addImage"><Icon name="lucide:plus" aria-hidden="true" /> Add image</button>
+                <button type="button" class="secondary-button" @click="addImage"><Icon name="lucide:plus" aria-hidden="true" /> Afbeelding toevoegen</button>
               </div>
 
               <div class="repeat-list gallery-list">
                 <article v-for="(image, index) in form.gallery" :key="index + '-' + image.url" class="repeat-card">
                   <div class="repeat-top">
-                    <strong>Image {{ index + 1 }}</strong>
+                    <strong>Afbeelding {{ index + 1 }}</strong>
                     <div>
-                      <button type="button" :disabled="index === 0" aria-label="Move up" title="Move up" @click="moveImage(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
-                      <button type="button" :disabled="index === form.gallery.length - 1" aria-label="Move down" title="Move down" @click="moveImage(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
-                      <button type="button" class="danger-text" @click="form.gallery.splice(index, 1)">Remove</button>
+                      <button type="button" :disabled="index === 0" aria-label="Omhoog" title="Omhoog" @click="moveImage(index, -1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button>
+                      <button type="button" :disabled="index === form.gallery.length - 1" aria-label="Omlaag" title="Omlaag" @click="moveImage(index, 1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button>
+                      <button type="button" class="danger-text" @click="form.gallery.splice(index, 1)">Verwijderen</button>
                     </div>
                   </div>
                   <AdminMediaPicker
                     :model-value="image.url || null"
-                    label="Gallery image"
+                    label="Afbeelding galerij"
                     @update:model-value="image.url = $event || ''"
                     @selected="applyGalleryAsset(image, $event)"
                   />
-                  <label>Alt text<input v-model="image.alt"></label>
+                  <label>Alt-tekst<input v-model="image.alt"></label>
                 </article>
               </div>
 
@@ -484,265 +484,265 @@ useSeoMeta({ title: 'Website content — DJ NightLight', robots: 'noindex, nofol
 
           <details class="editor-section">
             <summary>
-              <span><strong>Empty & lightbox states</strong><small>Copy shown when there are no images and when viewing one</small></span>
+              <span><strong>Lege staat & lightbox</strong><small>Tekst als er geen afbeeldingen zijn en bij het bekijken van één afbeelding</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
-              <label>Empty-state eyebrow<input v-model="form.publicCopy.media.emptyEyebrow"></label>
-              <label>Empty-state title<textarea v-model="form.publicCopy.media.emptyTitle" rows="3" /></label>
-              <label>Empty-state body<textarea v-model="form.publicCopy.media.emptyBody" rows="4" /></label>
+              <label>Bovenregel lege staat<input v-model="form.publicCopy.media.emptyEyebrow"></label>
+              <label>Titel lege staat<textarea v-model="form.publicCopy.media.emptyTitle" rows="3" /></label>
+              <label>Tekst lege staat<textarea v-model="form.publicCopy.media.emptyBody" rows="4" /></label>
               <label>
-                Empty-state meta · one per line
+                Extra regels lege staat · één per regel
                 <textarea
                   :value="form.publicCopy.media.emptyMeta.join('\n')"
                   rows="5"
                   @input="updateStringList(form.publicCopy.media.emptyMeta, $event)"
                 />
               </label>
-              <label>Lightbox close label<input v-model="form.publicCopy.media.closeLabel"></label>
+              <label>Sluittekst lightbox<input v-model="form.publicCopy.media.closeLabel"></label>
             </div>
           </details>
         </section>
 
         <section v-else-if="activePage === 'agenda'" class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Public page · /agenda</p>
+            <p class="eyebrow">Publieke pagina · /agenda</p>
             <h2>Agenda</h2>
-            <p>Only the page copy is managed here; public gig data still comes from your gigs.</p>
+            <p>Hier beheer je alleen de paginateksten; de publieke gigs komen nog steeds uit je gigs.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Intro</strong><small>Page title and supporting text</small></span>
+              <span><strong>Intro</strong><small>Paginatitel en ondersteunende tekst</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.agendaEyebrow"></label>
-              <label>Heading<input v-model="form.agendaTitle"></label>
-              <label>Body<textarea v-model="form.agendaBody" rows="5" /></label>
+              <label>Bovenregel<input v-model="form.agendaEyebrow"></label>
+              <label>Kop<input v-model="form.agendaTitle"></label>
+              <label>Tekst<textarea v-model="form.agendaBody" rows="5" /></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Status panel</strong><small>Live count block beside the page intro</small></span>
+              <span><strong>Statusblok</strong><small>Blok met het actuele aantal naast de intro</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
-              <label>Status eyebrow<input v-model="form.publicCopy.agenda.statusEyebrow"></label>
-              <label>Loading label<input v-model="form.publicCopy.agenda.loadingLabel"></label>
+              <label>Bovenregel status<input v-model="form.publicCopy.agenda.statusEyebrow"></label>
+              <label>Laadtekst<input v-model="form.publicCopy.agenda.loadingLabel"></label>
               <div class="field-grid two">
-                <label>One date<input v-model="form.publicCopy.agenda.dateSingular"></label>
-                <label>Multiple dates<input v-model="form.publicCopy.agenda.datePlural"></label>
+                <label>Eén datum<input v-model="form.publicCopy.agenda.dateSingular"></label>
+                <label>Meerdere datums<input v-model="form.publicCopy.agenda.datePlural"></label>
               </div>
-              <label>Status explanation<textarea v-model="form.publicCopy.agenda.statusBody" rows="4" /></label>
+              <label>Uitleg status<textarea v-model="form.publicCopy.agenda.statusBody" rows="4" /></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Empty state</strong><small>Shown when there are no public gigs</small></span>
+              <span><strong>Lege staat</strong><small>Zichtbaar als er geen publieke gigs zijn</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
-              <label>Marker label<input v-model="form.publicCopy.agenda.emptyMarkerLabel"></label>
-              <label>Eyebrow<input v-model="form.publicCopy.agenda.emptyEyebrow"></label>
-              <label>Title<input v-model="form.publicCopy.agenda.emptyTitle"></label>
-              <label>Body<textarea v-model="form.publicCopy.agenda.emptyBody" rows="5" /></label>
-              <label>Button label<input v-model="form.publicCopy.agenda.emptyCta"></label>
+              <label>Markeringstekst<input v-model="form.publicCopy.agenda.emptyMarkerLabel"></label>
+              <label>Bovenregel<input v-model="form.publicCopy.agenda.emptyEyebrow"></label>
+              <label>Titel<input v-model="form.publicCopy.agenda.emptyTitle"></label>
+              <label>Tekst<textarea v-model="form.publicCopy.agenda.emptyBody" rows="5" /></label>
+              <label>Knoptekst<input v-model="form.publicCopy.agenda.emptyCta"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Gig list labels</strong><small>Labels surrounding the dynamic list of gigs</small></span>
+              <span><strong>Teksten gig-lijst</strong><small>Teksten rond de automatische lijst met gigs</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
-              <label>List eyebrow<input v-model="form.publicCopy.agenda.listEyebrow"></label>
+              <label>Bovenregel lijst<input v-model="form.publicCopy.agenda.listEyebrow"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Footer CTA</strong><small>Closing booking prompt</small></span>
+              <span><strong>Footer-CTA</strong><small>Afsluitende uitnodiging om te boeken</small></span>
               <b>05</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.publicCopy.agenda.footerEyebrow"></label>
-              <label>Title<textarea v-model="form.publicCopy.agenda.footerTitle" rows="3" /></label>
-              <label>Body<textarea v-model="form.publicCopy.agenda.footerBody" rows="4" /></label>
-              <label>Button label<input v-model="form.publicCopy.agenda.footerCta"></label>
+              <label>Bovenregel<input v-model="form.publicCopy.agenda.footerEyebrow"></label>
+              <label>Titel<textarea v-model="form.publicCopy.agenda.footerTitle" rows="3" /></label>
+              <label>Tekst<textarea v-model="form.publicCopy.agenda.footerBody" rows="4" /></label>
+              <label>Knoptekst<input v-model="form.publicCopy.agenda.footerCta"></label>
             </div>
           </details>
         </section>
 
         <section v-else-if="activePage === 'booking'" class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Public page · /boeken</p>
-            <h2>Booking</h2>
-            <p>Edit the public inquiry page, from the opening pitch through form feedback.</p>
+            <p class="eyebrow">Publieke pagina · /boeken</p>
+            <h2>Boeken</h2>
+            <p>Bewerk de publieke aanvraagpagina, van de openingstekst tot de meldingen van het formulier.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Intro & direct contact</strong><small>Page heading and contact details</small></span>
+              <span><strong>Intro & direct contact</strong><small>Paginakop en contactgegevens</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">The intro copy is also used by the closing CTA on the homepage.</p>
-              <label>Eyebrow<input v-model="form.bookingEyebrow"></label>
-              <label>Heading<input v-model="form.bookingTitle"></label>
-              <label>Body<textarea v-model="form.bookingBody" rows="5" /></label>
+              <p class="section-note">De introtekst wordt ook gebruikt in de afsluitende CTA op de homepage.</p>
+              <label>Bovenregel<input v-model="form.bookingEyebrow"></label>
+              <label>Kop<input v-model="form.bookingTitle"></label>
+              <label>Tekst<textarea v-model="form.bookingBody" rows="5" /></label>
               <div class="field-grid two">
-                <label>Email<input v-model="form.contactEmail" type="email"></label>
-                <label>Phone<input v-model="form.contactPhone"></label>
+                <label>E-mail<input v-model="form.contactEmail" type="email"></label>
+                <label>Telefoon<input v-model="form.contactPhone"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Form labels</strong><small>Field names visitors see in the inquiry form</small></span>
+              <span><strong>Formulierlabels</strong><small>Veldnamen die bezoekers in het aanvraagformulier zien</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
               <div class="field-grid two">
-                <label>Name<input v-model="form.publicCopy.booking.nameLabel"></label>
-                <label>Company<input v-model="form.publicCopy.booking.companyLabel"></label>
-                <label>Email<input v-model="form.publicCopy.booking.emailLabel"></label>
-                <label>Phone<input v-model="form.publicCopy.booking.phoneLabel"></label>
-                <label>Event type<input v-model="form.publicCopy.booking.eventTypeLabel"></label>
-                <label>Date<input v-model="form.publicCopy.booking.dateLabel"></label>
-                <label>Location<input v-model="form.publicCopy.booking.locationLabel"></label>
-                <label>Optional label<input v-model="form.publicCopy.booking.optionalLabel"></label>
+                <label>Naam<input v-model="form.publicCopy.booking.nameLabel"></label>
+                <label>Bedrijf<input v-model="form.publicCopy.booking.companyLabel"></label>
+                <label>E-mail<input v-model="form.publicCopy.booking.emailLabel"></label>
+                <label>Telefoon<input v-model="form.publicCopy.booking.phoneLabel"></label>
+                <label>Soort evenement<input v-model="form.publicCopy.booking.eventTypeLabel"></label>
+                <label>Datum<input v-model="form.publicCopy.booking.dateLabel"></label>
+                <label>Locatie<input v-model="form.publicCopy.booking.locationLabel"></label>
+                <label>Tekst voor optioneel<input v-model="form.publicCopy.booking.optionalLabel"></label>
               </div>
-              <label>Message label<input v-model="form.publicCopy.booking.messageLabel"></label>
+              <label>Label bericht<input v-model="form.publicCopy.booking.messageLabel"></label>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Placeholders & submit state</strong><small>Guidance inside fields and submit button copy</small></span>
+              <span><strong>Voorbeeldteksten & verzendknop</strong><small>Hulptekst in de velden en tekst op de verzendknop</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
-              <label>Event-type placeholder<input v-model="form.publicCopy.booking.eventTypePlaceholder"></label>
-              <label>Location placeholder<input v-model="form.publicCopy.booking.locationPlaceholder"></label>
-              <label>Message placeholder<textarea v-model="form.publicCopy.booking.messagePlaceholder" rows="3" /></label>
+              <label>Voorbeeldtekst soort evenement<input v-model="form.publicCopy.booking.eventTypePlaceholder"></label>
+              <label>Voorbeeldtekst locatie<input v-model="form.publicCopy.booking.locationPlaceholder"></label>
+              <label>Voorbeeldtekst bericht<textarea v-model="form.publicCopy.booking.messagePlaceholder" rows="3" /></label>
               <div class="field-grid two">
-                <label>Submit button<input v-model="form.publicCopy.booking.submitLabel"></label>
-                <label>Sending button<input v-model="form.publicCopy.booking.sendingLabel"></label>
+                <label>Verzendknop<input v-model="form.publicCopy.booking.submitLabel"></label>
+                <label>Knop tijdens verzenden<input v-model="form.publicCopy.booking.sendingLabel"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Success & error states</strong><small>Feedback after the visitor submits</small></span>
+              <span><strong>Bevestiging & foutmelding</strong><small>Melding nadat de bezoeker het formulier verstuurt</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
-              <label>Success eyebrow<input v-model="form.publicCopy.booking.successEyebrow"></label>
-              <label>Success title<input v-model="form.publicCopy.booking.successTitle"></label>
-              <label>Success body<textarea v-model="form.publicCopy.booking.successBody" rows="4" /></label>
-              <label>Error fallback<textarea v-model="form.publicCopy.booking.errorFallback" rows="4" /></label>
+              <label>Bovenregel bevestiging<input v-model="form.publicCopy.booking.successEyebrow"></label>
+              <label>Titel bevestiging<input v-model="form.publicCopy.booking.successTitle"></label>
+              <label>Tekst bevestiging<textarea v-model="form.publicCopy.booking.successBody" rows="4" /></label>
+              <label>Standaard foutmelding<textarea v-model="form.publicCopy.booking.errorFallback" rows="4" /></label>
             </div>
           </details>
         </section>
 
         <section v-else class="page-editor">
           <div class="page-intro">
-            <p class="eyebrow">Shared across the public site</p>
-            <h2>Shared & SEO</h2>
-            <p>Global navigation, footer, social links and metadata live here instead of being mixed into individual pages.</p>
+            <p class="eyebrow">Gedeeld op de hele publieke site</p>
+            <h2>Algemeen & SEO</h2>
+            <p>Navigatie, footer, sociale links en metadata staan hier, los van de afzonderlijke pagina’s.</p>
           </div>
 
           <details class="editor-section" open>
             <summary>
-              <span><strong>Site identity & navigation</strong><small>Brand name, desktop labels and mobile menu copy</small></span>
+              <span><strong>Identiteit & navigatie</strong><small>Merknaam, menuteksten en teksten voor het mobiele menu</small></span>
               <b>01</b>
             </summary>
             <div class="section-body">
-              <label>Brand name<input v-model="form.brandName"></label>
+              <label>Merknaam<input v-model="form.brandName"></label>
               <div class="field-grid three">
                 <label>Home<input v-model="form.publicCopy.navigation.home"></label>
-                <label>About<input v-model="form.publicCopy.navigation.about"></label>
+                <label>Over<input v-model="form.publicCopy.navigation.about"></label>
                 <label>Media<input v-model="form.publicCopy.navigation.media"></label>
                 <label>Agenda<input v-model="form.publicCopy.navigation.agenda"></label>
-                <label>Booking<input v-model="form.publicCopy.navigation.booking"></label>
+                <label>Boeken<input v-model="form.publicCopy.navigation.booking"></label>
                 <label>Menu<input v-model="form.publicCopy.navigation.menu"></label>
-                <label>Close<input v-model="form.publicCopy.navigation.close"></label>
+                <label>Sluiten<input v-model="form.publicCopy.navigation.close"></label>
               </div>
               <div class="field-grid two">
-                <label>Mobile booking eyebrow<input v-model="form.publicCopy.navigation.mobileEyebrow"></label>
-                <label>Mobile booking CTA<input v-model="form.publicCopy.navigation.mobileBooking"></label>
+                <label>Bovenregel boeken (mobiel)<input v-model="form.publicCopy.navigation.mobileEyebrow"></label>
+                <label>Boekknop (mobiel)<input v-model="form.publicCopy.navigation.mobileBooking"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Footer</strong><small>Closing site-wide CTA and link labels</small></span>
+              <span><strong>Footer</strong><small>Afsluitende CTA en linkteksten op de hele site</small></span>
               <b>02</b>
             </summary>
             <div class="section-body">
-              <label>Eyebrow<input v-model="form.publicCopy.footer.eyebrow"></label>
-              <label>Title<textarea v-model="form.publicCopy.footer.title" rows="3" /></label>
+              <label>Bovenregel<input v-model="form.publicCopy.footer.eyebrow"></label>
+              <label>Titel<textarea v-model="form.publicCopy.footer.title" rows="3" /></label>
               <div class="field-grid two">
-                <label>CTA label<input v-model="form.publicCopy.footer.cta"></label>
-                <label>Location<input v-model="form.publicCopy.footer.location"></label>
+                <label>CTA-tekst<input v-model="form.publicCopy.footer.cta"></label>
+                <label>Locatie<input v-model="form.publicCopy.footer.location"></label>
               </div>
               <div class="field-grid three">
-                <label>Instagram label<input v-model="form.publicCopy.footer.instagram"></label>
-                <label>Spotify label<input v-model="form.publicCopy.footer.spotify"></label>
-                <label>Email label<input v-model="form.publicCopy.footer.email"></label>
+                <label>Tekst Instagram<input v-model="form.publicCopy.footer.instagram"></label>
+                <label>Tekst Spotify<input v-model="form.publicCopy.footer.spotify"></label>
+                <label>Tekst e-mail<input v-model="form.publicCopy.footer.email"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Contact & social links</strong><small>Actual destinations used around the site</small></span>
+              <span><strong>Contact & sociale links</strong><small>De echte bestemmingen die op de site worden gebruikt</small></span>
               <b>03</b>
             </summary>
             <div class="section-body">
               <div class="field-grid two">
-                <label>Email<input v-model="form.contactEmail" type="email"></label>
-                <label>Phone<input v-model="form.contactPhone"></label>
-                <label>Instagram URL<input v-model="form.instagramUrl" type="url" placeholder="https://…"></label>
-                <label>Spotify URL<input v-model="form.spotifyUrl" type="url" placeholder="https://…"></label>
+                <label>E-mail<input v-model="form.contactEmail" type="email"></label>
+                <label>Telefoon<input v-model="form.contactPhone"></label>
+                <label>Instagram-URL<input v-model="form.instagramUrl" type="url" placeholder="https://…"></label>
+                <label>Spotify-URL<input v-model="form.spotifyUrl" type="url" placeholder="https://…"></label>
               </div>
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>SEO & sharing</strong><small>Default search result and social-link preview</small></span>
+              <span><strong>SEO & delen</strong><small>Standaard zoekresultaat en voorbeeld bij het delen van links</small></span>
               <b>04</b>
             </summary>
             <div class="section-body">
-              <label>Default title<input v-model="form.seoTitle"></label>
-              <label>Description<textarea v-model="form.seoDescription" rows="4" /></label>
+              <label>Standaardtitel<input v-model="form.seoTitle"></label>
+              <label>Beschrijving<textarea v-model="form.seoDescription" rows="4" /></label>
               <AdminMediaPicker
                 v-model="form.seoImageUrl"
-                label="Social sharing image"
-                description="Used for link previews. Falls back to the hero image when empty."
+                label="Afbeelding voor delen"
+                description="Gebruikt voor linkvoorbeelden. Is deze leeg, dan wordt de hero-afbeelding gebruikt."
               />
             </div>
           </details>
 
           <details class="editor-section">
             <summary>
-              <span><strong>Landing-page shared panel</strong><small>Shared sidebar CTA used by service landing pages</small></span>
+              <span><strong>Gedeeld blok landing pages</strong><small>Gedeelde CTA in de zijbalk van landing pages voor diensten</small></span>
               <b>05</b>
             </summary>
             <div class="section-body">
-              <p class="section-note">Individual landing-page content stays in Admin <Icon name="lucide:chevron-right" aria-hidden="true" /> Landing pages. This is only the panel shared by all of them.</p>
-              <label>Eyebrow<input v-model="form.publicCopy.landing.asideEyebrow"></label>
-              <label>Title<input v-model="form.publicCopy.landing.asideTitle"></label>
-              <label>Body<textarea v-model="form.publicCopy.landing.asideBody" rows="4" /></label>
-              <label>Button label<input v-model="form.publicCopy.landing.asideCta"></label>
+              <p class="section-note">De inhoud per landing page staat in Back office <Icon name="lucide:chevron-right" aria-hidden="true" /> Landing pages. Dit is alleen het blok dat ze allemaal delen.</p>
+              <label>Bovenregel<input v-model="form.publicCopy.landing.asideEyebrow"></label>
+              <label>Titel<input v-model="form.publicCopy.landing.asideTitle"></label>
+              <label>Tekst<textarea v-model="form.publicCopy.landing.asideBody" rows="4" /></label>
+              <label>Knoptekst<input v-model="form.publicCopy.landing.asideCta"></label>
             </div>
           </details>
         </section>
