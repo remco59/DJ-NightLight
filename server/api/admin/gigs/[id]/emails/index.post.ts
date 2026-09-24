@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { emailTemplates, invoices } from '../../../../../../db/schema'
+import { emailJobs, emailTemplates, invoices } from '../../../../../../db/schema'
 import {
   EMAIL_ATTACHMENT_EXTENSIONS,
   MAX_EMAIL_ATTACHMENTS,
@@ -23,7 +23,11 @@ const schema = z.object({
   body: z.string().trim().min(1).max(20_000),
   variables: z.record(z.string(), z.union([z.string().max(2000), z.number(), z.null()])).default({}),
   invoiceIds: z.array(z.uuid()).max(MAX_EMAIL_ATTACHMENTS).default([]),
+  replacesJobId: z.uuid().optional(),
 })
+
+/** Automatic emails that have not gone out yet and may be replaced by a manual one. */
+const REPLACEABLE_STATUSES = ['pending', 'failed', 'suppressed'] as const
 
 function parseJson(value: string, fallback: unknown) {
   if (!value) return fallback
@@ -49,6 +53,7 @@ export default defineEventHandler(async (event) => {
     body: text('body'),
     variables: parseJson(text('variables'), {}),
     invoiceIds: parseJson(text('invoiceIds'), []),
+    replacesJobId: text('replacesJobId') || undefined,
   })
   if (!parsed.success) {
     throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldig e-mailformulier' })
@@ -59,6 +64,16 @@ export default defineEventHandler(async (event) => {
   if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
   const [template] = await db.select({ key: emailTemplates.key }).from(emailTemplates).where(eq(emailTemplates.key, input.templateKey)).limit(1)
   if (!template) throw createError({ statusCode: 404, statusMessage: 'Template niet gevonden' })
+
+  const [replaced] = input.replacesJobId
+    ? await db.select({ id: emailJobs.id, manual: emailJobs.manual, status: emailJobs.status, variables: emailJobs.variables })
+        .from(emailJobs)
+        .where(and(eq(emailJobs.id, input.replacesJobId), eq(emailJobs.gigId, gigId)))
+        .limit(1)
+    : []
+  if (input.replacesJobId && (!replaced || replaced.manual)) {
+    throw createError({ statusCode: 404, statusMessage: 'Automatische e-mail niet gevonden' })
+  }
 
   const files = parts.filter(part => part.name === 'attachments' && part.filename && part.data?.length)
   if (files.length + input.invoiceIds.length > MAX_EMAIL_ATTACHMENTS) {
@@ -91,6 +106,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 422, statusMessage: 'Alleen definitieve facturen van deze gig kunnen worden bijgevoegd' })
   }
 
+  if (replaced) {
+    // Cancel the automatic email first, and only while it has not gone out, so the
+    // client never receives both. A job the worker is sending right now is left alone.
+    const cancelled = await db.update(emailJobs).set({
+      status: 'cancelled',
+      lastError: 'Vervangen door een handmatig verstuurde e-mail',
+      updatedAt: new Date(),
+    }).where(and(eq(emailJobs.id, replaced.id), inArray(emailJobs.status, [...REPLACEABLE_STATUSES]))).returning({ id: emailJobs.id })
+    if (!cancelled.length) {
+      throw createError({ statusCode: 409, statusMessage: 'Deze e-mail is al verstuurd of vervangen' })
+    }
+  }
+
   const storage = getMediaStorage()
   const attachments: EmailAttachment[] = invoiceRows.map(invoice => ({
     kind: 'invoice',
@@ -115,7 +143,8 @@ export default defineEventHandler(async (event) => {
     recipient: input.recipient,
     subject: input.subject,
     body: input.body,
-    variables: { ...details.variables, ...input.variables },
+    // A replaced email keeps its own links and invoice details; gig and client details are current.
+    variables: { ...replaced?.variables, ...details.variables, ...input.variables },
     attachments,
     userId: user.id,
   })
@@ -124,7 +153,13 @@ export default defineEventHandler(async (event) => {
     entityType: 'gig',
     entityId: gigId,
     action: 'email_sent_manually',
-    metadata: { jobId: job.id, templateKey: template.key, recipient: input.recipient, attachments: attachments.map(item => item.filename) },
+    metadata: {
+      jobId: job.id,
+      templateKey: template.key,
+      recipient: input.recipient,
+      attachments: attachments.map(item => item.filename),
+      ...(replaced ? { replacesJobId: replaced.id } : {}),
+    },
   })
 
   try {
