@@ -64,6 +64,25 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 }
 .mobile-header, .backdrop { display: none; }
 
+/* The post editor is a viewport-height workspace: the page itself does not
+   scroll, the editor's panels do. */
+.post-editor-route {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.post-editor-route .admin-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 1.25rem clamp(1rem, 2vw, 1.75rem) 1rem;
+}
+
 @media (max-width: 820px) {
   .mobile-header {
     position: sticky;
@@ -95,20 +114,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
-  .post-editor-route {
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .post-editor-route .mobile-header { display: none; }
-  .post-editor-route .admin-main {
-    width: 100%;
-    max-width: 100vw;
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-    padding: .5rem .6rem 0;
-  }
+  .post-editor-route .admin-main { padding-top: 1rem; }
   .backdrop {
     position: fixed;
     inset: 0;
@@ -116,6 +122,17 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     display: block;
     border: 0;
     background: rgba(0, 0, 0, .58);
+  }
+}
+
+/* Phone post editor: full-screen, with its own header instead of the admin one. */
+@media (max-width: 720px) {
+  .post-editor-route .mobile-header { display: none; }
+  .post-editor-route .admin-main {
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    padding: .5rem .6rem 0;
   }
 }
 </style>

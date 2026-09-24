@@ -851,11 +851,43 @@ function drawSafeArea(context: CanvasRenderingContext2D, design: PostDesign, wid
   context.restore()
 }
 
+export type PostTextBox = { x: number, y: number, width: number, height: number }
+
+/**
+ * Record the bounds of every text run drawn on `context`, so the editor can
+ * make text on the canvas clickable. Drawing itself is unchanged.
+ */
+function recordTextBoxes(context: CanvasRenderingContext2D, boxes: PostTextBox[]) {
+  const fillText = context.fillText.bind(context)
+  const restore = () => {
+    // Drop the instance override so the prototype method applies again.
+    delete (context as Partial<CanvasRenderingContext2D>).fillText
+  }
+  context.fillText = (text: string, x: number, y: number, maxWidth?: number) => {
+    if (text.trim()) {
+      const metrics = context.measureText(text)
+      const width = maxWidth === undefined ? metrics.width : Math.min(metrics.width, maxWidth)
+      const align = context.textAlign
+      const left = align === 'center' ? x - width / 2 : align === 'right' || align === 'end' ? x - width : x
+      boxes.push({
+        x: left,
+        y: y - metrics.actualBoundingBoxAscent,
+        width,
+        height: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+      })
+    }
+    if (maxWidth === undefined) fillText(text, x, y)
+    else fillText(text, x, y, maxWidth)
+  }
+  return restore
+}
+
 export async function renderPostCanvas(
   canvas: HTMLCanvasElement,
   image: ImageBitmap,
   design: PostDesign,
   showGuides = false,
+  textBoxes?: PostTextBox[],
 ) {
   const size = postPresetSize(design.preset)
   canvas.width = size.width
@@ -888,16 +920,21 @@ export async function renderPostCanvas(
     ? await loadCampaignArtwork()
     : null
 
-  if (design.templateKey === 'gig-announcement') {
-    drawGigAnnouncement(context, design, size.width, size.height, palette, artwork)
-  } else if (design.templateKey === 'recap') {
-    drawRecap(context, design, size.width, size.height, palette, artwork)
-  } else if (design.templateKey === 'upcoming-gigs') {
-    drawUpcomingGigs(context, design, size.width, size.height, palette, artwork)
-  } else {
-    drawTemplateOverlay(context, design, size.width, size.height, palette)
-    drawBrand(context, design, size.width, palette)
-    drawGenericTextBlock(context, design, size.width, size.height, palette)
+  const stopRecording = textBoxes ? recordTextBoxes(context, textBoxes) : null
+  try {
+    if (design.templateKey === 'gig-announcement') {
+      drawGigAnnouncement(context, design, size.width, size.height, palette, artwork)
+    } else if (design.templateKey === 'recap') {
+      drawRecap(context, design, size.width, size.height, palette, artwork)
+    } else if (design.templateKey === 'upcoming-gigs') {
+      drawUpcomingGigs(context, design, size.width, size.height, palette, artwork)
+    } else {
+      drawTemplateOverlay(context, design, size.width, size.height, palette)
+      drawBrand(context, design, size.width, palette)
+      drawGenericTextBlock(context, design, size.width, size.height, palette)
+    }
+  } finally {
+    stopRecording?.()
   }
 
   if (showGuides && design.showSafeArea) drawSafeArea(context, design, size.width, size.height)

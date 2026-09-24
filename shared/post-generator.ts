@@ -139,3 +139,176 @@ export function safeAreaInsets(preset: PostPreset) {
   if (preset === 'portrait') return { top: 90, right: 80, bottom: 110, left: 80 }
   return { top: 80, right: 80, bottom: 80, left: 80 }
 }
+
+export const POST_BRAND_PRESETS = ['night', 'mono', 'warm'] as const
+
+export type PostTemplateCategory = 'General' | 'Minimal' | 'Announcements' | 'Recaps' | 'Upcoming gigs'
+
+/** Text fields the editor exposes; each template renders a subset of them. */
+export type PostTextField = 'headline' | 'subline' | 'date' | 'time' | 'location' | 'cta' | 'gigList'
+
+export type PostTemplateInfo = {
+  key: PostTemplateKey
+  label: string
+  description: string
+  category: PostTemplateCategory
+  /** Text fields the renderer draws for this template. */
+  fields: PostTextField[]
+  /** Whether the renderer honours `textAlign` / `textPosition`. */
+  flexibleText: boolean
+  /** What the overlay-strength control changes for this template. */
+  overlay: string
+}
+
+const FLEXIBLE_FIELDS: PostTextField[] = ['headline', 'subline', 'date', 'time', 'location', 'cta']
+
+export const POST_TEMPLATES: PostTemplateInfo[] = [
+  { key: 'gradient', label: 'Gradient', description: 'Atmospheric photo with cinematic fade.', category: 'General', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Cinematic fade behind the text.' },
+  { key: 'poster', label: 'Poster', description: 'Bold framed event poster.', category: 'General', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Darkening wash under the poster frame.' },
+  { key: 'minimal', label: 'Minimal', description: 'Clean editorial panel.', category: 'Minimal', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Opacity of the editorial side panel.' },
+  { key: 'gig-announcement', label: 'Gig announcement', description: 'Bold event promo with date, time, location and CTA.', category: 'Announcements', fields: ['headline', 'subline', 'date', 'time', 'location', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
+  { key: 'recap', label: 'Recap', description: 'High-energy post-event recap inspired by Sneekweek.', category: 'Recaps', fields: ['headline', 'subline', 'date', 'location', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
+  { key: 'upcoming-gigs', label: 'Upcoming gigs', description: 'Planning layout with an editable list of upcoming dates.', category: 'Upcoming gigs', fields: ['headline', 'subline', 'gigList', 'cta'], flexibleText: false, overlay: 'Strength of the campaign texture and glow.' },
+]
+
+export function postTemplateInfo(key: PostTemplateKey) {
+  return POST_TEMPLATES.find(template => template.key === key) ?? POST_TEMPLATES[0]!
+}
+
+export function defaultPostDesign(): PostDesign {
+  return {
+    preset: 'square',
+    templateKey: 'gradient',
+    brandPreset: 'night',
+    headline: 'JOUW AVOND. JOUW SOUND.',
+    subline: 'DJ NightLight · allround DJ',
+    dateText: '',
+    timeText: '',
+    locationText: '',
+    ctaText: '',
+    logoText: 'NIGHTLIGHT',
+    visibility: defaultPostVisibility(),
+    gigItems: defaultPostGigItems(),
+    imageX: 0,
+    imageY: 0,
+    zoom: 1,
+    overlayOpacity: .72,
+    textAlign: 'left',
+    textPosition: 'bottom',
+    showSafeArea: true,
+  }
+}
+
+type TemplateCopyField = 'headline' | 'subline' | 'dateText' | 'timeText' | 'locationText' | 'ctaText'
+
+type TemplateDefaults = {
+  copy: Record<TemplateCopyField, string>
+  hidden: Array<keyof PostFieldVisibility>
+}
+
+// Campaign templates own their composition (story format, centred text) and
+// come with sample copy; the flexible templates only swap the visual style.
+const CAMPAIGN_TEMPLATE_DEFAULTS: Partial<Record<PostTemplateKey, TemplateDefaults>> = {
+  'gig-announcement': {
+    copy: { headline: 'DIT WEEKEND', subline: 'DJ NIGHTLIGHT', dateText: '12 DEC', timeText: '22:00 – 02:00', locationText: 'Groningen', ctaText: 'TOT DAN!' },
+    hidden: ['gigList'],
+  },
+  'recap': {
+    copy: { headline: 'WAT EEN AVOND', subline: 'TERUGBLIK', dateText: '05 AUG', timeText: '', locationText: 'Sneekweek · Sneek', ctaText: 'TOT DE VOLGENDE!' },
+    hidden: ['time', 'gigList'],
+  },
+  'upcoming-gigs': {
+    copy: { headline: 'DECEMBER', subline: 'PLANNING', dateText: '', timeText: '', locationText: '', ctaText: 'TOT OP DE DANSVLOER!' },
+    hidden: ['date', 'time', 'location'],
+  },
+}
+
+/** Copy that only ever came from a default or a template sample. */
+function isSampleCopy(field: TemplateCopyField, value: string) {
+  if (!value.trim()) return true
+  if (defaultPostDesign()[field] === value) return true
+  return Object.values(CAMPAIGN_TEMPLATE_DEFAULTS).some(defaults => defaults.copy[field] === value)
+}
+
+export function clonePostDesign(design: PostDesign): PostDesign {
+  return JSON.parse(JSON.stringify(design)) as PostDesign
+}
+
+/**
+ * Switch template. The template decides the composition (format, visible
+ * fields, text layout); copy the user wrote is kept, while empty fields and
+ * untouched sample copy take the new template's sample copy.
+ */
+export function applyPostTemplate(design: PostDesign, templateKey: PostTemplateKey): PostDesign {
+  const next = clonePostDesign(design)
+  next.templateKey = templateKey
+  const defaults = CAMPAIGN_TEMPLATE_DEFAULTS[templateKey]
+  if (!defaults) return next
+
+  next.preset = 'story'
+  for (const field of Object.keys(defaults.copy) as TemplateCopyField[]) {
+    if (isSampleCopy(field, next[field])) next[field] = defaults.copy[field]
+  }
+  for (const field of Object.keys(next.visibility) as Array<keyof PostFieldVisibility>) {
+    next.visibility[field] = !defaults.hidden.includes(field)
+  }
+  if (templateKey === 'upcoming-gigs' && !next.gigItems.length) next.gigItems = defaultPostGigItems()
+  next.textAlign = 'center'
+  next.textPosition = 'middle'
+  return next
+}
+
+function clampNumber(value: unknown, min: number, max: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : null
+}
+
+function pickEnum<T extends string>(value: unknown, options: readonly T[]) {
+  return typeof value === 'string' && (options as readonly string[]).includes(value) ? value as T : null
+}
+
+/**
+ * Load a design stored with a generated post back into the editor. Stored
+ * metadata is untrusted JSON, so every field is validated and anything
+ * missing or invalid keeps its value from `base`.
+ */
+export function restorePostDesign(base: PostDesign, stored: unknown): PostDesign {
+  const next = clonePostDesign(base)
+  if (!stored || typeof stored !== 'object') return next
+  const source = stored as Record<string, unknown>
+
+  next.preset = pickEnum(source.preset, Object.keys(POST_PRESETS) as PostPreset[]) ?? next.preset
+  next.templateKey = pickEnum(source.templateKey, POST_TEMPLATE_KEYS) ?? next.templateKey
+  next.brandPreset = pickEnum(source.brandPreset, POST_BRAND_PRESETS) ?? next.brandPreset
+  next.textAlign = pickEnum(source.textAlign, ['left', 'center', 'right'] as const) ?? next.textAlign
+  next.textPosition = pickEnum(source.textPosition, ['top', 'middle', 'bottom'] as const) ?? next.textPosition
+
+  for (const field of ['headline', 'subline', 'dateText', 'timeText', 'locationText', 'ctaText', 'logoText'] as const) {
+    if (typeof source[field] === 'string') next[field] = source[field]
+  }
+
+  next.imageX = clampNumber(source.imageX, -1, 1) ?? next.imageX
+  next.imageY = clampNumber(source.imageY, -1, 1) ?? next.imageY
+  next.zoom = clampNumber(source.zoom, 1, 3) ?? next.zoom
+  next.overlayOpacity = clampNumber(source.overlayOpacity, 0, .9) ?? next.overlayOpacity
+
+  if (source.visibility && typeof source.visibility === 'object') {
+    const visibility = source.visibility as Record<string, unknown>
+    for (const field of Object.keys(next.visibility) as Array<keyof PostFieldVisibility>) {
+      if (typeof visibility[field] === 'boolean') next.visibility[field] = visibility[field]
+    }
+  }
+
+  if (Array.isArray(source.gigItems)) {
+    next.gigItems = source.gigItems
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+      .slice(0, 6)
+      .map(item => ({
+        enabled: typeof item.enabled === 'boolean' ? item.enabled : true,
+        dateText: typeof item.dateText === 'string' ? item.dateText : '',
+        title: typeof item.title === 'string' ? item.title : '',
+        locationText: typeof item.locationText === 'string' ? item.locationText : '',
+      }))
+  }
+
+  return next
+}

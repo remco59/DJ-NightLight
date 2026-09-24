@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyPostTemplate,
   coverImageRect,
+  defaultPostDesign,
   defaultPostGigItems,
   defaultPostVisibility,
   postImageDragDelta,
   POST_PRESETS,
   POST_TEMPLATE_KEYS,
+  POST_TEMPLATES,
+  restorePostDesign,
   safeAreaInsets,
 } from '../shared/post-generator'
 
@@ -105,5 +109,96 @@ describe('post generator', () => {
     })
     expect(delta.x).toBe(0)
     expect(delta.y).toBeGreaterThan(0)
+  })
+})
+
+describe('post templates', () => {
+  it('describes every template key exactly once', () => {
+    expect(POST_TEMPLATES.map(template => template.key).sort()).toEqual([...POST_TEMPLATE_KEYS].sort())
+  })
+
+  it('applies a campaign template composition with its sample copy', () => {
+    const next = applyPostTemplate(defaultPostDesign(), 'gig-announcement')
+    expect(next).toMatchObject({
+      templateKey: 'gig-announcement',
+      preset: 'story',
+      headline: 'DIT WEEKEND',
+      timeText: '22:00 – 02:00',
+      textAlign: 'center',
+      textPosition: 'middle',
+    })
+    expect(next.visibility.gigList).toBe(false)
+    expect(next.visibility.time).toBe(true)
+  })
+
+  it('keeps copy the user wrote when switching templates', () => {
+    const design = { ...defaultPostDesign(), headline: 'KONINGSNACHT', locationText: 'Leeuwarden' }
+    const next = applyPostTemplate(design, 'recap')
+    expect(next.headline).toBe('KONINGSNACHT')
+    expect(next.locationText).toBe('Leeuwarden')
+    // Untouched sample copy is replaced by the new template's sample.
+    expect(next.subline).toBe('TERUGBLIK')
+    expect(next.visibility.time).toBe(false)
+  })
+
+  it('replaces sample copy from another template', () => {
+    const gig = applyPostTemplate(defaultPostDesign(), 'gig-announcement')
+    const planning = applyPostTemplate(gig, 'upcoming-gigs')
+    expect(planning.headline).toBe('DECEMBER')
+    expect(planning.ctaText).toBe('TOT OP DE DANSVLOER!')
+    expect(planning.dateText).toBe('')
+  })
+
+  it('only swaps the style for flexible templates and never mutates the input', () => {
+    const design = applyPostTemplate(defaultPostDesign(), 'recap')
+    const snapshot = JSON.stringify(design)
+    const next = applyPostTemplate(design, 'minimal')
+    expect(next).toEqual({ ...design, templateKey: 'minimal' })
+    expect(JSON.stringify(design)).toBe(snapshot)
+  })
+
+  it('keeps edited gig rows when returning to the planning template', () => {
+    const design = defaultPostDesign()
+    design.gigItems = [{ enabled: true, dateText: '01 JAN', title: 'Nieuwjaar', locationText: 'Sneek' }]
+    expect(applyPostTemplate(design, 'upcoming-gigs').gigItems).toEqual(design.gigItems)
+  })
+})
+
+describe('restoring a stored design', () => {
+  it('loads every valid stored field', () => {
+    const stored = applyPostTemplate(defaultPostDesign(), 'recap')
+    stored.imageX = .4
+    stored.zoom = 2
+    stored.brandPreset = 'warm'
+    expect(restorePostDesign(defaultPostDesign(), stored)).toEqual({ ...stored, showSafeArea: true })
+  })
+
+  it('keeps the current value for missing or invalid fields', () => {
+    const base = defaultPostDesign()
+    const restored = restorePostDesign(base, {
+      preset: 'banner',
+      templateKey: 'unknown',
+      headline: 42,
+      zoom: 9,
+      imageY: Number.NaN,
+      visibility: { logo: false, headline: 'yes' },
+      gigItems: [null, { title: 'Only a title' }],
+      showSafeArea: false,
+    })
+    expect(restored.preset).toBe(base.preset)
+    expect(restored.templateKey).toBe(base.templateKey)
+    expect(restored.headline).toBe(base.headline)
+    expect(restored.zoom).toBe(3)
+    expect(restored.imageY).toBe(base.imageY)
+    expect(restored.visibility.logo).toBe(false)
+    expect(restored.visibility.headline).toBe(true)
+    expect(restored.gigItems).toEqual([{ enabled: true, dateText: '', title: 'Only a title', locationText: '' }])
+    // Safe-area guides are a view preference, not part of a stored design.
+    expect(restored.showSafeArea).toBe(true)
+  })
+
+  it('ignores non-object metadata', () => {
+    expect(restorePostDesign(defaultPostDesign(), null)).toEqual(defaultPostDesign())
+    expect(restorePostDesign(defaultPostDesign(), 'design')).toEqual(defaultPostDesign())
   })
 })

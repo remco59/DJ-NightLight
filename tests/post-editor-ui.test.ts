@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { POST_PRESETS } from '../shared/post-generator'
 import {
   clampPostZoom,
+  clampStageZoom,
   fitPreviewSize,
+  hitTestBoxes,
+  POST_STAGE_MAX_ZOOM,
+  POST_STAGE_MIN_ZOOM,
+  snapToCentre,
+  stepStageZoom,
   pinchPostZoom,
   resolveSheetSnap,
   sheetSnapHeights,
@@ -60,5 +66,44 @@ describe('pinch zoom', () => {
     expect(pinchPostZoom(2, 100, 400)).toBe(3)
     expect(pinchPostZoom(1.4, 0, 100)).toBe(1.4)
     expect(clampPostZoom(Number.NaN)).toBe(1)
+  })
+})
+
+describe('desktop stage zoom', () => {
+  it('steps through the presets from any zoom level', () => {
+    expect(stepStageZoom(.5, 1)).toBe(.75)
+    expect(stepStageZoom(.5, -1)).toBe(.33)
+    // A fit scale between presets moves to the neighbouring preset.
+    expect(stepStageZoom(.42, 1)).toBe(.5)
+    expect(stepStageZoom(.42, -1)).toBe(.33)
+  })
+
+  it('stays within the zoom bounds', () => {
+    expect(stepStageZoom(POST_STAGE_MAX_ZOOM, 1)).toBe(POST_STAGE_MAX_ZOOM)
+    expect(stepStageZoom(.25, -1)).toBe(.25)
+    expect(stepStageZoom(.12, -1)).toBe(.12)
+    expect(clampStageZoom(0)).toBe(POST_STAGE_MIN_ZOOM)
+    expect(clampStageZoom(Number.NaN)).toBe(POST_STAGE_MIN_ZOOM)
+    expect(clampStageZoom(10)).toBe(POST_STAGE_MAX_ZOOM)
+  })
+})
+
+describe('canvas direct manipulation', () => {
+  it('snaps crop positions close to the centre', () => {
+    expect(snapToCentre(.02, .05)).toEqual({ value: 0, snapped: true })
+    expect(snapToCentre(-.05, .05)).toEqual({ value: 0, snapped: true })
+    expect(snapToCentre(.3, .05)).toEqual({ value: .3, snapped: false })
+    expect(snapToCentre(.01, 0)).toEqual({ value: .01, snapped: false })
+  })
+
+  it('hit-tests the top-most box containing a point', () => {
+    const boxes = [
+      { x: 0, y: 0, width: 100, height: 100 },
+      { x: 50, y: 50, width: 100, height: 40 },
+    ]
+    expect(hitTestBoxes(boxes, 60, 60)).toBe(1)
+    expect(hitTestBoxes(boxes, 10, 10)).toBe(0)
+    expect(hitTestBoxes(boxes, 200, 200)).toBe(-1)
+    expect(hitTestBoxes(boxes, 155, 60, 8)).toBe(1)
   })
 })
