@@ -173,7 +173,7 @@ onBeforeUnmount(() => {
     <header class="editor-header">
       <div class="editor-title">
         <p class="breadcrumb">Content <Icon name="lucide:chevron-right" aria-hidden="true" /> Post generator</p>
-        <h1>Instagram-postgenerator</h1>
+        <h1>Postgenerator</h1>
         <p class="subtitle">Maak social-afbeeldingen in NightLight-huisstijl, los van een gig.</p>
       </div>
 
