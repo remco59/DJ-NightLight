@@ -3,6 +3,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 import { uploadMediaFile } from '~/utils/media-upload'
 import { mediaKind, type MediaKind } from '~~/shared/video-project'
 import { MOTION_TEMPLATES, type MotionTemplateDefinition, type MotionTemplateKey } from '~~/shared/video-templates'
+import { templateHasSound } from '~~/shared/template-sounds'
 import { filterMediaAssets, formatMediaDuration, type MediaFilter } from '~~/shared/video-editor-ui'
 import { canCancelRender, canRetryRender } from '~~/shared/video-generator'
 import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEditor'
@@ -216,7 +217,7 @@ async function deleteRender(id: string) {
         <button v-for="template in visibleTemplates" :key="template.key" type="button" class="m-template-card" @click="addTemplate(template.key)">
           <span class="template-art" :data-template="template.key" aria-hidden="true" />
           <strong>{{ template.label }}</strong>
-          <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s</small>
+          <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · sound</template></small>
         </button>
       </div>
     </template>
@@ -320,7 +321,7 @@ async function deleteRender(id: string) {
           <span class="template-copy">
             <strong>{{ template.label }}</strong>
             <small>{{ template.description }}</small>
-            <em>{{ template.defaultDurationSeconds }}s</em>
+            <em>{{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · <Icon name="lucide:volume-2" aria-hidden="true" /> sound</template></em>
           </span>
         </button>
       </div>

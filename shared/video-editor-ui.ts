@@ -56,7 +56,8 @@ export type QuickAction = 'split' | 'duplicate' | 'mute' | 'slip' | 'replace' | 
 export function quickActionsFor(item: TimelineItem | null): QuickAction[] {
   if (!item) return ['split']
   const actions: QuickAction[] = ['split', 'duplicate']
-  if (item.type === 'video') actions.push('mute')
+  // On a graphic, mute switches its template sounds.
+  if (item.type === 'video' || item.type === 'graphic') actions.push('mute')
   if (item.type === 'video' || item.type === 'audio') actions.push('slip')
   if (item.type !== 'graphic') actions.push('replace')
   actions.push('close-gaps', 'ripple', 'delete')

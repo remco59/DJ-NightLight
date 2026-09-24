@@ -1,6 +1,6 @@
 import type React from 'react'
 import { createElement as h } from 'react'
-import { AbsoluteFill, Html5Audio, interpolate, Sequence, useCurrentFrame, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
 import type {
   AudioClipItem,
   GraphicItem,
@@ -16,6 +16,7 @@ import { mediaBoxSize } from '../shared/video-canvas'
 import { animationState, animationStyle } from './animation'
 import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
+import { graphicSoundCues, soundFrames, TEMPLATE_SOUNDS } from '../shared/template-sounds'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
 
 // Single source of truth for what a project looks like. The editor mounts
@@ -179,6 +180,28 @@ const AudioItemView: React.FC<{
   })
 }
 
+/**
+ * A graphic's sound effects. Each cue gets its own sequence next to the item's,
+ * so a sound that starts near the end of a graphic rings out instead of being
+ * cut off with it. Sequences span only the sound, which keeps the number of
+ * simultaneously mounted audio tags in the Player low.
+ */
+function graphicSounds(item: GraphicItem, fps: number) {
+  return graphicSoundCues(item).map((cue, index) =>
+    h(
+      Sequence,
+      {
+        key: `${item.id}-sfx-${index}`,
+        from: item.start + cue.frame,
+        durationInFrames: soundFrames(cue.sound, fps),
+        premountFor: fps,
+        name: `sfx ${cue.sound}`,
+      },
+      h(Html5Audio, { src: staticFile(TEMPLATE_SOUNDS[cue.sound].file), volume: cue.volume, pauseWhenBuffering: true }),
+    ),
+  )
+}
+
 export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project, assets }) => {
   const { fps } = useVideoConfig()
   return h(
@@ -189,7 +212,7 @@ export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project,
       return h(
         AbsoluteFill,
         { key: track.id },
-        track.items.map(item =>
+        track.items.flatMap(item => [
           h(
             Sequence,
             {
@@ -212,7 +235,8 @@ export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project,
                     trackMuted: track.muted,
                   }),
           ),
-        ),
+          ...(item.type === 'graphic' && !track.muted ? graphicSounds(item, fps) : []),
+        ]),
       )
     }),
   )

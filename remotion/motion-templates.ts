@@ -4,6 +4,7 @@ import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 're
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import type { LucideIconName } from '../shared/lucide-icons'
 import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
+import { boltTransitionMid, clipRecapSlot, hypeTitlePerLine } from '../shared/template-sounds'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
 import { BODY_FONT_FAMILY, DISPLAY_FONT_FAMILY } from './fonts'
@@ -519,6 +520,9 @@ const EqBars: React.FC<{
   )
 
 // ── Templates ───────────────────────────────────────────────────────────────
+//
+// Each template's hit moments (slams, bolt strikes, flashes, cuts) have sound
+// cues in shared/template-sounds.ts at the same frames; move them together.
 
 const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
@@ -857,7 +861,8 @@ const LowerThird: React.FC<TemplateRenderProps> = ({ item, frame, width, height 
 const HypeTitle: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   const colors = colorsFor(item)
   const lines = listProp(item.templateProps, 'lines').filter(Boolean).slice(0, 4)
-  const perLine = Math.max(4, Math.floor((item.duration * 0.6) / Math.max(1, lines.length)))
+  // Shared with the sound cues so every punch lands on its line.
+  const perLine = hypeTitlePerLine(item.duration, lines.length)
   // Every line hits with a flash and a burst of the logo's arcs.
   const hits = Math.min(lines.length, Math.floor(frame / perLine) + 1)
   const sinceHit = frame - (hits - 1) * perLine
@@ -986,7 +991,7 @@ const ClipRecap: React.FC<TemplateRenderProps> = ({ item, frame, width, height, 
   const colors = colorsFor(item)
   const media = listProp(item.templateProps, 'media').filter(Boolean).slice(0, 5)
   const count = Math.max(1, media.length)
-  const slot = Math.max(1, Math.floor(item.duration / count))
+  const slot = clipRecapSlot(item.duration, count)
   // Each cut hits with a violet flash and the logo's arcs.
   const onCut = media.length > 1 && frame >= slot && frame < slot * count
   const sinceCut = frame % slot
@@ -1224,7 +1229,7 @@ const BoltTransition: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
   const word = textProp(item.templateProps, 'word')
   const duration = Math.max(6, item.duration)
   // The white flash peaks at the midpoint, so a cut placed there is hidden.
-  const mid = Math.floor(duration / 2)
+  const mid = boltTransitionMid(item.duration)
   const tail = Math.max(3, Math.round(duration * 0.35))
   const wash = interpolate(frame, [0, mid - 2, mid, duration - 1], [0, 0.9, 1, 0], clamp)
   const drop = interpolate(frame, [0, Math.max(1, mid - 1)], [-1, 0], { ...clamp, easing: t => t * t })

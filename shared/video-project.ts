@@ -14,6 +14,7 @@ import {
   type TemplateProps,
 } from './video-templates'
 import { MAX_BPM, MIN_BPM, type BeatGrid } from './beat-grid'
+import { DEFAULT_ITEM_SOUND, type ItemSound } from './template-sounds'
 
 // A video project is a small NLE sequence: fixed output settings plus ordered
 // tracks holding timeline items. All times are integer frames at project fps.
@@ -113,6 +114,8 @@ export type GraphicItem = ItemBase & {
   /** Strength (0–1) of the treatment behind the template; undefined uses the template default. */
   backdrop?: number
   backdropStyle?: BackdropStyle
+  /** Template sound effects; unset (projects from before sounds existed) plays none. */
+  sound?: ItemSound
   transform: ItemTransform
 }
 
@@ -216,6 +219,7 @@ export function createGraphicItem(templateKey: MotionTemplateKey, start: number,
     entranceFrames: Math.round(fps * 0.6),
     exitFrames: Math.round(fps * 0.4),
     backdrop: template.defaultBackdrop,
+    sound: { ...DEFAULT_ITEM_SOUND },
     transform: defaultTransform(),
   }
 }
@@ -419,6 +423,10 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     exitFrames: z.number().int().min(0).max(120),
     backdrop: z.number().min(0).max(MAX_BACKDROP).optional(),
     backdropStyle: z.enum(BACKDROP_STYLE_KEYS as [BackdropStyle, ...BackdropStyle[]]).optional(),
+    sound: z.object({
+      enabled: z.boolean(),
+      volume: z.number().min(0).max(1),
+    }).optional(),
     transform: transformSchema,
   }),
 ])
