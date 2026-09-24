@@ -629,34 +629,68 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
     h(RuleFrame, { colors, width: landscape ? 760 : Math.min(width - 60, 940), frame, seed: `gigs-rules-${item.id}`, content: band => bandText(colors, band, headline, reveal(frame, 4, 12)) }),
     textProp(props, 'kicker') ? h(Kicker, { colors, style: { transform: TILT, opacity: reveal(frame, 12, 10) } }, textProp(props, 'kicker')) : null,
   )
+  const dateIcon = iconOf(item, 'dateIcon')
+  const timeIcon = iconOf(item, 'timeIcon')
+  const placeIcon = iconOf(item, 'placeIcon')
+  // Shrink the rows when they would not fit (square canvases, six gigs).
+  const listSpace = landscape ? height - 140 : height - (safe.top - 60) - safe.bottom - 500
+  const k = Math.min(1, listSpace / Math.max(1, gigs.length * 125 + 12))
+  const iconStyle = (size: number): React.CSSProperties => ({ display: 'flex', flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 8px ${colors.glow})`, fontSize: size })
   const list = h(
     NeonPanel,
-    { key: 'list', colors, style: { width: '100%', maxWidth: landscape ? 860 : 900, padding: '6px 46px', opacity: reveal(frame, listAt - 2, 8) } },
-    gigs.map((gig, index) =>
-      h(
+    { key: 'list', colors, style: { width: '100%', maxWidth: landscape ? 860 : 900, padding: `${6 * k}px ${46 * k}px`, opacity: reveal(frame, listAt - 2, 8) } },
+    gigs.map((gig, index) => {
+      const meta = [
+        { key: 'time', icon: timeIcon, text: gig.time },
+        { key: 'place', icon: placeIcon, text: gig.place },
+      ].filter(part => part.text)
+      return h(
         'div',
         {
           key: `${gig.date}-${index}`,
           style: {
             display: 'grid',
-            gridTemplateColumns: '210px 1fr',
-            gap: 24,
+            gridTemplateColumns: `${(dateIcon ? 250 : 205) * k}px 1fr`,
+            gap: 24 * k,
             alignItems: 'center',
-            padding: '20px 0',
+            padding: `${20 * k}px 0`,
             borderBottom: index === gigs.length - 1 ? 'none' : `1px solid ${colors.accent}40`,
             opacity: reveal(frame, listAt + index * 4, 10),
             transform: `translateX(${(1 - reveal(frame, listAt + index * 4, 10)) * 80}px)`,
           },
         },
-        h('div', { style: { ...gradientText(colors, 14), fontSize: 42, lineHeight: 1.05 } }, gig.date),
         h(
           'div',
-          null,
-          h('div', { style: { ...body, fontSize: 40, fontWeight: 900, lineHeight: 1.1 } }, gig.title),
-          gig.place ? h('div', { style: { ...body, fontSize: 28, color: colors.soft, opacity: 0.85, marginTop: 4 } }, gig.place) : null,
+          { style: { display: 'flex', alignItems: 'center', gap: 14 * k } },
+          dateIcon ? h('span', { style: iconStyle(38 * k) }, h(LucideIcon, { name: dateIcon })) : null,
+          h(
+            'div',
+            null,
+            gig.day ? h('div', { style: { ...body, fontSize: 22 * k, fontWeight: 800, letterSpacing: 6 * k, color: colors.soft, lineHeight: 1.1 } }, gig.day) : null,
+            h('div', { style: { ...gradientText(colors, 14), fontSize: 42 * k, lineHeight: 1.05, whiteSpace: 'nowrap' } }, gig.date),
+          ),
         ),
-      ),
-    ),
+        h(
+          'div',
+          { style: { minWidth: 0 } },
+          h('div', { style: { ...body, fontSize: 40 * k, fontWeight: 900, lineHeight: 1.1 } }, gig.title),
+          meta.length
+            ? h(
+                'div',
+                { style: { display: 'flex', flexWrap: 'wrap', columnGap: 26 * k, rowGap: 4 * k, marginTop: 6 * k } },
+                meta.map(part =>
+                  h(
+                    'span',
+                    { key: part.key, style: { ...body, display: 'flex', alignItems: 'center', gap: 10 * k, fontSize: 28 * k, fontWeight: part.key === 'time' ? 800 : 500, color: colors.soft } },
+                    part.icon ? h('span', { style: iconStyle(28 * k) }, h(LucideIcon, { name: part.icon })) : null,
+                    part.text,
+                  ),
+                ),
+              )
+            : null,
+        ),
+      )
+    }),
   )
   const ctaAt = listAt + gigs.length * 4 + 4
   const ctaNode = cta

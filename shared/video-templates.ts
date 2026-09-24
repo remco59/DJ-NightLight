@@ -68,6 +68,21 @@ export const BACKDROP_STYLE_KEYS = Object.keys(BACKDROP_STYLES) as BackdropStyle
 
 export type TemplateFieldKind = 'text' | 'textarea' | 'list' | 'asset' | 'assets' | 'icon'
 
+/**
+ * One input of a structured list row. Rows are stored as "a | b | c"; `slot`
+ * is the position in that string, so new columns can be appended without
+ * breaking saved rows. Columns are listed in the order the editor shows them.
+ */
+export type TemplateColumn = {
+  key: string
+  label: string
+  slot: number
+  maxLength: number
+  placeholder?: string
+  /** Takes the full width of the row in the editor. */
+  wide?: boolean
+}
+
 export type TemplateField = {
   key: string
   label: string
@@ -75,7 +90,18 @@ export type TemplateField = {
   maxLength?: number
   maxItems?: number
   placeholder?: string
+  /** Edit each list row as separate inputs instead of one text field. */
+  columns?: TemplateColumn[]
 }
+
+/** Upcoming Gigs rows: "date | title | place | day | time"; day and time are optional. */
+export const GIG_ROW_COLUMNS: TemplateColumn[] = [
+  { key: 'day', label: 'Day', slot: 3, maxLength: 6, placeholder: 'ZA' },
+  { key: 'date', label: 'Date', slot: 0, maxLength: 12, placeholder: '06 DEC' },
+  { key: 'time', label: 'Time', slot: 4, maxLength: 16, placeholder: '22:00' },
+  { key: 'title', label: 'Title', slot: 1, maxLength: 50, placeholder: 'Club Nova', wide: true },
+  { key: 'place', label: 'Place', slot: 2, maxLength: 50, placeholder: 'Amsterdam', wide: true },
+]
 
 export type TemplateFieldValue = string | string[]
 export type TemplateProps = Record<string, TemplateFieldValue>
@@ -165,7 +191,10 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
     fields: [
       text('headline', 'Headline', 40),
       text('kicker', 'Kicker', 40),
-      { key: 'gigs', label: 'Gigs (date | title | place)', kind: 'list', maxItems: 6, maxLength: 120, placeholder: '06 DEC | Club Nova | Amsterdam' },
+      { key: 'gigs', label: 'Gigs', kind: 'list', maxItems: 6, maxLength: 160, columns: GIG_ROW_COLUMNS },
+      icon('dateIcon', 'Date icon'),
+      icon('timeIcon', 'Time icon'),
+      icon('placeIcon', 'Place icon'),
       text('cta', 'CTA', 60),
       icon('ctaIcon', 'CTA icon'),
     ],
@@ -173,10 +202,13 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       headline: 'BINNENKORT',
       kicker: 'DJ NIGHTLIGHT',
       gigs: [
-        '06 DEC | Eredivisie Dames | VC Sneek',
-        '17 DEC | Tjas & Skeuvel | Collabo',
-        '27 DEC | ’T Portiertje | Uitgeest',
+        '06 DEC | Eredivisie Dames | VC Sneek | ZO | 20:00',
+        '17 DEC | Tjas & Skeuvel | Collabo | DO | 21:00',
+        '27 DEC | ’T Portiertje | Uitgeest | ZO | 16:00',
       ],
+      dateIcon: 'calendar',
+      timeIcon: 'clock',
+      placeIcon: 'map-pin',
       cta: 'BOEK NU',
       ctaIcon: 'arrow-right',
     },
@@ -406,8 +438,28 @@ export function listProp(props: TemplateProps, key: string) {
   return Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
 }
 
-/** Splits an Upcoming Gigs row in the "date | title | place" notation. */
+/**
+ * Splits a structured list row into its columns for editing. Only the single
+ * space either side of each separator is removed, so a value keeps the spaces
+ * someone is still typing.
+ */
+export function splitListRow(row: string, columns: TemplateColumn[]) {
+  const parts = row.split('|').map(part => part.replace(/^ /, '').replace(/ $/, ''))
+  return Object.fromEntries(columns.map(column => [column.key, parts[column.slot] ?? ''])) as Record<string, string>
+}
+
+/** Joins edited columns back into a row; empty trailing columns are dropped. */
+export function joinListRow(values: Record<string, string>, columns: TemplateColumn[]) {
+  const parts: string[] = []
+  for (const column of columns) parts[column.slot] = (values[column.key] || '').replaceAll('|', '/')
+  const filled = Array.from(parts, part => part ?? '')
+  while (filled.length && !filled[filled.length - 1]!.trim()) filled.pop()
+  return filled.join(' | ')
+}
+
+/** Splits an Upcoming Gigs row in the "date | title | place | day | time" notation. */
 export function parseGigRow(row: string) {
-  const [date = '', title = '', place = ''] = row.split('|').map(part => part.trim())
-  return { date, title, place }
+  const values = splitListRow(row, GIG_ROW_COLUMNS)
+  const [date, title, place, day, time] = ['date', 'title', 'place', 'day', 'time'].map(key => values[key]!.trim()) as [string, string, string, string, string]
+  return { date, title, place, day, time }
 }
