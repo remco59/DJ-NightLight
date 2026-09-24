@@ -5,17 +5,17 @@ export const MAX_MEDIA_IMAGE_PIXELS = 80_000_000
 const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export async function createMediaThumbnail(file: File) {
-  if (!file.size) throw new Error('Image file is empty.')
-  if (file.size > MAX_MEDIA_UPLOAD_BYTES) throw new Error('Image must be 15 MB or smaller.')
+  if (!file.size) throw new Error('Het afbeeldingsbestand is leeg.')
+  if (file.size > MAX_MEDIA_UPLOAD_BYTES) throw new Error('Een afbeelding mag maximaal 15 MB zijn.')
   if (file.type && !allowedImageTypes.has(file.type)) {
-    throw new Error('Only JPEG, PNG and WebP images are supported.')
+    throw new Error('Alleen JPEG-, PNG- en WebP-afbeeldingen worden ondersteund.')
   }
 
   let bitmap: ImageBitmap
   try {
     bitmap = await createImageBitmap(file)
   } catch {
-    throw new Error('Could not read this image. Use a valid JPEG, PNG or WebP file.')
+    throw new Error('Deze afbeelding kan niet worden gelezen. Gebruik een geldig JPEG-, PNG- of WebP-bestand.')
   }
 
   try {
@@ -24,7 +24,7 @@ export async function createMediaThumbnail(file: File) {
       || bitmap.height > MAX_MEDIA_IMAGE_DIMENSION
       || bitmap.width * bitmap.height > MAX_MEDIA_IMAGE_PIXELS
     ) {
-      throw new Error('Image dimensions are too large.')
+      throw new Error('De afmetingen van de afbeelding zijn te groot.')
     }
 
     const max = 480
@@ -33,13 +33,13 @@ export async function createMediaThumbnail(file: File) {
     canvas.width = Math.max(1, Math.round(bitmap.width * scale))
     canvas.height = Math.max(1, Math.round(bitmap.height * scale))
     const context = canvas.getContext('2d')
-    if (!context) throw new Error('Could not create image thumbnail.')
+    if (!context) throw new Error('Thumbnail maken is niet gelukt.')
 
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
 
     return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('Could not encode image thumbnail.')),
+        blob => blob ? resolve(blob) : reject(new Error('Thumbnail opslaan is niet gelukt.')),
         'image/jpeg',
         .82,
       )
@@ -68,7 +68,7 @@ function loadMediaElement<T extends HTMLMediaElement>(element: T, url: string) {
     element.preload = 'auto'
     element.muted = true
     element.onloadeddata = () => resolve(element)
-    element.onerror = () => reject(new Error('This browser cannot decode this file. Use H.264 MP4 / WebM video or MP3 / M4A / WAV audio.'))
+    element.onerror = () => reject(new Error('Deze browser kan dit bestand niet afspelen. Gebruik H.264 MP4- / WebM-video of MP3- / M4A- / WAV-audio.'))
     element.src = url
   })
 }
@@ -111,7 +111,7 @@ export function audioPeaks(channel: Float32Array, buckets = 240) {
 export async function probeTimedMedia(file: File): Promise<TimedMediaProbe> {
   const isAudio = file.type.startsWith('audio/') || /\.(mp3|m4a|wav|ogg)$/i.test(file.name)
   const limit = isAudio ? MAX_AUDIO_UPLOAD_BYTES : MAX_VIDEO_UPLOAD_BYTES
-  if (file.size > limit) throw new Error(isAudio ? 'Audio must be 50 MB or smaller.' : 'Video must be 250 MB or smaller.')
+  if (file.size > limit) throw new Error(isAudio ? 'Audio mag maximaal 50 MB zijn.' : 'Een video mag maximaal 250 MB zijn.')
 
   const url = URL.createObjectURL(file)
   try {
@@ -133,7 +133,7 @@ export async function probeTimedMedia(file: File): Promise<TimedMediaProbe> {
     }
 
     const video = await loadMediaElement(document.createElement('video'), url)
-    if (!Number.isFinite(video.duration) || !video.videoWidth) throw new Error('This browser cannot decode this video. Use an H.264 MP4 or WebM file.')
+    if (!Number.isFinite(video.duration) || !video.videoWidth) throw new Error('Deze browser kan deze video niet afspelen. Gebruik een H.264 MP4- of WebM-bestand.')
     const thumbnail = await videoPoster(video).catch(() => null)
     return {
       metadata: {

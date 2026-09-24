@@ -91,7 +91,7 @@ describe('gig template data', () => {
 
   it('labels gigs in the picker and marks private ones', () => {
     expect(gigPickerLabel(gig())).toBe('ZAT 05 DEC · Eredivisie Dames · Club Nova, Amsterdam')
-    expect(gigPickerLabel(gig({ publicVisibility: false }))).toMatch(/\(not public\)$/)
+    expect(gigPickerLabel(gig({ publicVisibility: false }))).toMatch(/\(niet publiek\)$/)
   })
 
   it('skips gigs that have ended', () => {

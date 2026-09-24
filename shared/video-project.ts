@@ -26,8 +26,8 @@ export const VIDEO_PROJECT_VERSION = 1
 export const VIDEO_ASPECTS = {
   '9:16': { label: '9:16 Reel', width: 1080, height: 1920 },
   '4:5': { label: '4:5 Feed', width: 1080, height: 1350 },
-  '1:1': { label: '1:1 Square', width: 1080, height: 1080 },
-  '16:9': { label: '16:9 Landscape', width: 1920, height: 1080 },
+  '1:1': { label: '1:1 Vierkant', width: 1080, height: 1080 },
+  '16:9': { label: '16:9 Liggend', width: 1920, height: 1080 },
 } as const
 export type VideoAspect = keyof typeof VIDEO_ASPECTS
 export const VIDEO_ASPECT_KEYS = Object.keys(VIDEO_ASPECTS) as VideoAspect[]

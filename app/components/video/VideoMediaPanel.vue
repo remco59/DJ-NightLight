@@ -6,6 +6,7 @@ import { MOTION_TEMPLATES, type MotionTemplateDefinition, type MotionTemplateKey
 import { templateHasSound } from '~~/shared/template-sounds'
 import { filterMediaAssets, formatMediaDuration, type MediaFilter } from '~~/shared/video-editor-ui'
 import { canCancelRender, canRetryRender } from '~~/shared/video-generator'
+import { labelFor, renderStatusLabels } from '~~/shared/labels'
 import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEditor'
 
 // Desktop shows media / templates / exports in the side panel. The mobile
@@ -105,12 +106,12 @@ async function uploadFiles(files: FileList | File[] | null | undefined) {
   message.value = ''
   try {
     for (const [index, file] of list.entries()) {
-      uploading.value = `Uploading ${index + 1}/${list.length}: ${file.name}`
+      uploading.value = `Uploaden ${index + 1}/${list.length}: ${file.name}`
       await uploadMediaFile(file)
     }
     emit('refreshMedia')
   } catch (error) {
-    message.value = error instanceof Error && !('data' in error) ? error.message : apiErrorMessage(error, 'Upload failed.')
+    message.value = error instanceof Error && !('data' in error) ? error.message : apiErrorMessage(error, 'Uploaden mislukt.')
   } finally {
     uploading.value = ''
     if (fileInput.value) fileInput.value.value = ''
@@ -122,27 +123,27 @@ async function retryRender(id: string) {
     await $fetch(`/api/admin/post-generator/video/${id}/retry`, { method: 'POST' })
     emit('refreshRenders')
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Retry failed.')
+    message.value = apiErrorMessage(error, 'Opnieuw proberen mislukt.')
   }
 }
 
 async function cancelRender(id: string) {
-  if (!confirm('Cancel this export?')) return
+  if (!confirm('Deze export annuleren?')) return
   try {
     await $fetch(`/api/admin/post-generator/video/${id}/cancel`, { method: 'POST' })
     emit('refreshRenders')
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Cancel failed.')
+    message.value = apiErrorMessage(error, 'Annuleren mislukt.')
   }
 }
 
 async function deleteRender(id: string) {
-  if (!confirm('Delete this export?')) return
+  if (!confirm('Deze export verwijderen?')) return
   try {
     await $fetch(`/api/admin/post-generator/video/${id}`, { method: 'DELETE' })
     emit('refreshRenders')
   } catch (error) {
-    message.value = apiErrorMessage(error, 'Delete failed.')
+    message.value = apiErrorMessage(error, 'Verwijderen mislukt.')
   }
 }
 </script>
@@ -161,21 +162,21 @@ async function deleteRender(id: string) {
     <!-- Mobile: tap-first media library -->
     <template v-if="props.mobile && props.tab === 'media'">
       <header class="panel-head">
-        <h2>{{ props.replaceKind ? 'Replace media' : 'Media' }}</h2>
+        <h2>{{ props.replaceKind ? 'Media vervangen' : 'Media' }}</h2>
         <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
-          <Icon name="lucide:upload" aria-hidden="true" /><span>{{ uploading ? 'Uploading…' : 'Upload media' }}</span>
+          <Icon name="lucide:upload" aria-hidden="true" /><span>{{ uploading ? 'Uploaden…' : 'Media uploaden' }}</span>
         </button>
       </header>
       <p v-if="props.replaceKind" class="replace-hint">
-        <span>Tap a {{ props.replaceKind }} to swap it into the selected clip.</span>
-        <button type="button" @click="emit('cancelReplace')">Cancel</button>
+        <span>Tik op {{ props.replaceKind === 'image' ? 'een afbeelding' : props.replaceKind === 'audio' ? 'audio' : 'een video' }} om die in de gekozen clip te zetten.</span>
+        <button type="button" @click="emit('cancelReplace')">Annuleren</button>
       </p>
-      <div v-else class="chips scroll-x" role="group" aria-label="Filter media">
+      <div v-else class="chips scroll-x" role="group" aria-label="Media filteren">
         <button v-for="option in (['all', 'video', 'image', 'audio'] as const)" :key="option" type="button" :class="{ active: filter === option }" :aria-pressed="filter === option" @click="filter = option">
-          {{ option === 'all' ? 'All' : option === 'video' ? 'Video' : option === 'image' ? 'Images' : 'Audio' }}
+          {{ option === 'all' ? 'Alle' : option === 'video' ? 'Video' : option === 'image' ? 'Afbeeldingen' : 'Audio' }}
         </button>
       </div>
-      <input v-model="search" class="search" type="search" placeholder="Search media…" aria-label="Search media">
+      <input v-model="search" class="search" type="search" placeholder="Zoek media…" aria-label="Media zoeken">
       <p v-if="uploading" class="hint">{{ uploading }}</p>
       <p v-if="message" class="message">{{ message }}</p>
       <div class="m-media-grid">
@@ -192,14 +193,14 @@ async function deleteRender(id: string) {
           <button
             class="m-add"
             type="button"
-            :aria-label="props.replaceKind ? `Replace with ${assetTitle(asset)}` : `Add ${assetTitle(asset)} at playhead`"
+            :aria-label="props.replaceKind ? `Vervangen door ${assetTitle(asset)}` : `${assetTitle(asset)} toevoegen bij de afspeelpositie`"
             @click="addAsset(asset)"
           >
             <Icon :name="props.replaceKind ? 'lucide:replace' : 'lucide:plus'" aria-hidden="true" />
           </button>
           <span class="m-title">{{ assetTitle(asset) }}</span>
         </article>
-        <p v-if="!filteredMedia.length" class="empty">No media found. Upload clips, photos or music to start.</p>
+        <p v-if="!filteredMedia.length" class="empty">Geen media gevonden. Upload clips, foto’s of muziek om te beginnen.</p>
       </div>
     </template>
 
@@ -207,17 +208,17 @@ async function deleteRender(id: string) {
     <template v-else-if="props.mobile && props.tab === 'templates'">
       <header class="panel-head">
         <h2>Templates</h2>
-        <small class="hint">Tap to add at the playhead</small>
+        <small class="hint">Tik om toe te voegen bij de afspeelpositie</small>
       </header>
-      <div class="chips scroll-x" role="group" aria-label="Template category">
-        <button type="button" :class="{ active: templateCategory === 'all' }" :aria-pressed="templateCategory === 'all'" @click="templateCategory = 'all'">All</button>
+      <div class="chips scroll-x" role="group" aria-label="Templatecategorie">
+        <button type="button" :class="{ active: templateCategory === 'all' }" :aria-pressed="templateCategory === 'all'" @click="templateCategory = 'all'">Alle</button>
         <button v-for="category in templateCategories" :key="category" type="button" :class="{ active: templateCategory === category }" :aria-pressed="templateCategory === category" @click="templateCategory = category">{{ category }}</button>
       </div>
       <div class="m-template-rail">
         <button v-for="template in visibleTemplates" :key="template.key" type="button" class="m-template-card" @click="addTemplate(template.key)">
           <span class="template-art" :data-template="template.key" aria-hidden="true" />
           <strong>{{ template.label }}</strong>
-          <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · sound</template></small>
+          <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · geluid</template></small>
         </button>
       </div>
     </template>
@@ -227,37 +228,37 @@ async function deleteRender(id: string) {
       <header class="panel-head">
         <h2>Audio</h2>
         <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
-          <Icon name="lucide:plus" aria-hidden="true" /><span>{{ uploading ? 'Uploading…' : 'Upload audio' }}</span>
+          <Icon name="lucide:plus" aria-hidden="true" /><span>{{ uploading ? 'Uploaden…' : 'Audio uploaden' }}</span>
         </button>
       </header>
       <button v-if="selectedAudio" type="button" class="selected-audio" @click="emit('openEdit')">
         <Icon name="lucide:sliders-horizontal" aria-hidden="true" />
-        <span><strong>{{ editor.mediaById.value.get(selectedAudio.assetId)?.title || 'Selected audio' }}</strong><small>Volume {{ Math.round(selectedAudio.volume * 100) }}% · adjust volume and fades</small></span>
+        <span><strong>{{ editor.mediaById.value.get(selectedAudio.assetId)?.title || 'Gekozen audio' }}</strong><small>Volume {{ Math.round(selectedAudio.volume * 100) }}% · pas volume en fades aan</small></span>
         <Icon name="lucide:chevron-right" aria-hidden="true" />
       </button>
-      <input v-model="search" class="search" type="search" placeholder="Search audio…" aria-label="Search audio">
+      <input v-model="search" class="search" type="search" placeholder="Zoek audio…" aria-label="Audio zoeken">
       <p v-if="uploading" class="hint">{{ uploading }}</p>
       <p v-if="message" class="message">{{ message }}</p>
       <ul class="m-audio-list">
         <li v-for="asset in audioMedia" :key="asset.id">
-          <button type="button" class="m-add round" :aria-label="`Add ${assetTitle(asset)} at playhead`" @click="addAsset(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
+          <button type="button" class="m-add round" :aria-label="`${assetTitle(asset)} toevoegen bij de afspeelpositie`" @click="addAsset(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
           <span class="audio-copy"><strong>{{ assetTitle(asset) }}</strong><small>{{ formatMediaDuration(asset.durationMs) }}</small></span>
           <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
         </li>
-        <li v-if="!audioMedia.length" class="empty">No audio yet. Upload music, sound effects or a voice-over.</li>
+        <li v-if="!audioMedia.length" class="empty">Nog geen audio. Upload muziek, geluidseffecten of een voice-over.</li>
       </ul>
     </template>
 
     <template v-else-if="props.tab === 'media'">
       <header class="panel-head">
-        <h2>Media Library</h2>
+        <h2>Mediabibliotheek</h2>
       </header>
       <div class="chips" role="tablist">
         <button v-for="option in (['all', 'video', 'image', 'audio'] as const)" :key="option" type="button" :class="{ active: filter === option }" @click="filter = option">
-          {{ option === 'all' ? 'All' : option === 'video' ? 'Videos' : option === 'image' ? 'Images' : 'Audio' }}
+          {{ option === 'all' ? 'Alle' : option === 'video' ? 'Video’s' : option === 'image' ? 'Afbeeldingen' : 'Audio' }}
         </button>
       </div>
-      <input v-model="search" class="search" type="search" placeholder="Search media…">
+      <input v-model="search" class="search" type="search" placeholder="Zoek media…">
       <button
         class="upload"
         type="button"
@@ -267,7 +268,7 @@ async function deleteRender(id: string) {
         @drop.prevent="uploadFiles($event.dataTransfer?.files)"
       >
         <Icon name="lucide:upload" aria-hidden="true" />
-        <span>{{ uploading || 'Upload media' }}</span>
+        <span>{{ uploading || 'Media uploaden' }}</span>
       </button>
       <p v-if="message" class="message">{{ message }}</p>
 
@@ -278,7 +279,7 @@ async function deleteRender(id: string) {
           class="media-card"
           :class="mediaKind(asset.mimeType)"
           draggable="true"
-          :title="`${asset.title || asset.originalFilename} — drag to the timeline or double-click to add at the playhead`"
+          :title="`${asset.title || asset.originalFilename} — sleep naar de timeline of dubbelklik om toe te voegen bij de afspeelpositie`"
           @dragstart="dragMedia($event, asset)"
           @dblclick="editor.addMedia(asset)"
         >
@@ -293,18 +294,18 @@ async function deleteRender(id: string) {
           <span v-if="asset.durationMs" class="duration">{{ formatDuration(asset.durationMs) }}</span>
           <footer>
             <span>{{ asset.title || asset.originalFilename }}</span>
-            <button type="button" title="Add at playhead" @click="editor.addMedia(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
+            <button type="button" title="Toevoegen bij de afspeelpositie" @click="editor.addMedia(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
           </footer>
         </article>
-        <p v-if="!filteredMedia.length" class="empty">No media yet. Upload clips, photos or music to start.</p>
+        <p v-if="!filteredMedia.length" class="empty">Nog geen media. Upload clips, foto’s of muziek om te beginnen.</p>
       </div>
     </template>
 
     <template v-else-if="props.tab === 'templates'">
       <header class="panel-head">
-        <h2>Motion templates</h2>
+        <h2>Motion-templates</h2>
       </header>
-      <p class="hint">Drag onto the Graphics track or click to add at the playhead. Edit text and style in the inspector.</p>
+      <p class="hint">Sleep naar de Graphics-track of klik om toe te voegen bij de afspeelpositie. Tekst en stijl pas je aan in de inspector.</p>
       <div v-for="[category, templates] in templateGroups" :key="category" class="template-group">
         <h3>{{ category }}</h3>
         <button
@@ -321,7 +322,7 @@ async function deleteRender(id: string) {
           <span class="template-copy">
             <strong>{{ template.label }}</strong>
             <small>{{ template.description }}</small>
-            <em>{{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · <Icon name="lucide:volume-2" aria-hidden="true" /> sound</template></em>
+            <em>{{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · <Icon name="lucide:volume-2" aria-hidden="true" /> geluid</template></em>
           </span>
         </button>
       </div>
@@ -330,28 +331,28 @@ async function deleteRender(id: string) {
     <template v-else>
       <header class="panel-head">
         <h2>Exports</h2>
-        <button type="button" class="with-icon ghost" @click="emit('refreshRenders')"><Icon name="lucide:refresh-cw" aria-hidden="true" />Refresh</button>
+        <button type="button" class="with-icon ghost" @click="emit('refreshRenders')"><Icon name="lucide:refresh-cw" aria-hidden="true" />Vernieuwen</button>
       </header>
-      <p class="hint">Every export renders a saved snapshot of this project with the render worker.</p>
+      <p class="hint">Elke export rendert een opgeslagen momentopname van dit project met de renderworker.</p>
       <p v-if="message" class="message">{{ message }}</p>
       <ol class="renders">
         <li v-for="render in state.renders" :key="render.id" :class="render.status">
           <div class="render-row">
-            <strong>{{ new Date(render.createdAt).toLocaleString() }}</strong>
-            <span class="status">{{ render.status }}</span>
+            <strong>{{ new Date(render.createdAt).toLocaleString('nl-NL') }}</strong>
+            <span class="status">{{ labelFor(renderStatusLabels, render.status) }}</span>
           </div>
           <small>{{ render.width }}<IconTimes />{{ render.height }} · {{ render.durationSeconds }}s<template v-if="render.renderEngine"> · {{ render.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template></small>
           <div v-if="render.status === 'rendering' || render.status === 'queued'" class="progress"><span :style="{ width: `${render.progress}%` }" /></div>
           <p v-if="render.error && render.status === 'failed'" class="message">{{ render.error }}</p>
           <div class="render-actions">
-            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
-            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" download><Icon name="lucide:download" aria-hidden="true" />Download</a>
-            <button v-if="canRetryRender(render.status)" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
-            <button v-if="canCancelRender(render.status)" class="with-icon" type="button" @click="cancelRender(render.id)"><Icon name="lucide:circle-x" aria-hidden="true" />Cancel</button>
-            <button v-if="render.status !== 'rendering'" class="with-icon danger" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
+            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />MP4 openen</a>
+            <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" download><Icon name="lucide:download" aria-hidden="true" />Downloaden</a>
+            <button v-if="canRetryRender(render.status)" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Opnieuw proberen</button>
+            <button v-if="canCancelRender(render.status)" class="with-icon" type="button" @click="cancelRender(render.id)"><Icon name="lucide:circle-x" aria-hidden="true" />Annuleren</button>
+            <button v-if="render.status !== 'rendering'" class="with-icon danger" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button>
           </div>
         </li>
-        <li v-if="!state.renders.length" class="empty">No exports yet.</li>
+        <li v-if="!state.renders.length" class="empty">Nog geen exports.</li>
       </ol>
     </template>
   </section>

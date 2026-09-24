@@ -271,7 +271,7 @@ function dropFreshFile(event: DragEvent) {
   const file = event.dataTransfer?.files?.[0]
   if (!file) return
   if (!POST_IMAGE_TYPES.includes(file.type)) {
-    message.value = 'Choose a JPEG, PNG or WebP image.'
+    message.value = 'Kies een JPEG-, PNG- of WebP-afbeelding.'
     return
   }
   freshFile.value = file
@@ -448,7 +448,7 @@ async function toggleFullscreen() {
 
     <p v-if="message" class="message">
       {{ message }}
-      <a v-if="lastRenderedUrl" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">Download PNG</a>
+      <a v-if="lastRenderedUrl" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">PNG downloaden</a>
     </p>
 
     <div ref="workspaceRef" class="workspace">
@@ -490,8 +490,8 @@ async function toggleFullscreen() {
           >
             <span class="step-number">1</span>
             <span class="section-title">
-              <strong>Source photo</strong>
-              <small>Choose or upload a photo</small>
+              <strong>Bronfoto</strong>
+              <small>Kies of upload een foto</small>
             </span>
             <Icon class="chevron" :name="isSectionOpen(1) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
@@ -514,8 +514,8 @@ async function toggleFullscreen() {
             >
               <span class="upload-icon"><Icon name="lucide:upload" aria-hidden="true" /></span>
               <span>
-                <strong>{{ freshFile ? freshFile.name : 'Upload new' }}</strong>
-                <small>{{ freshFile ? 'Ready to add to the media library' : 'Choose file or drag & drop' }}</small>
+                <strong>{{ freshFile ? freshFile.name : 'Nieuwe uploaden' }}</strong>
+                <small>{{ freshFile ? 'Klaar om aan de mediabibliotheek toe te voegen' : 'Kies een bestand of sleep het hierheen' }}</small>
               </span>
             </button>
 
@@ -526,18 +526,18 @@ async function toggleFullscreen() {
               :disabled="busy === 'upload'"
               @click="uploadFreshSource"
             >
-              {{ busy === 'upload' ? 'Uploading…' : 'Add photo to library' }}
+              {{ busy === 'upload' ? 'Uploaden…' : 'Foto aan bibliotheek toevoegen' }}
             </button>
 
             <div class="search-wrap">
               <Icon class="search-icon" name="lucide:search" aria-hidden="true" />
-              <input v-model="sourceSearch" type="search" placeholder="Search media library…">
-              <button v-if="sourceSearch" type="button" aria-label="Clear search" @click="sourceSearch = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
+              <input v-model="sourceSearch" type="search" placeholder="Zoek in de mediabibliotheek…">
+              <button v-if="sourceSearch" type="button" aria-label="Zoekopdracht wissen" @click="sourceSearch = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
 
             <div class="media-meta">
-              <span>Media library</span>
-              <small>{{ filteredAssets.length }} photos</small>
+              <span>Mediabibliotheek</span>
+              <small>{{ filteredAssets.length }} foto’s</small>
             </div>
 
             <div class="media-grid">
@@ -559,7 +559,7 @@ async function toggleFullscreen() {
               <div class="subheading-row">
                 <strong>Positie</strong>
                 <button class="with-icon reset-position" type="button" @click="resetImagePosition">
-                  <Icon name="lucide:rotate-ccw" aria-hidden="true" />Reset
+                  <Icon name="lucide:rotate-ccw" aria-hidden="true" />Herstellen
                 </button>
               </div>
               <p class="photo-adjust-hint"><Icon name="lucide:move" aria-hidden="true" /> Sleep de foto om te verplaatsen, knijp om te zoomen.</p>
@@ -588,8 +588,8 @@ async function toggleFullscreen() {
           >
             <span class="step-number">2</span>
             <span class="section-title">
-              <strong>Format & templates</strong>
-              <small>Choose a format and visual style</small>
+              <strong>Formaat & templates</strong>
+              <small>Kies een formaat en visuele stijl</small>
             </span>
             <Icon class="chevron" :name="isSectionOpen(2) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
@@ -607,7 +607,7 @@ async function toggleFullscreen() {
                 <span class="format-icon" :data-format="key" />
                 <span>
                   <strong>{{ preset.label }}</strong>
-                  <small>{{ key === 'square' ? 'Square' : key === 'portrait' ? 'Portrait' : 'Story' }}</small>
+                  <small>{{ key === 'square' ? 'Vierkant' : key === 'portrait' ? 'Staand' : 'Story' }}</small>
                   <em>{{ preset.width }}<IconTimes />{{ preset.height }}</em>
                 </span>
               </button>
@@ -615,7 +615,7 @@ async function toggleFullscreen() {
 
             <div class="subheading-row">
               <strong>Templates</strong>
-              <small>Visual style</small>
+              <small>Visuele stijl</small>
             </div>
 
             <div class="mobile-only template-chips" role="group" aria-label="Template categorie">
@@ -703,8 +703,8 @@ async function toggleFullscreen() {
           >
             <span class="step-number">3</span>
             <span class="section-title">
-              <strong class="mobile-labelable" data-mobile-label="Tekst">Copy</strong>
-              <small class="mobile-labelable" data-mobile-label="Bewerk de tekst op je post.">Add text and brand details</small>
+              <strong class="mobile-labelable" data-mobile-label="Tekst">Tekst</strong>
+              <small class="mobile-labelable" data-mobile-label="Bewerk de tekst op je post.">Voeg tekst en merkgegevens toe</small>
             </span>
             <Icon class="chevron" :name="isSectionOpen(3) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
@@ -714,14 +714,14 @@ async function toggleFullscreen() {
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:type" aria-hidden="true" /></span>
                 <span class="field-name">
-                  <span class="field-label mobile-labelable" data-mobile-label="Titel">Headline</span>
+                  <span class="field-label mobile-labelable" data-mobile-label="Titel">Kop</span>
                   <small class="mobile-only field-hint">De hoofdtekst op je post.</small>
                 </span>
                 <span class="field-actions">
                   <small>{{ design.headline.length }}/180</small>
                   <label class="field-toggle">
                     <input v-model="design.visibility.headline" type="checkbox">
-                    <span>{{ design.visibility.headline ? 'Shown' : 'Hidden' }}</span>
+                    <span>{{ design.visibility.headline ? 'Zichtbaar' : 'Verborgen' }}</span>
                   </label>
                 </span>
               </div>
@@ -732,14 +732,14 @@ async function toggleFullscreen() {
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:align-left" aria-hidden="true" /></span>
                 <span class="field-name">
-                  <span class="field-label mobile-labelable" data-mobile-label="Subtitel">Subline</span>
+                  <span class="field-label mobile-labelable" data-mobile-label="Subtitel">Ondertitel</span>
                   <small class="mobile-only field-hint">Een extra regel onder de headline.</small>
                 </span>
                 <span class="field-actions">
                   <small>{{ design.subline.length }}/260</small>
                   <label class="field-toggle">
                     <input v-model="design.visibility.subline" type="checkbox">
-                    <span>{{ design.visibility.subline ? 'Shown' : 'Hidden' }}</span>
+                    <span>{{ design.visibility.subline ? 'Zichtbaar' : 'Verborgen' }}</span>
                   </label>
                 </span>
               </div>
@@ -751,12 +751,12 @@ async function toggleFullscreen() {
                 <div class="label-row">
                   <span class="mobile-only field-icon"><Icon name="lucide:calendar" aria-hidden="true" /></span>
                   <span class="field-name">
-                    <span class="field-label mobile-labelable" data-mobile-label="Datum">Date</span>
+                    <span class="field-label mobile-labelable" data-mobile-label="Datum">Datum</span>
                     <small class="mobile-only field-hint">Wanneer het is.</small>
                   </span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.date" type="checkbox">
-                    <span>{{ design.visibility.date ? 'Shown' : 'Hidden' }}</span>
+                    <span>{{ design.visibility.date ? 'Zichtbaar' : 'Verborgen' }}</span>
                   </label>
                 </div>
                 <input v-model="design.dateText" maxlength="160" placeholder="12 DEC" :disabled="!design.visibility.date">
@@ -766,12 +766,12 @@ async function toggleFullscreen() {
                 <div class="label-row">
                   <span class="mobile-only field-icon"><Icon name="lucide:clock" aria-hidden="true" /></span>
                   <span class="field-name">
-                    <span class="field-label mobile-labelable" data-mobile-label="Tijd">Time</span>
+                    <span class="field-label mobile-labelable" data-mobile-label="Tijd">Tijd</span>
                     <small class="mobile-only field-hint">Begin- en eindtijd.</small>
                   </span>
                   <label class="field-toggle">
                     <input v-model="design.visibility.time" type="checkbox">
-                    <span>{{ design.visibility.time ? 'Shown' : 'Hidden' }}</span>
+                    <span>{{ design.visibility.time ? 'Zichtbaar' : 'Verborgen' }}</span>
                   </label>
                 </div>
                 <input v-model="design.timeText" maxlength="80" placeholder="22:00 – 02:00" :disabled="!design.visibility.time">
@@ -782,12 +782,12 @@ async function toggleFullscreen() {
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:map-pin" aria-hidden="true" /></span>
                 <span class="field-name">
-                  <span class="field-label mobile-labelable" data-mobile-label="Locatie">Location</span>
+                  <span class="field-label mobile-labelable" data-mobile-label="Locatie">Locatie</span>
                   <small class="mobile-only field-hint">Laat zien waar het is.</small>
                 </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.location" type="checkbox">
-                  <span>{{ design.visibility.location ? 'Shown' : 'Hidden' }}</span>
+                  <span>{{ design.visibility.location ? 'Zichtbaar' : 'Verborgen' }}</span>
                 </label>
               </div>
               <input v-model="design.locationText" maxlength="160" placeholder="Groningen" :disabled="!design.visibility.location">
@@ -802,21 +802,21 @@ async function toggleFullscreen() {
                 </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.cta" type="checkbox">
-                  <span>{{ design.visibility.cta ? 'Shown' : 'Hidden' }}</span>
+                  <span>{{ design.visibility.cta ? 'Zichtbaar' : 'Verborgen' }}</span>
                 </label>
               </div>
-              <input v-model="design.ctaText" maxlength="180" placeholder="SEE YOU THERE!" :disabled="!design.visibility.cta">
+              <input v-model="design.ctaText" maxlength="180" placeholder="TOT DAN!" :disabled="!design.visibility.cta">
             </div>
 
             <div v-if="design.templateKey === 'upcoming-gigs'" class="gig-list-editor">
               <div class="gig-list-head">
                 <div>
-                  <strong>Upcoming gigs</strong>
-                  <small>Edit up to six rows for the planning template.</small>
+                  <strong>Aankomende gigs</strong>
+                  <small>Bewerk maximaal zes regels voor het planningstemplate.</small>
                 </div>
                 <label class="field-toggle">
                   <input v-model="design.visibility.gigList" type="checkbox">
-                  <span>{{ design.visibility.gigList ? 'Shown' : 'Hidden' }}</span>
+                  <span>{{ design.visibility.gigList ? 'Zichtbaar' : 'Verborgen' }}</span>
                 </label>
               </div>
 
@@ -827,7 +827,7 @@ async function toggleFullscreen() {
                       <input v-model="item.enabled" type="checkbox" :disabled="!design.visibility.gigList">
                       <span>Gig {{ index + 1 }}</span>
                     </label>
-                    <button type="button" :disabled="design.gigItems.length <= 1" @click="removeGigItem(index)">Remove</button>
+                    <button type="button" :disabled="design.gigItems.length <= 1" @click="removeGigItem(index)">Verwijderen</button>
                   </div>
                   <div class="gig-row-fields">
                     <input v-model="item.dateText" maxlength="40" placeholder="06 DEC" :disabled="!design.visibility.gigList || !item.enabled">
@@ -851,19 +851,19 @@ async function toggleFullscreen() {
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:tag" aria-hidden="true" /></span>
                 <span class="field-name">
-                  <span class="field-label">Brand label</span>
+                  <span class="field-label">Merklabel</span>
                   <small class="mobile-only field-hint">Het merklabel bovenin.</small>
                 </span>
                 <label class="field-toggle">
                   <input v-model="design.visibility.logo" type="checkbox">
-                  <span>{{ design.visibility.logo ? 'Shown' : 'Hidden' }}</span>
+                  <span>{{ design.visibility.logo ? 'Zichtbaar' : 'Verborgen' }}</span>
                 </label>
               </div>
               <input v-model="design.logoText" maxlength="80" :disabled="!design.visibility.logo">
             </div>
 
             <div class="field brand-field">
-              <span>Brand preset</span>
+              <span>Huisstijl</span>
               <select v-model="design.brandPreset">
                 <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
               </select>
@@ -880,8 +880,8 @@ async function toggleFullscreen() {
           >
             <span class="step-number">4</span>
             <span class="section-title">
-              <strong>Crop & styling</strong>
-              <small>Adjust framing, position and visual style</small>
+              <strong>Uitsnede & stijl</strong>
+              <small>Pas de uitsnede, positie en visuele stijl aan</small>
             </span>
             <Icon class="chevron" :name="isSectionOpen(4) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
           </button>
@@ -892,11 +892,11 @@ async function toggleFullscreen() {
               <input v-model.number="design.zoom" type="range" min="1" max="3" step=".02">
             </label>
             <label class="crop-control">
-              <span>Horizontal position</span>
+              <span>Horizontale positie</span>
               <input v-model.number="design.imageX" type="range" min="-1" max="1" step=".02">
             </label>
             <label class="crop-control">
-              <span>Vertical position</span>
+              <span>Verticale positie</span>
               <input v-model.number="design.imageY" type="range" min="-1" max="1" step=".02">
             </label>
             <label>
@@ -953,19 +953,19 @@ async function toggleFullscreen() {
             </div>
             <div class="two text-layout">
               <label>
-                <span>Text alignment</span>
+                <span>Tekstuitlijning</span>
                 <select v-model="design.textAlign">
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
+                  <option value="left">Links</option>
+                  <option value="center">Midden</option>
+                  <option value="right">Rechts</option>
                 </select>
               </label>
               <label>
-                <span>Text position</span>
+                <span>Tekstpositie</span>
                 <select v-model="design.textPosition">
-                  <option value="top">Top</option>
-                  <option value="middle">Middle</option>
-                  <option value="bottom">Bottom</option>
+                  <option value="top">Boven</option>
+                  <option value="middle">Midden</option>
+                  <option value="bottom">Onder</option>
                 </select>
               </label>
             </div>
@@ -979,12 +979,12 @@ async function toggleFullscreen() {
         <section ref="previewShellRef" class="preview-shell">
           <div ref="previewToolbarRef" class="preview-toolbar">
             <div>
-              <strong>Preview</strong>
-              <small>See how your post will look on Instagram.</small>
+              <strong>Voorbeeld</strong>
+              <small>Zie hoe je post eruitziet op Instagram.</small>
             </div>
 
             <div class="preview-tools">
-              <select v-model="design.preset" aria-label="Preview format">
+              <select v-model="design.preset" aria-label="Formaat voorbeeld">
                 <option v-for="[key, preset] in presetOptions" :key="key" :value="key">
                   Instagram {{ preset.label }}
                 </option>
@@ -992,9 +992,9 @@ async function toggleFullscreen() {
               <label class="toggle-control">
                 <input v-model="design.showSafeArea" type="checkbox">
                 <span class="toggle-track"><span /></span>
-                <small>Safe area</small>
+                <small>Veilige zone</small>
               </label>
-              <button class="icon-button" type="button" title="Fullscreen preview" @click="toggleFullscreen">⤢</button>
+              <button class="icon-button" type="button" title="Voorbeeld op volledig scherm" @click="toggleFullscreen">⤢</button>
             </div>
           </div>
 
@@ -1004,7 +1004,7 @@ async function toggleFullscreen() {
                 ref="canvasRef"
                 class="preview-canvas"
                 :class="{ dragging: dragState.active }"
-                title="Drag the photo to reposition it"
+                title="Sleep de foto om hem te verplaatsen"
                 @pointerdown="startPreviewDrag"
                 @pointermove="movePreviewDrag"
                 @pointerup="endPreviewDrag"
@@ -1013,13 +1013,13 @@ async function toggleFullscreen() {
               />
               <span class="drag-hint" :class="{ active: dragState.active }">
                 <Icon name="lucide:move" aria-hidden="true" />
-                {{ dragState.active ? 'Repositioning photo' : 'Drag photo to reposition' }}
+                {{ dragState.active ? 'Foto verplaatsen' : 'Sleep de foto om te verplaatsen' }}
               </span>
             </div>
             <div v-else class="no-source">
               <span class="empty-icon"><Icon name="lucide:image" aria-hidden="true" /></span>
-              <strong>Choose a source photo</strong>
-              <small>Select a media-library image or upload a fresh photo.</small>
+              <strong>Kies een bronfoto</strong>
+              <small>Kies een afbeelding uit de mediabibliotheek of upload een nieuwe foto.</small>
             </div>
           </div>
 
@@ -1029,7 +1029,7 @@ async function toggleFullscreen() {
 
     </div>
 
-    <nav class="mobile-tool-tabs" aria-label="Editor tools">
+    <nav class="mobile-tool-tabs" aria-label="Editorgereedschap">
       <button
         v-for="tab in mobileTabs"
         :key="tab.key"

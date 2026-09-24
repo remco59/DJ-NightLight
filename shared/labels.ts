@@ -74,6 +74,14 @@ export const emailJobStatusLabels: Labels = {
   suppressed: 'Uitgeschakeld',
 }
 
+export const renderStatusLabels: Labels = {
+  queued: 'In wachtrij',
+  rendering: 'Renderen',
+  completed: 'Klaar',
+  failed: 'Mislukt',
+  cancelled: 'Geannuleerd',
+}
+
 // Email templates are seeded with English names; show them by key instead.
 export const emailTemplateLabels: Labels = {
   lead_acknowledgement: 'Bevestiging aanvraag',
