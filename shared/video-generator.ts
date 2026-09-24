@@ -21,8 +21,22 @@ export type VideoMotionPreset = typeof VIDEO_MOTION_PRESETS[number]
 export const VIDEO_BRAND_PRESETS = ['night', 'mono', 'warm'] as const
 export type VideoBrandPreset = typeof VIDEO_BRAND_PRESETS[number]
 
-export const VIDEO_RENDER_STATUSES = ['queued', 'rendering', 'completed', 'failed'] as const
+export const VIDEO_RENDER_STATUSES = ['queued', 'rendering', 'completed', 'failed', 'cancelled'] as const
 export type VideoRenderStatus = typeof VIDEO_RENDER_STATUSES[number]
+
+// A job can be cancelled until it has produced a video. That includes failed
+// jobs and jobs left in 'rendering' by a worker that died, so a stuck export
+// can always be cleared from the queue.
+export const CANCELLABLE_RENDER_STATUSES = ['queued', 'rendering', 'failed'] as const satisfies readonly VideoRenderStatus[]
+export const RETRYABLE_RENDER_STATUSES = ['failed', 'cancelled'] as const satisfies readonly VideoRenderStatus[]
+
+export function canCancelRender(status: string) {
+  return (CANCELLABLE_RENDER_STATUSES as readonly string[]).includes(status)
+}
+
+export function canRetryRender(status: string) {
+  return (RETRYABLE_RENDER_STATUSES as readonly string[]).includes(status)
+}
 
 export type VideoTextAlign = 'left' | 'center' | 'right'
 export type VideoTextPosition = 'top' | 'middle' | 'bottom'

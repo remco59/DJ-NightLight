@@ -4,6 +4,7 @@ import { uploadMediaFile } from '~/utils/media-upload'
 import { mediaKind, type MediaKind } from '~~/shared/video-project'
 import { MOTION_TEMPLATES, type MotionTemplateDefinition, type MotionTemplateKey } from '~~/shared/video-templates'
 import { filterMediaAssets, formatMediaDuration, type MediaFilter } from '~~/shared/video-editor-ui'
+import { canCancelRender, canRetryRender } from '~~/shared/video-generator'
 import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEditor'
 
 // Desktop shows media / templates / exports in the side panel. The mobile
@@ -121,6 +122,16 @@ async function retryRender(id: string) {
     emit('refreshRenders')
   } catch (error) {
     message.value = apiErrorMessage(error, 'Retry failed.')
+  }
+}
+
+async function cancelRender(id: string) {
+  if (!confirm('Cancel this export?')) return
+  try {
+    await $fetch(`/api/admin/post-generator/video/${id}/cancel`, { method: 'POST' })
+    emit('refreshRenders')
+  } catch (error) {
+    message.value = apiErrorMessage(error, 'Cancel failed.')
   }
 }
 
@@ -334,7 +345,8 @@ async function deleteRender(id: string) {
           <div class="render-actions">
             <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" target="_blank" rel="noopener"><Icon name="lucide:play" aria-hidden="true" />Open MP4</a>
             <a v-if="render.videoUrl" class="with-icon" :href="render.videoUrl" download><Icon name="lucide:download" aria-hidden="true" />Download</a>
-            <button v-if="render.status === 'failed'" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
+            <button v-if="canRetryRender(render.status)" class="with-icon" type="button" @click="retryRender(render.id)"><Icon name="lucide:rotate-ccw" aria-hidden="true" />Retry</button>
+            <button v-if="canCancelRender(render.status)" class="with-icon" type="button" @click="cancelRender(render.id)"><Icon name="lucide:circle-x" aria-hidden="true" />Cancel</button>
             <button v-if="render.status !== 'rendering'" class="with-icon danger" type="button" @click="deleteRender(render.id)"><Icon name="lucide:trash-2" aria-hidden="true" />Delete</button>
           </div>
         </li>

@@ -5,6 +5,8 @@ import {
   VIDEO_OUTPUT,
   VIDEO_RENDER_STATUSES,
   VIDEO_TEMPLATES,
+  canCancelRender,
+  canRetryRender,
   defaultVideoGigItems,
   defaultVideoVisibility,
   videoDurationFrames,
@@ -54,6 +56,11 @@ describe('video generator', () => {
   })
 
   it('uses explicit persistent queue states', () => {
-    expect(VIDEO_RENDER_STATUSES).toEqual(['queued', 'rendering', 'completed', 'failed'])
+    expect(VIDEO_RENDER_STATUSES).toEqual(['queued', 'rendering', 'completed', 'failed', 'cancelled'])
+  })
+
+  it('cancels any render that has not produced a video, including failed ones', () => {
+    expect(VIDEO_RENDER_STATUSES.filter(canCancelRender)).toEqual(['queued', 'rendering', 'failed'])
+    expect(VIDEO_RENDER_STATUSES.filter(canRetryRender)).toEqual(['failed', 'cancelled'])
   })
 })

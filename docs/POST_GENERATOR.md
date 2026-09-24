@@ -59,7 +59,9 @@ Export saves the project, then queues a `video_render_jobs` row that stores a sn
 
 The web application does not render MP4 frames itself. The separate `render-worker` Compose service claims jobs with PostgreSQL `FOR UPDATE SKIP LOCKED`, renders them with Remotion, updates progress, and writes the MP4 into the persistent generated-storage volume. Project media is served to the headless browser from a loopback-only HTTP server inside the worker, which streams files from the uploads volume with byte-range support instead of inlining them as data URIs.
 
-Interrupted renders that have not updated for 30 minutes are returned to the queue when the worker starts. Failed jobs can be retried from the UI.
+Interrupted renders that have not updated for 30 minutes are returned to the queue when the worker starts. Failed and cancelled jobs can be retried from the UI.
+
+Any job that has not produced a video (queued, rendering or failed, including legacy single-image videos) can be cancelled from the editor's Exports panel or the render history. The worker polls a rendering job's status every two seconds and aborts Remotion once it is no longer `rendering`, deleting the partial MP4; a job whose worker has died is simply marked `cancelled`. The worker never overwrites a cancelled job as completed or failed.
 
 ### Deployment
 
