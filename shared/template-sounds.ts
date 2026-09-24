@@ -48,9 +48,14 @@ export function boltTransitionMid(duration: number) {
   return Math.floor(Math.max(6, duration) / 2)
 }
 
+/** Hype Title: frames between one line punching in and the next. */
+export function hypeTitlePerLine(duration: number, lineCount: number) {
+  return Math.max(4, Math.floor((duration * 0.6) / Math.max(1, lineCount)))
+}
+
 /** Hype Title: the frame each line punches in. */
 export function hypeTitleLineFrames(duration: number, lineCount: number) {
-  const perLine = Math.max(4, Math.floor((duration * 0.6) / Math.max(1, lineCount)))
+  const perLine = hypeTitlePerLine(duration, lineCount)
   return Array.from({ length: lineCount }, (_, index) => index * perLine)
 }
 
@@ -68,20 +73,42 @@ function listCount(props: CueContext['props'], key: string, max: number) {
 
 // Frames point at the moment a hit lands: a slam's overshoot starts bright and
 // settles over a few frames, so the sound starts with it rather than after it.
+// They mirror the timing in remotion/motion-templates.ts: when a template's
+// animation changes, move its cues with it. The bolt frames follow from the
+// logo builders there: RuleFrame strikes at start + 12, RingBadge at
+// start + 14, WordmarkBuild at start + 4 + 10 × step, EmblemBuild at
+// start + 8 + 10 × step.
 const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[]> = {
-  'gig-announcement': () => [{ sound: 'punch', frame: 4, volume: 0.8 }],
+  // First headline word slams at 12; the wordmark's bolt (step 1.5) at 19.
+  'gig-announcement': () => [
+    { sound: 'punch', frame: 12, volume: 0.8 },
+    { sound: 'zap', frame: 19, volume: 0.7 },
+  ],
   'recap-intro': () => [{ sound: 'impact', frame: 4, volume: 0.9 }],
-  'upcoming-gigs': () => [],
-  'logo-sting': () => [{ sound: 'impact', frame: 8 }],
-  'lower-third': () => [],
+  // The headline's rule frame strikes its bolt.
+  'upcoming-gigs': () => [{ sound: 'zap', frame: 12, volume: 0.7 }],
+  // The wordmark (step 1) strikes its bolt with the white flash.
+  'logo-sting': () => [
+    { sound: 'impact', frame: 14 },
+    { sound: 'zap', frame: 15, volume: 0.7 },
+  ],
+  // The emblem (step 0.6) strikes its bolt.
+  'lower-third': () => [{ sound: 'zap', frame: 14, volume: 0.6 }],
   'hype-title': ({ duration, props }) =>
     hypeTitleLineFrames(duration, listCount(props, 'lines', 4)).map(frame => ({ sound: 'punch', frame })),
-  'photo-drop': () => [{ sound: 'punch', frame: 5, volume: 0.8 }],
+  // The polaroid lands with a flash at 12, then the bolt pins it at 14.
+  'photo-drop': () => [
+    { sound: 'punch', frame: 12, volume: 0.8 },
+    { sound: 'zap', frame: 14, volume: 0.7 },
+  ],
   'clip-recap': ({ duration, props }) => {
     const count = listCount(props, 'media', 5)
     const slot = clipRecapSlot(duration, count)
     // The first shot is covered by the entrance; every later cut gets a hit.
-    return Array.from({ length: Math.max(0, count - 1) }, (_, index) => ({ sound: 'punch' as const, frame: (index + 1) * slot, volume: 0.7 }))
+    const cuts: CueSpec[] = Array.from({ length: Math.max(0, count - 1) }, (_, index) => ({ sound: 'punch', frame: (index + 1) * slot, volume: 0.7 }))
+    // The title's rule frame (start 4) strikes its bolt.
+    const title = typeof props.title === 'string' && props.title ? [{ sound: 'zap' as const, frame: 16, volume: 0.6 }] : []
+    return [...cuts, ...title]
   },
   'neon-logo-reveal': () => [
     { sound: 'impact', frame: 26 },

@@ -59,10 +59,11 @@ describe('graphic sound cues', () => {
 
   it('adds entrance and exit sounds for whip, zoom and glitch', () => {
     const item = graphic('lower-third', { duration: 120, entrance: 'whip', exit: 'whip', exitFrames: 12 })
-    expect(frames(item)).toEqual([['whoosh', 0], ['whoosh', 108]])
-    expect(frames({ ...item, entrance: 'glitch', exit: 'fade' })).toEqual([['glitch', 0]])
-    expect(frames({ ...item, entrance: 'fade', exit: 'none' })).toEqual([])
-    expect(frames({ ...item, entranceFrames: 0, exitFrames: 0 })).toEqual([])
+    const bolt = ['zap', 14]
+    expect(frames(item)).toEqual([['whoosh', 0], bolt, ['whoosh', 108]])
+    expect(frames({ ...item, entrance: 'glitch', exit: 'fade' })).toEqual([['glitch', 0], bolt])
+    expect(frames({ ...item, entrance: 'fade', exit: 'none' })).toEqual([bolt])
+    expect(frames({ ...item, entranceFrames: 0, exitFrames: 0 })).toEqual([bolt])
   })
 
   it('follows the Bolt Transition flash when the item is resized', () => {
@@ -82,6 +83,8 @@ describe('graphic sound cues', () => {
     const media = ['a', 'b', 'c'].map(letter => `${letter}1111111-1111-4111-8111-111111111111`)
     expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: '', media } }))).toEqual([['punch', 30], ['punch', 60]])
     expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: '', media: [] } }))).toEqual([])
+    // A title adds its rule frame's bolt strike.
+    expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: 'GISTER', media } }))).toEqual([['zap', 16], ['punch', 30], ['punch', 60]])
   })
 
   it('drops cues past a shortened item and scales by the item volume', () => {
@@ -91,12 +94,15 @@ describe('graphic sound cues', () => {
     expect(zap!.volume).toBeCloseTo(0.35)
   })
 
-  it('gives every template with a hit moment a sound', () => {
-    const silent = Object.values(MOTION_TEMPLATES).filter(template => !templateHasSound(template)).map(template => template.key)
-    // Its rows fade in calmly; there is no hit to sound.
-    expect(silent).toEqual(['upcoming-gigs'])
-    // Lower Third has no hit of its own but whips in and out.
-    expect(templateHasSound(MOTION_TEMPLATES['lower-third'])).toBe(true)
+  it('gives every template a sound', () => {
+    // Since the Electric restyle every template strikes a bolt or slams something in.
+    expect(Object.values(MOTION_TEMPLATES).filter(template => !templateHasSound(template)).map(template => template.key)).toEqual([])
+  })
+
+  it('follows the restyled logo builds', () => {
+    expect(frames(graphic('logo-sting'))).toEqual([['whoosh', 0], ['impact', 14], ['zap', 15]])
+    expect(frames(graphic('gig-announcement'))).toEqual([['punch', 12], ['zap', 19]])
+    expect(frames(graphic('photo-drop'))).toEqual([['punch', 12], ['zap', 14]])
   })
 })
 

@@ -25,7 +25,9 @@ import {
   MOTION_ACCENTS,
   MOTION_TEMPLATES,
   iconProp,
+  joinListRow,
   listProp,
+  splitListRow,
   textProp,
   type TemplateField,
 } from '~~/shared/video-templates'
@@ -204,6 +206,13 @@ function setListRow(field: TemplateField, index: number, value: string) {
   setField(field, rows)
 }
 
+/** Updates one column of a structured list row. */
+function setListColumn(field: TemplateField, index: number, key: string, value: string) {
+  if (!field.columns) return
+  const columns = splitListRow(listValue(field)[index] || '', field.columns)
+  setListRow(field, index, joinListRow({ ...columns, [key]: value }, field.columns))
+}
+
 function addListRow(field: TemplateField, value = '') {
   setField(field, [...listValue(field), value].slice(0, field.maxItems || 6))
 }
@@ -336,6 +345,17 @@ const assetTitle = computed(() => {
             </select>
             <span class="icon-preview" aria-hidden="true"><Icon v-if="iconValue(field)" :name="`lucide:${iconValue(field)}`" /></span>
           </label>
+          <div v-else-if="field.kind === 'list' && field.columns" class="stack column-list">
+            <span>{{ field.label }}</span>
+            <div v-for="(row, index) in listValue(field)" :key="index" class="column-row">
+              <label v-for="column in field.columns" :key="column.key" :class="{ wide: column.wide }">
+                <span>{{ column.label }}</span>
+                <input type="text" :maxlength="column.maxLength" :placeholder="column.placeholder" :value="splitListRow(row, field.columns)[column.key]" @input="setListColumn(field, index, column.key, ($event.target as HTMLInputElement).value)">
+              </label>
+              <button type="button" class="ghost remove-row" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Remove</button>
+            </div>
+            <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Add row</button>
+          </div>
           <div v-else-if="field.kind === 'list'" class="stack">
             <span>{{ field.label }}</span>
             <div v-for="(row, index) in listValue(field)" :key="index" class="list-row">
@@ -666,8 +686,41 @@ output {
   gap: .3rem;
 }
 
-.media-list {
+.media-list, .column-list {
   gap: .7rem;
+}
+
+/* One card per structured row: short columns share a line, wide ones span it. */
+.column-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .4rem;
+  padding: .55rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 10px;
+  background: var(--ve-bg);
+}
+
+.column-row label {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.column-row label > span {
+  color: var(--ve-muted);
+  font-size: .72rem;
+}
+
+.column-row .wide {
+  grid-column: 1 / -1;
+}
+
+.column-row .remove-row {
+  color: var(--ve-muted);
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 .media-list-row {
