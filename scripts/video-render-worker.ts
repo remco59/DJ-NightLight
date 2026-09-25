@@ -10,6 +10,7 @@ import { makeCancelSignal, renderMedia, selectComposition, type CancelSignal } f
 import type { VideoDesign } from '../shared/video-generator'
 import { RENDER_ENGINE_LABELS, parseRenderEngineSetting, resolveRenderEngine } from '../shared/render-engine'
 import { detectRenderCapabilities, renderOptionsFor, type RenderCapabilities } from './render-engine'
+import { ensureVideoRenderProxy } from './render-proxy'
 import {
   collectProjectAssetIds,
   parseVideoProject,
@@ -45,6 +46,11 @@ type JobRow = {
 
 type AssetRow = {
   storage_key: string
+  mime_type: string
+}
+
+type ServedAsset = {
+  path: string
   mime_type: string
 }
 
@@ -148,7 +154,7 @@ function watchForCancellation(jobId: string) {
 // HTTP. Large clips are streamed from local storage with byte-range support
 // instead of being inlined as data URIs. Only assets of the running job are
 // exposed, on the loopback interface.
-const servedAssets = new Map<string, AssetRow>()
+const servedAssets = new Map<string, ServedAsset>()
 let assetServer: Server | null = null
 let assetServerOrigin = ''
 let capabilityTimer: ReturnType<typeof setInterval> | null = null
@@ -162,7 +168,7 @@ async function startAssetServer() {
         response.writeHead(404).end()
         return
       }
-      const path = safePath(uploadsRoot, asset.storage_key)
+      const path = asset.path
       const { size } = await stat(path)
       const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range || '')
       const headers = { 'content-type': asset.mime_type, 'accept-ranges': 'bytes', 'access-control-allow-origin': '*' }
@@ -235,6 +241,7 @@ async function renderComposition(job: JobRow, serveUrl: string, cancelSignal: Ca
       inputProps,
       ...browser,
       ...engineOptions,
+      delayRenderTimeoutInMilliseconds: 60_000,
       cancelSignal,
       onProgress: ({ progress }) => {
         const percent = Math.max(2, Math.min(99, Math.round(progress * 100)))
@@ -281,10 +288,21 @@ async function renderProjectJob(job: JobRow, serveUrl: string, cancelSignal: Can
 
   const assets: ProjectAssetMap = {}
   for (const row of rows) {
-    servedAssets.set(row.id, row)
+    const sourcePath = safePath(uploadsRoot, row.storage_key)
+    const proxyPath = row.mime_type.startsWith('video/')
+      ? await ensureVideoRenderProxy({
+          assetId: row.id,
+          sourcePath,
+          generatedRoot,
+          log: message => console.log(message),
+        })
+      : null
+    const mimeType = proxyPath ? 'video/mp4' : row.mime_type
+
+    servedAssets.set(row.id, { path: proxyPath || sourcePath, mime_type: mimeType })
     assets[row.id] = {
       src: `${assetServerOrigin}/assets/${row.id}`,
-      mimeType: row.mime_type,
+      mimeType,
       width: row.width,
       height: row.height,
       durationMs: row.duration_ms,
