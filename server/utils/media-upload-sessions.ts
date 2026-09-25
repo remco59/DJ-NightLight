@@ -39,7 +39,7 @@ function chunkPath(id: string, index: number) {
 
 export async function cleanupStaleMediaUploadSessions() {
   const root = uploadsRoot()
-  let ids: string[] = []
+  let ids: string[]
   try {
     ids = await readdir(root)
   } catch {
