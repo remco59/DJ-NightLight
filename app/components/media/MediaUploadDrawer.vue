@@ -3,10 +3,9 @@ import { mediaKindFromMime, humanizeFilename } from '~~/shared/media'
 import { collectMediaTags, mediaDisplayTitle, type MediaCollectionSummary, type MediaLibraryItem } from '~~/shared/media-library'
 import {
   ACCEPTED_MEDIA_TYPES,
-  buildMediaUploadForm,
+  uploadMediaFile,
   checkMediaFile,
   fetchRemoteMedia,
-  sendMediaUpload,
   type MediaUploadFields,
 } from '~/utils/media-upload'
 
@@ -171,8 +170,7 @@ async function uploadOne(item: QueueItem, index: number, total: number) {
   item.progress = 0
   item.error = ''
   try {
-    const form = await buildMediaUploadForm(item.file, fieldsFor(item, index, total))
-    const result = await sendMediaUpload(form, (fraction) => { item.progress = fraction })
+    const result = await uploadMediaFile(item.file, fieldsFor(item, index, total), (fraction) => { item.progress = fraction })
     item.assetId = result.asset.id
     item.progress = 1
     item.status = 'done'

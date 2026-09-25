@@ -28,7 +28,9 @@ If a host requires a specific numeric identity, set `NIGHTLIGHT_UID` and `NIGHTL
 
 ## File safety
 
-Uploads are limited to 15 MB. NightLight does not trust the browser MIME type or extension: it inspects the file signature and dimensions and accepts JPEG, PNG and WebP only. Oversized pixel dimensions are rejected. Generated thumbnails are capped separately.
+Images are limited to 15 MB, audio to 50 MB and video to 250 MB. NightLight does not trust the browser MIME type or extension: it inspects file signatures before storing media. Images accept JPEG, PNG and WebP and oversized pixel dimensions are rejected. Video/audio accept the supported containers defined in `shared/media.ts`. Generated thumbnails are capped separately.
+
+Uploads above 64 MB automatically use resumable 8 MB chunks. Chunk sessions live temporarily under `.chunk-uploads` inside the uploads volume, expire after 24 hours, and are removed after successful finalization. This keeps every HTTP request comfortably below common reverse-proxy/CDN body-size limits while preserving the 250 MB product limit for video.
 
 Files receive random storage keys and are written atomically. User-supplied filenames are metadata only and never become filesystem paths.
 
