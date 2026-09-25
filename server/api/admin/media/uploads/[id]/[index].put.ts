@@ -1,10 +1,11 @@
+import type { H3Event } from 'h3'
 import { requireStaff } from '../../../../../utils/require-staff'
 import {
   readMediaUploadSession,
   writeMediaUploadChunk,
 } from '../../../../../utils/media-upload-sessions'
 
-async function readChunk(event: Parameters<typeof defineEventHandler>[0] extends (event: infer E) => unknown ? E : never, maxBytes: number) {
+async function readChunk(event: H3Event, maxBytes: number) {
   const chunks: Buffer[] = []
   let total = 0
   for await (const value of event.node.req) {
