@@ -1,3 +1,5 @@
+import { shouldChunkMediaUpload } from '~~/shared/media-upload'
+
 export const MAX_MEDIA_UPLOAD_BYTES = 15 * 1024 * 1024
 export const MAX_MEDIA_IMAGE_DIMENSION = 12000
 export const MAX_MEDIA_IMAGE_PIXELS = 80_000_000
@@ -148,9 +150,141 @@ export async function probeTimedMedia(file: File): Promise<TimedMediaProbe> {
   }
 }
 
+type ChunkUploadSession = {
+  uploadId: string
+  byteSize: number
+  chunkSize: number
+  chunkCount: number
+  uploaded: number[]
+}
+
+function resumableStorageKey(file: File) {
+  return `nightlight:media-upload:${file.name}:${file.size}:${file.lastModified}`
+}
+
+async function responseError(response: Response, fallback: string) {
+  try {
+    const body = await response.json() as { statusMessage?: string, message?: string }
+    return new Error(body.statusMessage || body.message || fallback)
+  } catch {
+    return new Error(fallback)
+  }
+}
+
+async function thumbnailAsBase64(blob: Blob | null) {
+  if (!blob) return null
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  const stride = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += stride) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(bytes.length, offset + stride)))
+  }
+  return btoa(binary)
+}
+
+async function chunkSession(file: File): Promise<ChunkUploadSession> {
+  const key = resumableStorageKey(file)
+  const stored = localStorage.getItem(key)
+  if (stored) {
+    try {
+      const response = await fetch(`/api/admin/media/uploads/${encodeURIComponent(stored)}`)
+      if (response.ok) return await response.json() as ChunkUploadSession
+    } catch {
+      // Fall through to a new session; an interrupted network should not make uploads unusable.
+    }
+    localStorage.removeItem(key)
+  }
+
+  const response = await fetch('/api/admin/media/uploads', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, byteSize: file.size }),
+  })
+  if (!response.ok) throw await responseError(response, `Upload starten mislukt (HTTP ${response.status}).`)
+  const session = await response.json() as ChunkUploadSession
+  localStorage.setItem(key, session.uploadId)
+  return session
+}
+
+async function putChunk(session: ChunkUploadSession, index: number, blob: Blob) {
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(
+        `/api/admin/media/uploads/${encodeURIComponent(session.uploadId)}/${index}`,
+        { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: blob },
+      )
+      if (response.ok) return
+      lastError = await responseError(response, `Chunk ${index + 1} uploaden mislukt (HTTP ${response.status}).`)
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Netwerkfout tijdens chunk-upload.')
+    }
+  }
+  throw lastError || new Error('Chunk uploaden mislukt.')
+}
+
+async function uploadMediaFileChunked(
+  file: File,
+  fields: MediaUploadFields,
+  onProgress?: (fraction: number) => void,
+) {
+  const probe = await probeTimedMedia(file)
+  const session = await chunkSession(file)
+  if (session.byteSize !== file.size) throw new Error('De hervatte upload hoort bij een ander bestand.')
+
+  const uploaded = new Set(session.uploaded)
+  let uploadedBytes = [...uploaded].reduce((sum, index) => {
+    const start = index * session.chunkSize
+    return sum + Math.max(0, Math.min(file.size, start + session.chunkSize) - start)
+  }, 0)
+  onProgress?.(uploadedBytes / file.size)
+
+  for (let index = 0; index < session.chunkCount; index += 1) {
+    if (uploaded.has(index)) continue
+    const start = index * session.chunkSize
+    const end = Math.min(file.size, start + session.chunkSize)
+    await putChunk(session, index, file.slice(start, end))
+    uploadedBytes += end - start
+    onProgress?.(Math.min(0.98, uploadedBytes / file.size * 0.98))
+  }
+
+  const response = await fetch(
+    `/api/admin/media/uploads/${encodeURIComponent(session.uploadId)}/complete`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: fields.title ?? file.name.replace(/\.[^.]+$/, ''),
+        altText: fields.altText || '',
+        tags: fields.tags || '',
+        gigId: fields.gigId || '',
+        venueId: fields.venueId || '',
+        parentAssetId: fields.parentAssetId || '',
+        variantLabel: fields.variantLabel || '',
+        collectionIds: fields.collectionIds || [],
+        source: fields.source || '',
+        sourceUrl: fields.sourceUrl || '',
+        metadata: probe.metadata,
+        thumbnailBase64: await thumbnailAsBase64(probe.thumbnail),
+      }),
+    },
+  )
+  if (!response.ok) throw await responseError(response, `Upload afronden mislukt (HTTP ${response.status}).`)
+  localStorage.removeItem(resumableStorageKey(file))
+  onProgress?.(1)
+  return await response.json() as { asset: { id: string } }
+}
+
 /** Uploads any supported image, video or audio file to the media library. */
-export async function uploadMediaFile(file: File, fields: MediaUploadFields = {}) {
-  return await $fetch<{ asset: { id: string } }>('/api/admin/media', { method: 'POST', body: await buildMediaUploadForm(file, fields) })
+export async function uploadMediaFile(
+  file: File,
+  fields: MediaUploadFields = {},
+  onProgress?: (fraction: number) => void,
+) {
+  const problem = checkMediaFile(file)
+  if (problem) throw new Error(problem)
+  if (shouldChunkMediaUpload(file.size)) return await uploadMediaFileChunked(file, fields, onProgress)
+  return await sendMediaUpload<{ asset: { id: string } }>(await buildMediaUploadForm(file, fields), onProgress)
 }
 
 export type MediaUploadFields = {
