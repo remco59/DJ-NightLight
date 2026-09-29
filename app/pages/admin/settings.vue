@@ -180,6 +180,8 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
     <AdminRenderSettings/>
 
     <AdminIntegrationsSettings/>
+
+    <AdminUpdateSettings/>
   </div>
 </template>
 
