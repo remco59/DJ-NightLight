@@ -416,6 +416,9 @@ export const videoProjects = pgTable('video_projects', {
   name: varchar('name', { length: 160 }).notNull(),
   project: jsonb('project').$type<VideoProject>().notNull(),
   revision: integer('revision').default(1).notNull(),
+  thumbnailKey: varchar('thumbnail_key', { length: 500 }),
+  thumbnailRevision: integer('thumbnail_revision').default(0).notNull(),
+  thumbnailUpdatedAt: timestamp('thumbnail_updated_at', { withTimezone: true }),
   createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   ...timestamps,
 }, table => [

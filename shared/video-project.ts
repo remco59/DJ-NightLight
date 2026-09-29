@@ -315,6 +315,18 @@ export function projectDurationFrames(project: VideoProject) {
   return Math.min(max, Math.max(project.fps, Math.round(duration)))
 }
 
+/**
+ * Pick a representative frame for project-library thumbnails.
+ * Avoid frame 0 (often still in an entrance animation) while keeping the
+ * thumbnail near the start even for longer projects.
+ */
+export function projectThumbnailFrame(project: VideoProject) {
+  const durationFrames = projectDurationFrames(project)
+  const durationSeconds = durationFrames / project.fps
+  const previewSeconds = Math.min(2, Math.max(0.5, durationSeconds * 0.1))
+  return Math.min(durationFrames - 1, Math.max(0, Math.round(previewSeconds * project.fps)))
+}
+
 /** Every media asset a project depends on, including assets used inside templates. */
 export function collectProjectAssetIds(project: VideoProject) {
   const ids = new Set<string>()

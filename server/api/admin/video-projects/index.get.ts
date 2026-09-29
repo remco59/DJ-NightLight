@@ -17,6 +17,8 @@ export default defineEventHandler(async (event) => {
       height: row.project.height,
       durationSeconds: Math.round(projectDurationFrames(row.project) / row.project.fps * 10) / 10,
       itemCount: row.project.tracks.reduce((count, track) => count + track.items.length, 0),
+      thumbnailUrl: row.thumbnailKey ? `/api/video-project-thumbnails/${row.id}?rev=${row.thumbnailRevision}` : null,
+      thumbnailPending: !row.thumbnailKey || row.thumbnailRevision < row.revision,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     })),

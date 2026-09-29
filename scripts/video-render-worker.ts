@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { bundle } from '@remotion/bundler'
-import { makeCancelSignal, renderMedia, selectComposition, type CancelSignal } from '@remotion/renderer'
+import { makeCancelSignal, renderMedia, renderStill, selectComposition, type CancelSignal } from '@remotion/renderer'
 import type { VideoDesign } from '../shared/video-generator'
 import { RENDER_ENGINE_LABELS, parseRenderEngineSetting, resolveRenderEngine } from '../shared/render-engine'
 import { detectRenderCapabilities, renderOptionsFor, type RenderCapabilities } from './render-engine'
@@ -14,6 +14,7 @@ import { ensureVideoRenderProxy } from './render-proxy'
 import {
   collectProjectAssetIds,
   parseVideoProject,
+  projectThumbnailFrame,
   type ProjectAssetMap,
   type VideoProject,
 } from '../shared/video-project'
@@ -43,6 +44,15 @@ type JobRow = {
   audio_key: string | null
   audio_mime_type: string | null
 }
+
+type ThumbnailProjectRow = {
+  id: string
+  project: VideoProject
+  revision: number
+  thumbnail_key: string | null
+}
+
+const thumbnailRetryAfter = new Map<string, { revision: number, at: number }>()
 
 type AssetRow = {
   storage_key: string
@@ -80,6 +90,26 @@ function outputKey() {
     String(date.getUTCMonth() + 1).padStart(2, '0'),
     `${randomUUID()}.mp4`,
   ].join('/')
+}
+
+function thumbnailOutputKey(projectId: string, revision: number) {
+  return ['video-thumbnails', projectId, `${revision}.jpg`].join('/')
+}
+
+async function nextThumbnailProject() {
+  const rows = await sql`
+    SELECT id, project, revision, thumbnail_key
+    FROM video_projects
+    WHERE thumbnail_key IS NULL OR thumbnail_revision < revision
+    ORDER BY updated_at ASC
+    LIMIT 20
+  ` as unknown as ThumbnailProjectRow[]
+
+  const now = Date.now()
+  return rows.find((row) => {
+    const retry = thumbnailRetryAfter.get(row.id)
+    return !retry || retry.revision !== row.revision || retry.at <= now
+  }) || null
 }
 
 async function claimJob() {
@@ -274,8 +304,7 @@ async function renderComposition(job: JobRow, serveUrl: string, cancelSignal: Ca
   }
 }
 
-async function renderProjectJob(job: JobRow, serveUrl: string, cancelSignal: CancelSignal) {
-  const project = parseVideoProject(job.project_snapshot)
+async function prepareProjectAssets(project: VideoProject) {
   const ids = collectProjectAssetIds(project)
   const rows = ids.length
     ? await sql`
@@ -308,8 +337,66 @@ async function renderProjectJob(job: JobRow, serveUrl: string, cancelSignal: Can
       durationMs: row.duration_ms,
     }
   }
+  return assets
+}
+
+async function renderProjectJob(job: JobRow, serveUrl: string, cancelSignal: CancelSignal) {
+  const project = parseVideoProject(job.project_snapshot)
   try {
+    const assets = await prepareProjectAssets(project)
     await renderComposition(job, serveUrl, cancelSignal, 'NightLightProject', { project, assets })
+  } finally {
+    servedAssets.clear()
+  }
+}
+
+async function renderProjectThumbnail(row: ThumbnailProjectRow, serveUrl: string) {
+  const project = parseVideoProject(row.project)
+  const browser = browserExecutable ? { browserExecutable } : {}
+  const key = thumbnailOutputKey(row.id, row.revision)
+  const target = safePath(generatedRoot, key)
+  await mkdir(dirname(target), { recursive: true })
+
+  try {
+    const assets = await prepareProjectAssets(project)
+    const inputProps = { project, assets }
+    const composition = await selectComposition({
+      serveUrl,
+      id: 'NightLightProject',
+      inputProps,
+      ...browser,
+    })
+
+    await renderStill({
+      composition,
+      serveUrl,
+      output: target,
+      inputProps,
+      frame: projectThumbnailFrame(project),
+      imageFormat: 'jpeg',
+      ...browser,
+      delayRenderTimeoutInMilliseconds: 60_000,
+    })
+
+    const updated = await sql`
+      UPDATE video_projects
+      SET thumbnail_key = ${key},
+          thumbnail_revision = ${row.revision},
+          thumbnail_updated_at = NOW()
+      WHERE id = ${row.id} AND revision = ${row.revision}
+      RETURNING id
+    `
+
+    if (!updated.length) {
+      await rm(target, { force: true }).catch(() => undefined)
+      return
+    }
+
+    thumbnailRetryAfter.delete(row.id)
+    if (row.thumbnail_key && row.thumbnail_key !== key) {
+      await rm(safePath(generatedRoot, row.thumbnail_key), { force: true }).catch(() => undefined)
+    }
+    console.log(`Updated thumbnail for video project ${row.id} revision ${row.revision}`)
   } finally {
     servedAssets.clear()
   }
@@ -386,7 +473,18 @@ async function main() {
   while (!stopping) {
     const job = await claimJob()
     if (!job) {
-      await sleep(1500)
+      const thumbnail = await nextThumbnailProject()
+      if (!thumbnail) {
+        await sleep(1500)
+        continue
+      }
+
+      try {
+        await renderProjectThumbnail(thumbnail, serveUrl)
+      } catch (error) {
+        thumbnailRetryAfter.set(thumbnail.id, { revision: thumbnail.revision, at: Date.now() + 30_000 })
+        console.error(`Thumbnail render failed for video project ${thumbnail.id}`, error)
+      }
       continue
     }
 
