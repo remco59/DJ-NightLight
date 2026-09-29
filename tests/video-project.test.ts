@@ -8,6 +8,7 @@ import {
   graphicBackdrop,
   parseVideoProject,
   projectDurationFrames,
+  projectThumbnailFrame,
   trackAccepts,
 } from '../shared/video-project'
 import { isLucideIcon } from '../shared/lucide-icons'
@@ -42,6 +43,23 @@ describe('video project model', () => {
     project.tracks.forEach(track => (track.items = []))
     project.autoDuration = true
     expect(projectDurationFrames(project)).toBe(30)
+  })
+
+  it('picks thumbnail frames near the start without using frame zero', () => {
+    const short = createVideoProject('9:16', 30)
+    short.autoDuration = false
+    short.durationFrames = 30
+    expect(projectThumbnailFrame(short)).toBe(15)
+
+    const medium = createVideoProject('9:16', 30)
+    medium.autoDuration = false
+    medium.durationFrames = 300
+    expect(projectThumbnailFrame(medium)).toBe(30)
+
+    const long = createVideoProject('9:16', 30)
+    long.autoDuration = false
+    long.durationFrames = 1800
+    expect(projectThumbnailFrame(long)).toBe(60)
   })
 
   it('creates media items that respect the source length', () => {
