@@ -18,6 +18,7 @@ import {
 import type { InvoiceSnapshot, VatMode } from '../../shared/invoice'
 import type { QuestionnaireField } from '../../shared/questionnaire'
 import type { SitePublicCopy } from '../../shared/schemas/site-content'
+import type { LandingPageSections } from '../../shared/schemas/landing-page'
 import type { MediaAssetMetadata, MediaSource } from '../../shared/media'
 import type { VideoProject } from '../../shared/video-project'
 import type { RenderEngineCapability } from '../../shared/render-engine'
@@ -545,6 +546,7 @@ export const landingPages = pgTable('landing_pages', {
   seoDescription: varchar('seo_description', { length: 320 }).notNull(),
   seoImageUrl: text('seo_image_url'),
   ordering: integer('ordering').default(0).notNull(),
+  sections: jsonb('sections').$type<LandingPageSections>().default({} as LandingPageSections).notNull(),
   ...timestamps,
 })
 

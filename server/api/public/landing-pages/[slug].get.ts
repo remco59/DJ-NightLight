@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
       seoTitle: landingPages.seoTitle,
       seoDescription: landingPages.seoDescription,
       seoImageUrl: landingPages.seoImageUrl,
+      sections: landingPages.sections,
     })
     .from(landingPages)
     .where(and(

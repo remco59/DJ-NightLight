@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import {
+  defaultLandingPageSections,
+  landingPageSectionsSchema,
+  type LandingPageSections,
+} from '~~/shared/schemas/landing-page'
+
 definePageMeta({ layout: 'public' })
 
 const route = useRoute()
 const slug = String(route.params.slug)
-const { data: site } = await useSiteContent()
-const siteContent = computed(() => site.value?.content)
 
 type LandingPage = {
   slug: string
@@ -20,6 +24,7 @@ type LandingPage = {
   seoTitle: string
   seoDescription: string
   seoImageUrl: string | null
+  sections: LandingPageSections | Record<string, never>
 }
 
 type Visual = { url: string, alt: string }
@@ -33,8 +38,13 @@ if (!data.value) {
 }
 
 const page = computed(() => data.value!.page)
+const parsedSections = computed(() => landingPageSectionsSchema.safeParse(page.value.sections))
+const sections = computed(() => parsedSections.value.success
+  ? parsedSections.value.data
+  : defaultLandingPageSections(page.value.slug))
+
 const paragraphs = computed(() => page.value.body.split(/\n{2,}/).map(value => value.trim()).filter(Boolean))
-const externalCta = computed(() => /^https?:\/\//.test(page.value.ctaHref))
+const isExternal = (href: string) => /^https?:\/\//.test(href)
 
 const weddingFallbacks: Visual[] = [
   {
@@ -75,74 +85,36 @@ const studentFallbacks: Visual[] = [
 ]
 
 const isWedding = computed(() => /bruiloft|wedding/i.test(page.value.slug))
-const isStudent = computed(() => /student/i.test(page.value.slug))
 const fallbacks = computed(() => isWedding.value ? weddingFallbacks : studentFallbacks)
-
-const uploadedVisuals = computed<Visual[]>(() => (siteContent.value?.gallery ?? [])
-  .filter(image => Boolean(image.url))
-  .map(image => ({
-    url: image.url,
-    alt: image.alt || 'DJ NightLight sfeerbeeld',
-  })))
 
 const heroVisual = computed<Visual>(() => page.value.heroImageUrl
   ? { url: page.value.heroImageUrl, alt: page.value.seoTitle || page.value.title }
-  : uploadedVisuals.value[0] || fallbacks.value[0]!)
+  : fallbacks.value[0]!)
 
 const galleryVisuals = computed<Visual[]>(() => {
+  const configured = sections.value.galleryImages
+    .filter(image => Boolean(image.url))
+    .map((image, index) => ({
+      url: image.url!,
+      alt: image.alt || `Sfeerbeeld ${index + 1} van DJ NightLight`,
+    }))
+
   const candidates = [
-    ...uploadedVisuals.value.filter(image => image.url !== heroVisual.value.url),
+    ...configured,
     ...fallbacks.value.filter(image => image.url !== heroVisual.value.url),
   ]
-
-  const unique = candidates.filter((image, index, array) => array.findIndex(item => item.url === image.url) === index)
-  return unique.slice(0, 4)
+  return candidates
+    .filter((image, index, array) => array.findIndex(item => item.url === image.url) === index)
+    .slice(0, 4)
 })
 
-const presentation = computed(() => {
-  if (isWedding.value) {
-    return {
-      benefits: [
-        { icon: 'lucide:music-2', title: 'Muziek op maat', body: 'Van ontspannen diner tot volle dansvloer.' },
-        { icon: 'lucide:users-round', title: 'Voor alle generaties', body: 'Een set die iedereen in beweging krijgt.' },
-        { icon: 'lucide:heart', title: 'Zorgeloos genieten', body: 'Heldere afspraken en professionele setup.' },
-      ],
-      galleryTitle: 'Sfeerimpressie',
-      closingEyebrow: 'Jullie avond, mijn focus',
-      closingTitle: 'Laten we kennismaken.',
-      closingBody: 'Ik denk graag met jullie mee over de invulling, muziekstijl en planning. Zo wordt het een avond die echt bij jullie past.',
-      closingCta: 'Neem contact op',
-    }
-  }
+const storyVisual = computed<Visual>(() => sections.value.storyImageUrl
+  ? { url: sections.value.storyImageUrl, alt: sections.value.storyTitle }
+  : galleryVisuals.value[0] || heroVisual.value)
 
-  if (isStudent.value) {
-    return {
-      benefits: [
-        { icon: 'lucide:zap', title: 'Energie van begin tot eind', body: 'Een set die de avond momentum blijft geven.' },
-        { icon: 'lucide:users-round', title: 'Muziek die iedereen kent', body: 'Van meezingers tot de nieuwste clubtracks.' },
-        { icon: 'lucide:star', title: 'Ervaring met studentenfeesten', body: 'Introducties, gala’s, verenigingen en themafeesten.' },
-      ],
-      galleryTitle: 'Sfeerimpressie',
-      closingEyebrow: 'Van plan tot dansvloer',
-      closingTitle: 'Lets make it happen.',
-      closingBody: 'Vertel me meer over jullie feest, locatie en wensen. Ik denk graag mee over de perfecte invulling.',
-      closingCta: 'Neem contact op',
-    }
-  }
-
-  return {
-    benefits: [
-      { icon: 'lucide:music-2', title: 'Muziek op maat', body: 'Een set die past bij publiek, locatie en moment.' },
-      { icon: 'lucide:users-round', title: 'Ervaring met publiek', body: 'Herkennen wanneer het tijd is om te schakelen.' },
-      { icon: 'lucide:sparkles', title: 'Professionele uitstraling', body: 'Van voorbereiding tot laatste track verzorgd.' },
-    ],
-    galleryTitle: 'Sfeerimpressie',
-    closingEyebrow: 'Samen iets neerzetten',
-    closingTitle: 'Klaar voor jullie feest?',
-    closingBody: 'Vertel me wat je in gedachten hebt. Ik denk graag mee over muziek, planning en sfeer.',
-    closingCta: 'Neem contact op',
-  }
-})
+const closingVisual = computed<Visual>(() => sections.value.closingImageUrl
+  ? { url: sections.value.closingImageUrl, alt: sections.value.closingTitle }
+  : galleryVisuals.value[1] || storyVisual.value)
 
 const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.97) 0%, rgba(7,7,9,.82) 35%, rgba(7,7,9,.26) 67%, rgba(7,7,9,.16) 100%), linear-gradient(0deg, rgba(7,7,9,.72), transparent 50%), url("${heroVisual.value.url}")`,
@@ -167,7 +139,7 @@ useSeoMeta({
           <h1>{{ page.title }}</h1>
           <p class="intro">{{ page.intro }}</p>
           <a
-            v-if="externalCta"
+            v-if="isExternal(page.ctaHref)"
             class="public-button"
             :href="page.ctaHref"
             target="_blank"
@@ -184,8 +156,8 @@ useSeoMeta({
       </div>
     </section>
 
-    <section class="benefits public-container" aria-label="Waarom DJ NightLight">
-      <article v-for="benefit in presentation.benefits" :key="benefit.title">
+    <section class="benefits public-container" aria-label="Voordelen">
+      <article v-for="benefit in sections.benefits" :key="benefit.title">
         <span class="benefit-icon">
           <Icon :name="benefit.icon" aria-hidden="true" />
         </span>
@@ -198,23 +170,33 @@ useSeoMeta({
 
     <section class="story public-container">
       <div class="story-copy">
-        <p class="eyebrow">{{ siteContent?.publicCopy.landing.asideEyebrow || 'Mijn aanpak' }}</p>
-        <h2>{{ siteContent?.publicCopy.landing.asideTitle || 'Een set die zich aanpast aan het moment.' }}</h2>
+        <p class="eyebrow">{{ sections.storyEyebrow }}</p>
+        <h2>{{ sections.storyTitle }}</h2>
         <div class="body-copy">
           <p v-for="(paragraph, index) in paragraphs" :key="index">{{ paragraph }}</p>
         </div>
       </div>
 
       <figure class="story-visual">
-        <img :src="galleryVisuals[0]?.url || heroVisual.url" :alt="galleryVisuals[0]?.alt || heroVisual.alt" loading="lazy">
+        <img :src="storyVisual.url" :alt="storyVisual.alt" loading="lazy">
       </figure>
     </section>
 
     <section class="gallery-shell">
       <div class="gallery-inner">
         <div class="gallery-heading">
-          <p class="eyebrow">{{ presentation.galleryTitle }}</p>
-          <NuxtLink to="/media">Bekijk meer <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
+          <p class="eyebrow">{{ sections.galleryTitle }}</p>
+          <a
+            v-if="isExternal(sections.galleryCtaHref)"
+            :href="sections.galleryCtaHref"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ sections.galleryCtaLabel }} <Icon name="lucide:arrow-up-right" aria-hidden="true" />
+          </a>
+          <NuxtLink v-else :to="sections.galleryCtaHref">
+            {{ sections.galleryCtaLabel }} <Icon name="lucide:arrow-right" aria-hidden="true" />
+          </NuxtLink>
         </div>
 
         <div class="gallery-grid">
@@ -228,21 +210,27 @@ useSeoMeta({
     <section class="closing public-container">
       <div class="closing-card">
         <div>
-          <p class="eyebrow">{{ presentation.closingEyebrow }}</p>
-          <h2>{{ presentation.closingTitle }}</h2>
-          <p>{{ presentation.closingBody }}</p>
-          <NuxtLink class="public-button" to="/boeken">
-            {{ presentation.closingCta }}
+          <p class="eyebrow">{{ sections.closingEyebrow }}</p>
+          <h2>{{ sections.closingTitle }}</h2>
+          <p>{{ sections.closingBody }}</p>
+          <a
+            v-if="isExternal(sections.closingCtaHref)"
+            class="public-button"
+            :href="sections.closingCtaHref"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ sections.closingCtaLabel }}
+            <Icon name="lucide:arrow-up-right" aria-hidden="true" />
+          </a>
+          <NuxtLink v-else class="public-button" :to="sections.closingCtaHref">
+            {{ sections.closingCtaLabel }}
             <Icon name="lucide:arrow-right" aria-hidden="true" />
           </NuxtLink>
         </div>
 
         <figure>
-          <img
-            :src="galleryVisuals[1]?.url || heroVisual.url"
-            :alt="galleryVisuals[1]?.alt || heroVisual.alt"
-            loading="lazy"
-          >
+          <img :src="closingVisual.url" :alt="closingVisual.alt" loading="lazy">
         </figure>
       </div>
     </section>
