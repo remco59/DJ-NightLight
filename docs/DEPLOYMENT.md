@@ -116,6 +116,44 @@ docker compose --env-file .env.production -f docker-compose.unraid.yml up -d --b
 
 Configure NPM for `djnightlight.nl` to the production `APP_PORT`.
 
+## Updates from Settings
+
+The owner can update the server from **Admin → Settings → Software-updates**:
+
+1. **Controleren op updates** fetches the configured branch (default `main`) from GitHub and lists the new commits.
+2. **Nu bijwerken** checks out the new commit, rebuilds the images and restarts the stack with `docker compose up -d` — the same steps as the deploy workflows.
+
+While the images are rebuilt and the containers restart, every page shows a maintenance page (HTTP 503 with `Retry-After`) and every API route answers 503. Health checks, `/api/maintenance` and payment webhooks keep working. Open browser tabs switch to the maintenance page on their next request, and the maintenance page reloads itself once the site is back. The old containers keep serving until the new images are built, so the only real downtime is the few seconds in which the web container is swapped.
+
+If the build fails, the checkout is reset to the previous commit and the running version stays live; the log of the last run is shown in Settings.
+
+### How it works
+
+The `updater` service in `docker-compose.unraid.yml` (built from `Dockerfile.updater`, code in `scripts/updater/`) holds the Docker socket and the server checkout. It exposes a small API on the private `backend` network only; the web app calls it with `UPDATER_TOKEN`. It never recreates itself during an update — afterwards a short-lived helper container refreshes it when its own code or configuration changed.
+
+The Docker socket gives the updater root-equivalent access to the host. Keep `UPDATER_TOKEN` secret and long; only owners can reach the Settings actions.
+
+### Setup
+
+Add to the stack's env file (see `.env.production.example`):
+
+```text
+UPDATER_TOKEN=<long random string, e.g. openssl rand -hex 32>
+UPDATER_BRANCH=main
+NIGHTLIGHT_REPO_PATH=/absolute/path/to/this/checkout
+NIGHTLIGHT_ENV_FILE=/absolute/path/to/.env.production
+UPDATER_GIT_TOKEN=<only for a private repository>
+```
+
+- `NIGHTLIGHT_REPO_PATH` must be the absolute host path of the checkout the stack is started from (the deploy workflows' `*_DEPLOY_PATH`). The checkout is mounted at that same path inside the updater so Compose resolves the relative paths in the compose file exactly like on the host. When it is wrong, Settings shows the value to use.
+- `NIGHTLIGHT_ENV_FILE` is the absolute path of the env file itself; the updater passes it to `docker compose --env-file`.
+- The updater fetches over HTTPS (an SSH `origin` is rewritten), so it needs no SSH keys. For a private repository create a fine-grained GitHub token with read-only **Contents** access to this repository. `UPDATER_REMOTE_URL` overrides the fetch URL if needed.
+- The updater runs git as root, so files it checks out are owned by root. On Unraid the checkout normally is already.
+
+Then start the stack once more with `docker compose --env-file <env file> -f docker-compose.unraid.yml up -d --build`. Staging and production each get their own updater, token and checkout.
+
+Leave `UPDATER_TOKEN` empty to disable the feature; the local `docker-compose.yml` stack has no updater and Settings says updates are unavailable.
+
 ## Networks
 
 The PostgreSQL container is only connected to the internal `backend` network and has no host port in Unraid deployment.
@@ -123,6 +161,8 @@ The PostgreSQL container is only connected to the internal `backend` network and
 The migration container only joins the private backend network.
 
 The web container joins both the internal backend network and the existing external NPM proxy network.
+
+The updater joins the backend network and a separate `egress` network, because it needs outbound access to GitHub and the backend network is internal-only.
 
 Change `PROXY_NETWORK` if the NPM Docker network on Unraid has another name.
 

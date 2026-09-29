@@ -36,6 +36,11 @@ export default defineNuxtConfig({
     storageUploads: process.env.NUXT_STORAGE_UPLOADS || `${defaultStorageRoot}/uploads`,
     storageGenerated: process.env.NUXT_STORAGE_GENERATED || `${defaultStorageRoot}/generated`,
     storageBackups: process.env.NUXT_STORAGE_BACKUPS || `${defaultStorageRoot}/backups`,
+    // Self-update sidecar (docker-compose.unraid.yml → updater). Empty disables updates.
+    updater: {
+      url: process.env.NUXT_UPDATER_URL || '',
+      token: process.env.NUXT_UPDATER_TOKEN || '',
+    },
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
