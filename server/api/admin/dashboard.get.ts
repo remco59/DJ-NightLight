@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, gte, isNull, lt, lte, ne } from 'drizzle-orm'
-import { contractSubmissions, gigs, invoices, venues } from '../../../db/schema'
+import { contractSubmissions, emailJobs, gigCalendarSync, gigs, invoices, outboxEvents, payments, venues } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { requireStaff } from '../../utils/require-staff'
 import { gigTitleSql } from '../../utils/gig-title'
@@ -22,11 +22,11 @@ export default defineEventHandler(async (event) => {
 
   if (user.role === 'content_editor') {
     return {
-      summary: { upcoming: 0, leads: 0, unpaidInvoices: 0, unpaidAmountCents: 0, attention: 0 },
+      summary: { upcoming: 0, leads: 0, unpaidInvoices: 0, unpaidAmountCents: 0, bookedRevenueThisMonthCents: 0, attention: 0 },
       upcoming: [],
       attention: [],
       week: { gigs: 0, bookedRevenueCents: 0, invoicesDue: 0, contractsOpen: 0 },
-      planned: { clientPortal: true, finance: true, calendarSync: true, payments: true },
+      system: { issues: 0 },
     }
   }
 
@@ -38,6 +38,8 @@ export default defineEventHandler(async (event) => {
     ? and(eq(gigs.status, 'lead'), isNull(gigs.deletedAt), assignment)
     : and(eq(gigs.status, 'lead'), isNull(gigs.deletedAt))
 
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
   const weekStart = startOfWeek(now)
   const weekEnd = new Date(weekStart)
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7)
@@ -48,6 +50,30 @@ export default defineEventHandler(async (event) => {
 
   const [upcomingCountRow] = await db.select({ value: count() }).from(gigs).where(upcomingWhere)
   const [leadCountRow] = await db.select({ value: count() }).from(gigs).where(leadWhere)
+
+  const monthGigWhere = assignment
+    ? and(
+        eq(gigs.status, 'booked'),
+        gte(gigs.startsAt, monthStart),
+        lt(gigs.startsAt, monthEnd),
+        isNull(gigs.deletedAt),
+        assignment,
+      )
+    : and(
+        eq(gigs.status, 'booked'),
+        gte(gigs.startsAt, monthStart),
+        lt(gigs.startsAt, monthEnd),
+        isNull(gigs.deletedAt),
+      )
+
+  const monthGigs = await db
+    .select({ fee: gigs.fee })
+    .from(gigs)
+    .where(monthGigWhere)
+
+  const bookedRevenueThisMonthCents = monthGigs.reduce((total, gig) => {
+    return total + Math.round(Number(gig.fee ?? 0) * 100)
+  }, 0)
 
   const upcoming = await db
     .select({
@@ -207,12 +233,25 @@ export default defineEventHandler(async (event) => {
   const contractsOpen = openContractCountRow?.value ?? 0
   const attentionCount = (overdueCountRow?.value ?? 0) + contractsOpen + leads
 
+  const staleOutboxBefore = new Date(Date.now() - 5 * 60_000)
+  const [failedEmailsRow, failedCalendarRow, failedPaymentsRow, staleOutboxRow] = await Promise.all([
+    db.select({ value: count() }).from(emailJobs).where(eq(emailJobs.status, 'failed')).then(rows => rows[0]),
+    db.select({ value: count() }).from(gigCalendarSync).where(eq(gigCalendarSync.status, 'failed')).then(rows => rows[0]),
+    db.select({ value: count() }).from(payments).where(eq(payments.status, 'failed')).then(rows => rows[0]),
+    db.select({ value: count() }).from(outboxEvents).where(and(isNull(outboxEvents.processedAt), lt(outboxEvents.occurredAt, staleOutboxBefore))).then(rows => rows[0]),
+  ])
+  const systemIssues = Number(failedEmailsRow?.value || 0)
+    + Number(failedCalendarRow?.value || 0)
+    + Number(failedPaymentsRow?.value || 0)
+    + Number(staleOutboxRow?.value || 0)
+
   return {
     summary: {
       upcoming: upcomingCountRow?.value ?? 0,
       leads,
       unpaidInvoices,
       unpaidAmountCents,
+      bookedRevenueThisMonthCents,
       attention: attentionCount,
     },
     upcoming,
@@ -223,6 +262,6 @@ export default defineEventHandler(async (event) => {
       invoicesDue,
       contractsOpen,
     },
-    planned: { clientPortal: true, finance: true, calendarSync: true, payments: true },
+    system: { issues: systemIssues },
   }
 })
