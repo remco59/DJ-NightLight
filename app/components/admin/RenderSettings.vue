@@ -37,14 +37,24 @@ const options = computed(() => {
   return [
     {
       id: 'auto' as const,
-      detail: `Gebruikt de Intel GPU als die beschikbaar is, anders de CPU.${data.value?.engine === 'auto' && active ? ` Nu: ${RENDER_ENGINE_LABELS[active]}.` : ''}`,
+      detail: `NightLight kiest automatisch de beste optie voor jouw systeem.${data.value?.engine === 'auto' && active ? ` Nu actief: ${RENDER_ENGINE_LABELS[active]}.` : ''}`,
       available: true,
+      icon: 'lucide:sparkles',
+      badge: 'Aanbevolen',
     },
-    { id: 'cpu' as const, detail: 'Software-encoding. Altijd beschikbaar.', available: true },
     {
       id: 'intel' as const,
-      detail: intel?.detail || 'Nog niet gedetecteerd. Start de renderworker om te controleren of er een Intel GPU is.',
+      detail: intel?.detail || 'Snelle hardware-encoding met Intel VAAPI wanneer beschikbaar.',
       available: Boolean(intel?.available),
+      icon: 'lucide:cpu',
+      badge: intel?.available ? 'Beschikbaar' : 'Niet beschikbaar',
+    },
+    {
+      id: 'cpu' as const,
+      detail: 'Software-encoding. Werkt op alle systemen, maar is doorgaans langzamer.',
+      available: true,
+      icon: 'lucide:microchip',
+      badge: 'Beschikbaar',
     },
   ]
 })
@@ -77,69 +87,96 @@ async function save() {
 </script>
 
 <template>
-  <section id="rendering" class="card rendering">
-    <div class="head">
-      <div>
-        <p class="eyebrow">Video-exports</p>
-        <h2>Video renderen</h2>
-        <p>Kies hoe de renderworker geëxporteerde video’s codeert. Beschikbare hardware wordt automatisch gedetecteerd.</p>
+  <section id="rendering" class="rendering">
+    <div class="section-card">
+      <div class="head">
+        <div class="title-wrap">
+          <span class="section-icon"><Icon name="lucide:play" aria-hidden="true"/></span>
+          <div>
+            <h2>Video rendering</h2>
+            <p>Kies hoe NightLight video’s rendert. Beschikbare hardware wordt automatisch gedetecteerd.</p>
+          </div>
+        </div>
+        <div class="status-stack">
+          <span class="pill" :class="{ on: data?.workerOnline }">
+            <span class="dot"/>
+            {{ data?.workerOnline ? 'Worker online' : 'Worker offline' }}
+          </span>
+          <small>Gecontroleerd {{ formatAge(data?.detectedAt ?? null) }}</small>
+        </div>
       </div>
-      <div class="status-stack">
-        <span class="pill" :class="{ on: data?.workerOnline }">{{ data?.workerOnline ? 'Worker online' : 'Worker offline' }}</span>
-        <small>Hardware gecontroleerd {{ formatAge(data?.detectedAt ?? null) }}</small>
-      </div>
-    </div>
 
-    <fieldset class="engines">
-      <legend class="sr-only">Render-engine</legend>
-      <label v-for="option in options" :key="option.id" class="engine" :class="{ disabled: !option.available, selected: engine === option.id }">
-        <input v-model="engine" type="radio" name="render-engine" :value="option.id" :disabled="!option.available">
-        <span>
-          <strong>{{ RENDER_ENGINE_LABELS[option.id] }}<template v-if="option.id === 'auto'"> (aanbevolen)</template></strong>
-          <small>{{ option.detail }}</small>
-        </span>
-      </label>
-    </fieldset>
+      <fieldset class="engines">
+        <legend class="sr-only">Render-engine</legend>
+        <label
+          v-for="option in options"
+          :key="option.id"
+          class="engine"
+          :class="{ disabled: !option.available, selected: engine === option.id }"
+        >
+          <input v-model="engine" type="radio" name="render-engine" :value="option.id" :disabled="!option.available">
+          <span class="engine-icon"><Icon :name="option.icon" aria-hidden="true"/></span>
+          <span class="engine-copy">
+            <strong>{{ RENDER_ENGINE_LABELS[option.id] }}<template v-if="option.id === 'auto'"> (aanbevolen)</template></strong>
+            <small>{{ option.detail }}</small>
+          </span>
+          <span class="availability" :class="{ good: option.available, accent: option.id === 'auto' }">{{ option.badge }}</span>
+        </label>
+      </fieldset>
 
-    <div class="actions">
-      <span :class="messageType">{{ message }}</span>
-      <div>
-        <button class="ghost" type="button" :disabled="pending" @click="refresh()">{{ pending ? 'Controleren…' : 'Vernieuwen' }}</button>
-        <button type="button" :disabled="saving || engine === data?.engine" @click="save">{{ saving ? 'Opslaan…' : 'Renderinstelling opslaan' }}</button>
+      <div class="actions">
+        <span :class="messageType">{{ message }}</span>
+        <div>
+          <button class="ghost" type="button" :disabled="pending" @click="refresh()">{{ pending ? 'Controleren…' : 'Vernieuwen' }}</button>
+          <button type="button" :disabled="saving || engine === data?.engine" @click="save">{{ saving ? 'Opslaan…' : 'Wijzigingen opslaan' }}</button>
+        </div>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.rendering{margin-top:1.5rem;padding:1.2rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14;scroll-margin-top:1rem}
+.rendering{margin-top:1rem;scroll-margin-top:1rem}
+.section-card{padding:1.15rem;border:1px solid #2b2631;border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
 .head,.actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
-.head h2{margin:.15rem 0 .3rem}
-.head p:last-child{margin:0;color:#8c8594;font-size:.85rem;line-height:1.5}
+.title-wrap{display:flex;gap:.8rem;align-items:flex-start}
+.section-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#241440;color:#b98cff}
+.head h2{margin:0;font-size:1.15rem}
+.head p{margin:.25rem 0 0;color:#8c8594;font-size:.82rem;line-height:1.45}
 .status-stack{display:grid;justify-items:end;gap:.3rem;flex:none}
-.status-stack small{color:#716a78;font-size:.72rem}
-.pill{padding:.25rem .7rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.75rem;font-weight:700}
-.pill.on{background:#16382a;color:#7be0a8}
-.engines{display:grid;gap:.6rem;margin:1rem 0 0;padding:0;border:0}
-.engine{display:flex;gap:.75rem;align-items:flex-start;padding:.85rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d;cursor:pointer}
-.engine.selected{border-color:#6f5a86}
-.engine.disabled{cursor:not-allowed;opacity:.55}
-.engine input{margin-top:.2rem}
-.engine span{display:grid;gap:.25rem}
-.engine small{color:#8c8594;font-size:.78rem;line-height:1.45;word-break:break-word}
+.status-stack small{color:#716a78;font-size:.7rem}
+.pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .7rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.72rem;font-weight:750}
+.pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#8b8491}
+.pill.on{background:#153426;color:#7be0a8}
+.pill.on .dot{background:#48df89}
+.engines{display:grid;gap:.65rem;margin:1rem 0 0;padding:0;border:0}
+.engine{position:relative;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:.75rem;align-items:center;padding:.9rem;border:1px solid #29242f;border-radius:.85rem;background:#0b0a0d;cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease}
+.engine:hover:not(.disabled){border-color:#473654;background:#100d14}
+.engine.selected{border-color:#7849bc;background:linear-gradient(90deg,rgba(91,46,181,.13),#0b0a0d);box-shadow:inset 0 0 0 1px rgba(120,73,188,.25)}
+.engine.disabled{cursor:not-allowed;opacity:.5}
+.engine input{accent-color:#8f5af5}
+.engine-icon{display:grid;place-items:center;width:2.2rem;height:2.2rem;border-radius:.65rem;background:#17131c;color:#c8b4dd}
+.engine-copy{display:grid;gap:.22rem}
+.engine-copy strong{font-size:.86rem;color:#f5f1f8}
+.engine-copy small{color:#8c8594;font-size:.75rem;line-height:1.42;word-break:break-word}
+.availability{padding:.28rem .6rem;border-radius:99px;background:#252129;color:#928a98;font-size:.68rem;font-weight:750;white-space:nowrap}
+.availability.good{background:#143527;color:#6ee59f}
+.availability.accent{background:#382064;color:#caa8ff}
 .actions{align-items:center;margin-top:1rem}
 .actions>div{display:flex;gap:.6rem}
-.actions span{color:#aaa4b1;font-size:.85rem}
+.actions>span{color:#aaa4b1;font-size:.8rem}
 .actions .success{color:#8ed6a3}
 .actions .error{color:#ff9d9d}
-button{border:0;border-radius:.7rem;padding:.7rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}
+button{border:0;border-radius:.7rem;padding:.7rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;cursor:pointer}
 button:disabled{cursor:not-allowed;opacity:.55}
 button.ghost{border:1px solid #332e39;background:transparent;color:#f6f3fa}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media(max-width:650px){
+@media(max-width:700px){
   .head,.actions{align-items:stretch;flex-direction:column}
   .status-stack{justify-items:start}
-  .actions>div{flex-direction:column}
+  .engine{grid-template-columns:auto auto minmax(0,1fr)}
+  .availability{grid-column:2/-1;justify-self:start}
+  .actions>div{display:grid}
   .actions button{width:100%}
 }
 </style>
