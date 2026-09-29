@@ -10,11 +10,16 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 <template>
   <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }">
     <header class="mobile-header">
-      <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
-      <button class="menu-button" type="button" :aria-expanded="mobileOpen" aria-label="Menu openen" @click="mobileOpen = !mobileOpen">
+      <button
+        class="menu-button"
+        type="button"
+        :aria-expanded="mobileOpen"
+        :aria-label="mobileOpen ? 'Menu sluiten' : 'Menu openen'"
+        @click="mobileOpen = !mobileOpen"
+      >
         <Icon :name="mobileOpen ? 'lucide:x' : 'lucide:menu'" aria-hidden="true" />
-        {{ mobileOpen ? 'Sluiten' : 'Menu' }}
       </button>
+      <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
     </header>
 
     <aside class="sidebar" :class="{ open: mobileOpen }">
@@ -90,7 +95,8 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     z-index: 20;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: .75rem;
     padding: .9rem 1rem;
     border-bottom: 1px solid #26222c;
     background: rgba(14, 12, 18, .94);
@@ -100,10 +106,13 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   .menu-button {
     display: inline-flex;
     align-items: center;
-    gap: .4rem;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 2.5rem;
     border: 1px solid #302b38;
     border-radius: .6rem;
-    padding: .5rem .7rem;
+    padding: 0;
     background: #17141c;
     color: inherit;
   }
