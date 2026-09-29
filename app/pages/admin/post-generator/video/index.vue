@@ -14,6 +14,8 @@ type ProjectSummary = {
   height: number
   durationSeconds: number
   itemCount: number
+  thumbnailUrl: string | null
+  thumbnailPending: boolean
   createdAt: string
   updatedAt: string
 }
@@ -173,6 +175,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   timer = setInterval(() => {
     if (queue.value?.jobs.some(job => job.status === 'queued' || job.status === 'rendering')) void refreshQueue()
+    if (data.value?.projects.some(project => project.thumbnailPending)) void refresh()
   }, 4000)
 })
 onBeforeUnmount(() => {
@@ -248,7 +251,14 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
           class="frame"
           :aria-label="`${project.name} openen`"
         >
-          <span class="frame-glow" aria-hidden="true" />
+          <img
+            v-if="project.thumbnailUrl"
+            class="project-thumbnail"
+            :src="project.thumbnailUrl"
+            alt=""
+            loading="lazy"
+          >
+          <span v-else class="frame-glow" aria-hidden="true" />
           <span class="aspect-badge">{{ project.aspect }}</span>
           <span
             v-if="projectStatus(latestJob(project))"
@@ -258,7 +268,7 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
             <span class="status-dot" aria-hidden="true" />
             {{ projectStatus(latestJob(project))?.label }}
           </span>
-          <span class="preview-mark" aria-hidden="true">
+          <span v-if="!project.thumbnailUrl" class="preview-mark" aria-hidden="true">
             <Icon name="lucide:clapperboard" />
           </span>
         </NuxtLink>
@@ -626,6 +636,16 @@ button:disabled {
   right: -24%;
   background: linear-gradient(180deg, rgba(124, 58, 237, .5), transparent);
   transform: rotate(-18deg);
+}
+
+.project-thumbnail {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #09080b;
 }
 
 .frame-glow {
