@@ -51,11 +51,29 @@ useSeoMeta({title:()=>`${form.navLabel||'Landing page'} — DJ NightLight`,robot
     <form @submit.prevent="save">
       <section class="card"><p class="eyebrow">Publicatie</p><div class="toggles"><label><input v-model="form.published" type="checkbox"><span><strong>Gepubliceerd</strong><small>Bepaalt of de publieke URL bestaat.</small></span></label><label><input v-model="form.showInNavigation" type="checkbox"><span><strong>Tonen in navigatie</strong><small>Los van publiceren.</small></span></label><label><input v-model="form.indexable" type="checkbox"><span><strong>Vindbaar in zoekmachines</strong><small>Los van zichtbaarheid in de navigatie.</small></span></label></div></section>
 
-      <section class="card"><p class="eyebrow">Pagina</p><div class="grid"><label>Slug<input v-model="form.slug" required></label><label>Label in navigatie<input v-model="form.navLabel" required></label><label>Bovenregel<input v-model="form.eyebrow" required></label><label>Volgorde<input v-model.number="form.ordering" type="number" min="0"></label><label class="wide">Titel<input v-model="form.title" required></label><label class="wide">Intro<textarea v-model="form.intro" rows="3" required/></label><label class="wide">Tekst<textarea v-model="form.body" rows="8" required/></label><label class="wide">URL hero-afbeelding<input v-model="form.heroImageUrl" type="url"></label></div></section>
+      <section class="card"><p class="eyebrow">Pagina</p><div class="grid"><label>Slug<input v-model="form.slug" required></label><label>Label in navigatie<input v-model="form.navLabel" required></label><label>Bovenregel<input v-model="form.eyebrow" required></label><label>Volgorde<input v-model.number="form.ordering" type="number" min="0"></label><label class="wide">Titel<input v-model="form.title" required></label><label class="wide">Intro<textarea v-model="form.intro" rows="3" required/></label><label class="wide">Tekst<textarea v-model="form.body" rows="8" required/></label>
+        <div class="wide media-picker-field">
+          <AdminMediaPicker
+            v-model="form.heroImageUrl"
+            label="Hero-afbeelding"
+            description="Kies een afbeelding uit de mediabibliotheek of upload een nieuwe."
+            upload-tags="website,landing-page,hero"
+          />
+        </div>
+      </div></section>
 
       <section class="card"><p class="eyebrow">Call to action</p><div class="grid"><label>CTA-tekst<input v-model="form.ctaLabel" required></label><label>CTA-bestemming<input v-model="form.ctaHref" required placeholder="/boeken"></label></div></section>
 
-      <section class="card"><p class="eyebrow">SEO</p><div class="grid"><label class="wide">SEO-titel<input v-model="form.seoTitle" required></label><label class="wide">SEO-beschrijving<textarea v-model="form.seoDescription" rows="3" required/></label><label class="wide">URL social-afbeelding<input v-model="form.seoImageUrl" type="url"></label></div></section>
+      <section class="card"><p class="eyebrow">SEO</p><div class="grid"><label class="wide">SEO-titel<input v-model="form.seoTitle" required></label><label class="wide">SEO-beschrijving<textarea v-model="form.seoDescription" rows="3" required/></label>
+        <div class="wide media-picker-field">
+          <AdminMediaPicker
+            v-model="form.seoImageUrl"
+            label="Social-afbeelding"
+            description="Afbeelding voor social previews en delen. Externe URL blijft mogelijk."
+            upload-tags="website,landing-page,seo"
+          />
+        </div>
+      </div></section>
 
       <div class="save-bar"><span>{{message||'Publiceren, navigatie en indexering door zoekmachines stel je los van elkaar in.'}}</span><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Pagina opslaan'}}</button></div>
     </form>
@@ -63,5 +81,5 @@ useSeoMeta({title:()=>`${form.navLabel||'Landing page'} — DJ NightLight`,robot
 </template>
 
 <style scoped>
-.editor{max-width:900px;margin-inline:auto}.topline{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem}.topline>a,.actions a{color:#8e8797;text-decoration:none}.actions{display:flex;gap:.8rem;align-items:center}header{margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.4rem,6vw,4rem);letter-spacing:-.05em}header>p:last-child{margin:.2rem 0;color:#716b78;font-family:monospace}.card{margin-bottom:1rem;padding:1.2rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14}.toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem}.toggles label{display:flex;align-items:start;gap:.6rem;padding:.9rem;border:1px solid #2b2631;border-radius:.8rem}.toggles input{width:auto;margin-top:.15rem}.toggles strong,.toggles small{display:block}.toggles small{margin-top:.25rem;color:#77717e;line-height:1.45}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem}.wide{grid-column:1/-1}label{display:grid;gap:.35rem;color:#aaa4b1;font-size:.8rem}input,textarea{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}.save-bar{position:sticky;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border:1px solid #37313e;border-radius:1rem;background:rgba(20,17,25,.95);backdrop-filter:blur(12px);color:#918a98}.primary,.danger{border:0;border-radius:.65rem;padding:.72rem .9rem;font-weight:800;cursor:pointer}.primary{background:#fff;color:#09080b}.danger{background:#2a1519;color:#ffabb5}@media(max-width:750px){.toggles,.grid{grid-template-columns:1fr}.wide{grid-column:auto}.topline{align-items:start;flex-direction:column}.save-bar{align-items:stretch;flex-direction:column}.primary{width:100%}}
+.editor{max-width:900px;margin-inline:auto}.topline{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem}.topline>a,.actions a{color:#8e8797;text-decoration:none}.actions{display:flex;gap:.8rem;align-items:center}header{margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.4rem,6vw,4rem);letter-spacing:-.05em}header>p:last-child{margin:.2rem 0;color:#716b78;font-family:monospace}.card{margin-bottom:1rem;padding:1.2rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14}.toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem}.toggles label{display:flex;align-items:start;gap:.6rem;padding:.9rem;border:1px solid #2b2631;border-radius:.8rem}.toggles input{width:auto;margin-top:.15rem}.toggles strong,.toggles small{display:block}.toggles small{margin-top:.25rem;color:#77717e;line-height:1.45}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem}.wide{grid-column:1/-1}.media-picker-field{padding-top:.2rem}label{display:grid;gap:.35rem;color:#aaa4b1;font-size:.8rem}input,textarea{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}.save-bar{position:sticky;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border:1px solid #37313e;border-radius:1rem;background:rgba(20,17,25,.95);backdrop-filter:blur(12px);color:#918a98}.primary,.danger{border:0;border-radius:.65rem;padding:.72rem .9rem;font-weight:800;cursor:pointer}.primary{background:#fff;color:#09080b}.danger{background:#2a1519;color:#ffabb5}@media(max-width:750px){.toggles,.grid{grid-template-columns:1fr}.wide{grid-column:auto}.topline{align-items:start;flex-direction:column}.save-bar{align-items:stretch;flex-direction:column}.primary{width:100%}}
 </style>
