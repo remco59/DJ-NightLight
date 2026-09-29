@@ -91,18 +91,6 @@ function attentionIcon(kind: DashboardData['attention'][number]['kind']) {
 }
 
 
-function weekRange() {
-  const now = new Date()
-  const day = now.getDay() || 7
-  const start = new Date(now)
-  start.setDate(now.getDate() - day + 1)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
-  const sameMonth = start.getMonth() === end.getMonth()
-  const startText = start.toLocaleDateString('nl-NL', sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' })
-  const endText = end.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
-  return `${startText} – ${endText}`
-}
 
 useSeoMeta({
   title: 'Dashboard — DJ NightLight',
