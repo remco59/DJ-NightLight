@@ -5,7 +5,10 @@ const mediaReference = z.string().trim().max(2000).refine((value) => {
   return z.url().safeParse(value).success
 }, 'Vul een geldige URL in')
 
-const optionalMediaReference = z.string().trim().max(2000).optional().transform((value, ctx) => {
+const optionalMediaReference = z.preprocess(
+  value => value == null ? '' : value,
+  z.string().trim().max(2000),
+).transform((value, ctx) => {
   if (!value) return null
   const parsed = mediaReference.safeParse(value)
   if (!parsed.success) {
