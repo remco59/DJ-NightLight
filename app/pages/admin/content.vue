@@ -204,7 +204,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
               <AdminMediaPicker v-model="form.publicCopy.visuals.homeFeatureImageUrl" label="Uitgelichte afbeelding" />
               <div class="field-grid two">
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.visualCaption"></label>
-                <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeFeatureAlt"></label>
+                <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeFeatureAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               </div>
             </div>
           </details>
@@ -224,7 +224,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                 <label>Linktekst<input v-model="form.publicCopy.home.aboutCta"></label>
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.aboutImageCaption"></label>
               </div>
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeAboutAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeAboutAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
             </div>
           </details>
 
@@ -264,7 +264,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                     label="Afbeelding kaart"
                     description="Optionele eigen afbeelding voor deze dienst."
                   />
-                  <label>Alt-tekst afbeelding<input v-model="service.imageAlt"></label>
+                  <label>Alt-tekst afbeelding<input v-model="service.imageAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
                 </article>
               </div>
             </div>
@@ -326,7 +326,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                 <label>Bovenregel afbeelding<input v-model="form.publicCopy.about.imageEyebrow"></label>
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.about.imageCaption"></label>
               </div>
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutLeadAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutLeadAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
             </div>
           </details>
 
@@ -349,7 +349,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
             </summary>
             <div class="section-body">
               <AdminMediaPicker v-model="form.publicCopy.visuals.aboutRoomImageUrl" label="Sfeerafbeelding" />
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutRoomAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutRoomAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               <label>Bovenregel<input v-model="form.publicCopy.about.momentEyebrow"></label>
               <label>Quote<textarea v-model="form.publicCopy.about.momentQuote" rows="3" /></label>
               <label>Ondersteunende tekst<textarea v-model="form.publicCopy.about.momentBody" rows="4" /></label>
@@ -429,7 +429,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
             <div class="section-body">
               <label>Showreel-URL<input v-model="form.showreelUrl" type="url" placeholder="https://…"></label>
               <AdminMediaPicker v-model="form.publicCopy.visuals.mediaShowreelImageUrl" label="Achtergrondafbeelding showreel" />
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.mediaShowreelAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.mediaShowreelAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               <div class="field-grid two">
                 <label>Bovenregel<input v-model="form.publicCopy.media.showreelEyebrow"></label>
                 <label>Tekst externe link<input v-model="form.publicCopy.media.showreelExternalLabel"></label>
@@ -475,7 +475,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                     @update:model-value="image.url = $event || ''"
                     @selected="applyGalleryAsset(image, $event)"
                   />
-                  <label>Alt-tekst<input v-model="image.alt"></label>
+                  <label>Alt-tekst<input v-model="image.alt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
                 </article>
               </div>
 
