@@ -436,15 +436,14 @@ h1 {
 }
 
 .action.primary {
-  border-color: #8b5cf6;
-  background: #7c3aed;
-  color: #fff;
-  box-shadow: 0 10px 28px rgba(124, 58, 237, .28);
+  border-color: var(--button-primary-bg);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
 }
 
 .action.primary:hover:not(:disabled) {
-  border-color: #a47bff;
-  background: #8b4cf6;
+  border-color: #e6e0ee;
+  background: #e6e0ee;
 }
 
 .count {

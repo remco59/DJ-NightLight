@@ -328,7 +328,7 @@ async function removeEmailSettings() {
 .section-intro{display:flex;gap:.8rem;align-items:flex-start;margin:1.4rem .1rem .85rem}
 .section-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#241440;color:#b98cff}
 .section-intro h2{margin:.1rem 0;font-size:1.3rem}
-.section-intro p:last-child{max-width:680px;margin:.25rem 0 0;color:#8c8594;font-size:.82rem;line-height:1.45}
+.section-intro p:last-child{max-width:680px;margin:.25rem 0 0;color:var(--text-subtle);font-size:.82rem;line-height:1.45}
 .integration-card{margin-bottom:1rem;padding:1.15rem;border:1px solid var(--border);border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
 .integration-head,.credential-head,.actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
 .integration-title{display:flex;gap:.8rem;align-items:center}
@@ -336,7 +336,7 @@ async function removeEmailSettings() {
 .brand-icon.google{color:#fff;background:linear-gradient(135deg,#2d6cdf,#34a853 45%,#fbbc05 70%,#ea4335)}
 .brand-icon.resend{color:#fff;background:#171717}
 .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
-.integration-head p{margin:0;color:#8c8594;font-size:.8rem}
+.integration-head p{margin:0;color:var(--text-subtle);font-size:.8rem}
 .status-stack{display:grid;justify-items:end;gap:.25rem;flex:none}
 .status-stack small{color:var(--text-subtle);font-size:.75rem}
 .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .68rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.7rem;font-weight:750}

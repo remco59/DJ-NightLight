@@ -37,7 +37,7 @@ function settle(value: 'confirm' | 'secondary' | null) {
 </template>
 
 <style scoped>
-.confirm-dialog{width:min(34rem,calc(100% - 2rem));padding:1.4rem;border:1px solid var(--border-strong);border-radius:1rem;background:#141119;color:var(--text)}
+.confirm-dialog{width:min(34rem,calc(100% - 2rem));padding:1.4rem;border:1px solid var(--border-strong);border-radius:1rem;background:var(--surface-raised);color:var(--text)}
 .confirm-dialog::backdrop{background:rgba(5,4,7,.72)}
 .confirm-dialog h2{margin:0 0 .5rem;font-size:1.25rem;line-height:1.25}
 .confirm-dialog p{margin:0;color:var(--text-muted);line-height:1.55}

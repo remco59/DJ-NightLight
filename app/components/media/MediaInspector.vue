@@ -434,7 +434,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 .next { right: .9rem; }
 .counter { position: absolute; right: .9rem; bottom: .9rem; border-radius: .45rem; padding: .25rem .5rem; background: rgba(10, 9, 13, .7); color: #fff; font-size: .74rem; font-weight: 700; }
 .strip h3 { margin: 0 0 .65rem; font-size: .95rem; }
-.strip h3 span { margin-left: .3rem; color: #8f879a; font-weight: 500; }
+.strip h3 span { margin-left: .3rem; color: var(--text-subtle); font-weight: 500; }
 .strip-items { display: grid; grid-auto-columns: max(7rem, calc((100% - 2.4rem) / 5)); grid-auto-flow: column; gap: .6rem; overflow-x: auto; padding-bottom: .25rem; }
 .strip-item { position: relative; overflow: hidden; aspect-ratio: 16 / 10; border: 1px solid var(--border); border-radius: .6rem; padding: 0; background: #09080c; cursor: pointer; }
 .strip-item img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -448,7 +448,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 .details h2 { margin: 0; padding-right: 2.5rem; font-size: 1.6rem; letter-spacing: -.03em; overflow-wrap: anywhere; }
 .facts { display: flex; flex-wrap: wrap; gap: .45rem 1.1rem; color: #b3abbd; font-size: .8rem; }
 .facts span { display: inline-flex; align-items: center; gap: .4rem; }
-.facts .iconify { color: #8f879a; }
+.facts .iconify { color: var(--text-subtle); }
 .filename { display: flex; align-items: center; gap: .45rem; margin: -.35rem 0 0; overflow: hidden; color: var(--text-subtle); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .tag-row { display: flex; flex-wrap: wrap; gap: .4rem; }
 .tag-row .mh-tag { font: inherit; font-size: .76rem; padding: .3rem .75rem; }

@@ -76,7 +76,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  z-index: 30;
+  z-index: var(--z-drawer);
   width: 17rem;
   display: flex;
   flex-direction: column;
@@ -120,7 +120,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   .mobile-header {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: var(--z-sticky);
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -157,7 +157,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   .backdrop {
     position: fixed;
     inset: 0;
-    z-index: 25;
+    z-index: calc(var(--z-drawer) - 5);
     display: block;
     border: 0;
     background: rgba(0, 0, 0, .58);

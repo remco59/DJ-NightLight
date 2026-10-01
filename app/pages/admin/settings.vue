@@ -254,7 +254,7 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
 .settings{max-width:980px;margin-inline:auto;padding-bottom:4rem}
 .page-head{margin-bottom:1.1rem}
 h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
-.page-head>p:last-child{max-width:680px;color:#8c8594}
+.page-head>p:last-child{max-width:680px;color:var(--text-subtle)}
 .settings-tabs{display:flex;gap:.6rem;margin-bottom:1rem}
 .settings-tabs a{display:flex;align-items:center;min-height:2.75rem;gap:.5rem;min-width:140px;justify-content:center;padding:.75rem 1rem;border:1px solid var(--border-strong);border-radius:.75rem;background:#0d0b10;color:#d8d1df;font-size:.85rem;font-weight:750;text-decoration:none;transition:.2s ease}
 .settings-tabs a:hover{border-color:#6f42c1;background:linear-gradient(135deg,#39206b,#5b2eb5);color:#fff}
@@ -263,7 +263,7 @@ h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .status-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem}
 .status-title{display:flex;align-items:center;gap:.8rem}
 .status-title h2{margin:0;font-size:1rem}
-.status-title p{margin:.2rem 0 0;color:#8c8594;font-size:.8rem}
+.status-title p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.8rem}
 .status-dot{width:.65rem;height:.65rem;border-radius:50%;background:#37df82;box-shadow:0 0 18px rgba(55,223,130,.35)}
 .status-dot.warn{background:#e9c46a;box-shadow:none}
 .status-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:.85rem;overflow:hidden;background:var(--surface-input)}
@@ -280,7 +280,7 @@ h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .card-heading.compact{margin:0}
 .section-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#241440;color:#b98cff}
 .card-heading h2{margin:0;font-size:1.15rem}
-.card-heading p{margin:.25rem 0 0;color:#8c8594;font-size:.82rem;line-height:1.45}
+.card-heading p{margin:.25rem 0 0;color:var(--text-subtle);font-size:.82rem;line-height:1.45}
 .grid,.password-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
 .wide{grid-column:1/-1}
 label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.78rem}
