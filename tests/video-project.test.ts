@@ -109,6 +109,7 @@ describe('motion templates', () => {
     expect(MOTION_TEMPLATE_KEYS).toEqual([
       'gig-announcement',
       'recap-intro',
+      'review',
       'upcoming-gigs',
       'logo-sting',
       'lower-third',
