@@ -228,7 +228,7 @@ useSeoMeta({
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.description }}</span>
               </div>
-              <span class="attention-meta with-icon"><Icon name="lucide:calendar-days" />{{ formatMeta(item.meta) }}</span>
+              <span v-if="formatMeta(item.meta)" class="attention-meta with-icon"><Icon name="lucide:calendar-days" />{{ formatMeta(item.meta) }}</span>
               <Icon class="row-chevron" name="lucide:chevron-right" />
             </NuxtLink>
           </div>

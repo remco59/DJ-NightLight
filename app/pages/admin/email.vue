@@ -183,7 +183,20 @@ async function sendTest() {
   }
 }
 
+const confirmAction = useConfirm()
+const dueJobs = computed(() => (data.value?.jobs ?? []).filter(job => job.status === 'pending' && new Date(job.runAt).getTime() <= Date.now()))
+
 async function runAutomation() {
+  const due = dueJobs.value.length
+  const recipients = [...new Set(dueJobs.value.map(job => job.recipient))]
+  const ok = await confirmAction({
+    title: 'Automatiseringen nu uitvoeren?',
+    body: due
+      ? `${due} ${due === 1 ? 'e-mail staat' : 'e-mails staan'} klaar en ${due === 1 ? 'wordt' : 'worden'} direct verstuurd naar ${recipients.slice(0, 3).join(', ')}${recipients.length > 3 ? ` en ${recipients.length - 3} anderen` : ''}. E-mails die voor later gepland staan blijven wachten.`
+      : 'Er staan nu geen e-mails klaar. NightLight controleert alleen of er nieuwe automatische e-mails moeten worden ingepland.',
+    confirmLabel: due ? 'Nu versturen' : 'Controleren',
+  })
+  if (!ok) return
   busy.value = 'run'
   message.value = ''
   try {

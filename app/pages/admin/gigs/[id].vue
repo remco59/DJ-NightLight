@@ -53,10 +53,25 @@ const {data:submissionData}=await useFetch<PortalSubmission>(`/api/admin/gigs/${
 function addContact(){contacts.value.push({name:'',role:'',email:'',phone:'',notes:''})}
 function addTimeline(){timeline.value.push({time:'',title:'',description:''})}
 const {isDirty,markSaved}=useUnsavedChanges(()=>({form,contacts:contacts.value,timeline:timeline.value}))
+const confirmAction=useConfirm();const chooseAction=useChoice()
+type EmailPlan={templateName:string;recipient:string|null;willSend:boolean;skipReason:string|null;delayMinutes:number;providerConfigured:boolean}
+function emailPlan(template:'booking_accepted'|'client_portal_invitation'){return $fetch<EmailPlan>(`/api/admin/gigs/${id}/email-plan`,{query:{template}})}
+function planTiming(plan:EmailPlan){const minutes=plan.delayMinutes;const when=minutes<=0?'direct':minutes%1440===0?`over ${minutes/1440} dag${minutes===1440?'':'en'}`:minutes%60===0?`over ${minutes/60} uur`:`over ${minutes} minuten`;return `${when}${plan.providerConfigured?'':' (zodra er een e-mailprovider is ingesteld)'}`}
 async function save(){
+  // Booking a gig emails the client "Boeking bevestigd", so ask first and offer to save without it.
+  let notify=true
+  if(form.status==='booked'&&data.value?.gig.status!=='booked'){
+    let plan:EmailPlan|null=null
+    try{plan=await emailPlan('booking_accepted')}catch{plan=null}
+    if(plan?.willSend){
+      const choice=await chooseAction({title:'Gig boeken en de klant mailen?',body:`De e-mail "${plan.templateName}" gaat ${planTiming(plan)} naar ${plan.recipient}.`,confirmLabel:'Opslaan en mailen',secondaryLabel:'Opslaan zonder e-mail'})
+      if(!choice)return
+      notify=choice==='confirm'
+    }
+  }
   saving.value=true;message.value=''
   try{
-    await $fetch(`/api/admin/gigs/${id}`,{method:'PUT',body:{
+    await $fetch(`/api/admin/gigs/${id}`,{method:'PUT',query:notify?undefined:{notify:'0'},body:{
       ...form,clientId:form.clientId||null,venueId:form.venueId||null,assignedUserId:form.assignedUserId||null,
       startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),fee:form.fee||null,
       contacts:contacts.value,timeline:timeline.value,
@@ -74,7 +89,7 @@ async function createInvoice(){
   catch(error:unknown){message.value=apiErrorMessage(error,'Factuur aanmaken is niet gelukt.')}
 }
 async function remove(){
-  if(!confirm('Deze afgewezen gig verwijderen? Gigs met een factuur- of betaalgeschiedenis worden gearchiveerd in plaats van definitief verwijderd.'))return
+  if(!(await confirmAction({title:'Deze gig verwijderen?',body:'Gigs met een factuur- of betaalgeschiedenis worden gearchiveerd in plaats van definitief verwijderd.',confirmLabel:'Verwijderen',tone:'danger'})))return
   try{
     const result=await $fetch<{mode:'delete'|'archive'}>(`/api/admin/gigs/${id}`,{method:'DELETE'})
     await navigateTo({path:'/admin/gigs',query:{removed:result.mode}})
@@ -89,8 +104,18 @@ async function createPortalLink(resend=false){
   }catch(error:unknown){portalMessage.value=apiErrorMessage(error,'Portaallink aanmaken is niet gelukt.')}
   finally{portalBusy.value=false}
 }
+const hasActivePortalLink=computed(()=>Boolean(portalData.value?.links.some(link=>link.state==='active')))
+async function sendPortalInvitation(){
+  let plan:EmailPlan|null=null
+  try{plan=await emailPlan('client_portal_invitation')}catch{plan=null}
+  const replaces=hasActivePortalLink.value?' Eerder verstuurde links werken daarna niet meer.':''
+  const ok=await confirmAction(plan?.willSend
+    ?{title:hasActivePortalLink.value?'Nieuwe uitnodiging versturen?':'Uitnodiging versturen?',body:`De uitnodiging voor het klantportaal gaat ${planTiming(plan)} naar ${plan.recipient}.${replaces}`,confirmLabel:'Versturen'}
+    :{title:'Alleen een link maken?',body:`Er wordt geen e-mail verstuurd: ${plan?.skipReason||'de e-mailstatus is onbekend.'} Je krijgt een link om zelf te delen.${replaces}`,confirmLabel:'Link maken'})
+  if(ok)await createPortalLink(true)
+}
 async function revokePortalLink(linkId:string){
-  if(!confirm('Deze portaallink intrekken?'))return
+  if(!(await confirmAction({title:'Deze portaallink intrekken?',body:'De klant kan de link daarna niet meer gebruiken.',confirmLabel:'Intrekken',tone:'danger'})))return
   try{await $fetch(`/api/admin/gigs/${id}/portal-links/${linkId}`,{method:'DELETE'});portalMessage.value='Portaallink ingetrokken.';portalUrl.value='';await refreshPortal();await refresh()}
   catch(error:unknown){portalMessage.value=apiErrorMessage(error,'Portaallink intrekken is niet gelukt.')}
 }
@@ -114,7 +139,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 
 <section v-if="canManageGigs" class="card invoice-card">
   <div class="section-title invoice-heading">
-    <div><p class="eyebrow">Financiën</p><h2>Facturen & Stripe</h2><span class="subtle-copy">Facturen horen bij deze gig. De Stripe-status wordt automatisch bijgewerkt na betaling via Checkout of bankoverschrijving.</span></div>
+    <div><p class="eyebrow">Financiën</p><h2>Facturen & Stripe</h2><span class="subtle-copy">Facturen horen bij deze gig. Online betalingen via Stripe worden automatisch verwerkt. Een overschrijving of contante betaling registreer je op de factuur.</span></div>
     <button type="button" class="secondary" @click="createInvoice">Factuur aanmaken</button>
   </div>
   <div v-if="!data.invoices.length" class="subtle">Nog geen facturen voor deze gig.</div>
@@ -138,7 +163,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <section class="card"><p class="eyebrow">Zichtbaarheid</p><label class="checkbox"><input v-model="form.publicVisibility" type="checkbox"> Toon deze gig in de publieke agenda</label><div class="grid public-fields"><label>Publieke titel<input v-model="form.publicTitle" :placeholder="publicTitlePlaceholder"></label><label class="wide">Publieke beschrijving<textarea v-model="form.publicDescription" rows="3"/></label></div></section>
 <section class="card"><p class="eyebrow">Intern</p><label>Interne notities<textarea v-model="form.internalNotes" rows="6"/></label></section>
 
-<section v-if="canManageGigs" class="card"><div class="section-title"><div><p class="eyebrow">Klantportaal</p><h2>Beveiligde toegang</h2></div></div><div class="portal-actions"><label>Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" class="secondary" :disabled="portalBusy" @click="createPortalLink(false)">Link aanmaken</button><button type="button" class="primary" :disabled="portalBusy" @click="createPortalLink(true)">Uitnodiging opnieuw versturen</button></div><div v-if="portalUrl" class="one-time-link"><div><strong>Eenmalig zichtbaar</strong><span>{{portalUrl}}</span></div><button type="button" class="with-icon secondary" @click="copyPortalUrl"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button></div><p v-if="portalMessage" class="portal-message">{{portalMessage}}</p><div v-if="!portalData?.links.length" class="subtle">Er zijn nog geen portaallinks uitgegeven.</div><div v-for="link in portalData?.links||[]" :key="link.id" class="portal-row"><div><strong>{{labelFor(portalLinkStateLabels,link.state)}}</strong><span>Verloopt {{portalDate(link.expiresAt)}} · Laatst gebruikt {{portalDate(link.lastUsedAt)}}</span></div><button v-if="link.state==='active'" type="button" class="remove-small" @click="revokePortalLink(link.id)">Intrekken</button></div></section>
+<section v-if="canManageGigs" class="card"><div class="section-title"><div><p class="eyebrow">Klantportaal</p><h2>Beveiligde toegang</h2></div></div><div class="portal-actions"><label>Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" class="secondary" :disabled="portalBusy" @click="createPortalLink(false)">Link aanmaken</button><button type="button" class="primary" :disabled="portalBusy" @click="sendPortalInvitation">{{hasActivePortalLink?'Nieuwe uitnodiging versturen':'Uitnodiging versturen'}}</button></div><div v-if="portalUrl" class="one-time-link"><div><strong>Eenmalig zichtbaar</strong><span>{{portalUrl}}</span></div><button type="button" class="with-icon secondary" @click="copyPortalUrl"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button></div><p v-if="portalMessage" class="portal-message">{{portalMessage}}</p><div v-if="!portalData?.links.length" class="subtle">Er zijn nog geen portaallinks uitgegeven.</div><div v-for="link in portalData?.links||[]" :key="link.id" class="portal-row"><div><strong>{{labelFor(portalLinkStateLabels,link.state)}}</strong><span>Verloopt {{portalDate(link.expiresAt)}} · Laatst gebruikt {{portalDate(link.lastUsedAt)}}</span></div><button v-if="link.state==='active'" type="button" class="remove-small" @click="revokePortalLink(link.id)">Intrekken</button></div></section>
 
 <section v-if="canManageGigs&&submissionData" class="card"><div class="section-title"><div><p class="eyebrow">Ingevuld portaal</p><h2>Contract & muziekwensen</h2></div><NuxtLink to="/admin/questionnaire" class="text-button">Template bewerken</NuxtLink></div><div class="submission-status"><strong>{{labelFor(submissionStatusLabels,submissionData.status)}}</strong><span>Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{portalDate(submissionData.submission.submittedAt)}}</template></span></div><div v-if="submissionData.submission" class="answer-grid"><div v-for="field in submissionData.fields" :key="field.id"><span>{{field.label}}</span><strong>{{answerValue(submissionData.submission.answers[field.id])}}</strong></div><div><span>Geaccepteerd door</span><strong>{{submissionData.submission.acceptedName||'—'}}</strong></div></div><div v-else class="subtle">De klant heeft de vragenlijst nog niet ingediend.</div><h3>Muziekwensen</h3><div v-if="!submissionData.wishes.length" class="subtle">Geen muziekwensen ingediend.</div><div v-for="wish in submissionData.wishes" :key="wish.id" class="wish-row"><span>{{labelFor(musicWishCategoryLabels,wish.category)}}</span><div><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note">{{wish.note}}</small></div></div></section>
 

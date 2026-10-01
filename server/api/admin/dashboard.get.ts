@@ -10,6 +10,10 @@ function dateOnly(value: Date) {
   return value.toISOString().slice(0, 10)
 }
 
+function shortDate(value: Date) {
+  return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', timeZone: 'Europe/Amsterdam' }).format(value).replace('.', '')
+}
+
 function startOfWeek(value: Date) {
   const date = new Date(value)
   const day = date.getUTCDay() || 7
@@ -92,7 +96,8 @@ export default defineEventHandler(async (event) => {
     .orderBy(asc(gigs.startsAt))
     .limit(5)
 
-  const invoiceWhere = and(ne(invoices.status, 'void'), ne(invoices.paymentStatus, 'paid'))
+  // Only finalized invoices are owed; drafts have not been sent to anyone yet.
+  const invoiceWhere = and(eq(invoices.status, 'finalized'), ne(invoices.paymentStatus, 'paid'))
   const unpaidInvoiceRows = user.role === 'dj'
     ? []
     : await db
@@ -166,6 +171,7 @@ export default defineEventHandler(async (event) => {
       gigId: gigs.id,
       title: gigTitleSql(),
       createdAt: gigs.createdAt,
+      startsAt: gigs.startsAt,
       venueName: venues.name,
     })
     .from(gigs)
@@ -181,7 +187,7 @@ export default defineEventHandler(async (event) => {
       title: 'Factuur verlopen',
       description: `${invoice.invoiceNumber ? `Factuur ${invoice.invoiceNumber}` : 'Factuur'} voor ${invoice.gigTitle} is over de vervaldatum.`,
       meta: invoice.dueDate,
-      href: `/admin/gigs/${invoice.gigId}`,
+      href: `/admin/invoices/${invoice.id}`,
     })),
     ...openContracts.map(contract => ({
       id: `contract-${contract.gigId}`,
@@ -194,9 +200,10 @@ export default defineEventHandler(async (event) => {
     ...leadItems.map(lead => ({
       id: `lead-${lead.gigId}`,
       kind: 'lead' as const,
-      title: 'Nieuwe lead in behandeling',
-      description: `${lead.title}${lead.venueName ? ` · ${lead.venueName}` : ''}`,
-      meta: lead.createdAt,
+      title: lead.title,
+      description: `Nieuwe aanvraag · binnengekomen ${shortDate(lead.createdAt)}${lead.venueName && lead.venueName !== lead.title ? ` · ${lead.venueName}` : ''}`,
+      // The calendar date on a lead row is the event date, not when the request came in.
+      meta: lead.startsAt,
       href: `/admin/gigs/${lead.gigId}`,
     })),
   ].slice(0, 3)
