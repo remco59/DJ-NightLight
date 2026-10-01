@@ -85,6 +85,11 @@ const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[
     { sound: 'zap', frame: 19, volume: 0.7 },
   ],
   'recap-intro': () => [{ sound: 'impact', frame: 4, volume: 0.9 }],
+  // Review stars arrive in the rule frame, followed by the quote.
+  'review': () => [
+    { sound: 'zap', frame: 16, volume: 0.55 },
+    { sound: 'punch', frame: 18, volume: 0.45 },
+  ],
   // The headline's rule frame strikes its bolt.
   'upcoming-gigs': () => [{ sound: 'zap', frame: 12, volume: 0.7 }],
   // The wordmark (step 1) strikes its bolt with the white flash.

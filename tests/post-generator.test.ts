@@ -62,6 +62,7 @@ describe('post generator', () => {
   it('includes the editable NightLight campaign templates', () => {
     expect(POST_TEMPLATE_KEYS).toContain('gig-announcement')
     expect(POST_TEMPLATE_KEYS).toContain('recap')
+    expect(POST_TEMPLATE_KEYS).toContain('review')
     expect(POST_TEMPLATE_KEYS).toContain('upcoming-gigs')
   })
 
@@ -129,6 +130,21 @@ describe('post templates', () => {
     })
     expect(next.visibility.gigList).toBe(false)
     expect(next.visibility.time).toBe(true)
+  })
+
+  it('applies the review sample copy and hides unrelated event fields', () => {
+    const next = applyPostTemplate(defaultPostDesign(), 'review')
+    expect(next).toMatchObject({
+      templateKey: 'review',
+      preset: 'story',
+      headline: '★★★★★',
+      subline: '“Dansvloer heeft letterlijk geen moment leeg gestaan.”',
+      locationText: 'Bruiloft · Groningen',
+    })
+    expect(next.visibility.date).toBe(false)
+    expect(next.visibility.time).toBe(false)
+    expect(next.visibility.cta).toBe(false)
+    expect(next.visibility.location).toBe(true)
   })
 
   it('keeps copy the user wrote when switching templates', () => {

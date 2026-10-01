@@ -660,6 +660,113 @@ const RecapIntro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   )
 }
 
+
+const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const rating = textProp(item.templateProps, 'rating')
+  const quote = textProp(item.templateProps, 'quote')
+  const source = textProp(item.templateProps, 'source')
+  const safe = safeInsets(width, height)
+  const landscape = width > height
+  const contentWidth = Math.min(width - 140, landscape ? 980 : 900)
+  const top = landscape ? 80 : Math.max(90, safe.top - 90)
+  const quoteSize = landscape ? 52 : height / width > 1.5 ? 62 : 54
+  const ratingWidth = Math.min(contentWidth * .7, 620)
+
+  return h(
+    AbsoluteFill,
+    {
+      style: {
+        padding: `${top}px 70px ${Math.max(90, safe.bottom - 120)}px`,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    },
+    h(ArcBurst, {
+      colors,
+      width: Math.max(width, height) * 1.02,
+      opacity: flicker(frame, `review-arcs-${item.id}`, 14) * .45,
+    }),
+    h(
+      'div',
+      {
+        style: {
+          width: contentWidth,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          transform: TILT,
+        },
+      },
+      rating
+        ? h(RuleFrame, {
+            colors,
+            width: ratingWidth,
+            frame,
+            start: 4,
+            seed: `review-stars-${item.id}`,
+            content: band => h(
+              'div',
+              {
+                style: {
+                  ...body,
+                  color: colors.soft,
+                  fontSize: Math.min(58, band.height * .34),
+                  fontWeight: 900,
+                  letterSpacing: 12,
+                  textShadow: glow(colors, 26),
+                  opacity: reveal(frame, 8, 10),
+                  whiteSpace: 'nowrap',
+                },
+              },
+              rating,
+            ),
+          })
+        : null,
+      quote
+        ? h(
+            'div',
+            {
+              style: {
+                ...body,
+                marginTop: 54,
+                maxWidth: contentWidth * .9,
+                color: '#fff',
+                fontSize: quoteSize,
+                fontWeight: 800,
+                lineHeight: 1.14,
+                textShadow: '0 12px 38px rgba(0,0,0,.78)',
+                opacity: reveal(frame, 16, 14),
+                transform: `translateY(${interpolate(reveal(frame, 16, 14), [0, 1], [34, 0])}px)`,
+              },
+            },
+            '“',
+            quote,
+            '”',
+          )
+        : null,
+      source
+        ? h(
+            Kicker,
+            {
+              colors,
+              size: 27,
+              style: {
+                marginTop: 42,
+                maxWidth: contentWidth * .82,
+                letterSpacing: 7,
+                lineHeight: 1.35,
+                opacity: reveal(frame, 28, 10),
+              },
+            },
+            source.toUpperCase(),
+          )
+        : null,
+    ),
+  )
+}
+
 const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
   const props = item.templateProps
@@ -1326,6 +1433,7 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
 export const MOTION_TEMPLATE_COMPONENTS: Record<MotionTemplateKey, React.FC<TemplateRenderProps>> = {
   'gig-announcement': GigAnnouncement,
   'recap-intro': RecapIntro,
+  'review': ReviewQuote,
   'upcoming-gigs': UpcomingGigs,
   'logo-sting': LogoSting,
   'lower-third': LowerThird,

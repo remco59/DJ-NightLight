@@ -10,6 +10,7 @@ export const POST_TEMPLATE_KEYS = [
   'minimal',
   'gig-announcement',
   'recap',
+  'review',
   'upcoming-gigs',
 ] as const
 
@@ -142,7 +143,7 @@ export function safeAreaInsets(preset: PostPreset) {
 
 export const POST_BRAND_PRESETS = ['night', 'mono', 'warm'] as const
 
-export type PostTemplateCategory = 'Algemeen' | 'Minimaal' | 'Aankondigingen' | 'Terugblikken' | 'Aankomende gigs'
+export type PostTemplateCategory = 'Algemeen' | 'Minimaal' | 'Aankondigingen' | 'Terugblikken' | 'Reviews' | 'Aankomende gigs'
 
 /** Text fields the editor exposes; each template renders a subset of them. */
 export type PostTextField = 'headline' | 'subline' | 'date' | 'time' | 'location' | 'cta' | 'gigList'
@@ -168,6 +169,7 @@ export const POST_TEMPLATES: PostTemplateInfo[] = [
   { key: 'minimal', label: 'Minimaal', description: 'Strak redactioneel paneel.', category: 'Minimaal', fields: FLEXIBLE_FIELDS, flexibleText: true, overlay: 'Dekking van het redactionele zijpaneel.' },
   { key: 'gig-announcement', label: 'Gig-aankondiging', description: 'Krachtige eventpromo met datum, tijd, locatie en CTA.', category: 'Aankondigingen', fields: ['headline', 'subline', 'date', 'time', 'location', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
   { key: 'recap', label: 'Recap', description: 'Energieke terugblik na een event, geïnspireerd op Sneekweek.', category: 'Terugblikken', fields: ['headline', 'subline', 'date', 'location', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
+  { key: 'review', label: 'Review', description: 'Social proof met sterren, quote en type feest of locatie in NightLight-stijl.', category: 'Reviews', fields: ['headline', 'subline', 'location'], flexibleText: false, overlay: 'Sterkte van de donkere foto-overlay, textuur en neonaccenten.' },
   { key: 'upcoming-gigs', label: 'Aankomende gigs', description: 'Planningslayout met een bewerkbare lijst van aankomende data.', category: 'Aankomende gigs', fields: ['headline', 'subline', 'gigList', 'cta'], flexibleText: false, overlay: 'Sterkte van de campagnetextuur en gloed.' },
 ]
 
@@ -216,6 +218,10 @@ const CAMPAIGN_TEMPLATE_DEFAULTS: Partial<Record<PostTemplateKey, TemplateDefaul
   'recap': {
     copy: { headline: 'WAT EEN AVOND', subline: 'TERUGBLIK', dateText: '05 AUG', timeText: '', locationText: 'Sneekweek · Sneek', ctaText: 'TOT DE VOLGENDE!' },
     hidden: ['time', 'gigList'],
+  },
+  'review': {
+    copy: { headline: '★★★★★', subline: '“Dansvloer heeft letterlijk geen moment leeg gestaan.”', dateText: '', timeText: '', locationText: 'Bruiloft · Groningen', ctaText: '' },
+    hidden: ['date', 'time', 'cta', 'gigList'],
   },
   'upcoming-gigs': {
     copy: { headline: 'DECEMBER', subline: 'PLANNING', dateText: '', timeText: '', locationText: '', ctaText: 'TOT OP DE DANSVLOER!' },
