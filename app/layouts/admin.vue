@@ -46,7 +46,9 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
       >
         <Icon :name="mobileOpen ? 'lucide:x' : 'lucide:menu'" aria-hidden="true" />
       </button>
-      <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
+      <NuxtLink to="/admin" class="brand" aria-label="NightLight">
+        <img class="brand-logo" src="/brand/logo/wordmark-thumb.webp" alt="DJ NightLight">
+      </NuxtLink>
     </header>
 
     <aside ref="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="sidebarHidden || undefined" :aria-hidden="sidebarHidden || undefined">
@@ -86,8 +88,14 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 .brand {
   display: flex;
   align-items: center;
-  gap: .8rem;
   text-decoration: none;
+}
+.brand-logo {
+  width: 8.75rem;
+  max-width: 42vw;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 .75rem rgba(137, 79, 255, .18));
 }
 .admin-main {
   min-height: 100vh;
@@ -130,7 +138,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     background: rgba(14, 12, 18, .94);
     backdrop-filter: blur(14px);
   }
-  .mobile-header .brand { min-height: 2.75rem; font-weight: 800; }
+  .mobile-header .brand { min-height: 2.75rem; }
   .menu-button {
     display: inline-flex;
     align-items: center;

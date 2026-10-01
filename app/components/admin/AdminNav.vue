@@ -62,12 +62,9 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 
 <template>
   <div class="sidebar-top">
-    <NuxtLink to="/admin" class="brand">
-      <span class="brand-mark">NL</span>
-      <span>
-        <strong>NightLight</strong>
-        <small>Back office</small>
-      </span>
+    <NuxtLink to="/admin" class="brand" aria-label="NightLight back office">
+      <img class="brand-logo" src="/brand/logo/wordmark-thumb.webp" alt="DJ NightLight">
+      <small>Back office</small>
     </NuxtLink>
   </div>
 
@@ -136,24 +133,25 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 <style scoped>
 .sidebar-top { padding: 1.1rem 1rem .7rem; }
 .brand {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
+  display: grid;
+  justify-items: start;
+  gap: .3rem;
   text-decoration: none;
 }
-.brand-mark {
-  display: grid;
-  width: 2.35rem;
-  height: 2.35rem;
-  place-items: center;
-  border-radius: .7rem;
-  background: #fff;
-  color: #0b0910;
-  font-size: .75rem;
-  font-weight: 900;
+.brand-logo {
+  width: 10.5rem;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 .9rem rgba(137, 79, 255, .2));
 }
-.brand strong, .brand small { display: block; }
-.brand small { margin-top: .1rem; color: #817b8b; font-size: .72rem; }
+.brand small {
+  margin-left: .2rem;
+  color: #817b8b;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 
 .nav {
   flex: 1;
