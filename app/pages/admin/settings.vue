@@ -128,7 +128,7 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
       <p>Beheer bedrijfsgegevens, facturatie, integraties en andere instellingen.</p>
     </header>
 
-    <nav class="settings-tabs" aria-label="Instellingencategorieën">
+    <nav class="settings-tabs" aria-label="Ga naar onderdeel">
       <a href="#general"><Icon name="lucide:settings-2" aria-hidden="true"/>Algemeen</a>
       <a href="#rendering"><Icon name="lucide:play" aria-hidden="true"/>Video</a>
       <a href="#integrations"><Icon name="lucide:link-2" aria-hidden="true"/>Integraties</a>
@@ -256,8 +256,8 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
 h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .page-head>p:last-child{max-width:680px;color:#8c8594}
 .settings-tabs{display:flex;gap:.6rem;margin-bottom:1rem}
-.settings-tabs a{display:flex;align-items:center;gap:.5rem;min-width:140px;justify-content:center;padding:.75rem 1rem;border:1px solid #332e39;border-radius:.75rem;background:#0d0b10;color:#d8d1df;font-size:.85rem;font-weight:750;text-decoration:none;transition:.2s ease}
-.settings-tabs a:first-child,.settings-tabs a:hover{border-color:#6f42c1;background:linear-gradient(135deg,#39206b,#5b2eb5);color:#fff}
+.settings-tabs a{display:flex;align-items:center;min-height:2.75rem;gap:.5rem;min-width:140px;justify-content:center;padding:.75rem 1rem;border:1px solid #332e39;border-radius:.75rem;background:#0d0b10;color:#d8d1df;font-size:.85rem;font-weight:750;text-decoration:none;transition:.2s ease}
+.settings-tabs a:hover{border-color:#6f42c1;background:linear-gradient(135deg,#39206b,#5b2eb5);color:#fff}
 .status-card,.card{margin-bottom:1rem;border:1px solid #2b2631;border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
 .status-card{padding:1rem}
 .status-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem}

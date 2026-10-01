@@ -181,6 +181,9 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   text-decoration: none;
   font-size: .86rem;
 }
+@media (max-width: 820px) {
+  .nav-link { min-height: 2.75rem; }
+}
 .nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #9a93a4; }
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }

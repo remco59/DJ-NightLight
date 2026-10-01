@@ -434,6 +434,7 @@ useSeoMeta({
 .gallery-heading a {
   display: inline-flex;
   align-items: center;
+  min-height: 2.75rem;
   gap: .35rem;
   color: #aaa4af;
   font-size: .85rem;

@@ -130,14 +130,14 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     background: rgba(14, 12, 18, .94);
     backdrop-filter: blur(14px);
   }
-  .mobile-header .brand { font-weight: 800; }
+  .mobile-header .brand { min-height: 2.75rem; font-weight: 800; }
   .menu-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex: 0 0 2.5rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
     border: 1px solid #302b38;
     border-radius: .6rem;
     padding: 0;
@@ -151,6 +151,8 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  /* Touch-sized controls on a phone (the post editor sizes its own). */
+  .admin-shell:not(.post-editor-route) .admin-main :deep(:is(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]))) { min-height: 2.75rem; }
   .post-editor-route .admin-main { padding-top: 1rem; }
   .backdrop {
     position: fixed;
