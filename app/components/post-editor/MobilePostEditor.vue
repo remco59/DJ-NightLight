@@ -679,6 +679,12 @@ async function toggleFullscreen() {
                     <span class="template-pill">TERUGBLIK</span>
                   </template>
 
+                  <template v-else-if="template.key === 'review'">
+                    <span class="template-display template-display-recap">★★★★★</span>
+                    <span class="template-pill">REVIEW</span>
+                    <span class="template-mini-meta">BRUILOFT · GRONINGEN</span>
+                  </template>
+
                   <template v-else-if="template.key === 'upcoming-gigs'">
                     <span class="template-display template-display-planning">DECEMBER</span>
                     <span class="template-pill">PLANNING</span>
