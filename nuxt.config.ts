@@ -56,6 +56,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      htmlAttrs: { lang: 'nl' },
       title: 'DJ NightLight',
       meta: [
         { name: 'description', content: 'DJ NightLight — DJ, events and nightlife.' },
