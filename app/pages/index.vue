@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { responsiveImage } from '~~/shared/responsive-image'
+import { dutchDayOfMonth, dutchMonthShort, dutchShortDate, dutchTimeRange } from '~~/shared/dutch-date'
 
 definePageMeta({ layout: 'public' })
 
@@ -18,13 +19,13 @@ const { data: recentGigData } = await useFetch<{ gigs: RecentGig[] }>('/api/publ
   key: 'home-recent-gigs',
 })
 
-function recentGigDate(value: string) {
-  return new Intl.DateTimeFormat('nl-NL', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value)).replace('.', '')
-}
+const recentGigDate = dutchShortDate
+
+type UpcomingShow = { title: string, startsAt: string, endsAt: string | null, location: string | null }
+// Same request (and cache key) as the agenda page: upcoming public shows are the
+// strongest proof that NightLight is booked, so the home page shows the next few.
+const { data: agendaData } = await useFetch<{ gigs: UpcomingShow[] }>('/api/public/agenda', { key: 'public-agenda' })
+const upcomingShows = computed(() => agendaData.value?.gigs.slice(0, 3) ?? [])
 
 function recentGigLocation(gig: RecentGig) {
   // A gig without a public title is already named after its venue.
@@ -172,6 +173,28 @@ useSeoMeta({
       </div>
     </section>
 
+    <section v-if="upcomingShows.length" class="recent-nights upcoming-shows public-container" aria-labelledby="upcoming-shows-title">
+      <div class="recent-nights-intro">
+        <p class="eyebrow">Agenda</p>
+        <h2 id="upcoming-shows-title">Binnenkort live te horen.</h2>
+        <p>Openbare avonden waar je NightLight zelf kunt horen. Besloten feesten staan hier niet tussen.</p>
+        <NuxtLink class="upcoming-link" to="/agenda">Volledige agenda <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
+      </div>
+
+      <div class="recent-nights-list">
+        <article v-for="show in upcomingShows" :key="`${show.startsAt}-${show.title}`" class="recent-night">
+          <div class="recent-night-meta">
+            <span>{{ dutchDayOfMonth(show.startsAt) }} {{ dutchMonthShort(show.startsAt) }}</span>
+            <time :datetime="show.startsAt">{{ dutchTimeRange(show.startsAt, show.endsAt) }}</time>
+          </div>
+          <div>
+            <p v-if="show.location" class="recent-night-location">{{ show.location }}</p>
+            <h3>{{ show.title }}</h3>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section v-if="recentGigData?.gigs.length" class="recent-nights public-container" aria-labelledby="recent-nights-title">
       <div class="recent-nights-intro">
         <p class="eyebrow">Recent gedraaid</p>
@@ -230,7 +253,7 @@ useSeoMeta({
 
 .services-shell{padding:1.5rem 0 7rem}.services-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;margin-bottom:2rem}.services-heading>p:last-child{max-width:30rem;margin:0;color:#8f8995;font-size:.94rem;line-height:1.55}.services{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(22rem,.92fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:2.5rem clamp(2.5rem,5vw,5rem)}.service-story{display:grid;grid-template-columns:minmax(9rem,.82fr) minmax(0,1.18fr);gap:1.35rem;align-items:start;padding-top:1rem;border-top:1px solid #2b2730;transition:border-color .25s ease}.service-story:hover{border-top-color:rgba(157,92,255,.34)}.service-story.featured{grid-row:1/3;grid-template-columns:1fr;grid-template-rows:auto auto;gap:1.25rem}.service-image{overflow:hidden;background:#111014}.service-image img{display:block;width:100%;height:100%;min-height:13rem;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1)}.service-story:not(.featured) .service-image{aspect-ratio:4/3}.service-story.featured .service-image{aspect-ratio:4/5;max-height:42rem}.service-story:hover .service-image img{transform:scale(1.025)}.service-copy{align-self:start}.service-copy span{display:block;margin-bottom:1.1rem;color:var(--text-subtle);font-size:.75rem;letter-spacing:.08em}.service-copy h3{margin:0 0 .7rem;font-size:clamp(1.45rem,2.3vw,2.25rem);line-height:1;letter-spacing:-.04em}.service-story.featured .service-copy h3{font-size:clamp(2rem,3.3vw,3.35rem)}.service-copy p{max-width:34rem;margin:0;color:#a7a1ac;font-size:.94rem;line-height:1.62}
 
-.recent-nights{display:grid;grid-template-columns:minmax(16rem,.58fr) minmax(0,1.2fr);gap:clamp(3rem,8vw,8rem);padding:3rem 0 7rem}.recent-nights-intro{position:sticky;top:7rem;align-self:start}.recent-nights-intro h2{margin:.65rem 0 1rem;font-size:clamp(2rem,3.4vw,3.4rem);line-height:1;letter-spacing:-.04em}.recent-nights-intro>p:last-child{max-width:28rem;margin:0;color:#8e8893;line-height:1.65}.recent-nights-list{border-top:1px solid var(--border)}.recent-night{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:clamp(1rem,3vw,2.5rem);padding:2rem 0 2.2rem;border-bottom:1px solid var(--border)}.recent-night-meta{display:flex;flex-direction:column;gap:.45rem;color:var(--text-subtle);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.recent-night-meta span{color:var(--electric-accent);text-shadow:0 0 .7rem rgba(157,92,255,.18)}.recent-night-location{margin:0 0 .45rem;color:#817a87;font-size:.76rem;letter-spacing:.05em;text-transform:uppercase}.recent-night h3{margin:0;font-size:clamp(1.55rem,2.7vw,2.65rem);line-height:1;letter-spacing:-.04em}.recent-night-description{max-width:46rem;margin:.75rem 0 0;color:#aaa4af;line-height:1.65}
+.recent-nights{display:grid;grid-template-columns:minmax(16rem,.58fr) minmax(0,1.2fr);gap:clamp(3rem,8vw,8rem);padding:3rem 0 7rem}.recent-nights-intro{position:sticky;top:7rem;align-self:start}.recent-nights-intro h2{margin:.65rem 0 1rem;font-size:clamp(2rem,3.4vw,3.4rem);line-height:1;letter-spacing:-.04em}.recent-nights-intro>p:last-child{max-width:28rem;margin:0;color:#8e8893;line-height:1.65}.recent-nights-list{border-top:1px solid var(--border)}.recent-night{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:clamp(1rem,3vw,2.5rem);padding:2rem 0 2.2rem;border-bottom:1px solid var(--border)}.recent-night-meta{display:flex;flex-direction:column;gap:.45rem;color:var(--text-subtle);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.recent-night-meta span{color:var(--electric-accent);text-shadow:0 0 .7rem rgba(157,92,255,.18)}.recent-night-location{margin:0 0 .45rem;color:#817a87;font-size:.76rem;letter-spacing:.05em;text-transform:uppercase}.recent-night h3{margin:0;font-size:clamp(1.55rem,2.7vw,2.65rem);line-height:1;letter-spacing:-.04em}.upcoming-link{position:relative;display:inline-flex;align-items:center;gap:.4rem;margin-top:1.2rem;padding-bottom:.18rem;border-bottom:1px solid rgba(157,92,255,.36);color:#d6d1db;text-decoration:none}.upcoming-link::before{content:"";position:absolute;inset:-.75rem -.35rem}.upcoming-shows+.recent-nights{padding-top:0}.recent-night-description{max-width:46rem;margin:.75rem 0 0;color:#aaa4af;line-height:1.65}
 
 .proof-shell{border-top:1px solid #252129;border-bottom:1px solid #1a181d;background:radial-gradient(circle at 82% 30%,rgba(109,40,217,.07),transparent 24rem),#09090b}.proof{display:grid;grid-template-columns:minmax(10rem,.35fr) minmax(0,1fr);gap:clamp(2rem,8vw,8rem);align-items:start;padding:5.75rem 0 6.25rem}.proof>.eyebrow{margin-top:.45rem}.proof-main{max-width:62rem}.proof blockquote{max-width:25ch;margin:0 0 2.75rem;font-size:clamp(2rem,3.6vw,3.55rem);line-height:1.04;letter-spacing:-.04em;font-weight:800}.proof-types{display:flex;flex-wrap:wrap;gap:.45rem 0;margin:0;padding:0;list-style:none;color:var(--text-subtle);font-size:.78rem;letter-spacing:.035em}.proof-types li+li::before{content:"·";margin:0 .7rem;color:#4f4953}
 

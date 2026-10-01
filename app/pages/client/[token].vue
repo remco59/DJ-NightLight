@@ -2,6 +2,7 @@
 import type { QuestionnaireField } from '~~/shared/questionnaire'
 import { musicWishCategories } from '~~/shared/questionnaire'
 import { musicWishCategoryLabels } from '~~/shared/labels'
+import { dutchDateTime, dutchFullDate } from '~~/shared/dutch-date'
 import { apiErrorMessage } from '~/utils/api-error'
 
 const route = useRoute()
@@ -34,7 +35,11 @@ const confirming = ref(false)
 
 function formatDate(value: string | null) {
   if (!value) return 'Datum volgt nog'
-  return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(value))
+  return dutchDateTime(value)
+}
+// Due dates are calendar days without a time.
+function formatDueDate(value: string) {
+  return dutchFullDate(`${value}T12:00:00Z`)
 }
 function addWish(category: Wish['category'] = 'nice_to_have') {
   wishes.value.push({ category, artist: '', title: '', spotifyUrl: '', note: '', ordering: wishes.value.length })
@@ -77,7 +82,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         <article class="portal-card"><p class="eyebrow">Locatie</p><strong>{{ data.gig.venue?.name || 'Volgt nog' }}</strong><span v-if="data.gig.venue?.city">{{ data.gig.venue.city }}</span></article>
       </section>
 
-      <section v-if="data.invoice?.status==='finalized'" class="payment-card"><div><p class="eyebrow">Factuur {{data.invoice.invoiceNumber}}</p><h2>{{new Intl.NumberFormat('nl-NL',{style:'currency',currency:data.invoice.currency}).format(data.invoice.totalCents/100)}}</h2><span v-if="data.invoice.paymentStatus==='paid'">Betaald{{data.invoice.paidAt?` op ${formatDate(data.invoice.paidAt)}`:''}}</span><span v-else-if="data.invoice.paymentStatus==='pending'">Betaling wordt verwerkt. Een bankoverschrijving kan een paar werkdagen duren.</span><span v-else>Te betalen vóór {{formatDate(data.invoice.dueDate)}} · met iDEAL, kaart of overschrijving.</span></div><strong v-if="data.invoice.paymentStatus==='paid'" class="paid">Betaling ontvangen</strong><button v-else type="button" class="primary" :disabled="paymentBusy" @click="payInvoice">{{paymentBusy?'Betaalpagina openen…':'Veilig betalen'}}</button></section>
+      <section v-if="data.invoice?.status==='finalized'" class="payment-card"><div><p class="eyebrow">Factuur {{data.invoice.invoiceNumber}}</p><h2>{{new Intl.NumberFormat('nl-NL',{style:'currency',currency:data.invoice.currency}).format(data.invoice.totalCents/100)}}</h2><span v-if="data.invoice.paymentStatus==='paid'">Betaald{{data.invoice.paidAt?` op ${formatDate(data.invoice.paidAt)}`:''}}</span><span v-else-if="data.invoice.paymentStatus==='pending'">Betaling wordt verwerkt. Een bankoverschrijving kan een paar werkdagen duren.</span><span v-else>Te betalen vóór {{formatDueDate(data.invoice.dueDate)}} · met iDEAL, kaart of overschrijving.</span></div><strong v-if="data.invoice.paymentStatus==='paid'" class="paid">Betaling ontvangen</strong><button v-else type="button" class="primary" :disabled="paymentBusy" @click="payInvoice">{{paymentBusy?'Betaalpagina openen…':'Veilig betalen'}}</button></section>
 
       <section v-if="data.questionnaire.status==='submitted'" class="submitted-banner"><strong>Verstuurd</strong><span>Je gegevens zijn ontvangen op {{ formatDate(data.questionnaire.submittedAt) }}.</span></section>
 
