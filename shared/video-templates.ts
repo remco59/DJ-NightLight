@@ -8,6 +8,7 @@ import { isLucideIcon, type LucideIconName } from './lucide-icons'
 export const MOTION_TEMPLATE_KEYS = [
   'gig-announcement',
   'recap-intro',
+  'review',
   'upcoming-gigs',
   'logo-sting',
   'lower-third',
@@ -177,6 +178,27 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('meta', 'Datum / locatie', 80),
     ],
     defaults: { kicker: 'TERUGBLIK', headline: 'WAT EEN AVOND', meta: 'CLUB NOVA · 26.04' },
+  },
+  'review': {
+    key: 'review',
+    label: 'Review',
+    description: 'Klantreview met sterren, quote en bron in de elektrische NightLight-stijl.',
+    category: 'Terugblik',
+    defaultDurationSeconds: 5.5,
+    defaultAccent: 'ultraviolet',
+    defaultEntrance: 'fade-slide-up',
+    defaultExit: 'fade',
+    defaultBackdrop: 0.5,
+    fields: [
+      text('rating', 'Sterren', 10),
+      { key: 'quote', label: 'Review', kind: 'textarea', maxLength: 220, placeholder: 'Wat zei de klant?' },
+      text('source', 'Bron', 80, 'Bruiloft · Groningen'),
+    ],
+    defaults: {
+      rating: '★★★★★',
+      quote: 'Dansvloer heeft letterlijk geen moment leeg gestaan.',
+      source: 'Bruiloft · Groningen',
+    },
   },
   'upcoming-gigs': {
     key: 'upcoming-gigs',
