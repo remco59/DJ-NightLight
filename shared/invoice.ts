@@ -19,6 +19,8 @@ export type InvoiceSnapshot = {
   paymentTerms: string
   legalText: string
   notes: string
+  /** Secure customer portal URL captured when the invoice is finalized. */
+  portalUrl?: string
 }
 
 const quantityPattern = /^\d{1,9}(?:\.\d{1,3})?$/
