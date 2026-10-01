@@ -112,5 +112,5 @@ watch(() => route.path, () => {
 
 @media(max-width:1000px){.site-header{grid-template-columns:1fr auto}.desktop-nav{display:none}.menu{display:flex}.book{display:none}.footer-bottom{grid-template-columns:1fr 1fr}.footer-nav{display:none}}
 @media(max-width:760px){.site-header{padding:.95rem 1rem}.brand{font-size:.9rem}.mobile-nav{inset:4rem 0 0}.footer{padding-left:1rem;padding-right:1rem}.footer-primary{display:block}.footer-primary>div>strong{font-size:clamp(3rem,14vw,5rem)}.footer-cta{margin-top:2rem}.footer-bottom{grid-template-columns:1fr;gap:1.5rem}.footer-links{justify-content:flex-start}}
-@media(prefers-reduced-motion:reduce){.menu-panel-enter-active,.menu-panel-leave-active,.book,.desktop-nav a,.desktop-nav a::after,.footer-cta::before{content:"";position:absolute;inset:-.75rem -.35rem}.footer-cta svg{transition:none}.book:hover,.footer-cta:hover svg{transform:none}}
+@media(prefers-reduced-motion:reduce){.menu-panel-enter-active,.menu-panel-leave-active,.book,.desktop-nav a,.desktop-nav a::after,.footer-cta svg{transition:none}.book:hover,.footer-cta:hover svg{transform:none}}
 </style>
