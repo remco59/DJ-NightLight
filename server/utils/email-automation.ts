@@ -100,6 +100,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
       firstName: clients.firstName,
       lastName: clients.lastName,
       companyName: clients.companyName,
+      documentSnapshot: invoices.documentSnapshot,
     })
     .from(invoices)
     .innerJoin(gigs, eq(invoices.gigId, gigs.id))
@@ -107,6 +108,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
     .where(eq(invoices.id, invoiceId))
     .limit(1)
   if (!row?.clientEmail) return null
+  const portalUrl = row.documentSnapshot?.portalUrl || ''
   return {
     recipient: row.clientEmail,
     gigId: row.gigId,
@@ -119,6 +121,8 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
       invoiceNumber: row.invoiceNumber || '',
       invoiceTotal: formatMoney(row.totalCents, row.currency),
       invoiceDueDate: row.dueDate,
+      portalUrl,
+      invoiceUrl: portalUrl,
     } satisfies EmailVariables,
   }
 }
