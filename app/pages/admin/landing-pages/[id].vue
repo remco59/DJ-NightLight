@@ -58,12 +58,14 @@ const form = reactive({
 
 const saving = ref(false)
 const message = ref('')
+const { isDirty, markSaved } = useUnsavedChanges(() => form)
 
 async function save() {
   saving.value = true
   message.value = ''
   try {
     await $fetch(`/api/admin/landing-pages/${id}`, { method: 'PUT', body: form })
+    markSaved()
     await refresh()
     await refreshNuxtData('landing-navigation')
     message.value = 'Landing page opgeslagen.'
@@ -252,7 +254,7 @@ useSeoMeta({
       </section>
 
       <div class="save-bar">
-        <span>{{ message || 'Alle zichtbare onderdelen van deze landing page zijn hier te beheren.' }}</span>
+        <span role="status">{{ message || (isDirty ? 'Niet-opgeslagen wijzigingen.' : 'Alles is opgeslagen.') }}</span>
         <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Opslaan…' : 'Pagina opslaan' }}</button>
       </div>
     </form>

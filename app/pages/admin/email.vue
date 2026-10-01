@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
 import { emailJobStatusLabels, emailTemplateLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
+import { normalizeEmailText } from '~~/shared/email-automation'
 
 definePageMeta({ layout: 'admin' })
 
@@ -63,17 +64,66 @@ const isSuppressed = computed(() => Boolean(data.value?.suppressions.some(
   item => item.gigId === suppressionGigId.value && item.templateKey === suppressionTemplateKey.value,
 )))
 
+// Delays are edited as an amount, a unit and a direction; minutes are only the storage format.
+type OffsetUnit = 'minutes' | 'hours' | 'days'
+const unitMinutes: Record<OffsetUnit, number> = { minutes: 1, hours: 60, days: 1440 }
+const offset = reactive({ amount: 0, unit: 'days' as OffsetUnit, direction: 'after' as 'before' | 'after' })
+function loadOffset(minutes: number) {
+  const absolute = Math.abs(minutes)
+  offset.unit = absolute && absolute % 1440 === 0 ? 'days' : absolute && absolute % 60 === 0 ? 'hours' : absolute ? 'minutes' : 'days'
+  offset.amount = absolute / unitMinutes[offset.unit]
+  offset.direction = minutes < 0 ? 'before' : 'after'
+}
+watch(offset, () => {
+  const minutes = Math.round(Math.max(0, Number(offset.amount) || 0) * unitMinutes[offset.unit])
+  form.offsetMinutes = form.scheduleAnchor !== 'event' && offset.direction === 'before' ? -minutes : minutes
+})
+watch(() => form.scheduleAnchor, (anchor) => { if (anchor === 'event') offset.direction = 'after' })
+
+function loadTemplate(template: Template) {
+  form.enabled = template.enabled
+  form.subject = template.subject
+  form.body = normalizeEmailText(template.body)
+  form.scheduleAnchor = template.scheduleAnchor
+  form.offsetMinutes = template.offsetMinutes
+  loadOffset(template.offsetMinutes)
+  preview.value = null
+}
+
 watchEffect(() => {
   if (!selectedKey.value && data.value?.templates[0]) selectedKey.value = data.value.templates[0].key
   const template = selected.value
-  if (!template) return
-  form.enabled = template.enabled
-  form.subject = template.subject
-  form.body = template.body
-  form.scheduleAnchor = template.scheduleAnchor
-  form.offsetMinutes = template.offsetMinutes
-  preview.value = null
+  if (template) loadTemplate(template)
 })
+
+// Switching templates or leaving the page must not silently drop edits.
+const isDirty = computed(() => {
+  const template = selected.value
+  if (!template) return false
+  return form.enabled !== template.enabled
+    || form.subject !== template.subject
+    || form.body !== normalizeEmailText(template.body)
+    || form.scheduleAnchor !== template.scheduleAnchor
+    || form.offsetMinutes !== template.offsetMinutes
+})
+const pendingKey = ref('')
+function selectTemplate(key: string) {
+  if (key === selectedKey.value) return
+  if (isDirty.value) { pendingKey.value = key; return }
+  selectedKey.value = key
+}
+function discardAndSwitch() {
+  const key = pendingKey.value
+  pendingKey.value = ''
+  if (selected.value) loadTemplate(selected.value)
+  selectedKey.value = key
+}
+onBeforeRouteLeave(() => {
+  if (isDirty.value && !window.confirm('Je hebt niet-opgeslagen wijzigingen in deze e-mail. Toch weggaan?')) return false
+})
+function warnBeforeUnload(event: BeforeUnloadEvent) { if (isDirty.value) event.preventDefault() }
+onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 
 const sampleVariables = {
   clientName: 'Sam',
@@ -94,6 +144,7 @@ async function saveTemplate() {
     await $fetch(`/api/admin/email/templates/${selected.value.key}`, { method: 'PUT', body: form })
     message.value = 'Template opgeslagen.'
     await refresh()
+    if (pendingKey.value) { selectedKey.value = pendingKey.value; pendingKey.value = '' }
   } catch (error) {
     message.value = apiErrorMessage(error, 'Opslaan mislukt.')
   } finally {
@@ -184,11 +235,17 @@ const anchorLabels: Record<Template['scheduleAnchor'], string> = {
   gig_end: 'einde gig',
   invoice_due: 'vervaldatum factuur',
 }
+function durationLabel(minutes: number) {
+  if (minutes % 1440 === 0) return `${minutes / 1440} ${minutes === 1440 ? 'dag' : 'dagen'}`
+  if (minutes % 60 === 0) return `${minutes / 60} uur`
+  return `${minutes} ${minutes === 1 ? 'minuut' : 'minuten'}`
+}
 function offsetLabel(template: Template) {
-  if (template.scheduleAnchor === 'event') return `${template.offsetMinutes} min na de gebeurtenis`
   const amount = Math.abs(template.offsetMinutes)
+  if (template.scheduleAnchor === 'event') return amount ? `${durationLabel(amount)} na de gebeurtenis` : 'Direct bij de gebeurtenis'
+  if (!amount) return `Bij ${anchorLabels[template.scheduleAnchor]}`
   const direction = template.offsetMinutes < 0 ? 'voor' : 'na'
-  return `${amount} min ${direction} ${anchorLabels[template.scheduleAnchor]}`
+  return `${durationLabel(amount)} ${direction} ${anchorLabels[template.scheduleAnchor]}`
 }
 function templateName(key: string, fallback?: string) {
   return emailTemplateLabels[key] ?? fallback ?? labelFor(emailTemplateLabels, key)
@@ -200,7 +257,7 @@ function templateName(key: string, fallback?: string) {
     <header class="header">
       <div>
         <p class="eyebrow">Communicatie</p>
-        <h1>Email</h1>
+        <h1>E-mails</h1>
         <p>Bewerkbare templates, blijvende automatiseringstaken en verzendgeschiedenis.</p>
       </div>
       <div class="actions">
@@ -223,7 +280,8 @@ function templateName(key: string, fallback?: string) {
           :key="template.key"
           type="button"
           :class="{ active: selectedKey === template.key }"
-          @click="selectedKey = template.key"
+          :aria-current="selectedKey === template.key ? 'true' : undefined"
+          @click="selectTemplate(template.key)"
         >
           <strong>{{ templateName(template.key, template.name) }}</strong>
           <span>{{ template.enabled ? offsetLabel(template) : 'Uitgeschakeld' }}</span>
@@ -237,6 +295,15 @@ function templateName(key: string, fallback?: string) {
             <h2>{{ templateName(selected.key, selected.name) }}</h2>
           </div>
           <label class="toggle"><input v-model="form.enabled" type="checkbox"> Ingeschakeld</label>
+        </div>
+
+        <div v-if="pendingKey" class="unsaved" role="alert">
+          <span>Je hebt niet-opgeslagen wijzigingen in deze e-mail.</span>
+          <div>
+            <button type="button" class="primary" :disabled="busy === 'save'" @click="saveTemplate">Opslaan en doorgaan</button>
+            <button type="button" @click="discardAndSwitch">Wijzigingen weggooien</button>
+            <button type="button" class="link" @click="pendingKey = ''">Blijven</button>
+          </div>
         </div>
 
         <label>
@@ -258,14 +325,25 @@ function templateName(key: string, fallback?: string) {
               <option value="invoice_due">Vervaldatum factuur</option>
             </select>
           </label>
-          <label>
-            <span>Verschuiving in minuten</span>
-            <input v-model.number="form.offsetMinutes" type="number">
-          </label>
+          <fieldset class="offset">
+            <legend>{{ form.scheduleAnchor === 'event' ? 'Wachttijd' : 'Wanneer' }}</legend>
+            <input v-model.number="offset.amount" type="number" min="0" step="1" aria-label="Aantal">
+            <select v-model="offset.unit" aria-label="Eenheid">
+              <option value="minutes">minuten</option>
+              <option value="hours">uur</option>
+              <option value="days">dagen</option>
+            </select>
+            <select v-if="form.scheduleAnchor !== 'event'" v-model="offset.direction" aria-label="Voor of na">
+              <option value="before">ervoor</option>
+              <option value="after">erna</option>
+            </select>
+            <span v-else class="offset-hint">na de gebeurtenis</span>
+          </fieldset>
         </div>
 
         <div class="row-actions">
           <button class="primary" type="button" :disabled="busy === 'save'" @click="saveTemplate">Opslaan</button>
+          <span v-if="isDirty" class="dirty-note">Niet-opgeslagen wijzigingen</span>
           <button type="button" :disabled="busy === 'preview'" @click="makePreview">Voorbeeld met testgegevens</button>
         </div>
 
@@ -283,7 +361,7 @@ function templateName(key: string, fallback?: string) {
         </div>
 
         <div class="test-send">
-          <input v-model="testRecipient" type="email" placeholder="E-mailadres voor testmail">
+          <input v-model="testRecipient" type="email" aria-label="E-mailadres voor testmail" placeholder="E-mailadres voor testmail">
           <button type="button" :disabled="busy === 'test' || !data?.providerConfigured" @click="sendTest">
             {{ busy === 'test' ? 'Versturen…' : 'Testmail versturen' }}
           </button>
@@ -373,6 +451,16 @@ label { display: grid; gap: .4rem; margin-top: 1rem; color: #bbb4c2; font-size: 
 .panel { margin-top: 1rem; padding: 1.25rem; border: 1px solid #29242f; border-radius: 1rem; background: #121016; }
 .workspace .panel { margin-top: 0; }
 .timing { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.offset { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 0; padding: 0; border: 0; min-width: 0; }
+.offset legend { width: 100%; margin-bottom: .4rem; padding: 0; color: #bbb4c2; font-size: .85rem; }
+.offset input { width: 5.5rem; }
+.offset select { width: auto; flex: 1 1 6rem; }
+.offset-hint { color: #928a9a; font-size: .85rem; }
+.unsaved { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-top: 1rem; padding: .85rem 1rem; border: 1px solid #5b4a24; border-radius: .75rem; background: #17130b; color: #f2dcae; }
+.unsaved > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+.link { border-color: transparent; background: transparent; color: #d9c6ff; }
+.dirty-note { color: #f2cf8a; font-size: .8rem; }
+.actions { flex-wrap: wrap; }
 .row-actions { margin-top: 1rem; }
 .primary { background: #fff; color: #0e0c11; border-color: #fff; font-weight: 700; }
 .preview { margin-top: 1rem; padding: 1rem; border: 1px dashed #3a3342; border-radius: .8rem; }

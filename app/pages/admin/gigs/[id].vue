@@ -52,6 +52,7 @@ const {data:submissionData}=await useFetch<PortalSubmission>(`/api/admin/gigs/${
 
 function addContact(){contacts.value.push({name:'',role:'',email:'',phone:'',notes:''})}
 function addTimeline(){timeline.value.push({time:'',title:'',description:''})}
+const {isDirty,markSaved}=useUnsavedChanges(()=>({form,contacts:contacts.value,timeline:timeline.value}))
 async function save(){
   saving.value=true;message.value=''
   try{
@@ -60,7 +61,7 @@ async function save(){
       startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),fee:form.fee||null,
       contacts:contacts.value,timeline:timeline.value,
     }})
-    await refresh();message.value='Gig opgeslagen.'
+    markSaved();await refresh();message.value='Gig opgeslagen.'
   }catch(error:unknown){message.value=apiErrorMessage(error,'Gig opslaan is niet gelukt.')}
   finally{saving.value=false}
 }
@@ -141,7 +142,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 
 <section v-if="canManageGigs&&submissionData" class="card"><div class="section-title"><div><p class="eyebrow">Ingevuld portaal</p><h2>Contract & muziekwensen</h2></div><NuxtLink to="/admin/questionnaire" class="text-button">Template bewerken</NuxtLink></div><div class="submission-status"><strong>{{labelFor(submissionStatusLabels,submissionData.status)}}</strong><span>Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{portalDate(submissionData.submission.submittedAt)}}</template></span></div><div v-if="submissionData.submission" class="answer-grid"><div v-for="field in submissionData.fields" :key="field.id"><span>{{field.label}}</span><strong>{{answerValue(submissionData.submission.answers[field.id])}}</strong></div><div><span>Geaccepteerd door</span><strong>{{submissionData.submission.acceptedName||'—'}}</strong></div></div><div v-else class="subtle">De klant heeft de vragenlijst nog niet ingediend.</div><h3>Muziekwensen</h3><div v-if="!submissionData.wishes.length" class="subtle">Geen muziekwensen ingediend.</div><div v-for="wish in submissionData.wishes" :key="wish.id" class="wish-row"><span>{{labelFor(musicWishCategoryLabels,wish.category)}}</span><div><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note">{{wish.note}}</small></div></div></section>
 
-<div v-if="canManageGigs" class="save-bar"><div><strong>{{message||'Wijzigingen worden pas bewaard na opslaan.'}}</strong><span>Agendasynchronisatie volgt in fase 5.</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
+<div v-if="canManageGigs" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span>{{isDirty?'Wijzigingen worden pas bewaard na opslaan.':'Wijzig een veld om de gig bij te werken.'}}</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
 <AdminGigEmails v-if="canManageGigs" :gig-id="id" :portal-url="portalUrl" />

@@ -37,13 +37,19 @@ type DashboardData = {
   }
   system: {
     issues: number
+    warnings: Array<{ label: string, to: string }>
   }
 }
 
 const { data, status, refresh } = await useFetch<DashboardData>('/api/admin/dashboard')
 
 const nextGig = computed(() => data.value?.upcoming[0] ?? null)
-const systemHealthy = computed(() => (data.value?.system.issues ?? 0) === 0)
+const systemIssues = computed(() => data.value?.system.issues ?? 0)
+const systemWarnings = computed(() => data.value?.system.warnings ?? [])
+const systemState = computed(() => systemIssues.value > 0 ? 'problem' : systemWarnings.value.length ? 'warning' : 'ok')
+const systemLabel = computed(() => systemState.value === 'problem'
+  ? `${systemIssues.value} ${systemIssues.value === 1 ? 'systeemprobleem' : 'systeemproblemen'}`
+  : systemState.value === 'warning' ? 'Instellingen nodig' : 'Alles actief')
 
 function asDate(value: string | Date | null) {
   return value ? new Date(value) : null
@@ -110,11 +116,10 @@ useSeoMeta({
         <NuxtLink
           to="/admin/system"
           class="system-status"
-          :class="{ problem: !systemHealthy }"
-          :aria-label="systemHealthy ? 'Alles actief' : `${data?.system.issues ?? 0} systeemproblemen`"
+          :class="systemState"
         >
-          <span class="status-dot" />
-          <span>{{ systemHealthy ? 'Alles actief' : 'Systeemprobleem' }}</span>
+          <span class="status-dot" aria-hidden="true" />
+          <span>{{ systemLabel }}</span>
         </NuxtLink>
         <button type="button" class="secondary with-icon" @click="() => refresh()">
           <Icon name="lucide:refresh-cw" aria-hidden="true" />
@@ -164,7 +169,7 @@ useSeoMeta({
           </div>
         </NuxtLink>
 
-        <NuxtLink class="summary-card" to="/admin/gigs">
+        <NuxtLink class="summary-card" to="/admin/invoices">
           <span class="summary-icon"><Icon name="lucide:file-text" /></span>
           <div class="summary-body">
             <div class="summary-label"><span>Openstaand</span><Icon name="lucide:chevron-right" /></div>
@@ -173,7 +178,7 @@ useSeoMeta({
           </div>
         </NuxtLink>
 
-        <NuxtLink class="summary-card" to="/admin/agenda">
+        <NuxtLink class="summary-card" to="/admin/calendar">
           <span class="summary-icon"><Icon name="lucide:chart-no-axes-combined" /></span>
           <div class="summary-body">
             <div class="summary-label"><span>Omzet deze maand</span><Icon name="lucide:chevron-right" /></div>
@@ -193,7 +198,15 @@ useSeoMeta({
             <NuxtLink to="/admin/gigs">Alles bekijken <Icon name="lucide:arrow-right" /></NuxtLink>
           </div>
 
-          <div v-if="!data?.attention.length" class="empty compact">
+          <ul v-if="systemWarnings.length" class="setup-warnings">
+            <li v-for="warning in systemWarnings" :key="warning.label">
+              <Icon name="lucide:triangle-alert" aria-hidden="true" />
+              <span>{{ warning.label }}</span>
+              <NuxtLink :to="warning.to">Instellen</NuxtLink>
+            </li>
+          </ul>
+
+          <div v-if="!data?.attention.length && !systemWarnings.length" class="empty compact">
             <Icon name="lucide:circle-check-big" />
             <div>
               <strong>Alles bijgewerkt.</strong>
@@ -201,7 +214,7 @@ useSeoMeta({
             </div>
           </div>
 
-          <div v-else class="attention-list">
+          <div v-else-if="data?.attention.length" class="attention-list">
             <NuxtLink
               v-for="item in data.attention"
               :key="item.id"
@@ -229,7 +242,7 @@ useSeoMeta({
             </div>
           </div>
           <div class="week-list">
-            <NuxtLink to="/admin/agenda" class="week-row">
+            <NuxtLink to="/admin/calendar" class="week-row">
               <span class="week-icon"><Icon name="lucide:calendar-days" /></span>
               <strong>{{ data?.week.gigs ?? 0 }} gigs</strong>
               <Icon name="lucide:chevron-right" />
@@ -311,6 +324,12 @@ useSeoMeta({
 .system-status.problem { border-color:#4d2931; background:#160e11; color:#f0a5b0; }
 .status-dot { width:.58rem; height:.58rem; border-radius:50%; background:#22c55e; box-shadow:0 0 11px rgba(34,197,94,.55); }
 .system-status.problem .status-dot { background:#ef4444; box-shadow:0 0 11px rgba(239,68,68,.5); }
+.system-status.warning { border-color:#4a3d22; background:#15120b; color:#f2cf8a; }
+.system-status.warning .status-dot { background:#f59e0b; box-shadow:0 0 11px rgba(245,158,11,.45); }
+.setup-warnings { display:grid; gap:.5rem; margin:.85rem 1rem; padding:0; list-style:none; }
+.setup-warnings li { display:grid; grid-template-columns:1rem minmax(0,1fr) auto; align-items:center; gap:.7rem; padding:.75rem .9rem; border:1px solid #4a3d22; border-radius:.75rem; background:#15120b; color:#f2dcae; font-size:.86rem; line-height:1.45; }
+.setup-warnings svg { color:#f5b544; }
+.setup-warnings a { color:#ffe2a8; font-weight:700; white-space:nowrap; }
 
 .summary-grid { display:grid; grid-template-columns:1.35fr repeat(3,1fr); gap:.85rem; }
 .summary-card { min-width:0; min-height:132px; display:grid; grid-template-columns:48px minmax(0,1fr); gap:1rem; padding:1rem 1.05rem; border:1px solid #292530; border-radius:.9rem; background:linear-gradient(145deg,#100e14,#0d0b10); color:inherit; text-decoration:none; }
@@ -390,6 +409,11 @@ useSeoMeta({
   .gig-table-head,.gig-row { grid-template-columns:110px minmax(160px,1fr) minmax(150px,.8fr) minmax(125px,.7fr) 18px; }
 }
 @media (max-width: 780px) {
+  /* On a phone the actionable list comes before the totals. */
+  .dashboard { display:flex; flex-direction:column; }
+  .dashboard > .summary-grid { order:2; margin-top:.85rem; }
+  .dashboard > .dashboard-grid { order:1; margin-top:0; }
+  .dashboard > :not(.summary-grid):not(.dashboard-grid):not(.page-header) { order:3; }
   .page-header { align-items:flex-start; flex-direction:column; }
   .actions { width:100%; flex-wrap:wrap; }
   .actions .primary,.actions .secondary { flex:1; justify-content:center; }

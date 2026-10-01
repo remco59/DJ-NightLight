@@ -3,6 +3,7 @@ import { businessSettings, emailTemplates } from '../../db/schema'
 import { calculateInvoiceTotals, calculateLineTotalCents, type InvoiceSnapshot } from '../../shared/invoice'
 import { db } from './db'
 import { clientTurnedOffAutomation, isSuppressed } from './email-automation'
+import { emailProviderConfigured } from './email-provider'
 import { invoiceClientName, type getInvoiceDetail } from './invoice-data'
 
 type InvoiceDetail = NonNullable<Awaited<ReturnType<typeof getInvoiceDetail>>>
@@ -71,12 +72,11 @@ export async function invoiceEmailPlan(detail: InvoiceDetail) {
   else if (!template?.enabled) skipReason = 'De e-mail "Factuur verstuurd" staat uit.'
   else if (await isSuppressed(detail.invoice.gigId, INVOICE_SENT_TEMPLATE)) skipReason = 'Deze e-mail is voor deze gig uitgezet.'
   else if (await clientTurnedOffAutomation(detail.invoice.gigId, INVOICE_SENT_TEMPLATE)) skipReason = 'Automatische facturen staan uit voor deze klant.'
-  const config = useRuntimeConfig()
   return {
     recipient,
     willSend: !skipReason,
     skipReason,
     delayMinutes: template?.offsetMinutes ?? 0,
-    providerConfigured: Boolean(config.email.apiKey && config.email.from),
+    providerConfigured: await emailProviderConfigured(),
   }
 }

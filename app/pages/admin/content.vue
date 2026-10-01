@@ -86,12 +86,15 @@ function addPrinciple() {
   form.publicCopy.about.principles.push({ title: 'Nieuw principe', body: 'Beschrijf dit principe.' })
 }
 
+const { markSaved } = useUnsavedChanges(() => form)
+
 async function save() {
   saving.value = true
   messageKind.value = 'saving'
   message.value = 'Website opslaan…'
   try {
     await $fetch('/api/admin/content', { method: 'PUT', body: form })
+    markSaved()
     messageKind.value = 'success'
     message.value = 'Website opgeslagen. De wijzigingen zijn live.'
     await refreshNuxtData('nightlight-site-content')
