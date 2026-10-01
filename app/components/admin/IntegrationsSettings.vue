@@ -106,8 +106,10 @@ async function saveCalendar() {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function removeCalendarCredentials() {
-  if (!confirm('De in NightLight opgeslagen inloggegevens voor Google Calendar verwijderen? Inloggegevens uit de serveromgeving worden dan gebruikt als die er zijn.')) return
+  if (!(await confirmAction({ title: 'Google Calendar-gegevens verwijderen?', body: 'De in NightLight opgeslagen inloggegevens worden verwijderd. Inloggegevens uit de serveromgeving worden dan gebruikt als die er zijn.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   busy.value = 'calendar-remove'
   calendarMessage.value = ''
   try {
@@ -165,7 +167,7 @@ async function saveEmail() {
 }
 
 async function removeEmailSettings() {
-  if (!confirm('De in NightLight opgeslagen instellingen voor de e-mailprovider verwijderen? Instellingen uit de serveromgeving worden dan gebruikt als die er zijn.')) return
+  if (!(await confirmAction({ title: 'E-mailinstellingen verwijderen?', body: 'De in NightLight opgeslagen instellingen voor de e-mailprovider worden verwijderd. Instellingen uit de serveromgeving worden dan gebruikt als die er zijn.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   busy.value = 'email-remove'
   emailMessage.value = ''
   try {
@@ -360,7 +362,7 @@ button{border:0;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradie
 button:disabled{cursor:not-allowed;opacity:.55}
 button.ghost{border:1px solid var(--border-strong);background:transparent;color:var(--text)}
 button.danger{border-color:#552b34;color:#ff9d9d}
-.text-link{margin-left:auto;color:#c9b2df;font-size:.78rem;text-decoration:none}
+.text-link{display:inline-flex;align-items:center;min-height:2.75rem;margin-left:auto;color:#c9b2df;font-size:.78rem;text-decoration:none}
 .message{margin:.8rem 0 0;font-size:.8rem}
 .message.success{color:#8ed6a3}
 .message.error{color:#ff9d9d}

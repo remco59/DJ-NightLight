@@ -66,6 +66,7 @@ export function createPostEditor(options: {
   refresh: () => Promise<void>
 }) {
   const { data, refresh } = options
+  const confirmAction = useConfirm()
 
   const design = reactive<PostDesign>(defaultPostDesign())
   const sourceAssetId = ref('')
@@ -407,7 +408,7 @@ export function createPostEditor(options: {
   }
 
   async function deletePost(post: GeneratedPost) {
-    if (!confirm('Deze geëxporteerde post verwijderen?')) return
+    if (!(await confirmAction({ title: 'Deze post verwijderen?', body: 'De geëxporteerde afbeelding wordt definitief verwijderd.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
     busy.value = post.id
     try {
       const response = await fetch('/api/admin/post-generator/' + post.id, { method: 'DELETE' })

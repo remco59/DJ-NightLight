@@ -1177,6 +1177,11 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   cursor: not-allowed;
 }
 
+.repeat-top > div > button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
 .repeat-top .danger-text,
 .danger-text {
   border: 0;

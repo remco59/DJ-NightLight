@@ -33,6 +33,7 @@ import {
 } from '~~/shared/media-library'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Media — DJ NightLight', robots: 'noindex, nofollow' })
 
 const route = useRoute()
 const router = useRouter()
@@ -170,12 +171,17 @@ async function copyLink(item: MediaLibraryItem) {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function removeAssets(ids: string[]) {
   const names = ids.map(id => byId.value.get(id)).filter(Boolean).map(item => mediaDisplayTitle(item!))
-  const question = ids.length === 1
-    ? `“${names[0]}” verwijderen? Het bestand wordt definitief verwijderd.`
-    : `${ids.length} items verwijderen? De bestanden worden definitief verwijderd.`
-  if (!confirm(`${question} Items die nog op de website, op landing pages of in video’s worden gebruikt, blijven bewaard.`)) return
+  const ok = await confirmAction({
+    title: ids.length === 1 ? `“${names[0]}” verwijderen?` : `${ids.length} items verwijderen?`,
+    body: `${ids.length === 1 ? 'Het bestand wordt' : 'De bestanden worden'} definitief verwijderd. Items die nog op de website, op landing pages of in video’s worden gebruikt, blijven bewaard.`,
+    confirmLabel: 'Verwijderen',
+    tone: 'danger',
+  })
+  if (!ok) return
   busy.value = true
   try {
     const result = await mediaApi.bulk<MediaDeleteResult>(ids, { action: 'delete' })

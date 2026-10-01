@@ -53,7 +53,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
       <AdminNav />
     </aside>
 
-    <main id="main" class="admin-main" tabindex="-1">
+    <main id="main" class="admin-main" tabindex="-1" :inert="(isCompact && mobileOpen) || undefined">
       <slot />
     </main>
 

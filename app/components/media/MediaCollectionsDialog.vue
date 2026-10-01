@@ -64,8 +64,10 @@ async function move(collection: MediaCollectionSummary, offset: number) {
   )
 }
 
+const confirmAction = useConfirm()
+
 async function remove(collection: MediaCollectionSummary) {
-  if (!confirm(`Collectie “${collection.name}” verwijderen? De ${collection.itemCount} item(s) erin blijven in de bibliotheek.`)) return
+  if (!(await confirmAction({ title: `Collectie “${collection.name}” verwijderen?`, body: `De ${collection.itemCount} ${collection.itemCount === 1 ? 'item' : 'items'} erin blijven gewoon in de bibliotheek.`, confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   await run(() => mediaApi.deleteCollection(collection.id), 'Collectie verwijderd.', 'Collectie verwijderen is niet gelukt.')
 }
 

@@ -73,8 +73,9 @@ const runTest = () => run('test', async () => {
   data.value = { status: res.status }
 })
 
-const disconnect = () => {
-  if (!confirm('Stripe ontkoppelen? Klanten kunnen facturen dan niet meer online betalen totdat je het opnieuw instelt.')) return
+const confirmAction = useConfirm()
+const disconnect = async () => {
+  if (!(await confirmAction({ title: 'Stripe ontkoppelen?', body: 'Klanten kunnen facturen dan niet meer online betalen totdat je Stripe opnieuw instelt.', confirmLabel: 'Ontkoppelen', tone: 'danger' }))) return
   return run('disconnect', async () => {
     await $fetch('/api/admin/stripe', { method: 'DELETE' })
     checks.value = []

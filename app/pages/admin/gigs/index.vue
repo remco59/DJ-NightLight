@@ -335,10 +335,10 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                       <button v-if="form.clientId" class="text-button" type="button" @click="clearClient">Wissen</button>
                     </div>
                     <div v-if="clientPickerOpen" id="gig-client-options" class="picker-menu" role="listbox">
-                      <button v-if="clientCanCreate" id="gig-client-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="clientActive===0" :data-active="clientActive===0" @mouseenter="clientActive=0" @mousedown.prevent="startClientCreate">
+                      <button v-if="clientCanCreate" id="gig-client-options-0" tabindex="-1" class="picker-option create-option" type="button" role="option" :aria-selected="clientActive===0" :data-active="clientActive===0" @mouseenter="clientActive=0" @mousedown.prevent="startClientCreate">
                         <strong><Icon name="lucide:plus" aria-hidden="true" />“{{clientSearch.trim()}}” aanmaken</strong><span>Nieuwe klant</span>
                       </button>
-                      <button v-for="(client,index) in filteredClients" :id="`gig-client-options-${index+clientOffset}`" :key="client.id" class="picker-option" type="button" role="option" :aria-selected="clientActive===index+clientOffset" :data-active="clientActive===index+clientOffset" :data-selected="form.clientId===client.id" @mouseenter="clientActive=index+clientOffset" @mousedown.prevent="selectClient(client)">
+                      <button v-for="(client,index) in filteredClients" :id="`gig-client-options-${index+clientOffset}`" :key="client.id" tabindex="-1" class="picker-option" type="button" role="option" :aria-selected="clientActive===index+clientOffset" :data-active="clientActive===index+clientOffset" :data-selected="form.clientId===client.id" @mouseenter="clientActive=index+clientOffset" @mousedown.prevent="selectClient(client)">
                         <strong>{{clientName(client)}}</strong><span>{{client.type==='company'?'Bedrijf':'Particulier'}}</span>
                       </button>
                       <div v-if="!clientCanCreate&&!filteredClients.length" class="picker-empty">Begin met typen om een klant toe te voegen.</div>
@@ -382,10 +382,10 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                       <button v-if="form.venueId" class="text-button" type="button" @click="clearVenue">Wissen</button>
                     </div>
                     <div v-if="venuePickerOpen" id="gig-venue-options" class="picker-menu" role="listbox">
-                      <button v-if="venueCanCreate" id="gig-venue-options-0" class="picker-option create-option" type="button" role="option" :aria-selected="venueActive===0" :data-active="venueActive===0" @mouseenter="venueActive=0" @mousedown.prevent="startVenueCreate">
+                      <button v-if="venueCanCreate" id="gig-venue-options-0" tabindex="-1" class="picker-option create-option" type="button" role="option" :aria-selected="venueActive===0" :data-active="venueActive===0" @mouseenter="venueActive=0" @mousedown.prevent="startVenueCreate">
                         <strong><Icon name="lucide:plus" aria-hidden="true" />“{{venueSearch.trim()}}” aanmaken</strong><span>Nieuwe locatie</span>
                       </button>
-                      <button v-for="(venue,index) in filteredVenues" :id="`gig-venue-options-${index+venueOffset}`" :key="venue.id" class="picker-option" type="button" role="option" :aria-selected="venueActive===index+venueOffset" :data-active="venueActive===index+venueOffset" :data-selected="form.venueId===venue.id" @mouseenter="venueActive=index+venueOffset" @mousedown.prevent="selectVenue(venue)">
+                      <button v-for="(venue,index) in filteredVenues" :id="`gig-venue-options-${index+venueOffset}`" :key="venue.id" tabindex="-1" class="picker-option" type="button" role="option" :aria-selected="venueActive===index+venueOffset" :data-active="venueActive===index+venueOffset" :data-selected="form.venueId===venue.id" @mouseenter="venueActive=index+venueOffset" @mousedown.prevent="selectVenue(venue)">
                         <strong>{{venue.name}}</strong><span>{{venue.city||'Plaats niet ingesteld'}}</span>
                       </button>
                       <div v-if="!venueCanCreate&&!filteredVenues.length" class="picker-empty">Begin met typen om een locatie toe te voegen.</div>

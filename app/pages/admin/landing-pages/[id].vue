@@ -76,8 +76,9 @@ async function save() {
   }
 }
 
+const confirmAction = useConfirm()
 async function remove() {
-  if (!confirm('Deze landing page definitief verwijderen?')) return
+  if (!(await confirmAction({ title: 'Deze landing page verwijderen?', body: 'De pagina verdwijnt van de website en uit het menu. Dit kan niet ongedaan worden gemaakt.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   try {
     await $fetch(`/api/admin/landing-pages/${id}`, { method: 'DELETE' })
     await refreshNuxtData('landing-navigation')

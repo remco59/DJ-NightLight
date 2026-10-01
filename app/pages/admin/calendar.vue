@@ -3,6 +3,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Agenda — DJ NightLight', robots: 'noindex, nofollow' })
 
 type ViewMode = 'day' | 'week' | 'month' | 'year'
 type CancellationBehavior = 'delete' | 'mark_cancelled' | 'keep'
@@ -253,8 +254,10 @@ async function copyIcs() {
   message.value = 'ICS-koppeling gekopieerd.'
 }
 
+const confirmAction = useConfirm()
+
 async function rotateIcs() {
-  if (!confirm('Nieuwe ICS-koppeling maken? De huidige link werkt daarna niet meer.')) return
+  if (!(await confirmAction({ title: 'Nieuwe agendalink maken?', body: 'De huidige ICS-link werkt daarna niet meer. Agenda-apps die hem gebruiken moet je opnieuw koppelen.', confirmLabel: 'Nieuwe link maken', tone: 'danger' }))) return
   rotatingToken.value = true
   try {
     await $fetch('/api/admin/calendar/ics-token', { method: 'POST' })

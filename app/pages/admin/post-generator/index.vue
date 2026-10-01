@@ -4,6 +4,7 @@ import MobilePostEditor from '~/components/post-editor/MobilePostEditor.vue'
 import { createPostEditor, postEditorKey, type PostGeneratorData } from '~/composables/usePostEditor'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Postgenerator — DJ NightLight', robots: 'noindex, nofollow' })
 
 const { data, refresh } = await useFetch<PostGeneratorData>('/api/admin/post-generator')
 const editor = createPostEditor({ data, refresh: () => refresh() })
