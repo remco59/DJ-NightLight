@@ -456,7 +456,7 @@ small {
 h1 {
   margin: .25rem 0 .15rem;
   font-size: clamp(2.15rem, 4vw, 3.35rem);
-  letter-spacing: -.045em;
+  letter-spacing: -.04em;
   line-height: 1;
 }
 

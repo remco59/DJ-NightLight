@@ -475,7 +475,7 @@ async function rotateIcs() {
 .calendar-page { max-width: 1500px; margin: 0 auto; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; }
 .eyebrow { margin: 0 0 .6rem; color: #c9b2df; font-size: .72rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
-h1 { margin: 0; font-size: clamp(3rem, 6vw, 5.2rem); line-height: .95; letter-spacing: -.06em; }
+h1 { margin: 0; font-size: clamp(3rem, 6vw, 5.2rem); line-height: .95; letter-spacing: -.04em; }
 .intro { margin: 1rem 0 0; color: #9890a1; }
 button, input, select { font: inherit; }
 button { color: inherit; }

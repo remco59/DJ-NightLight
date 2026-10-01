@@ -299,7 +299,7 @@ useSeoMeta({
 <style scoped>
 .dashboard { max-width: 1540px; margin-inline: auto; }
 .page-header { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; margin-bottom:1.5rem; }
-.page-header h1 { margin:.2rem 0 .2rem; font-size:clamp(2.35rem,4vw,3.7rem); line-height:1; letter-spacing:-.05em; }
+.page-header h1 { margin:.2rem 0 .2rem; font-size:clamp(2.35rem,4vw,3.7rem); line-height:1; letter-spacing:-.04em; }
 .page-header p:last-child { margin:0; color:#9a93a6; }
 .actions { display:flex; align-items:center; gap:.65rem; }
 .actions a,.actions button { min-height:42px; border-radius:.72rem; padding:.68rem .9rem; text-decoration:none; font-weight:700; font-size:.82rem; }

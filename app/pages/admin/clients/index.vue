@@ -123,7 +123,7 @@ useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
 <style scoped>
 .entity-page { max-width: 1050px; margin-inline: auto; }
 .page-header { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin-bottom:1.5rem; }
-h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.05em; }
+h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.04em; }
 .page-header p:last-child { margin:0; color:#8e8797; }
 .primary { border:0; border-radius:.7rem; padding:.75rem 1rem; background:#fff; color:#09080b; font-weight:800; cursor:pointer; }
 .editor-card { margin-bottom:1.2rem; padding:1.3rem; border:1px solid #2b2631; border-radius:1rem; background:#100e14; }

@@ -58,6 +58,9 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'nl' },
       title: 'DJ NightLight',
+      link: [
+        { rel: 'preload', href: '/fonts/Archivo-Variable.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
+      ],
       meta: [
         { name: 'description', content: 'DJ NightLight — DJ, events and nightlife.' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

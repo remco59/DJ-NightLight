@@ -253,7 +253,7 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
 <style scoped>
 .settings{max-width:980px;margin-inline:auto;padding-bottom:4rem}
 .page-head{margin-bottom:1.1rem}
-h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.055em}
+h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .page-head>p:last-child{max-width:680px;color:#8c8594}
 .settings-tabs{display:flex;gap:.6rem;margin-bottom:1rem}
 .settings-tabs a{display:flex;align-items:center;gap:.5rem;min-width:140px;justify-content:center;padding:.75rem 1rem;border:1px solid #332e39;border-radius:.75rem;background:#0d0b10;color:#d8d1df;font-size:.85rem;font-weight:750;text-decoration:none;transition:.2s ease}

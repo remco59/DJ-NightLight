@@ -496,7 +496,7 @@ function closeInspector() {
 <style scoped>
 .page { max-width: 1480px; margin: 0 auto; }
 .header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.6rem; }
-h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-height: 1; letter-spacing: -.045em; }
+h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-height: 1; letter-spacing: -.04em; }
 .lead { max-width: 52rem; margin: 0; color: #918999; font-size: .92rem; line-height: 1.55; }
 .upload-button { min-height: 3rem; padding-inline: 1.4rem; font-size: .92rem; }
 

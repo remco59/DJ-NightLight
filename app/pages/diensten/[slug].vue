@@ -295,7 +295,7 @@ useSeoMeta({
   margin: .55rem 0 1rem;
   font-size: clamp(3.4rem, 7.2vw, 7rem);
   line-height: .9;
-  letter-spacing: -.065em;
+  letter-spacing: -.04em;
 }
 
 .intro {
@@ -378,7 +378,7 @@ useSeoMeta({
   margin: .65rem 0 1.25rem;
   font-size: clamp(2.6rem, 4vw, 4.35rem);
   line-height: .96;
-  letter-spacing: -.055em;
+  letter-spacing: -.04em;
 }
 
 .body-copy {
@@ -494,7 +494,7 @@ useSeoMeta({
   margin: .55rem 0 .7rem;
   font-size: clamp(2.3rem, 3.8vw, 4rem);
   line-height: .97;
-  letter-spacing: -.05em;
+  letter-spacing: -.04em;
 }
 
 .closing-card p:not(.eyebrow) {

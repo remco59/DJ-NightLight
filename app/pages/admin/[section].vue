@@ -45,7 +45,7 @@ useSeoMeta({
 
 <style scoped>
 .placeholder { max-width: 800px; margin-inline: auto; padding-top: 1rem; }
-h1 { margin: .3rem 0; font-size: clamp(2.4rem, 6vw, 4.5rem); letter-spacing: -.05em; }
+h1 { margin: .3rem 0; font-size: clamp(2.4rem, 6vw, 4.5rem); letter-spacing: -.04em; }
 p { color: #918b9a; }
 .coming {
   display: grid;

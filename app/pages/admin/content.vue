@@ -789,7 +789,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .topbar-title h1 {
   margin: .2rem 0 .1rem;
   font-size: clamp(1.65rem, 3vw, 2.25rem);
-  letter-spacing: -.045em;
+  letter-spacing: -.04em;
 }
 
 .topbar-title > p:last-child {
@@ -973,7 +973,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .page-intro h2 {
   margin: .25rem 0 .35rem;
   font-size: clamp(2.2rem, 4.5vw, 3.7rem);
-  letter-spacing: -.055em;
+  letter-spacing: -.04em;
 }
 
 .page-intro > p:last-child {

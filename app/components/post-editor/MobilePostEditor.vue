@@ -1085,7 +1085,7 @@ h1 {
   margin: .35rem 0 .3rem;
   font-size: clamp(2.4rem, 4vw, 4rem);
   line-height: .98;
-  letter-spacing: -.055em;
+  letter-spacing: -.04em;
 }
 
 h2 {

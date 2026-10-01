@@ -156,7 +156,7 @@ function formatDate(value: string | null | undefined) {
 <style scoped>
 .page { max-width: 1180px; margin: 0 auto; }
 .header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.05em; }
+h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.04em; }
 h2 { margin: 0 0 .9rem; }
 .panel-title { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .3rem; }
 .panel-title h2 { margin-bottom: .25rem; }

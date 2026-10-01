@@ -351,7 +351,7 @@ function templateName(key: string, fallback?: string) {
 .page { max-width: 1180px; margin: 0 auto; }
 .header, .section-head, .editor-head, .row-actions, .test-send, .history-row, .attempt, .actions { display: flex; gap: .8rem; align-items: center; }
 .header, .section-head, .editor-head, .history-row { justify-content: space-between; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.05em; }
+h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.04em; }
 h2 { margin: 0 0 .35rem; }
 p, small, .template-list span { color: #928a9a; }
 button, input, textarea, select { border: 1px solid #35303b; border-radius: .65rem; background: #17141c; color: #fff; }
