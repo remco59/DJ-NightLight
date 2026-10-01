@@ -691,6 +691,72 @@ function drawRecap(
   }
 }
 
+
+function drawReview(
+  context: CanvasRenderingContext2D,
+  design: PostDesign,
+  width: number,
+  height: number,
+  palette: Palette,
+  artwork: CampaignArtwork | null,
+) {
+  const safe = safeAreaInsets(design.preset)
+  const contentWidth = width - safe.left - safe.right
+
+  drawCampaignTexture(context, width, height, palette, Math.min(.9, design.overlayOpacity + .08), artwork)
+  drawBrand(context, design, width, palette)
+
+  const centerX = width / 2
+  const quoteWidth = contentWidth * .86
+  let y = safe.top + width * .25
+
+  if (isVisible(design, 'headline') && design.headline.trim()) {
+    context.save()
+    context.textAlign = 'center'
+    context.textBaseline = 'top'
+    context.fillStyle = palette.accent
+    context.shadowColor = palette.accentStrong
+    context.shadowBlur = Math.max(18, width * .028)
+    context.font = `900 ${Math.round(width * .067)}px Arial, sans-serif`
+    context.fillText(design.headline, centerX, y, quoteWidth)
+    context.restore()
+    y += width * .13
+  }
+
+  if (isVisible(design, 'subline') && design.subline.trim()) {
+    const panelX = (width - quoteWidth) / 2
+    const panelY = y
+    const panelHeight = Math.min(height * .38, Math.max(width * .48, 430))
+    drawRoughPanel(context, panelX, panelY, quoteWidth, panelHeight, palette)
+
+    context.save()
+    context.textAlign = 'center'
+    context.textBaseline = 'top'
+    context.fillStyle = '#ffffff'
+    context.shadowColor = palette.shadow
+    context.shadowBlur = 12
+    context.font = `800 ${Math.round(width * .052)}px Arial, sans-serif`
+    const lines = wrapLines(context, design.subline, quoteWidth * .76, 6)
+    const lineHeight = width * .067
+    const blockHeight = lines.length * lineHeight
+    const textY = panelY + Math.max(width * .07, (panelHeight - blockHeight) / 2)
+    lines.forEach((line, index) => context.fillText(line, centerX, textY + index * lineHeight, quoteWidth * .76))
+    context.restore()
+    y = panelY + panelHeight + width * .075
+  }
+
+  if (isVisible(design, 'location') && design.locationText.trim()) {
+    context.save()
+    context.textAlign = 'center'
+    context.textBaseline = 'top'
+    context.fillStyle = palette.accent
+    context.font = `800 ${Math.round(width * .031)}px Arial, sans-serif`
+    context.fillText(design.locationText.toUpperCase(), centerX, y, quoteWidth * .8)
+    context.restore()
+    drawBrushAccent(context, width * .34, y + width * .062, width * .32, palette)
+  }
+}
+
 function drawUpcomingGigs(
   context: CanvasRenderingContext2D,
   design: PostDesign,
@@ -915,6 +981,7 @@ export async function renderPostCanvas(
   const palette = palettes[design.brandPreset]
   const isCampaignTemplate = design.templateKey === 'gig-announcement'
     || design.templateKey === 'recap'
+    || design.templateKey === 'review'
     || design.templateKey === 'upcoming-gigs'
   const artwork = design.brandPreset === 'night' && isCampaignTemplate
     ? await loadCampaignArtwork()
@@ -926,6 +993,8 @@ export async function renderPostCanvas(
       drawGigAnnouncement(context, design, size.width, size.height, palette, artwork)
     } else if (design.templateKey === 'recap') {
       drawRecap(context, design, size.width, size.height, palette, artwork)
+    } else if (design.templateKey === 'review') {
+      drawReview(context, design, size.width, size.height, palette, artwork)
     } else if (design.templateKey === 'upcoming-gigs') {
       drawUpcomingGigs(context, design, size.width, size.height, palette, artwork)
     } else {
