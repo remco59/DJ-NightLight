@@ -66,6 +66,36 @@ img { max-width: 100%; }
   outline-offset: 4px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: .75rem;
+  left: .75rem;
+  padding: .7rem 1rem;
+  border-radius: .6rem;
+  background: #fff;
+  color: #0b0910;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus { transform: none; }
+
+#main:focus { outline: none; }
+
+[id] { scroll-margin-top: 6rem; }
+
 .site-shell { min-height: 100vh; }
 
 .container {

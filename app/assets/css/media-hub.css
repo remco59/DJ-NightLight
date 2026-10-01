@@ -68,11 +68,11 @@
   font-weight: 400;
 }
 .mh-textarea { resize: vertical; min-height: 4.5rem; }
-.mh-input::placeholder, .mh-textarea::placeholder { color: #6f6878; }
+.mh-input::placeholder, .mh-textarea::placeholder { color: #9a93a4; }
 .mh-input:focus, .mh-select:focus, .mh-textarea:focus { outline: none; border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .2); }
 
 .mh-field { display: grid; gap: .4rem; color: #c9c2d1; font-size: .8rem; font-weight: 600; }
-.mh-field small { color: #7d7686; font-weight: 400; }
+.mh-field small { color: #9a93a4; font-weight: 400; }
 
 .mh-tag {
   display: inline-flex;

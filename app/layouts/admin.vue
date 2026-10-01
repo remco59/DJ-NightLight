@@ -3,14 +3,41 @@ import AdminNav from '~/components/admin/AdminNav.vue'
 
 const route = useRoute()
 const mobileOpen = ref(false)
+const sidebar = ref<HTMLElement | null>(null)
+const menuButton = ref<HTMLButtonElement | null>(null)
+
+// On a phone the sidebar is an off-canvas drawer: while closed it must not be
+// reachable with Tab, and while open Escape closes it again.
+const isCompact = ref(false)
+let media: MediaQueryList | null = null
+function syncCompact() { isCompact.value = Boolean(media?.matches) }
+onMounted(() => {
+  media = window.matchMedia('(max-width: 820px)')
+  syncCompact()
+  media.addEventListener('change', syncCompact)
+})
+onBeforeUnmount(() => media?.removeEventListener('change', syncCompact))
+const sidebarHidden = computed(() => isCompact.value && !mobileOpen.value)
+
+watch(mobileOpen, async (open) => {
+  if (!isCompact.value) return
+  await nextTick()
+  if (open) sidebar.value?.querySelector<HTMLElement>('a, button')?.focus()
+  else menuButton.value?.focus()
+})
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && mobileOpen.value) mobileOpen.value = false
+}
 
 watch(()=>route.path,()=>{mobileOpen.value=false})
 </script>
 
 <template>
-  <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }">
+  <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }" @keydown="onKeydown">
+    <a class="skip-link" href="#main">Naar de inhoud</a>
     <header class="mobile-header">
       <button
+        ref="menuButton"
         class="menu-button"
         type="button"
         :aria-expanded="mobileOpen"
@@ -22,11 +49,11 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
       <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
     </header>
 
-    <aside class="sidebar" :class="{ open: mobileOpen }">
+    <aside ref="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="sidebarHidden || undefined" :aria-hidden="sidebarHidden || undefined">
       <AdminNav />
     </aside>
 
-    <main class="admin-main">
+    <main id="main" class="admin-main" tabindex="-1">
       <slot />
     </main>
 
@@ -68,6 +95,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 4rem;
 }
 .mobile-header, .backdrop { display: none; }
+.admin-main:focus { outline: none; }
 
 /* The post editor is a viewport-height workspace: the page itself does not
    scroll, the editor's panels do. */

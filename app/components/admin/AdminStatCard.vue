@@ -28,6 +28,6 @@ defineProps<{
 }
 .stat p { margin: 0; color: #9d97a6; font-size: .82rem; }
 .stat strong { font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.04em; }
-.stat small { color: #777180; }
-.stat.muted strong { color: #6e6876; }
+.stat small { color: #9a93a4; }
+.stat.muted strong { color: #9a93a4; }
 </style>

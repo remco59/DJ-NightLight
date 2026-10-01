@@ -517,7 +517,7 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
 }
 .search:focus-within { border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .18); }
 .search input { flex: 1; min-width: 0; border: 0; padding: .75rem 0; background: transparent; color: #f4f1f7; font: inherit; font-size: .88rem; outline: none; }
-.search input::placeholder { color: #6f6878; }
+.search input::placeholder { color: #9a93a4; }
 .search kbd { border: 1px solid #332d3b; border-radius: .4rem; padding: .15rem .4rem; background: #17141c; color: #8f879a; font: inherit; font-size: .7rem; white-space: nowrap; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tabs { display: flex; gap: .25rem; border: 1px solid #2a2530; border-radius: .8rem; padding: .3rem; background: #0f0d13; }

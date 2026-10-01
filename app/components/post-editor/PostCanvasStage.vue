@@ -588,7 +588,7 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
 
 .dimensions {
   flex: 0 0 auto;
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .74rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -818,7 +818,7 @@ defineExpose({ zoomBy, fit: () => setZoom('fit'), actualSize: () => setZoom(1) }
 }
 
 .no-source small {
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .78rem;
 }
 

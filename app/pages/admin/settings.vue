@@ -273,7 +273,7 @@ h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .status-item strong{font-size:.85rem}
 .status-item span{font-size:.78rem;color:#c5b8ca}
 .status-item span.good{color:#60e99a}
-.status-item small{color:#716a78;font-size:.7rem}
+.status-item small{color:#9a93a4;font-size:.7rem}
 .settings-section{scroll-margin-top:1rem}
 .card{padding:1.15rem}
 .card-heading{display:flex;align-items:flex-start;gap:.8rem;margin-bottom:1rem}
@@ -284,7 +284,7 @@ h1{margin:.2rem 0;font-size:clamp(2.8rem,6vw,4.8rem);letter-spacing:-.04em}
 .grid,.password-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
 .wide{grid-column:1/-1}
 label{display:grid;gap:.35rem;color:#aaa4b1;font-size:.78rem}
-label small{color:#716a78}
+label small{color:#9a93a4}
 input,select,textarea{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0a090c;color:#f6f3fa;transition:border-color .2s ease,box-shadow .2s ease}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#6741a1;box-shadow:0 0 0 3px rgba(103,65,161,.13)}
 .card-actions{display:flex;align-items:center;justify-content:flex-end;gap:1rem;margin-top:1rem;min-height:2.4rem}

@@ -49,7 +49,7 @@ useSeoMeta({title:()=>`Boeken — ${content.value?.brandName||'DJ NightLight'}`,
 </script>
 
 <template>
-  <main v-if="content" id="main" class="public-page">
+  <main v-if="content" class="public-page">
     <div class="public-container booking-grid">
       <div>
         <p class="eyebrow">{{content.bookingEyebrow}}</p>

@@ -144,7 +144,7 @@ async function save() {
 .head h2{margin:0;font-size:1.15rem}
 .head p{margin:.25rem 0 0;color:#8c8594;font-size:.82rem;line-height:1.45}
 .status-stack{display:grid;justify-items:end;gap:.3rem;flex:none}
-.status-stack small{color:#716a78;font-size:.7rem}
+.status-stack small{color:#9a93a4;font-size:.7rem}
 .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .7rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.72rem;font-weight:750}
 .pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#8b8491}
 .pill.on{background:#153426;color:#7be0a8}
@@ -159,7 +159,7 @@ async function save() {
 .engine-copy{display:grid;gap:.22rem}
 .engine-copy strong{font-size:.86rem;color:#f5f1f8}
 .engine-copy small{color:#8c8594;font-size:.75rem;line-height:1.42;word-break:break-word}
-.availability{padding:.28rem .6rem;border-radius:99px;background:#252129;color:#928a98;font-size:.68rem;font-weight:750;white-space:nowrap}
+.availability{padding:.28rem .6rem;border-radius:99px;background:#252129;color:#928a98;font-size:.75rem;font-weight:750;white-space:nowrap}
 .availability.good{background:#143527;color:#6ee59f}
 .availability.accent{background:#382064;color:#caa8ff}
 .actions{align-items:center;margin-top:1rem}

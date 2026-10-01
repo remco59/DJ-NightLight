@@ -432,10 +432,10 @@ onBeforeUnmount(() => {
 .drop-icon { width: 2.2rem; height: 2.2rem; margin-bottom: .3rem; color: #a78bfa; filter: drop-shadow(0 0 .6rem rgba(139, 92, 246, .6)); }
 .dropzone strong { color: #f3eff7; font-size: .95rem; }
 .dropzone u { color: #b69cff; text-decoration: none; }
-.dropzone small { margin-top: .4rem; color: #7d7686; font-size: .74rem; line-height: 1.5; }
+.dropzone small { margin-top: .4rem; color: #9a93a4; font-size: .74rem; line-height: 1.5; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .remote { display: grid; gap: .7rem; }
-.remote small { color: #7d7686; font-size: .74rem; line-height: 1.5; }
+.remote small { color: #9a93a4; font-size: .74rem; line-height: 1.5; }
 .error { margin: 0; color: #f39aa6; font-size: .8rem; }
 .queue { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .55rem; margin: 1rem 0 0; padding: 0; list-style: none; }
 .queue-item { position: relative; overflow: hidden; aspect-ratio: 1; border: 1px solid #2c2733; border-radius: .6rem; background: #09080c; }

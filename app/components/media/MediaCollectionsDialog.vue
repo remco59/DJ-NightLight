@@ -133,7 +133,7 @@ header p { margin: 0; color: #8f879a; font-size: .82rem; line-height: 1.5; }
 .list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .list li { display: flex; align-items: center; gap: .8rem; border: 1px solid #25212c; border-radius: .75rem; padding: .55rem; background: #121016; }
 .thumb { flex: none; width: 3.4rem; height: 2.5rem; border-radius: .45rem; object-fit: cover; }
-.thumb.empty { display: grid; place-items: center; background: #1a1720; color: #7d7686; }
+.thumb.empty { display: grid; place-items: center; background: #1a1720; color: #9a93a4; }
 .name { display: grid; flex: 1; gap: .1rem; min-width: 0; border: 0; padding: 0; background: none; color: #fff; font: inherit; text-align: left; cursor: pointer; }
 .name:hover strong { color: #c4b1f5; }
 .name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -214,14 +214,14 @@ async function copyUrl() {
 .source-note{margin-top:.8rem}
 .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-top:1rem}
 .summary-grid>div{display:grid;gap:.25rem;padding:.8rem;border:1px solid #29242f;border-radius:.75rem;background:#0b0a0d}
-.summary-grid span{color:#716a78;font-size:.7rem}
+.summary-grid span{color:#9a93a4;font-size:.7rem}
 .summary-grid strong{font-size:.8rem;word-break:break-word}
 .summary-grid strong.good{display:flex;align-items:center;gap:.4rem;color:#72e6a2}
 .mini-dot{width:.4rem;height:.4rem;border-radius:50%;background:#48df89}
 .compact-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem}
 .steps{display:flex;gap:.5rem;list-style:none;margin:1rem 0;padding:0;flex-wrap:wrap}
-.steps li{display:flex;align-items:center;gap:.45rem;padding:.38rem .7rem;border:1px solid #332e39;border-radius:99px;color:#716a78;font-size:.74rem}
-.steps li span{display:grid;place-items:center;width:1.2rem;height:1.2rem;border-radius:50%;background:#2b2631;font-size:.65rem}
+.steps li{display:flex;align-items:center;gap:.45rem;padding:.38rem .7rem;border:1px solid #332e39;border-radius:99px;color:#9a93a4;font-size:.74rem}
+.steps li span{display:grid;place-items:center;width:1.2rem;height:1.2rem;border-radius:50%;background:#2b2631;font-size:.75rem}
 .steps li.active{color:#f6f3fa;border-color:#7445b1}
 .steps li.done{color:#7be0a8}
 .panel{margin-top:.8rem;padding:1rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d}

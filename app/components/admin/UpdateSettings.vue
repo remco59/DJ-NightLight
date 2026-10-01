@@ -179,15 +179,15 @@ async function startUpdate() {
 .versions div{padding:.85rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d;min-width:0}
 .versions dt{color:#8c8594;font-size:.75rem}
 .versions dd{display:grid;gap:.2rem;margin:.3rem 0 0;font-weight:700;overflow-wrap:anywhere}
-.versions small{color:#716a78;font-size:.75rem;font-weight:400}
+.versions small{color:#9a93a4;font-size:.75rem;font-weight:400}
 .commits{margin-top:1rem}
 .commits>p{margin:0 0 .5rem;color:#aaa4b1;font-size:.8rem}
 .commits ul{display:grid;gap:.4rem;max-height:18rem;margin:0;padding:0;overflow:auto;list-style:none}
 .commits li{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;padding:.6rem .75rem;border:1px solid #29242f;border-radius:.7rem;background:#0b0a0d;font-size:.85rem}
 .commits code{color:#b58cff}
 .commits span{overflow-wrap:anywhere}
-.commits li small{grid-column:2;color:#716a78;font-size:.72rem}
-.more{display:block;margin-top:.4rem;color:#716a78;font-size:.75rem}
+.commits li small{grid-column:2;color:#9a93a4;font-size:.72rem}
+.more{display:block;margin-top:.4rem;color:#9a93a4;font-size:.75rem}
 .last-run{margin-top:1rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d}
 .last-run summary{padding:.75rem .85rem;color:#8ed6a3;font-size:.85rem;cursor:pointer}
 .last-run.failed summary{color:#ff9d9d}

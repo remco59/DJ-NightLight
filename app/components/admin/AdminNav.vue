@@ -181,7 +181,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   text-decoration: none;
   font-size: .86rem;
 }
-.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #7f7889; }
+.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #9a93a4; }
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }
 .nav-link:hover svg, .nav-link.active svg { color: #c7b5de; }
@@ -227,7 +227,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .account-profile > svg {
   width: .9rem;
   height: .9rem;
-  color: #6f6978;
+  color: #9a93a4;
 }
 .account-avatar {
   display: grid;
@@ -249,7 +249,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   white-space: nowrap;
 }
 .account strong { font-size: .84rem; }
-.account small { margin-top: .08rem; color: #817b8b; font-size: .68rem; }
+.account small { margin-top: .08rem; color: #817b8b; font-size: .75rem; }
 
 .logout {
   display: flex;

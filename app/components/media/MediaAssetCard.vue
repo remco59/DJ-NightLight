@@ -177,7 +177,7 @@ function run(action: MediaCardAction) {
 }
 .thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
 .card:hover .thumb img { transform: scale(1.025); }
-.placeholder { display: grid; width: 100%; height: 100%; place-items: center; color: #6f6878; font-size: 2rem; background: radial-gradient(circle at 50% 40%, #1d1726, #09080c 70%); }
+.placeholder { display: grid; width: 100%; height: 100%; place-items: center; color: #9a93a4; font-size: 2rem; background: radial-gradient(circle at 50% 40%, #1d1726, #09080c 70%); }
 .type-badge, .duration, .variants {
   position: absolute;
   bottom: .6rem;
@@ -222,7 +222,7 @@ function run(action: MediaCardAction) {
 }
 .more:hover { background: rgba(32, 27, 40, .9); }
 .menu :deep(.popover-panel) { max-height: 22rem; overflow: auto; }
-.menu-label { margin: .35rem .65rem .2rem; color: #6f6878; font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.menu-label { margin: .35rem .65rem .2rem; color: #9a93a4; font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .body { display: grid; gap: .25rem; min-width: 0; padding: .75rem .85rem .85rem; cursor: pointer; }
 .body strong { overflow: hidden; color: #f5f2f8; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
 .body small { overflow: hidden; color: #8f879a; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }

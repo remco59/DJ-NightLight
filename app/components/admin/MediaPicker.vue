@@ -9,7 +9,7 @@ import { defaultMediaFilters, filterMediaItems, mediaDisplayTitle, sortMediaItem
 // Media page and uploads through the same drawer.
 
 const props = withDefaults(defineProps<{
-  modelValue: string | null
+  modelValue?: string | null
   label?: string
   description?: string
   kind?: 'image' | 'all'
@@ -20,6 +20,7 @@ const props = withDefaults(defineProps<{
   /** Enables the "This gig" tab. */
   gigId?: string | null
 }>(), {
+  modelValue: null,
   label: 'Afbeelding',
   description: '',
   kind: 'image',
@@ -38,6 +39,8 @@ const { assets, collections, gigs, venues, refresh, byId } = await useMediaLibra
 
 type PickerTab = 'all' | 'recent' | 'gig' | 'generated'
 const open = defineModel<boolean>('open', { default: false })
+const pickerDialog = ref<HTMLElement | null>(null)
+useFocusTrap(pickerDialog, open)
 const search = ref('')
 const tab = ref<PickerTab>('all')
 const collectionId = ref('')
@@ -142,13 +145,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
     <details v-if="allowExternal" class="external">
       <summary>Een externe afbeeldings-URL gebruiken</summary>
-      <input v-model="externalUrl" type="url" placeholder="https://…" @change="applyExternalUrl">
+      <input v-model="externalUrl" type="url" :aria-label="`${label}: link naar een externe afbeelding`" placeholder="https://…" @change="applyExternalUrl">
     </details>
     </template>
 
     <Teleport to="body">
       <div v-if="open" class="picker-backdrop" @click.self="open = false">
-        <section class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`">
+        <section ref="pickerDialog" class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`" @keydown.esc="open = false">
           <header class="picker-header">
             <div>
               <p class="picker-eyebrow">Mediabibliotheek</p>
@@ -221,8 +224,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.media-field{display:grid;gap:.65rem}.media-field.bare{display:contents}.field-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem}.field-heading>div{display:grid;gap:.2rem}.field-heading strong{color:#d8d2de;font-size:.82rem}.field-heading span{color:#81798a;font-size:.72rem;line-height:1.45}.text-button,.remove{border:0;padding:0;background:transparent;color:#b8a5d1;font-size:.75rem;cursor:pointer}.selected-media{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.8rem;align-items:center;padding:.65rem;border:1px solid #312b37;border-radius:.8rem;background:#0b0a0d}.selected-media img,.media-placeholder{width:8rem;height:5.5rem;border-radius:.55rem;background:#070609}.selected-media img{object-fit:cover}.media-placeholder{display:grid;place-items:center;color:#81798a;font-size:1.3rem}.selected-copy{display:grid;gap:.25rem;min-width:0}.selected-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f3eff6;font-size:.82rem}.selected-copy span{color:#81798a;font-size:.7rem}.selected-copy .remove{justify-self:start;margin-top:.15rem;color:#df9ca7}.empty-media{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px dashed #41394a;border-radius:.8rem;background:#0b0a0d;cursor:pointer}.empty-media>span{display:grid;width:2.4rem;height:2.4rem;place-items:center;border-radius:.7rem;background:#1b1621;color:#c7b5de;font-size:1.25rem}.empty-media div{display:grid;gap:.2rem}.empty-media strong{color:#ddd7e2;font-size:.82rem}.empty-media small{color:#7f7888;font-size:.72rem}.external{color:#797282;font-size:.72rem}.external summary{cursor:pointer}.external input{width:100%;margin-top:.55rem;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}
-.picker-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(12px)}.picker-modal{display:flex;flex-direction:column;width:min(1180px,100%);height:min(52rem,calc(100dvh - 2rem));overflow:hidden;border:1px solid #342e3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 30px 100px rgba(0,0,0,.62)}.picker-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.25rem .8rem}.picker-header h2{margin:.15rem 0 0;font-size:1.6rem;letter-spacing:-.035em}.picker-eyebrow{margin:0;color:#8f8798;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.header-actions{display:flex;gap:.5rem}.picker-toolbar{display:flex;flex-wrap:wrap;gap:.6rem;padding:0 1.25rem .9rem;border-bottom:1px solid #242027}.picker-search{display:flex;flex:1 1 18rem;align-items:center;gap:.55rem;min-height:2.6rem;border:1px solid #2f2a37;border-radius:.65rem;padding:0 .75rem;background:#0f0d13;color:#8f879a}.picker-search input{flex:1;min-width:0;border:0;background:transparent;color:#f4f1f7;font:inherit;font-size:.86rem;outline:none}.picker-search:focus-within{border-color:#7a57de}.picker-tabs{display:flex;gap:.2rem;border:1px solid #2f2a37;border-radius:.65rem;padding:.2rem;background:#0f0d13}.picker-tabs button{border:1px solid transparent;border-radius:.5rem;padding:.35rem .8rem;background:transparent;color:#a79fb2;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap}.picker-tabs button.active{border-color:#5b3fb0;background:#231a3d;color:#fff}.picker-collection{flex:0 1 13rem;width:auto}.picker-body{display:grid;flex:1;grid-template-columns:repeat(auto-fill,minmax(12.5rem,1fr));gap:.8rem;align-content:start;overflow:auto;padding:1rem 1.25rem}.no-results{grid-column:1/-1}.picker-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 1.25rem;border-top:1px solid #242027;color:#8f879a;font-size:.78rem}.picker-footer a{display:inline-flex;align-items:center;gap:.3rem;color:#b69cff;text-decoration:none}
+.media-field{display:grid;gap:.65rem}.media-field.bare{display:contents}.field-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem}.field-heading>div{display:grid;gap:.2rem}.field-heading strong{color:#d8d2de;font-size:.82rem}.field-heading span{color:#9a93a4;font-size:.72rem;line-height:1.45}.text-button,.remove{border:0;padding:0;background:transparent;color:#b8a5d1;font-size:.75rem;cursor:pointer}.selected-media{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.8rem;align-items:center;padding:.65rem;border:1px solid #312b37;border-radius:.8rem;background:#0b0a0d}.selected-media img,.media-placeholder{width:8rem;height:5.5rem;border-radius:.55rem;background:#070609}.selected-media img{object-fit:cover}.media-placeholder{display:grid;place-items:center;color:#9a93a4;font-size:1.3rem}.selected-copy{display:grid;gap:.25rem;min-width:0}.selected-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f3eff6;font-size:.82rem}.selected-copy span{color:#9a93a4;font-size:.7rem}.selected-copy .remove{justify-self:start;margin-top:.15rem;color:#df9ca7}.empty-media{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px dashed #41394a;border-radius:.8rem;background:#0b0a0d;cursor:pointer}.empty-media>span{display:grid;width:2.4rem;height:2.4rem;place-items:center;border-radius:.7rem;background:#1b1621;color:#c7b5de;font-size:1.25rem}.empty-media div{display:grid;gap:.2rem}.empty-media strong{color:#ddd7e2;font-size:.82rem}.empty-media small{color:#9a93a4;font-size:.72rem}.external{color:#9a93a4;font-size:.72rem}.external summary{cursor:pointer}.external input{width:100%;margin-top:.55rem;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0b0a0d;color:#f6f3fa}
+.picker-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(12px)}.picker-modal{display:flex;flex-direction:column;width:min(1180px,100%);height:min(52rem,calc(100dvh - 2rem));overflow:hidden;border:1px solid #342e3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 30px 100px rgba(0,0,0,.62)}.picker-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.25rem .8rem}.picker-header h2{margin:.15rem 0 0;font-size:1.6rem;letter-spacing:-.035em}.picker-eyebrow{margin:0;color:#8f8798;font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.header-actions{display:flex;gap:.5rem}.picker-toolbar{display:flex;flex-wrap:wrap;gap:.6rem;padding:0 1.25rem .9rem;border-bottom:1px solid #242027}.picker-search{display:flex;flex:1 1 18rem;align-items:center;gap:.55rem;min-height:2.6rem;border:1px solid #2f2a37;border-radius:.65rem;padding:0 .75rem;background:#0f0d13;color:#8f879a}.picker-search input{flex:1;min-width:0;border:0;background:transparent;color:#f4f1f7;font:inherit;font-size:.86rem;outline:none}.picker-search:focus-within{border-color:#7a57de}.picker-tabs{display:flex;gap:.2rem;border:1px solid #2f2a37;border-radius:.65rem;padding:.2rem;background:#0f0d13}.picker-tabs button{border:1px solid transparent;border-radius:.5rem;padding:.35rem .8rem;background:transparent;color:#a79fb2;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap}.picker-tabs button.active{border-color:#5b3fb0;background:#231a3d;color:#fff}.picker-collection{flex:0 1 13rem;width:auto}.picker-body{display:grid;flex:1;grid-template-columns:repeat(auto-fill,minmax(12.5rem,1fr));gap:.8rem;align-content:start;overflow:auto;padding:1rem 1.25rem}.no-results{grid-column:1/-1}.picker-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 1.25rem;border-top:1px solid #242027;color:#8f879a;font-size:.78rem}.picker-footer a{display:inline-flex;align-items:center;gap:.3rem;color:#b69cff;text-decoration:none}
 @media(max-width:800px){.selected-media{grid-template-columns:6rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:6rem;height:4.5rem}.picker-body{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.picker-backdrop{padding:0}.picker-modal{width:100%;height:100dvh;border:0;border-radius:0}.picker-tabs{flex:1 1 100%;overflow-x:auto}.picker-tabs button{flex:1}.picker-collection{flex:1 1 100%}.picker-body{padding:.75rem;gap:.6rem}.field-heading{align-items:start;flex-direction:column}.selected-media{grid-template-columns:5rem minmax(0,1fr)}.selected-media img,.media-placeholder{width:5rem;height:4rem}}
 </style>

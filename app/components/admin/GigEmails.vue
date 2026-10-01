@@ -177,22 +177,22 @@ watch(() => props.portalUrl, (url) => {
 .card{margin-bottom:1rem;padding:1.25rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14}
 .section-title{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin:0 0 .6rem}
 .section-title h2{margin:.2rem 0}
-.subtle-copy{display:block;margin-top:.2rem;color:#777080;font-size:.78rem}
+.subtle-copy{display:block;margin-top:.2rem;color:#9a93a4;font-size:.78rem}
 .subtle-copy a{color:#b9b2c2}
 .warn{color:#e6c46f;font-size:.8rem}
 .notice{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.6rem;padding:.7rem .8rem;border-radius:.7rem;background:#18141d;color:#cfc8d6;font-size:.82rem}
 .message{margin:.8rem 0 0;color:#aaa4b1;font-size:.82rem}
 h3{margin:1.3rem 0 .3rem;font-size:.95rem}
-.subtle{padding:.6rem 0;color:#777080}
+.subtle{padding:.6rem 0;color:#9a93a4}
 .job{padding:.75rem 0;border-top:1px solid #29242f}
 .job-row{display:flex;justify-content:space-between;align-items:start;gap:1rem}
 .inline-composer{margin-bottom:.2rem}
 .job-main{min-width:0}
 .job-main strong,.job-main span,.job-main small{display:block}
-.job-main span{margin-top:.15rem;color:#7f7887;font-size:.75rem;overflow-wrap:anywhere}
+.job-main span{margin-top:.15rem;color:#9a93a4;font-size:.75rem;overflow-wrap:anywhere}
 .job-main small{margin-top:.2rem;color:#c98f98;font-size:.72rem}
 .job-side{display:flex;flex-direction:column;align-items:end;gap:.35rem;white-space:nowrap}
-.state{padding:.28rem .5rem;border-radius:999px;background:#211b28;color:#aaa2b2;font-size:.68rem}
+.state{padding:.28rem .5rem;border-radius:999px;background:#211b28;color:#aaa2b2;font-size:.75rem}
 .state[data-state="sent"]{background:#16382a;color:#8fe1ad}
 .state[data-state="failed"]{background:#351a20;color:#ffadb7}
 .state[data-state="pending"],.state[data-state="processing"]{background:#352d16;color:#ead17a}

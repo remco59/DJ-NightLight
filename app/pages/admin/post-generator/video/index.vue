@@ -528,7 +528,7 @@ h2 {
 }
 
 .search-control input::placeholder {
-  color: #746d7c;
+  color: #9a93a4;
 }
 
 .select-control select {
@@ -767,7 +767,7 @@ button:disabled {
 .project-meta span + span::before {
   content: "·";
   margin-right: .25rem;
-  color: #5e5865;
+  color: #9a93a4;
 }
 
 .edited {

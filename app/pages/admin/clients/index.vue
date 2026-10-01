@@ -134,7 +134,7 @@ input, select, textarea { width:100%; border:1px solid #332e39; border-radius:.6
 .wide { grid-column:1/-1; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; }
 .toolbar input { max-width:28rem; }
-.toolbar span { color:#777080; font-size:.82rem; }
+.toolbar span { color:#9a93a4; font-size:.82rem; }
 .list { border:1px solid #292530; border-radius:1rem; overflow:hidden; }
 .row { display:grid; grid-template-columns:2.6rem minmax(0,1fr) auto; gap:.9rem; align-items:center; padding:.9rem 1rem; border-bottom:1px solid #242029; text-decoration:none; }
 .row:last-child { border-bottom:0; }

@@ -336,7 +336,7 @@ async function removeEmailSettings() {
 .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
 .integration-head p{margin:0;color:#8c8594;font-size:.8rem}
 .status-stack{display:grid;justify-items:end;gap:.25rem;flex:none}
-.status-stack small{color:#716a78;font-size:.68rem}
+.status-stack small{color:#9a93a4;font-size:.75rem}
 .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .68rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.7rem;font-weight:750}
 .pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#7d7682}
 .pill.on{background:#153426;color:#72e6a2}
@@ -345,7 +345,7 @@ async function removeEmailSettings() {
 .email-grid{grid-template-columns:1fr 1fr}
 .wide{grid-column:1/-1}
 label{display:grid;gap:.35rem;color:#aaa4b1;font-size:.78rem}
-label small,.hint{color:#716a78;font-size:.72rem;line-height:1.45}
+label small,.hint{color:#9a93a4;font-size:.72rem;line-height:1.45}
 input,select{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.72rem;background:#0a090c;color:#f6f3fa}
 input:focus,select:focus{outline:none;border-color:#6741a1;box-shadow:0 0 0 3px rgba(103,65,161,.13)}
 .toggle{display:flex;align-items:center;gap:.6rem;min-height:2.7rem}
@@ -353,7 +353,7 @@ input:focus,select:focus{outline:none;border-color:#6741a1;box-shadow:0 0 0 3px 
 .credential-panel{margin-top:1rem;padding:.85rem 1rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d}
 .credential-head{align-items:center}
 .credential-head strong,.credential-head p{display:block}
-.credential-head p{margin:.2rem 0 0;color:#777080;font-size:.74rem;word-break:break-word}
+.credential-head p{margin:.2rem 0 0;color:#9a93a4;font-size:.74rem;word-break:break-word}
 .key-field{margin-top:.8rem}
 .actions{justify-content:flex-start;align-items:center;flex-wrap:wrap;margin-top:1rem}
 button{border:0;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;cursor:pointer}

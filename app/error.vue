@@ -21,7 +21,7 @@ function goHome() {
 
 <template>
   <NuxtLayout :name="inAdmin ? 'default' : 'public'">
-    <main id="main" class="public-page error-page">
+    <main class="public-page error-page">
       <div class="public-container">
         <p class="error-code">{{ error.statusCode || 500 }}</p>
         <h1 class="display-title">{{ title }}</h1>
