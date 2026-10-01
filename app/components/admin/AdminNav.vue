@@ -12,31 +12,31 @@ type NavItem = { label:string;to:string;icon:string;roles:readonly StaffRole[] }
 type NavGroup = { label:string;items:NavItem[] }
 
 const allRoles: readonly StaffRole[] = ['owner','manager','dj','content_editor']
+// Daily work first; configuration that is touched rarely sits under "Beheer".
 const groups: NavGroup[] = [
   { label:'', items:[
     {label:'Dashboard',to:'/admin',icon:'lucide:layout-dashboard',roles:allRoles},
   ]},
   { label:'Werk', items:[
     {label:'Gigs',to:'/admin/gigs',icon:'lucide:disc-3',roles:['owner','manager','dj']},
+    {label:'Facturen',to:'/admin/invoices',icon:'lucide:receipt-text',roles:['owner','manager']},
     {label:'Agenda',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
     {label:'Klanten',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
     {label:'Locaties',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
-    {label:'Email',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
   ]},
-  { label:'Content', items:[
+  { label:'Website & social', items:[
     {label:'Website',to:'/admin/content',icon:'lucide:globe',roles:['owner','content_editor']},
+    {label:'Landing pages',to:'/admin/landing-pages',icon:'lucide:panels-top-left',roles:['owner','content_editor']},
     {label:'Media',to:'/admin/media',icon:'lucide:images',roles:['owner','content_editor']},
     {label:'Post generator',to:'/admin/post-generator',icon:'lucide:sparkles',roles:['owner','content_editor']},
-    {label:'Landing pages',to:'/admin/landing-pages',icon:'lucide:panels-top-left',roles:['owner','content_editor']},
-  ]},
-  { label:'Meer', items:[
-    {label:'Klantportaal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
-    {label:'Systeemstatus',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
   ]},
 ]
 
 const footerItems: NavItem[] = [
+  {label:'E-mails',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
+  {label:'Klantportaal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
   {label:'Instellingen',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
+  {label:'Systeemstatus',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
   {label:'Gebruikers',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
 ]
 
@@ -55,6 +55,8 @@ const visibleFooterItems = computed(() => {
 })
 
 function isActive(to:string){return to==='/admin'?route.path===to:route.path.startsWith(to)}
+const beheerOpen = ref(footerItems.some(item => isActive(item.to)))
+watch(() => route.path, () => { if (footerItems.some(item => isActive(item.to))) beheerOpen.value = true })
 async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await clear();await navigateTo('/admin/login')}
 </script>
 
@@ -78,6 +80,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
         :to="item.to"
         class="nav-link"
         :class="{ active: isActive(item.to) }"
+        :aria-current="isActive(item.to) ? 'page' : undefined"
       >
         <Icon :name="item.icon" aria-hidden="true" />
         {{ item.label }}
@@ -86,18 +89,26 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   </nav>
 
   <footer class="sidebar-footer">
-    <nav v-if="visibleFooterItems.length" class="footer-nav" aria-label="Beheer">
-      <NuxtLink
-        v-for="item in visibleFooterItems"
-        :key="item.to"
-        :to="item.to"
-        class="nav-link footer-link"
-        :class="{ active: isActive(item.to) }"
-      >
-        <Icon :name="item.icon" aria-hidden="true" />
-        {{ item.label }}
-      </NuxtLink>
-    </nav>
+    <details v-if="visibleFooterItems.length" class="footer-nav" :open="beheerOpen" @toggle="beheerOpen = ($event.target as HTMLDetailsElement).open">
+      <summary class="nav-link footer-summary">
+        <Icon name="lucide:sliders-horizontal" aria-hidden="true" />
+        Beheer
+        <Icon name="lucide:chevron-down" class="summary-chevron" aria-hidden="true" />
+      </summary>
+      <nav aria-label="Beheer">
+        <NuxtLink
+          v-for="item in visibleFooterItems"
+          :key="item.to"
+          :to="item.to"
+          class="nav-link footer-link"
+          :class="{ active: isActive(item.to) }"
+          :aria-current="isActive(item.to) ? 'page' : undefined"
+        >
+          <Icon :name="item.icon" aria-hidden="true" />
+          {{ item.label }}
+        </NuxtLink>
+      </nav>
+    </details>
 
     <div class="account">
       <NuxtLink
@@ -153,8 +164,8 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .nav-group:first-child { margin-top: .2rem; }
 .nav-group p {
   margin: 0 .6rem .25rem;
-  color: #6f6978;
-  font-size: .65rem;
+  color: var(--text-subtle);
+  font-size: .7rem;
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -170,7 +181,10 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   text-decoration: none;
   font-size: .86rem;
 }
-.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #7f7889; }
+@media (max-width: 820px) {
+  .nav-link { min-height: 2.75rem; }
+}
+.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: var(--text-subtle); }
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }
 .nav-link:hover svg, .nav-link.active svg { color: #c7b5de; }
@@ -184,7 +198,17 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 }
 .footer-link {
   padding-block: .48rem;
+  padding-left: 1.4rem;
 }
+.footer-summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.footer-summary::-webkit-details-marker { display: none; }
+.summary-chevron { margin-left: auto; transition: transform .2s ease; }
+.footer-nav[open] .summary-chevron { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .summary-chevron { transition: none; } }
 
 .account {
   display: grid;
@@ -206,7 +230,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .account-profile > svg {
   width: .9rem;
   height: .9rem;
-  color: #6f6978;
+  color: var(--text-subtle);
 }
 .account-avatar {
   display: grid;
@@ -228,7 +252,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   white-space: nowrap;
 }
 .account strong { font-size: .84rem; }
-.account small { margin-top: .08rem; color: #817b8b; font-size: .68rem; }
+.account small { margin-top: .08rem; color: #817b8b; font-size: .75rem; }
 
 .logout {
   display: flex;

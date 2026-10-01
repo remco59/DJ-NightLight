@@ -199,7 +199,7 @@ export async function queueInvoiceEmail(templateKey: string, invoiceId: string, 
   })
 }
 
-async function isSuppressed(gigId: string | null, templateKey: string) {
+export async function isSuppressed(gigId: string | null, templateKey: string) {
   if (!gigId) return false
   const [row] = await db.select({ id: gigEmailSuppressions.id })
     .from(gigEmailSuppressions)
@@ -208,7 +208,7 @@ async function isSuppressed(gigId: string | null, templateKey: string) {
   return Boolean(row)
 }
 
-async function clientTurnedOffAutomation(gigId: string | null, templateKey: string) {
+export async function clientTurnedOffAutomation(gigId: string | null, templateKey: string) {
   if (!gigId) return false
   const [row] = await db.select({ disabled: clients.emailAutomationDisabled })
     .from(gigs)

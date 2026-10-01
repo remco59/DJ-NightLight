@@ -165,42 +165,42 @@ async function startUpdate() {
 </template>
 
 <style scoped>
-.updates{margin-top:1.5rem;padding:1.2rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14;scroll-margin-top:1rem}
+.updates{margin-top:1.5rem;padding:1.2rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card);scroll-margin-top:1rem}
 .head,.actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
 .head h2{margin:.15rem 0 .3rem}
 .head p:last-child{margin:0;color:#8c8594;font-size:.85rem;line-height:1.5}
-.pill{flex:none;padding:.25rem .7rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.75rem;font-weight:700}
+.pill{flex:none;padding:.25rem .7rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.75rem;font-weight:700}
 .pill.on{background:#16382a;color:#7be0a8}
 .pill.warn{background:#3a2c12;color:#f3c77a}
-.notice{margin:1rem 0 0;padding:.85rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d;color:#aaa4b1;font-size:.85rem;line-height:1.5}
+.notice{margin:1rem 0 0;padding:.85rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input);color:var(--text-muted);font-size:.85rem;line-height:1.5}
 .notice.error{border-color:#5a2a2a;color:#ff9d9d}
-.notice code{color:#f6f3fa}
+.notice code{color:var(--text)}
 .versions{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem;margin:1rem 0 0}
-.versions div{padding:.85rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d;min-width:0}
+.versions div{padding:.85rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input);min-width:0}
 .versions dt{color:#8c8594;font-size:.75rem}
 .versions dd{display:grid;gap:.2rem;margin:.3rem 0 0;font-weight:700;overflow-wrap:anywhere}
-.versions small{color:#716a78;font-size:.75rem;font-weight:400}
+.versions small{color:var(--text-subtle);font-size:.75rem;font-weight:400}
 .commits{margin-top:1rem}
-.commits>p{margin:0 0 .5rem;color:#aaa4b1;font-size:.8rem}
+.commits>p{margin:0 0 .5rem;color:var(--text-muted);font-size:.8rem}
 .commits ul{display:grid;gap:.4rem;max-height:18rem;margin:0;padding:0;overflow:auto;list-style:none}
-.commits li{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;padding:.6rem .75rem;border:1px solid #29242f;border-radius:.7rem;background:#0b0a0d;font-size:.85rem}
+.commits li{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;padding:.6rem .75rem;border:1px solid var(--border);border-radius:.7rem;background:var(--surface-input);font-size:.85rem}
 .commits code{color:#b58cff}
 .commits span{overflow-wrap:anywhere}
-.commits li small{grid-column:2;color:#716a78;font-size:.72rem}
-.more{display:block;margin-top:.4rem;color:#716a78;font-size:.75rem}
-.last-run{margin-top:1rem;border:1px solid #29242f;border-radius:.8rem;background:#0b0a0d}
+.commits li small{grid-column:2;color:var(--text-subtle);font-size:.72rem}
+.more{display:block;margin-top:.4rem;color:var(--text-subtle);font-size:.75rem}
+.last-run{margin-top:1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
 .last-run summary{padding:.75rem .85rem;color:#8ed6a3;font-size:.85rem;cursor:pointer}
 .last-run.failed summary{color:#ff9d9d}
-.last-run summary span{color:#aaa4b1}
-.last-run pre{max-height:20rem;margin:0;padding:.85rem;overflow:auto;border-top:1px solid #29242f;color:#aaa4b1;font-size:.72rem;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+.last-run summary span{color:var(--text-muted)}
+.last-run pre{max-height:20rem;margin:0;padding:.85rem;overflow:auto;border-top:1px solid var(--border);color:var(--text-muted);font-size:.72rem;line-height:1.5;white-space:pre-wrap;word-break:break-all}
 .actions{align-items:center;margin-top:1rem}
 .actions>div{display:flex;gap:.6rem}
-.actions span{color:#aaa4b1;font-size:.85rem}
+.actions span{color:var(--text-muted);font-size:.85rem}
 .actions .success{color:#8ed6a3}
 .actions .error{color:#ff9d9d}
 button{border:0;border-radius:.7rem;padding:.7rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}
 button:disabled{cursor:not-allowed;opacity:.55}
-button.ghost{border:1px solid #332e39;background:transparent;color:#f6f3fa}
+button.ghost{border:1px solid var(--border-strong);background:transparent;color:var(--text)}
 @media(max-width:650px){
   .head,.actions{align-items:stretch;flex-direction:column}
   .versions{grid-template-columns:1fr}

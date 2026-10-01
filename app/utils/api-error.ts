@@ -26,3 +26,22 @@ export function apiErrorMessage(error: unknown, fallback: string) {
 
   return fallback
 }
+
+/** Per-field messages from a rejected `readValidatedBody`, keyed by the first path segment. */
+export function apiFieldErrors(error: unknown): Record<string, string> {
+  if (typeof error !== 'object' || error === null || !('data' in error)) return {}
+  const data = (error as { data?: { statusMessage?: unknown, message?: unknown } }).data
+  if (data?.statusMessage !== VALIDATION_ERROR || typeof data.message !== 'string') return {}
+  try {
+    const issues: unknown = JSON.parse(data.message)
+    if (!Array.isArray(issues)) return {}
+    const fields: Record<string, string> = {}
+    for (const issue of issues as Array<{ path?: unknown[], message?: unknown }>) {
+      const field = issue.path?.[0]
+      if (typeof field === 'string' && typeof issue.message === 'string' && !fields[field]) fields[field] = issue.message
+    }
+    return fields
+  } catch {
+    return {}
+  }
+}

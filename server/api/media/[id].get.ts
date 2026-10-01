@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { mediaAssets } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { getMediaStorage } from '../../utils/media-storage'
+import { canResizeImage, getImageVariant, isResponsiveWidth } from '../../utils/media-variants'
 
 /** Parses a single `bytes=start-end` range; null when absent or unsatisfiable. */
 function parseRange(header: string | undefined, size: number) {
@@ -28,6 +29,19 @@ export default defineEventHandler(async (event) => {
   const useThumbnail = variant === 'thumb' && Boolean(asset.thumbnailKey)
   const key = useThumbnail ? asset.thumbnailKey! : asset.storageKey
   const storage = getMediaStorage()
+
+  if (!query.download && query.w !== undefined && isResponsiveWidth(query.w) && canResizeImage(asset.mimeType)) {
+    try {
+      const data = await getImageVariant(asset, Number(query.w))
+      setHeader(event, 'content-type', 'image/webp')
+      setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
+      setHeader(event, 'content-length', data.length)
+      return data
+    } catch {
+      // Fall through to the original when the file cannot be decoded.
+    }
+  }
+
   if (query.download && !useThumbnail) {
     const filename = asset.originalFilename.replace(/["\\\r\n]+/g, '_')
     setHeader(event, 'content-disposition', `attachment; filename="${filename.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(filename)}`)

@@ -3,6 +3,8 @@ import { contractSubmissions, emailJobs, gigCalendarSync, gigs, invoices, outbox
 import { db } from '../../utils/db'
 import { requireStaff } from '../../utils/require-staff'
 import { gigTitleSql } from '../../utils/gig-title'
+import { emailProviderConfigured } from '../../utils/email-provider'
+import { stripeStatus } from '../../utils/stripe-settings'
 
 function dateOnly(value: Date) {
   return value.toISOString().slice(0, 10)
@@ -26,7 +28,7 @@ export default defineEventHandler(async (event) => {
       upcoming: [],
       attention: [],
       week: { gigs: 0, bookedRevenueCents: 0, invoicesDue: 0, contractsOpen: 0 },
-      system: { issues: 0 },
+      system: { issues: 0, warnings: [] as Array<{ label: string, to: string }> },
     }
   }
 
@@ -245,6 +247,12 @@ export default defineEventHandler(async (event) => {
     + Number(failedPaymentsRow?.value || 0)
     + Number(staleOutboxRow?.value || 0)
 
+  // Missing configuration is not a failure yet, but it silently stops client-facing work.
+  const [emailReady, stripe] = await Promise.all([emailProviderConfigured(), stripeStatus()])
+  const warnings: Array<{ label: string, to: string }> = []
+  if (!emailReady) warnings.push({ label: 'E-mails aan klanten worden niet verstuurd: er is geen e-mailprovider ingesteld.', to: '/admin/settings' })
+  if (!stripe.keyConfigured) warnings.push({ label: 'Klanten kunnen niet online betalen: Stripe is niet gekoppeld.', to: '/admin/settings' })
+
   return {
     summary: {
       upcoming: upcomingCountRow?.value ?? 0,
@@ -262,6 +270,6 @@ export default defineEventHandler(async (event) => {
       invoicesDue,
       contractsOpen,
     },
-    system: { issues: systemIssues },
+    system: { issues: systemIssues, warnings },
   }
 })

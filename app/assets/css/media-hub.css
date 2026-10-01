@@ -24,12 +24,12 @@
 .mh-btn:disabled { opacity: .45; cursor: not-allowed; }
 .mh-btn .iconify { width: 1.05em; height: 1.05em; }
 .mh-btn.primary {
-  border-color: #8b5cf6;
-  background: linear-gradient(180deg, #8452f5, #6d37e6);
-  color: #fff;
-  box-shadow: 0 0 0 1px rgba(157, 92, 255, .18), 0 .5rem 1.6rem rgba(109, 40, 217, .32);
+  border-color: var(--button-primary-bg);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  font-weight: 700;
 }
-.mh-btn.primary:hover { background: linear-gradient(180deg, #9061ff, #7640ef); }
+.mh-btn.primary:hover { border-color: #e6e0ee; background: #e6e0ee; color: var(--button-primary-fg); }
 .mh-btn.danger { border-color: #5a2a33; background: #1b0f13; color: #f39aa6; }
 .mh-btn.danger:hover { border-color: #83404c; background: #25131a; color: #ffc0c8; }
 .mh-btn.ghost { border-color: transparent; background: transparent; color: #b8b1c1; }
@@ -68,11 +68,11 @@
   font-weight: 400;
 }
 .mh-textarea { resize: vertical; min-height: 4.5rem; }
-.mh-input::placeholder, .mh-textarea::placeholder { color: #6f6878; }
+.mh-input::placeholder, .mh-textarea::placeholder { color: var(--text-subtle); }
 .mh-input:focus, .mh-select:focus, .mh-textarea:focus { outline: none; border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .2); }
 
 .mh-field { display: grid; gap: .4rem; color: #c9c2d1; font-size: .8rem; font-weight: 600; }
-.mh-field small { color: #7d7686; font-weight: 400; }
+.mh-field small { color: var(--text-subtle); font-weight: 400; }
 
 .mh-tag {
   display: inline-flex;
@@ -162,7 +162,7 @@
   position: fixed;
   left: 50%;
   bottom: 1.5rem;
-  z-index: 2200;
+  z-index: var(--z-toast);
   display: flex;
   align-items: center;
   gap: .6rem;

@@ -207,7 +207,7 @@ watch(open, (value) => {
 }
 
 .export-copy small {
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .72rem;
 }
 

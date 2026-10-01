@@ -38,6 +38,10 @@ Files receive random storage keys and are written atomically. User-supplied file
 
 Admin → Media creates a max-480px JPEG thumbnail in the browser and uploads it alongside the original. Both are persisted separately. The original remains untouched.
 
+## Web-sized images
+
+Public pages never load camera originals. `/api/media/<asset-id>?w=640|1280|1920` returns a WebP rendition (resized with sharp, EXIF rotation applied, never enlarged) and the pages offer those widths through `srcset`. Each rendition is created on first request and cached in generated storage under `image-variants/<asset-id>/<width>.webp`; deleting the asset removes them. The cache can be wiped at any time and is rebuilt on demand, so it does not need to be backed up.
+
 ## Metadata and associations
 
 Assets store title, alt text, tags, the original filename, optional gig/venue associations and a `source` (`upload`, `url`, `generated` or `derived`). Public assets are served through stable UUID URLs such as `/api/media/<asset-id>`; add `?download=1` to download the original under its filename.

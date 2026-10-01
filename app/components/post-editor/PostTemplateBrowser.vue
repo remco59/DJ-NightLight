@@ -151,7 +151,7 @@ watch(open, (value) => {
 }
 
 .filters button span {
-  color: #6f6879;
+  color: #9a93a4;
   font-size: .68rem;
 }
 

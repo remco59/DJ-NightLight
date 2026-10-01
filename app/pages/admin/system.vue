@@ -156,7 +156,7 @@ function formatDate(value: string | null | undefined) {
 <style scoped>
 .page { max-width: 1180px; margin: 0 auto; }
 .header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.05em; }
+h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.04em; }
 h2 { margin: 0 0 .9rem; }
 .panel-title { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .3rem; }
 .panel-title h2 { margin-bottom: .25rem; }
@@ -173,7 +173,7 @@ button { border: 1px solid #39323f; border-radius: .65rem; padding: .65rem .85re
 a { color: #c9b2df; }
 .panel { margin-top: .8rem; }
 .rows { display: grid; }
-.rows > div { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; padding: .8rem 0; border-top: 1px solid #29242f; }
+.rows > div { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; padding: .8rem 0; border-top: 1px solid var(--border); }
 .rows > div:first-child { border-top: 0; }
 .rows small { grid-column: 2; }
 .ok { color: #90c9a7; }

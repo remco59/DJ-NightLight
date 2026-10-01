@@ -23,8 +23,8 @@ export default defineEventHandler(async (event) => {
     : null
 
   const notes = [
-    input.location ? `Requested location: ${input.location}` : null,
-    input.message ? `Message: ${input.message}` : null,
+    input.location ? `Gevraagde locatie: ${input.location}` : null,
+    input.message ? `Bericht: ${input.message}` : null,
   ].filter(Boolean).join('\n\n') || null
 
   const result = await db.transaction(async (tx) => {
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     if (!client) throw createError({ statusCode: 500, statusMessage: 'Aanvraag versturen is niet gelukt' })
 
     const [gig] = await tx.insert(gigs).values({
-      title: `${input.eventType || 'Booking request'} — ${input.name}`,
+      title: `${input.eventType || 'Aanvraag'} — ${input.name}`,
       eventType: input.eventType,
       clientId: client.id,
       status: 'lead',

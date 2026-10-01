@@ -26,12 +26,17 @@ export class LocalMediaStorage implements MediaStorage {
       String(date.getUTCMonth() + 1).padStart(2, '0'),
       `${randomUUID()}.${extension.replace(/[^a-z0-9]/gi, '').toLowerCase()}`,
     ).replaceAll('\\', '/')
+    await this.putAt(key, buffer)
+    return key
+  }
+
+  /** Writes to a caller-chosen key (atomically), for derived files such as image variants. */
+  async putAt(key: string, buffer: Uint8Array) {
     const target = safePath(this.root, key)
     await mkdir(dirname(target), { recursive: true })
     const temp = `${target}.${randomUUID()}.tmp`
     await writeFile(temp, buffer, { flag: 'wx' })
     await rename(temp, target)
-    return key
   }
 
   read(key: string) {
@@ -46,6 +51,10 @@ export class LocalMediaStorage implements MediaStorage {
   async delete(key: string | null | undefined) {
     if (!key) return
     await rm(safePath(this.root, key), { force: true })
+  }
+
+  async deleteDirectory(prefix: string) {
+    await rm(safePath(this.root, prefix), { recursive: true, force: true })
   }
 }
 

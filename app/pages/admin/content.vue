@@ -86,12 +86,15 @@ function addPrinciple() {
   form.publicCopy.about.principles.push({ title: 'Nieuw principe', body: 'Beschrijf dit principe.' })
 }
 
+const { markSaved } = useUnsavedChanges(() => form)
+
 async function save() {
   saving.value = true
   messageKind.value = 'saving'
   message.value = 'Website opslaan…'
   try {
     await $fetch('/api/admin/content', { method: 'PUT', body: form })
+    markSaved()
     messageKind.value = 'success'
     message.value = 'Website opgeslagen. De wijzigingen zijn live.'
     await refreshNuxtData('nightlight-site-content')
@@ -157,7 +160,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
         </div>
       </aside>
 
-      <main class="page-workspace">
+      <section class="page-workspace">
         <section v-if="activePage === 'home'" class="page-editor">
           <div class="page-intro">
             <p class="eyebrow">Publieke pagina · /</p>
@@ -201,7 +204,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
               <AdminMediaPicker v-model="form.publicCopy.visuals.homeFeatureImageUrl" label="Uitgelichte afbeelding" />
               <div class="field-grid two">
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.visualCaption"></label>
-                <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeFeatureAlt"></label>
+                <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeFeatureAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               </div>
             </div>
           </details>
@@ -221,7 +224,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                 <label>Linktekst<input v-model="form.publicCopy.home.aboutCta"></label>
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.home.aboutImageCaption"></label>
               </div>
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeAboutAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.homeAboutAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
             </div>
           </details>
 
@@ -261,7 +264,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                     label="Afbeelding kaart"
                     description="Optionele eigen afbeelding voor deze dienst."
                   />
-                  <label>Alt-tekst afbeelding<input v-model="service.imageAlt"></label>
+                  <label>Alt-tekst afbeelding<input v-model="service.imageAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
                 </article>
               </div>
             </div>
@@ -323,7 +326,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                 <label>Bovenregel afbeelding<input v-model="form.publicCopy.about.imageEyebrow"></label>
                 <label>Bijschrift afbeelding<input v-model="form.publicCopy.about.imageCaption"></label>
               </div>
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutLeadAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutLeadAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
             </div>
           </details>
 
@@ -346,7 +349,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
             </summary>
             <div class="section-body">
               <AdminMediaPicker v-model="form.publicCopy.visuals.aboutRoomImageUrl" label="Sfeerafbeelding" />
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutRoomAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.aboutRoomAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               <label>Bovenregel<input v-model="form.publicCopy.about.momentEyebrow"></label>
               <label>Quote<textarea v-model="form.publicCopy.about.momentQuote" rows="3" /></label>
               <label>Ondersteunende tekst<textarea v-model="form.publicCopy.about.momentBody" rows="4" /></label>
@@ -426,7 +429,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
             <div class="section-body">
               <label>Showreel-URL<input v-model="form.showreelUrl" type="url" placeholder="https://…"></label>
               <AdminMediaPicker v-model="form.publicCopy.visuals.mediaShowreelImageUrl" label="Achtergrondafbeelding showreel" />
-              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.mediaShowreelAlt"></label>
+              <label>Alt-tekst afbeelding<input v-model="form.publicCopy.visuals.mediaShowreelAlt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
               <div class="field-grid two">
                 <label>Bovenregel<input v-model="form.publicCopy.media.showreelEyebrow"></label>
                 <label>Tekst externe link<input v-model="form.publicCopy.media.showreelExternalLabel"></label>
@@ -472,7 +475,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
                     @update:model-value="image.url = $event || ''"
                     @selected="applyGalleryAsset(image, $event)"
                   />
-                  <label>Alt-tekst<input v-model="image.alt"></label>
+                  <label>Alt-tekst<input v-model="image.alt" placeholder="Beschrijf de foto in het Nederlands, bijv. ‘Volle dansvloer tijdens een bruiloft’"></label>
                 </article>
               </div>
 
@@ -746,7 +749,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
             </div>
           </details>
         </section>
-      </main>
+      </section>
     </div>
   </form>
 </template>
@@ -779,8 +782,8 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .eyebrow {
   margin: 0;
-  color: #7f7788;
-  font-size: .67rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -789,7 +792,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .topbar-title h1 {
   margin: .2rem 0 .1rem;
   font-size: clamp(1.65rem, 3vw, 2.25rem);
-  letter-spacing: -.045em;
+  letter-spacing: -.04em;
 }
 
 .topbar-title > p:last-child {
@@ -868,9 +871,9 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .page-sidebar {
   position: sticky;
   top: 6.2rem;
-  border: 1px solid #29242f;
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: #100e14;
+  background: var(--surface-card);
   overflow: hidden;
 }
 
@@ -878,7 +881,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   display: grid;
   gap: .18rem;
   padding: .9rem .9rem .75rem;
-  border-bottom: 1px solid #29242f;
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-label span {
@@ -888,8 +891,8 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .sidebar-label small {
-  color: #6f6876;
-  font-size: .67rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
 }
 
 .page-sidebar nav {
@@ -926,8 +929,8 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .page-sidebar nav small {
-  color: #716a78;
-  font-size: .65rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
 }
 
 .page-sidebar nav button.active small {
@@ -936,7 +939,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .sidebar-note {
   padding: .85rem .9rem 1rem;
-  border-top: 1px solid #29242f;
+  border-top: 1px solid var(--border);
 }
 
 .sidebar-note strong {
@@ -946,14 +949,14 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .sidebar-note p {
   margin: .3rem 0 .55rem;
-  color: #777080;
-  font-size: .67rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
   line-height: 1.5;
 }
 
 .sidebar-note a {
   color: #aaa0b5;
-  font-size: .68rem;
+  font-size: .75rem;
 }
 
 .page-workspace {
@@ -973,7 +976,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .page-intro h2 {
   margin: .25rem 0 .35rem;
   font-size: clamp(2.2rem, 4.5vw, 3.7rem);
-  letter-spacing: -.055em;
+  letter-spacing: -.04em;
 }
 
 .page-intro > p:last-child {
@@ -986,9 +989,9 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .editor-section {
   margin-bottom: .75rem;
-  border: 1px solid #2b2631;
+  border: 1px solid var(--border);
   border-radius: .9rem;
-  background: #100e14;
+  background: var(--surface-card);
   overflow: hidden;
 }
 
@@ -1018,8 +1021,8 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .editor-section summary small {
-  color: #77707f;
-  font-size: .68rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
   font-weight: 500;
 }
 
@@ -1030,12 +1033,12 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   place-items: center;
   border: 1px solid #312b36;
   border-radius: .55rem;
-  color: #706978;
-  font-size: .64rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
 }
 
 .editor-section[open] summary {
-  border-bottom: 1px solid #29242f;
+  border-bottom: 1px solid var(--border);
   background: #131017;
 }
 
@@ -1063,11 +1066,11 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .repeat-card input,
 .repeat-card textarea {
   width: 100%;
-  border: 1px solid #332e39;
+  border: 1px solid var(--border-strong);
   border-radius: .65rem;
   padding: .72rem .75rem;
-  background: #0b0a0d;
-  color: #f6f3fa;
+  background: var(--surface-input);
+  color: var(--text);
   font: inherit;
 }
 
@@ -1100,7 +1103,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   border: 1px solid #302a36;
   border-radius: .7rem;
   background: #0d0b10;
-  color: #817988;
+  color: var(--text-subtle);
   font-size: .7rem;
   line-height: 1.55;
 }
@@ -1122,8 +1125,8 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .subsection-heading p {
   margin: 0;
-  color: #76707d;
-  font-size: .69rem;
+  color: var(--text-subtle);
+  font-size: .75rem;
   line-height: 1.45;
 }
 
@@ -1136,7 +1139,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   display: grid;
   gap: .75rem;
   padding: .9rem;
-  border: 1px solid #2b2631;
+  border: 1px solid var(--border);
   border-radius: .8rem;
   background: #0d0b10;
 }
@@ -1165,7 +1168,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   padding: .35rem .45rem;
   background: #19151e;
   color: #918999;
-  font-size: .68rem;
+  font-size: .75rem;
   cursor: pointer;
 }
 

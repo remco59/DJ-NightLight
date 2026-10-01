@@ -34,6 +34,11 @@ const {
 } = editor
 
 const router = useRouter()
+const exportBlockedReason = computed(() => {
+  if (readyToExport.value) return ''
+  if (!selectedAsset.value) return 'Kies eerst een foto, dan kun je exporteren.'
+  return 'Vul een kop in of zet de kop uit, dan kun je exporteren.'
+})
 const sourceSearch = ref('')
 const freshFile = ref<File | null>(null)
 const freshInput = ref<HTMLInputElement | null>(null)
@@ -435,17 +440,19 @@ async function toggleFullscreen() {
   <div class="page" :class="{ 'sheet-open': sheetOpen }" :style="mobileEditorStyle">
     <header class="mobile-editor-header">
       <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()">←</button>
-      <strong>Post editor</strong>
+      <h1 class="mobile-editor-title">Postgenerator</h1>
       <button
         class="mobile-export-button"
         type="button"
         :disabled="busy === 'render' || !readyToExport"
+        :aria-describedby="exportBlockedReason ? 'export-blocked-reason' : undefined"
         @click="editor.exportPost"
       >
         {{ busy === 'render' ? 'Bezig…' : 'Export' }}
       </button>
     </header>
 
+    <p v-if="exportBlockedReason && !message" id="export-blocked-reason" class="message export-hint mobile-only">{{ exportBlockedReason }}</p>
     <p v-if="message" class="message">
       {{ message }}
       <a v-if="lastRenderedUrl" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">PNG downloaden</a>
@@ -975,7 +982,7 @@ async function toggleFullscreen() {
         </div>
       </aside>
 
-      <main class="stage-stack">
+      <section class="stage-stack" aria-label="Voorbeeld">
         <section ref="previewShellRef" class="preview-shell">
           <div ref="previewToolbarRef" class="preview-toolbar">
             <div>
@@ -1025,7 +1032,7 @@ async function toggleFullscreen() {
 
         </section>
 
-      </main>
+      </section>
 
     </div>
 
@@ -1085,7 +1092,7 @@ h1 {
   margin: .35rem 0 .3rem;
   font-size: clamp(2.4rem, 4vw, 4rem);
   line-height: .98;
-  letter-spacing: -.055em;
+  letter-spacing: -.04em;
 }
 
 h2 {
@@ -1311,7 +1318,7 @@ input[type='range'] {
 }
 
 .search-wrap .search-icon {
-  color: #776e80;
+  color: #9a93a4;
 }
 
 .search-wrap button {
@@ -2008,7 +2015,8 @@ input[type='range'] {
     backdrop-filter: blur(18px);
   }
 
-  .mobile-editor-header strong {
+  .mobile-editor-header .mobile-editor-title {
+    margin: 0;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2048,6 +2056,16 @@ input[type='range'] {
     z-index: 70;
     margin: 0;
     box-shadow: 0 16px 42px rgba(0, 0, 0, .42);
+  }
+
+  /* A standing hint, not a toast: it sits under the header until export is possible. */
+  .message.export-hint {
+    position: static;
+    flex: 0 0 auto;
+    margin: .5rem .75rem 0;
+    padding: .5rem .75rem;
+    box-shadow: none;
+    font-size: .8rem;
   }
 
   .message-download {

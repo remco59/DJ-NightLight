@@ -653,7 +653,7 @@ function onDrop(event: DragEvent) {
 
 .group-head p {
   margin: .2rem 0 0;
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .74rem;
   line-height: 1.45;
 }
@@ -823,7 +823,7 @@ function onDrop(event: DragEvent) {
 
 .empty-note {
   margin: 0;
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .74rem;
   line-height: 1.45;
 }
@@ -854,7 +854,7 @@ function onDrop(event: DragEvent) {
 }
 
 .meta-list dt {
-  color: #7f7888;
+  color: #9a93a4;
   font-size: .74rem;
 }
 
@@ -897,7 +897,7 @@ function onDrop(event: DragEvent) {
 }
 
 .count {
-  color: #6f6879;
+  color: #9a93a4;
   font-size: .68rem;
   font-variant-numeric: tabular-nums;
 }
@@ -930,7 +930,7 @@ function onDrop(event: DragEvent) {
 .text-field input:disabled,
 .text-field textarea:disabled,
 .gig-fields input:disabled {
-  color: #6f6879;
+  color: #9a93a4;
   opacity: .7;
 }
 

@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   const access = await resolvePortalAccess(token)
   if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
   const parsed = submissionSchema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid submission' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Controleer je antwoorden en probeer het opnieuw' })
 
   const form = await getPortalForm(access.gigId)
   if (form.submission?.status === 'submitted') throw createError({ statusCode: 409, statusMessage: 'Dit formulier is al ingediend' })

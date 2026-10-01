@@ -496,7 +496,7 @@ function closeInspector() {
 <style scoped>
 .page { max-width: 1480px; margin: 0 auto; }
 .header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.6rem; }
-h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-height: 1; letter-spacing: -.045em; }
+h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-height: 1; letter-spacing: -.04em; }
 .lead { max-width: 52rem; margin: 0; color: #918999; font-size: .92rem; line-height: 1.55; }
 .upload-button { min-height: 3rem; padding-inline: 1.4rem; font-size: .92rem; }
 
@@ -509,7 +509,7 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
   gap: .6rem;
   min-width: 0;
   min-height: 3rem;
-  border: 1px solid #2a2530;
+  border: 1px solid var(--border);
   border-radius: .8rem;
   padding: 0 .6rem 0 .95rem;
   background: #0f0d13;
@@ -517,10 +517,10 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
 }
 .search:focus-within { border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .18); }
 .search input { flex: 1; min-width: 0; border: 0; padding: .75rem 0; background: transparent; color: #f4f1f7; font: inherit; font-size: .88rem; outline: none; }
-.search input::placeholder { color: #6f6878; }
+.search input::placeholder { color: var(--text-subtle); }
 .search kbd { border: 1px solid #332d3b; border-radius: .4rem; padding: .15rem .4rem; background: #17141c; color: #8f879a; font: inherit; font-size: .7rem; white-space: nowrap; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.tabs { display: flex; gap: .25rem; border: 1px solid #2a2530; border-radius: .8rem; padding: .3rem; background: #0f0d13; }
+.tabs { display: flex; gap: .25rem; border: 1px solid var(--border); border-radius: .8rem; padding: .3rem; background: #0f0d13; }
 .tabs button { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.35rem; border: 1px solid transparent; border-radius: .55rem; padding: .4rem .9rem; background: transparent; color: #a79fb2; font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .tabs button:hover { color: #fff; }
 .tabs button.active { border-color: #5b3fb0; background: #231a3d; color: #fff; box-shadow: 0 0 1rem rgba(109, 40, 217, .25); }
@@ -528,7 +528,7 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
 .controls .mh-btn { min-height: 3rem; }
 .controls .mh-btn.on { border-color: #5b3fb0; }
 .badge { display: grid; min-width: 1.3rem; height: 1.3rem; place-items: center; border-radius: 999px; background: #7c3aed; color: #fff; font-size: .7rem; }
-.view-toggle { display: flex; gap: .2rem; border: 1px solid #2a2530; border-radius: .8rem; padding: .3rem; background: #0f0d13; }
+.view-toggle { display: flex; gap: .2rem; border: 1px solid var(--border); border-radius: .8rem; padding: .3rem; background: #0f0d13; }
 .view-toggle .mh-icon-btn { border-color: transparent; background: transparent; }
 .view-toggle .mh-icon-btn.active { border-color: #5b3fb0; background: #231a3d; }
 

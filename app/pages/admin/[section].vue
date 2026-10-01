@@ -45,7 +45,7 @@ useSeoMeta({
 
 <style scoped>
 .placeholder { max-width: 800px; margin-inline: auto; padding-top: 1rem; }
-h1 { margin: .3rem 0; font-size: clamp(2.4rem, 6vw, 4.5rem); letter-spacing: -.05em; }
+h1 { margin: .3rem 0; font-size: clamp(2.4rem, 6vw, 4.5rem); letter-spacing: -.04em; }
 p { color: #918b9a; }
 .coming {
   display: grid;
@@ -55,5 +55,5 @@ p { color: #918b9a; }
   border: 1px dashed #302a38;
   border-radius: 1rem;
 }
-.coming span { color: #777180; }
+.coming span { color: var(--text-subtle); }
 </style>

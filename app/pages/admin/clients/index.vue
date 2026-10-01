@@ -123,18 +123,18 @@ useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
 <style scoped>
 .entity-page { max-width: 1050px; margin-inline: auto; }
 .page-header { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin-bottom:1.5rem; }
-h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.05em; }
+h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.04em; }
 .page-header p:last-child { margin:0; color:#8e8797; }
-.primary { border:0; border-radius:.7rem; padding:.75rem 1rem; background:#fff; color:#09080b; font-weight:800; cursor:pointer; }
-.editor-card { margin-bottom:1.2rem; padding:1.3rem; border:1px solid #2b2631; border-radius:1rem; background:#100e14; }
+.primary { border:0; border-radius:.7rem; padding:.75rem 1rem; background:var(--button-primary-bg); color:var(--button-primary-fg); font-weight:800; cursor:pointer; }
+.editor-card { margin-bottom:1.2rem; padding:1.3rem; border:1px solid var(--border); border-radius:1rem; background:var(--surface-card); }
 .editor-card h2 { margin-top:0; }
 .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.9rem; margin-bottom:1rem; }
-label { display:grid; gap:.4rem; color:#aaa4b1; font-size:.82rem; }
-input, select, textarea { width:100%; border:1px solid #332e39; border-radius:.65rem; padding:.75rem; background:#0b0a0d; color:#f6f3fa; }
+label { display:grid; gap:.4rem; color:var(--text-muted); font-size:.82rem; }
+input, select, textarea { width:100%; border:1px solid var(--border-strong); border-radius:.65rem; padding:.75rem; background:var(--surface-input); color:var(--text); }
 .wide { grid-column:1/-1; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; }
 .toolbar input { max-width:28rem; }
-.toolbar span { color:#777080; font-size:.82rem; }
+.toolbar span { color:var(--text-subtle); font-size:.82rem; }
 .list { border:1px solid #292530; border-radius:1rem; overflow:hidden; }
 .row { display:grid; grid-template-columns:2.6rem minmax(0,1fr) auto; gap:.9rem; align-items:center; padding:.9rem 1rem; border-bottom:1px solid #242029; text-decoration:none; }
 .row:last-child { border-bottom:0; }
