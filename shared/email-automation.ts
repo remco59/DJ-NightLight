@@ -96,8 +96,8 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
   invoice_sent: {
     eyebrow: 'Factuur',
     title: 'Je factuur staat klaar',
-    ctaVariable: 'invoiceUrl',
-    ctaLabel: 'Bekijk factuur',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Open klantenportaal',
     details: [
       { label: 'Factuur', variable: 'invoiceNumber' },
       { label: 'Bedrag', variable: 'invoiceTotal' },
