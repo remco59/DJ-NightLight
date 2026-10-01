@@ -4,6 +4,7 @@ import { emailJobStatusLabels, emailTemplateLabels, gigStatusLabels, labelFor } 
 import { normalizeEmailText } from '~~/shared/email-automation'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'E-mails — DJ NightLight', robots: 'noindex, nofollow' })
 
 type Template = {
   key: string
@@ -183,7 +184,20 @@ async function sendTest() {
   }
 }
 
+const confirmAction = useConfirm()
+const dueJobs = computed(() => (data.value?.jobs ?? []).filter(job => job.status === 'pending' && new Date(job.runAt).getTime() <= Date.now()))
+
 async function runAutomation() {
+  const due = dueJobs.value.length
+  const recipients = [...new Set(dueJobs.value.map(job => job.recipient))]
+  const ok = await confirmAction({
+    title: 'Automatiseringen nu uitvoeren?',
+    body: due
+      ? `${due} ${due === 1 ? 'e-mail staat' : 'e-mails staan'} klaar en ${due === 1 ? 'wordt' : 'worden'} direct verstuurd naar ${recipients.slice(0, 3).join(', ')}${recipients.length > 3 ? ` en ${recipients.length - 3} anderen` : ''}. E-mails die voor later gepland staan blijven wachten.`
+      : 'Er staan nu geen e-mails klaar. NightLight controleert alleen of er nieuwe automatische e-mails moeten worden ingepland.',
+    confirmLabel: due ? 'Nu versturen' : 'Controleren',
+  })
+  if (!ok) return
   busy.value = 'run'
   message.value = ''
   try {
@@ -374,11 +388,11 @@ function templateName(key: string, fallback?: string) {
         <h2>Per gig uitschakelen</h2>
         <p>Schakel één automatisering uit voor één specifieke gig, zonder het algemene template te wijzigen.</p>
       </div>
-      <select v-model="suppressionGigId">
+      <select v-model="suppressionGigId" aria-label="Gig">
         <option value="">Kies een gig</option>
         <option v-for="gig in data?.gigOptions" :key="gig.id" :value="gig.id">{{ gig.title }} · {{ labelFor(gigStatusLabels, gig.status) }}</option>
       </select>
-      <select v-model="suppressionTemplateKey">
+      <select v-model="suppressionTemplateKey" aria-label="E-mail">
         <option value="">Kies een template</option>
         <option v-for="template in data?.templates" :key="template.key" :value="template.key">{{ templateName(template.key, template.name) }}</option>
       </select>

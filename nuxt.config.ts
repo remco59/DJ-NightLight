@@ -13,6 +13,16 @@ export default defineNuxtConfig({
     clientBundle: { scan: true },
     fallbackToApi: false,
   },
+  nitro: {
+    // Pre-compress /_nuxt JS/CSS (gzip + brotli) at build time; the live proxy
+    // served them uncompressed (~325 KB extra per first visit).
+    compressPublicAssets: true,
+  },
+  routeRules: {
+    // Fonts and brand images are not content-hashed, so a month rather than "immutable".
+    '/fonts/**': { headers: { 'cache-control': 'public, max-age=2592000' } },
+    '/brand/**': { headers: { 'cache-control': 'public, max-age=2592000' } },
+  },
   vite: {
     // The video editor preview imports these lazily; pre-bundle them so the
     // dev server does not re-optimize (and break the in-flight import) on first use.

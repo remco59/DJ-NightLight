@@ -73,8 +73,9 @@ const runTest = () => run('test', async () => {
   data.value = { status: res.status }
 })
 
-const disconnect = () => {
-  if (!confirm('Stripe ontkoppelen? Klanten kunnen facturen dan niet meer online betalen totdat je het opnieuw instelt.')) return
+const confirmAction = useConfirm()
+const disconnect = async () => {
+  if (!(await confirmAction({ title: 'Stripe ontkoppelen?', body: 'Klanten kunnen facturen dan niet meer online betalen totdat je Stripe opnieuw instelt.', confirmLabel: 'Ontkoppelen', tone: 'danger' }))) return
   return run('disconnect', async () => {
     await $fetch('/api/admin/stripe', { method: 'DELETE' })
     checks.value = []
@@ -205,7 +206,7 @@ async function copyUrl() {
 .head{display:flex;justify-content:space-between;gap:1rem;align-items:center}
 .integration-title{display:flex;gap:.8rem;align-items:center}
 .integration-title h3{margin:0 0 .2rem;font-size:1.05rem}
-.integration-title p{margin:0;color:#8c8594;font-size:.8rem}
+.integration-title p{margin:0;color:var(--text-subtle);font-size:.8rem}
 .brand-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:linear-gradient(135deg,#7855ff,#4f2de0);color:#fff;font-size:1.15rem;font-weight:900}
 .pill{display:inline-flex;align-items:center;gap:.4rem;flex:none;padding:.28rem .68rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.7rem;font-weight:750}
 .pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#7d7682}
@@ -226,7 +227,7 @@ async function copyUrl() {
 .steps li.done{color:#7be0a8}
 .panel{margin-top:.8rem;padding:1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
 h4{margin:0 0 .35rem;font-size:.9rem}
-.hint{color:#8c8594;font-size:.78rem;margin:.2rem 0 .8rem;line-height:1.45}
+.hint{color:var(--text-subtle);font-size:.78rem;margin:.2rem 0 .8rem;line-height:1.45}
 .hint.warn{color:#e9c46a}
 .advanced{margin-top:.8rem;border-top:1px solid var(--border);padding-top:.7rem}
 .advanced summary{cursor:pointer;color:#bfb5c8;font-size:.76rem;font-weight:700}
@@ -245,7 +246,7 @@ button.link{background:none;color:var(--text-muted);padding:.2rem 0;text-decorat
 .manual{margin-top:.8rem}
 .facts{display:grid;gap:.45rem;margin:.8rem 0 0}
 .facts div{display:flex;gap:1rem;font-size:.78rem}
-.facts dt{width:6rem;color:#8c8594}
+.facts dt{width:6rem;color:var(--text-subtle)}
 .facts dd{margin:0}
 .checks{list-style:none;margin:.8rem 0 0;padding:0;display:grid;gap:.4rem;font-size:.78rem}
 .checks .ok strong{color:#7be0a8}

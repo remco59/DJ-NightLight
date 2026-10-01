@@ -55,7 +55,9 @@ export default defineEventHandler(async (event) => {
   })
 
   await queueCalendarSync(gig.id)
-  if (existing.status !== 'booked' && gig.status === 'booked') {
+  // The gig page asks before this email goes out; ?notify=0 means "zonder e-mail".
+  const notifyClient = getQuery(event).notify !== '0'
+  if (notifyClient && existing.status !== 'booked' && gig.status === 'booked') {
     await queueGigEmail('booking_accepted', gig.id, `booking-accepted:${gig.id}:${gig.updatedAt.toISOString()}`)
   }
 

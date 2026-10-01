@@ -1,9 +1,8 @@
 import { eq } from 'drizzle-orm'
-import { businessSettings, emailTemplates } from '../../db/schema'
+import { businessSettings } from '../../db/schema'
 import { calculateInvoiceTotals, calculateLineTotalCents, type InvoiceSnapshot } from '../../shared/invoice'
 import { db } from './db'
-import { clientTurnedOffAutomation, isSuppressed } from './email-automation'
-import { emailProviderConfigured } from './email-provider'
+import { clientEmailPlan } from './email-plan'
 import { invoiceClientName, type getInvoiceDetail } from './invoice-data'
 
 type InvoiceDetail = NonNullable<Awaited<ReturnType<typeof getInvoiceDetail>>>
@@ -64,19 +63,5 @@ export function invoiceFinalizeBlockers(detail: InvoiceDetail, settings: Busines
 
 /** Whether finalizing will email the invoice to the client, and if not, why. */
 export async function invoiceEmailPlan(detail: InvoiceDetail) {
-  const recipient = detail.invoice.clientEmail || null
-  const [template] = await db.select({ enabled: emailTemplates.enabled, offsetMinutes: emailTemplates.offsetMinutes })
-    .from(emailTemplates).where(eq(emailTemplates.key, INVOICE_SENT_TEMPLATE)).limit(1)
-  let skipReason: string | null = null
-  if (!recipient) skipReason = 'De klant heeft geen e-mailadres.'
-  else if (!template?.enabled) skipReason = 'De e-mail "Factuur verstuurd" staat uit.'
-  else if (await isSuppressed(detail.invoice.gigId, INVOICE_SENT_TEMPLATE)) skipReason = 'Deze e-mail is voor deze gig uitgezet.'
-  else if (await clientTurnedOffAutomation(detail.invoice.gigId, INVOICE_SENT_TEMPLATE)) skipReason = 'Automatische facturen staan uit voor deze klant.'
-  return {
-    recipient,
-    willSend: !skipReason,
-    skipReason,
-    delayMinutes: template?.offsetMinutes ?? 0,
-    providerConfigured: await emailProviderConfigured(),
-  }
+  return clientEmailPlan({ templateKey: INVOICE_SENT_TEMPLATE, gigId: detail.invoice.gigId, recipient: detail.invoice.clientEmail })
 }

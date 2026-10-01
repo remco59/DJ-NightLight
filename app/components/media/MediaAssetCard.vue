@@ -225,10 +225,10 @@ function run(action: MediaCardAction) {
 .menu-label { margin: .35rem .65rem .2rem; color: var(--text-subtle); font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .body { display: grid; gap: .25rem; min-width: 0; padding: .75rem .85rem .85rem; cursor: pointer; }
 .body strong { overflow: hidden; color: #f5f2f8; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
-.body small { overflow: hidden; color: #8f879a; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.body small { overflow: hidden; color: var(--text-subtle); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .variant-label { color: #c4b1f5; }
 .tags { display: flex; gap: .35rem; margin-top: .4rem; overflow: hidden; }
-.more-tags { color: #8f879a; }
+.more-tags { color: var(--text-subtle); }
 
 /* List layout: one dense row per asset. */
 .card.row {

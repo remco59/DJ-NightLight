@@ -127,8 +127,10 @@ async function retryRender(id: string) {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function cancelRender(id: string) {
-  if (!confirm('Deze export annuleren?')) return
+  if (!(await confirmAction({ title: 'Deze export annuleren?', body: 'De video wordt niet verder gemaakt.', confirmLabel: 'Annuleren', cancelLabel: 'Doorgaan met exporteren', tone: 'danger' }))) return
   try {
     await $fetch(`/api/admin/post-generator/video/${id}/cancel`, { method: 'POST' })
     emit('refreshRenders')
@@ -138,7 +140,7 @@ async function cancelRender(id: string) {
 }
 
 async function deleteRender(id: string) {
-  if (!confirm('Deze export verwijderen?')) return
+  if (!(await confirmAction({ title: 'Deze export verwijderen?', body: 'Het videobestand wordt definitief verwijderd.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   try {
     await $fetch(`/api/admin/post-generator/video/${id}`, { method: 'DELETE' })
     emit('refreshRenders')

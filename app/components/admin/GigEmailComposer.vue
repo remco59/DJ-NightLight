@@ -70,9 +70,10 @@ function applyTemplate(key: string) {
 
 applyTemplate(props.templates.some(template => template.key === props.templateKey) ? props.templateKey : props.templates[0]?.key || '')
 
-function onTemplateChange(event: Event) {
+const confirmAction = useConfirm()
+async function onTemplateChange(event: Event) {
   const select = event.target as HTMLSelectElement
-  if ((draft.subject || draft.body) && !confirm('Onderwerp en tekst vervangen door dit template?')) {
+  if ((draft.subject || draft.body) && !(await confirmAction({ title: 'Tekst vervangen?', body: 'Het onderwerp en de tekst die je nu hebt worden vervangen door dit template.', confirmLabel: 'Vervangen' }))) {
     select.value = draft.templateKey
     return
   }

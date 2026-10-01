@@ -64,8 +64,10 @@ async function move(collection: MediaCollectionSummary, offset: number) {
   )
 }
 
+const confirmAction = useConfirm()
+
 async function remove(collection: MediaCollectionSummary) {
-  if (!confirm(`Collectie “${collection.name}” verwijderen? De ${collection.itemCount} item(s) erin blijven in de bibliotheek.`)) return
+  if (!(await confirmAction({ title: `Collectie “${collection.name}” verwijderen?`, body: `De ${collection.itemCount} ${collection.itemCount === 1 ? 'item' : 'items'} erin blijven gewoon in de bibliotheek.`, confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   await run(() => mediaApi.deleteCollection(collection.id), 'Collectie verwijderd.', 'Collectie verwijderen is niet gelukt.')
 }
 
@@ -126,7 +128,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 .dialog { position: relative; display: grid; gap: 1.1rem; width: min(40rem, 100%); max-height: calc(100dvh - 2rem); overflow: auto; border: 1px solid #2c2733; border-radius: 1.1rem; padding: 1.4rem; background: #0f0d13; box-shadow: 0 2rem 5rem rgba(0, 0, 0, .6); }
 header { display: flex; justify-content: space-between; gap: 1rem; }
 h2 { margin: 0 0 .3rem; font-size: 1.35rem; }
-header p { margin: 0; color: #8f879a; font-size: .82rem; line-height: 1.5; }
+header p { margin: 0; color: var(--text-subtle); font-size: .82rem; line-height: 1.5; }
 .close { border-color: transparent; background: transparent; }
 .create, .rename { display: flex; gap: .5rem; }
 .rename { flex: 1; min-width: 0; }
@@ -137,7 +139,7 @@ header p { margin: 0; color: #8f879a; font-size: .82rem; line-height: 1.5; }
 .name { display: grid; flex: 1; gap: .1rem; min-width: 0; border: 0; padding: 0; background: none; color: #fff; font: inherit; text-align: left; cursor: pointer; }
 .name:hover strong { color: #c4b1f5; }
 .name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name small { color: #8f879a; font-size: .76rem; }
+.name small { color: var(--text-subtle); font-size: .76rem; }
 .tools { display: flex; gap: .3rem; }
 .tools .mh-icon-btn { width: 2rem; height: 2rem; }
 .tools .mh-icon-btn:disabled { opacity: .35; cursor: not-allowed; }

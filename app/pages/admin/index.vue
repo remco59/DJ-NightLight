@@ -228,7 +228,7 @@ useSeoMeta({
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.description }}</span>
               </div>
-              <span class="attention-meta with-icon"><Icon name="lucide:calendar-days" />{{ formatMeta(item.meta) }}</span>
+              <span v-if="formatMeta(item.meta)" class="attention-meta with-icon"><Icon name="lucide:calendar-days" />{{ formatMeta(item.meta) }}</span>
               <Icon class="row-chevron" name="lucide:chevron-right" />
             </NuxtLink>
           </div>
@@ -322,10 +322,10 @@ useSeoMeta({
 .with-icon :deep(svg) { width:1rem; height:1rem; }
 .system-status { display:inline-flex; align-items:center; gap:.55rem; border:1px solid #27342e; background:#0d1210; color:#a7c9b5; }
 .system-status.problem { border-color:#4d2931; background:#160e11; color:#f0a5b0; }
-.status-dot { width:.58rem; height:.58rem; border-radius:50%; background:#22c55e; box-shadow:0 0 11px rgba(34,197,94,.55); }
-.system-status.problem .status-dot { background:#ef4444; box-shadow:0 0 11px rgba(239,68,68,.5); }
+.status-dot { width:.58rem; height:.58rem; border-radius:50%; background:var(--status-ok); box-shadow:0 0 11px rgba(34,197,94,.55); }
+.system-status.problem .status-dot { background:var(--status-danger); box-shadow:0 0 11px rgba(239,68,68,.5); }
 .system-status.warning { border-color:#4a3d22; background:#15120b; color:#f2cf8a; }
-.system-status.warning .status-dot { background:#f59e0b; box-shadow:0 0 11px rgba(245,158,11,.45); }
+.system-status.warning .status-dot { background:var(--status-warn); box-shadow:0 0 11px rgba(245,158,11,.45); }
 .setup-warnings { display:grid; gap:.5rem; margin:.85rem 1rem; padding:0; list-style:none; }
 .setup-warnings li { display:grid; grid-template-columns:1rem minmax(0,1fr) auto; align-items:center; gap:.7rem; padding:.75rem .9rem; border:1px solid #4a3d22; border-radius:.75rem; background:#15120b; color:#f2dcae; font-size:.86rem; line-height:1.45; }
 .setup-warnings svg { color:#f5b544; }

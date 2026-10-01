@@ -33,6 +33,7 @@ import {
 } from '~~/shared/media-library'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Media — DJ NightLight', robots: 'noindex, nofollow' })
 
 const route = useRoute()
 const router = useRouter()
@@ -170,12 +171,17 @@ async function copyLink(item: MediaLibraryItem) {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function removeAssets(ids: string[]) {
   const names = ids.map(id => byId.value.get(id)).filter(Boolean).map(item => mediaDisplayTitle(item!))
-  const question = ids.length === 1
-    ? `“${names[0]}” verwijderen? Het bestand wordt definitief verwijderd.`
-    : `${ids.length} items verwijderen? De bestanden worden definitief verwijderd.`
-  if (!confirm(`${question} Items die nog op de website, op landing pages of in video’s worden gebruikt, blijven bewaard.`)) return
+  const ok = await confirmAction({
+    title: ids.length === 1 ? `“${names[0]}” verwijderen?` : `${ids.length} items verwijderen?`,
+    body: `${ids.length === 1 ? 'Het bestand wordt' : 'De bestanden worden'} definitief verwijderd. Items die nog op de website, op landing pages of in video’s worden gebruikt, blijven bewaard.`,
+    confirmLabel: 'Verwijderen',
+    tone: 'danger',
+  })
+  if (!ok) return
   busy.value = true
   try {
     const result = await mediaApi.bulk<MediaDeleteResult>(ids, { action: 'delete' })
@@ -513,12 +519,12 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
   border-radius: .8rem;
   padding: 0 .6rem 0 .95rem;
   background: #0f0d13;
-  color: #8f879a;
+  color: var(--text-subtle);
 }
 .search:focus-within { border-color: #7a57de; box-shadow: 0 0 0 3px rgba(122, 87, 222, .18); }
-.search input { flex: 1; min-width: 0; border: 0; padding: .75rem 0; background: transparent; color: #f4f1f7; font: inherit; font-size: .88rem; outline: none; }
+.search input { flex: 1; min-width: 0; border: 0; padding: .75rem 0; background: transparent; color: var(--text); font: inherit; font-size: .88rem; outline: none; }
 .search input::placeholder { color: var(--text-subtle); }
-.search kbd { border: 1px solid #332d3b; border-radius: .4rem; padding: .15rem .4rem; background: #17141c; color: #8f879a; font: inherit; font-size: .7rem; white-space: nowrap; }
+.search kbd { border: 1px solid #332d3b; border-radius: .4rem; padding: .15rem .4rem; background: #17141c; color: var(--text-subtle); font: inherit; font-size: .7rem; white-space: nowrap; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tabs { display: flex; gap: .25rem; border: 1px solid var(--border); border-radius: .8rem; padding: .3rem; background: #0f0d13; }
 .tabs button { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.35rem; border: 1px solid transparent; border-radius: .55rem; padding: .4rem .9rem; background: transparent; color: #a79fb2; font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
@@ -537,7 +543,7 @@ h1 { margin: .35rem 0 .3rem; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-heigh
 
 .results-head { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .8rem; }
 .results-head h2 { margin: 0; font-size: 1.05rem; }
-.collection-note { color: #8f879a; font-size: .82rem; }
+.collection-note { color: var(--text-subtle); font-size: .82rem; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr)); gap: 1rem; }
 .list { display: grid; gap: .4rem; }

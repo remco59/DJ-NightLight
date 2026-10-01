@@ -198,7 +198,7 @@ export const businessSettings = pgTable('business_settings', {
   defaultVatMode: invoiceVatMode('default_vat_mode').default('exclusive').notNull(),
   defaultVatRateBasisPoints: integer('default_vat_rate_basis_points').default(2100).notNull(),
   defaultPaymentTermDays: integer('default_payment_term_days').default(30).notNull(),
-  paymentTerms: text('payment_terms').default('Please pay the full amount before the due date.').notNull(),
+  paymentTerms: text('payment_terms').default('Betaal het volledige bedrag vóór de vervaldatum.').notNull(),
   legalText: text('legal_text').default('').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })

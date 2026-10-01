@@ -2,6 +2,7 @@
 import { RENDER_ENGINE_LABELS, type RenderEngine, type RenderEngineSetting } from '~~/shared/render-engine'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Systeemstatus — DJ NightLight', robots: 'noindex, nofollow' })
 
 type StatusData = {
   generatedAt: string

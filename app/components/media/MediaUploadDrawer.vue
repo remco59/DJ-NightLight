@@ -409,7 +409,7 @@ onBeforeUnmount(() => {
 .drawer-header h2 { margin: 0; font-size: 1.35rem; letter-spacing: -.02em; }
 .close { border-color: transparent; background: transparent; }
 .tabs { display: flex; gap: 1.4rem; margin: 0 1.3rem; border-bottom: 1px solid #25212c; }
-.tabs button { position: relative; border: 0; padding: .7rem 0; background: transparent; color: #8f879a; font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; }
+.tabs button { position: relative; border: 0; padding: .7rem 0; background: transparent; color: var(--text-subtle); font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; }
 .tabs button.active { color: #fff; }
 .tabs button.active::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: #8b5cf6; box-shadow: 0 0 .6rem rgba(139, 92, 246, .8); }
 .drawer-body { flex: 1; overflow: auto; padding: 1.1rem 1.3rem; }
@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
 .queue-item img, .queue-item video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .queue-item.done img, .queue-item.done video { opacity: .55; }
 .queue-item.error { border-color: #7a3945; }
-.file-icon { display: grid; width: 100%; height: 100%; place-items: center; color: #8f879a; font-size: 1.4rem; }
+.file-icon { display: grid; width: 100%; height: 100%; place-items: center; color: var(--text-subtle); font-size: 1.4rem; }
 .progress { position: absolute; right: .35rem; bottom: .35rem; left: .35rem; height: .3rem; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .18); }
 .progress span { display: block; height: 100%; border-radius: inherit; background: #a78bfa; transition: width .2s ease; }
 .state { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.3rem; }
@@ -453,7 +453,7 @@ onBeforeUnmount(() => {
 .errors strong { color: #ffd1d7; }
 .meta { display: grid; gap: .9rem; margin-top: 1.3rem; }
 .meta h3 { margin: 0; font-size: .95rem; }
-.meta h3 span { color: #8f879a; font-size: .8rem; font-weight: 500; }
+.meta h3 span { color: var(--text-subtle); font-size: .8rem; font-weight: 500; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
 .advanced-toggle { display: inline-flex; align-items: center; gap: .35rem; justify-self: start; border: 0; padding: 0; background: transparent; color: #b69cff; font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; }
 .advanced { display: grid; gap: .9rem; }

@@ -18,8 +18,6 @@
   color-scheme: dark;
   --electric-accent: #9d5cff;
   --electric-soft: #eadcff;
-  --electric-glow: #6d28d9;
-  --electric-line: rgba(157, 92, 255, .58);
   --electric-haze: rgba(109, 40, 217, .14);
 
   /* Surfaces, darkest to lightest. */
@@ -63,8 +61,8 @@
   --z-picker-upload: 2100;
   --z-toast: 2200;
   font-family: Archivo, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #08080b;
-  color: #f7f7fa;
+  background: var(--surface-page);
+  color: var(--text);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -82,7 +80,7 @@ body {
   background:
     radial-gradient(circle at 85% 10%, rgba(109, 40, 217, .16), transparent 30rem),
     #08080b;
-  color: #f7f7fa;
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -97,6 +95,9 @@ a { color: inherit; }
 h1, h2, h3 { font-weight: 800; }
 
 button, input, textarea, select { font: inherit; }
+
+/* Browser default placeholder grey (#757575) is 4.3:1 on the dark inputs. */
+::placeholder { color: var(--text-subtle); opacity: 1; }
 
 button, a { -webkit-tap-highlight-color: transparent; }
 

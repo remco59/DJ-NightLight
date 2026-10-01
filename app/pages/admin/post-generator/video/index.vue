@@ -143,8 +143,10 @@ async function duplicate(project: ProjectSummary) {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function remove(project: ProjectSummary) {
-  if (!confirm(`“${project.name}” verwijderen? Afgeronde exports blijven hieronder beschikbaar.`)) return
+  if (!(await confirmAction({ title: `“${project.name}” verwijderen?`, body: 'Het project wordt verwijderd. Afgeronde exports blijven hieronder beschikbaar.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   busy.value = project.id
   message.value = ''
   try {
@@ -158,7 +160,7 @@ async function remove(project: ProjectSummary) {
 }
 
 async function cancelJob(job: RenderJob) {
-  if (!confirm('Deze render annuleren?')) return
+  if (!(await confirmAction({ title: 'Deze render annuleren?', body: 'De video wordt niet verder gemaakt.', confirmLabel: 'Render annuleren', cancelLabel: 'Doorgaan', tone: 'danger' }))) return
   busy.value = job.id
   message.value = ''
   try {

@@ -62,7 +62,7 @@
   border-radius: .6rem;
   padding: .6rem .75rem;
   background: #0f0d13;
-  color: #f4f1f7;
+  color: var(--text);
   font: inherit;
   font-size: .86rem;
   font-weight: 400;
@@ -118,7 +118,7 @@
 }
 .mh-menu-item:hover, .mh-menu-item:focus-visible { background: #201b28; color: #fff; outline: none; }
 .mh-menu-item.danger { color: #f39aa6; }
-.mh-menu-item .iconify { width: 1rem; height: 1rem; color: #8f879a; }
+.mh-menu-item .iconify { width: 1rem; height: 1rem; color: var(--text-subtle); }
 .mh-menu-item.danger .iconify { color: inherit; }
 .mh-menu-sep { height: 1px; margin: .3rem .2rem; background: #27222e; }
 
@@ -152,7 +152,7 @@
   padding: 3rem 1rem;
   border: 1px dashed #332d3b;
   border-radius: 1rem;
-  color: #8f879a;
+  color: var(--text-subtle);
   text-align: center;
 }
 .mh-empty .iconify { width: 2rem; height: 2rem; color: #6f5aa8; }

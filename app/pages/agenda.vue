@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { dutchDayOfMonth, dutchFullDate, dutchMonthShort, dutchTimeRange, dutchYear } from '~~/shared/dutch-date'
+
 definePageMeta({ layout: 'public' })
 
 const { data: site } = await useSiteContent()
@@ -17,33 +19,11 @@ const { data, status } = await useFetch<{ gigs: PublicGig[] }>('/api/public/agen
 const nextGig = computed(() => data.value?.gigs?.[0] ?? null)
 const upcomingGigs = computed(() => data.value?.gigs?.slice(1) ?? [])
 
-function day(value: string) {
-  return new Date(value).getDate()
-}
-
-function month(value: string) {
-  return new Date(value).toLocaleDateString('nl-NL', { month: 'short' }).replace('.', '')
-}
-
-function year(value: string) {
-  return new Date(value).getFullYear()
-}
-
-function fullDate(value: string) {
-  return new Intl.DateTimeFormat('nl-NL', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(value))
-}
-
-function timeRange(start: string, end: string | null) {
-  const formatter = new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' })
-  return end
-    ? `${formatter.format(new Date(start))} – ${formatter.format(new Date(end))}`
-    : formatter.format(new Date(start))
-}
+const day = dutchDayOfMonth
+const month = dutchMonthShort
+const year = dutchYear
+const fullDate = dutchFullDate
+const timeRange = dutchTimeRange
 
 useSeoMeta({
   title: () => `Agenda — ${content.value?.brandName || 'DJ NightLight'}`,
@@ -191,7 +171,7 @@ useSeoMeta({
 .gig-featured::before{content:"";position:absolute;z-index:-1;left:-2rem;right:-2rem;top:0;bottom:0;background:linear-gradient(90deg,rgba(112,60,219,.13),rgba(112,60,219,.035) 42%,transparent 78%);opacity:.95}
 .gig-featured::after{content:"";position:absolute;left:-1rem;right:-1rem;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,#8d56ff 18%,#8d56ff 58%,transparent);box-shadow:0 0 1.15rem rgba(133,79,255,.48)}
 .gig-index{align-self:start;padding-top:.55rem;color:var(--text-subtle);font-size:.75rem}.gig-featured .gig-index{color:#8f70d7}
-.date{display:flex;align-items:end;gap:.85rem}.date>strong{font-size:clamp(4.3rem,7vw,7rem);line-height:.75;letter-spacing:-.04em}.date>div{display:grid;gap:.2rem;padding-bottom:.08rem;text-transform:uppercase}.date span{font-size:.88rem;font-weight:800}.date small{color:var(--text-subtle);font-size:.75rem}.gig-date{margin:0 0 .55rem;color:var(--text-subtle);font-size:.76rem;text-transform:capitalize}.copy h2{margin:0;font-size:clamp(1.8rem,3.4vw,3.5rem);line-height:1;letter-spacing:-.04em}.gig-meta{display:flex;flex-wrap:wrap;gap:.5rem 1.6rem;margin:1rem 0 0;padding:0;list-style:none;color:#a39dab;font-size:.9rem}.gig-meta li{display:flex;align-items:center;gap:.5rem;min-width:0}.gig-meta svg{flex:none;width:1rem;height:1rem;color:#bca8ff}.gig-description{max-width:48rem;margin:.9rem 0 0;color:#9b95a1;line-height:1.65}
+.date{display:flex;align-items:end;gap:.85rem}.date>strong{font-size:clamp(4.3rem,7vw,7rem);line-height:.75;letter-spacing:-.04em}.date>div{display:grid;gap:.2rem;padding-bottom:.08rem;text-transform:uppercase}.date span{font-size:.88rem;font-weight:800}.date small{color:var(--text-subtle);font-size:.75rem}.gig-date{margin:0 0 .55rem;color:var(--text-subtle);font-size:.76rem}.copy h2{margin:0;font-size:clamp(1.8rem,3.4vw,3.5rem);line-height:1;letter-spacing:-.04em}.gig-meta{display:flex;flex-wrap:wrap;gap:.5rem 1.6rem;margin:1rem 0 0;padding:0;list-style:none;color:#a39dab;font-size:.9rem}.gig-meta li{display:flex;align-items:center;gap:.5rem;min-width:0}.gig-meta svg{flex:none;width:1rem;height:1rem;color:#bca8ff}.gig-description{max-width:48rem;margin:.9rem 0 0;color:#9b95a1;line-height:1.65}
 .upcoming-heading{margin-top:clamp(1.8rem,3vw,2.8rem)}
 
 .loading-state{display:grid;gap:1rem;padding:4rem 0}.loading-line{display:block;width:70%;height:.8rem;border-radius:999px;background:linear-gradient(90deg,#151219,#211a2a,#151219);background-size:200% 100%;animation:pulse 1.6s linear infinite}.loading-line.short{width:38%}@keyframes pulse{to{background-position:-200% 0}}

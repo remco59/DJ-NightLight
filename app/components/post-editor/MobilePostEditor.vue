@@ -2041,11 +2041,11 @@ input[type='range'] {
 
   .mobile-export-button {
     padding: 0 .9rem;
-    border-color: #9d5cff;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-color: var(--button-primary-bg);
+    background: var(--button-primary-bg);
+    color: var(--button-primary-fg);
     font-size: .78rem;
     font-weight: 850;
-    box-shadow: 0 9px 24px rgba(124, 58, 237, .2);
   }
 
   .message {

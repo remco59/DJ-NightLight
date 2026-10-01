@@ -106,8 +106,10 @@ async function saveCalendar() {
   }
 }
 
+const confirmAction = useConfirm()
+
 async function removeCalendarCredentials() {
-  if (!confirm('De in NightLight opgeslagen inloggegevens voor Google Calendar verwijderen? Inloggegevens uit de serveromgeving worden dan gebruikt als die er zijn.')) return
+  if (!(await confirmAction({ title: 'Google Calendar-gegevens verwijderen?', body: 'De in NightLight opgeslagen inloggegevens worden verwijderd. Inloggegevens uit de serveromgeving worden dan gebruikt als die er zijn.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   busy.value = 'calendar-remove'
   calendarMessage.value = ''
   try {
@@ -165,7 +167,7 @@ async function saveEmail() {
 }
 
 async function removeEmailSettings() {
-  if (!confirm('De in NightLight opgeslagen instellingen voor de e-mailprovider verwijderen? Instellingen uit de serveromgeving worden dan gebruikt als die er zijn.')) return
+  if (!(await confirmAction({ title: 'E-mailinstellingen verwijderen?', body: 'De in NightLight opgeslagen instellingen voor de e-mailprovider worden verwijderd. Instellingen uit de serveromgeving worden dan gebruikt als die er zijn.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
   busy.value = 'email-remove'
   emailMessage.value = ''
   try {
@@ -326,7 +328,7 @@ async function removeEmailSettings() {
 .section-intro{display:flex;gap:.8rem;align-items:flex-start;margin:1.4rem .1rem .85rem}
 .section-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#241440;color:#b98cff}
 .section-intro h2{margin:.1rem 0;font-size:1.3rem}
-.section-intro p:last-child{max-width:680px;margin:.25rem 0 0;color:#8c8594;font-size:.82rem;line-height:1.45}
+.section-intro p:last-child{max-width:680px;margin:.25rem 0 0;color:var(--text-subtle);font-size:.82rem;line-height:1.45}
 .integration-card{margin-bottom:1rem;padding:1.15rem;border:1px solid var(--border);border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
 .integration-head,.credential-head,.actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
 .integration-title{display:flex;gap:.8rem;align-items:center}
@@ -334,7 +336,7 @@ async function removeEmailSettings() {
 .brand-icon.google{color:#fff;background:linear-gradient(135deg,#2d6cdf,#34a853 45%,#fbbc05 70%,#ea4335)}
 .brand-icon.resend{color:#fff;background:#171717}
 .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
-.integration-head p{margin:0;color:#8c8594;font-size:.8rem}
+.integration-head p{margin:0;color:var(--text-subtle);font-size:.8rem}
 .status-stack{display:grid;justify-items:end;gap:.25rem;flex:none}
 .status-stack small{color:var(--text-subtle);font-size:.75rem}
 .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .68rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.7rem;font-weight:750}
@@ -360,7 +362,7 @@ button{border:0;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradie
 button:disabled{cursor:not-allowed;opacity:.55}
 button.ghost{border:1px solid var(--border-strong);background:transparent;color:var(--text)}
 button.danger{border-color:#552b34;color:#ff9d9d}
-.text-link{margin-left:auto;color:#c9b2df;font-size:.78rem;text-decoration:none}
+.text-link{display:inline-flex;align-items:center;min-height:2.75rem;margin-left:auto;color:#c9b2df;font-size:.78rem;text-decoration:none}
 .message{margin:.8rem 0 0;font-size:.8rem}
 .message.success{color:#8ed6a3}
 .message.error{color:#ff9d9d}

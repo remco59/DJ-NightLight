@@ -3,6 +3,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
+useSeoMeta({ title: 'Agenda — DJ NightLight', robots: 'noindex, nofollow' })
 
 type ViewMode = 'day' | 'week' | 'month' | 'year'
 type CancellationBehavior = 'delete' | 'mark_cancelled' | 'keep'
@@ -253,8 +254,10 @@ async function copyIcs() {
   message.value = 'ICS-koppeling gekopieerd.'
 }
 
+const confirmAction = useConfirm()
+
 async function rotateIcs() {
-  if (!confirm('Nieuwe ICS-koppeling maken? De huidige link werkt daarna niet meer.')) return
+  if (!(await confirmAction({ title: 'Nieuwe agendalink maken?', body: 'De huidige ICS-link werkt daarna niet meer. Agenda-apps die hem gebruiken moet je opnieuw koppelen.', confirmLabel: 'Nieuwe link maken', tone: 'danger' }))) return
   rotatingToken.value = true
   try {
     await $fetch('/api/admin/calendar/ics-token', { method: 'POST' })
@@ -499,7 +502,7 @@ button { color: inherit; }
 .view-switcher button { min-width: 74px; padding: .62rem .8rem; border: 0; border-left: 1px solid #312b38; background: transparent; color: #b1a9b8; cursor: pointer; }
 .view-switcher button:first-child { border-left: 0; }
 .view-switcher button.active { background: linear-gradient(180deg, rgba(126,53,188,.34), rgba(74,31,105,.32)); color: #fff; box-shadow: inset 0 0 0 1px rgba(153,72,219,.28); }
-.loading { padding: 4rem; text-align: center; color: #8f8798; }
+.loading { padding: 4rem; text-align: center; color: var(--text-subtle); }
 
 .month-view { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .weekday { padding: .75rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: #8c8494; font-size: .78rem; text-align: center; }
@@ -519,14 +522,14 @@ button { color: inherit; }
 .month-event[data-status="declined"], .time-event[data-status="declined"], .month-event[data-status="cancelled"], .time-event[data-status="cancelled"] { border-left-color: #746c79; opacity: .58; }
 .event-time { color: #aaa2b2; font-size: .75rem; white-space: nowrap; }
 .event-title { overflow: hidden; font-size: .75rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
-.event-location { grid-column: 1 / -1; display: flex; align-items: center; gap: .25rem; overflow: hidden; color: #89818f; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.event-location { grid-column: 1 / -1; display: flex; align-items: center; gap: .25rem; overflow: hidden; color: var(--text-subtle); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
 .event-location :deep(svg) { flex: 0 0 auto; width: .75rem; height: .75rem; }
 .more-events { border: 0; background: transparent; color: #bca4d1; font-size: .72rem; text-align: left; cursor: pointer; }
 
 .time-grid-scroll { overflow-x: auto; }
 .week-grid { display: grid; grid-template-columns: 66px repeat(7, minmax(145px, 1fr)); min-width: 1080px; }
 .time-header, .week-day-head { height: 58px; border: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: #111015; }
-.week-day-head { display: grid; place-content: center; gap: .1rem; color: #8f8798; cursor: pointer; }
+.week-day-head { display: grid; place-content: center; gap: .1rem; color: var(--text-subtle); cursor: pointer; }
 .week-day-head strong { color: #fff; font-size: 1rem; }
 .week-day-head.today strong { display: grid; width: 1.8rem; height: 1.8rem; place-content: center; margin: auto; border-radius: 50%; background: #8e3de0; }
 .time-labels { position: relative; height: var(--timeline-height); border-right: 1px solid var(--border); background: #0c0a0e; }
@@ -541,7 +544,7 @@ button { color: inherit; }
 .day-event-main { display: flex; align-items: center; gap: 1rem; }
 .day-event-main strong { font-size: .9rem; }
 .day-event .event-location { font-size: .72rem; }
-.event-type { color: #8f8798; font-size: .7rem; }
+.event-type { color: var(--text-subtle); font-size: .7rem; }
 
 .year-view { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; padding: .85rem; }
 .mini-month { padding: .85rem; border: 1px solid var(--border); border-radius: .8rem; background: #111015; }
@@ -562,7 +565,7 @@ button { color: inherit; }
 .drawer { width: min(460px, 100vw); height: 100%; overflow-y: auto; padding: 1.1rem; border-left: 1px solid #322b39; background: #0f0d12; box-shadow: -24px 0 60px rgba(0,0,0,.45); }
 .drawer-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .drawer-header h2 { margin: 0; font-size: 1.5rem; }
-.drawer-header p, .drawer-card p, .sync-heading p { margin: .3rem 0 0; color: #8f8798; font-size: .78rem; }
+.drawer-header p, .drawer-card p, .sync-heading p { margin: .3rem 0 0; color: var(--text-subtle); font-size: .78rem; }
 .drawer-card { margin-top: .75rem; padding: .9rem; border: 1px solid #2d2833; border-radius: .8rem; background: #151219; }
 .drawer-row, .section-title, .sync-heading, .sync-item, .sync-actions { display: flex; align-items: center; gap: .7rem; }
 .drawer-row > div:nth-child(2), .section-title > div, .sync-item > div:first-child { flex: 1; min-width: 0; }

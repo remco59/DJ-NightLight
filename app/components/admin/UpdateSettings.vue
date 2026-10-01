@@ -168,7 +168,7 @@ async function startUpdate() {
 .updates{margin-top:1.5rem;padding:1.2rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card);scroll-margin-top:1rem}
 .head,.actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
 .head h2{margin:.15rem 0 .3rem}
-.head p:last-child{margin:0;color:#8c8594;font-size:.85rem;line-height:1.5}
+.head p:last-child{margin:0;color:var(--text-subtle);font-size:.85rem;line-height:1.5}
 .pill{flex:none;padding:.25rem .7rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.75rem;font-weight:700}
 .pill.on{background:#16382a;color:#7be0a8}
 .pill.warn{background:#3a2c12;color:#f3c77a}
@@ -177,7 +177,7 @@ async function startUpdate() {
 .notice code{color:var(--text)}
 .versions{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem;margin:1rem 0 0}
 .versions div{padding:.85rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input);min-width:0}
-.versions dt{color:#8c8594;font-size:.75rem}
+.versions dt{color:var(--text-subtle);font-size:.75rem}
 .versions dd{display:grid;gap:.2rem;margin:.3rem 0 0;font-weight:700;overflow-wrap:anywhere}
 .versions small{color:var(--text-subtle);font-size:.75rem;font-weight:400}
 .commits{margin-top:1rem}
