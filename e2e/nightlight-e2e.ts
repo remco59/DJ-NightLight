@@ -206,6 +206,12 @@ async function bookGig(input: {
   return result.gig
 }
 
+const businessSettingKeys = ['companyName', 'address', 'postalCode', 'city', 'country', 'email', 'phone', 'registrationNumber', 'vatNumber', 'iban', 'invoicePrefix', 'defaultVatMode', 'defaultVatRateBasisPoints', 'defaultPaymentTermDays', 'paymentTerms', 'legalText']
+
+function pick(source: Record<string, unknown>, keys: string[]) {
+  return Object.fromEntries(keys.map(key => [key, source[key]]))
+}
+
 async function main() {
   const marker = `E2E-${Date.now()}`
   const mainStart = futureDate(180)
@@ -320,6 +326,12 @@ async function main() {
   assert.ok(portalAfter.wishes.some(wish => wish.artist === 'Daft Punk' && wish.title === 'One More Time'))
 
   log('generate/finalize invoice and process a cryptographically signed Stripe webhook')
+  // Finalizing is blocked until the invoice can carry a KvK number and IBAN.
+  const { settings: currentSettings } = await json<{ settings: Record<string, unknown> }>(await request('/api/admin/business-settings'))
+  await json(await request('/api/admin/business-settings', {
+    method: 'PUT',
+    body: { ...pick(currentSettings, businessSettingKeys), registrationNumber: '12345678', iban: 'NL91ABNA0417164300' },
+  }))
   const invoiceCreated = await json<{ invoice: { id: string } }>(await request(`/api/admin/gigs/${mainLead.id}/invoice`, {
     method: 'POST',
   }))
