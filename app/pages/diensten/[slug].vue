@@ -4,6 +4,7 @@ import {
   landingPageSectionsSchema,
   type LandingPageSections,
 } from '~~/shared/schemas/landing-page'
+import { responsiveImage } from '~~/shared/responsive-image'
 
 definePageMeta({ layout: 'public' })
 
@@ -34,7 +35,7 @@ const { data } = await useFetch<{ page: LandingPage }>(`/api/public/landing-page
 })
 
 if (!data.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Landing page not found' })
+  throw createError({ statusCode: 404, statusMessage: 'Deze pagina bestaat niet (meer)' })
 }
 
 const page = computed(() => data.value!.page)
@@ -85,7 +86,22 @@ const studentFallbacks: Visual[] = [
 ]
 
 const isWedding = computed(() => /bruiloft|wedding/i.test(page.value.slug))
-const fallbacks = computed(() => isWedding.value ? weddingFallbacks : studentFallbacks)
+
+// The site's own photos come before stock, so a page without configured
+// images still shows real NightLight nights.
+const { data: siteData } = await useSiteContent()
+const sitePhotos = computed<Visual[]>(() => {
+  const content = siteData.value?.content
+  if (!content) return []
+  return [
+    ...content.gallery.filter(image => Boolean(image.url)).map(image => ({ url: image.url, alt: image.alt || 'NightLight sfeerbeeld' })),
+    ...(content.heroImageUrl ? [{ url: content.heroImageUrl, alt: 'DJ NightLight tijdens een optreden' }] : []),
+    ...content.services.filter(service => Boolean(service.imageUrl)).map(service => ({ url: service.imageUrl!, alt: service.imageAlt || service.title })),
+  ]
+})
+const fallbacks = computed(() => sitePhotos.value.length
+  ? sitePhotos.value
+  : isWedding.value ? weddingFallbacks : studentFallbacks)
 
 const heroVisual = computed<Visual>(() => page.value.heroImageUrl
   ? { url: page.value.heroImageUrl, alt: page.value.seoTitle || page.value.title }
@@ -116,9 +132,7 @@ const closingVisual = computed<Visual>(() => sections.value.closingImageUrl
   ? { url: sections.value.closingImageUrl, alt: sections.value.closingTitle }
   : galleryVisuals.value[1] || storyVisual.value)
 
-const heroStyle = computed(() => ({
-  backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.97) 0%, rgba(7,7,9,.82) 35%, rgba(7,7,9,.26) 67%, rgba(7,7,9,.16) 100%), linear-gradient(0deg, rgba(7,7,9,.72), transparent 50%), url("${heroVisual.value.url}")`,
-}))
+const heroImage = computed(() => responsiveImage(heroVisual.value.url, 1920))
 
 useSeoMeta({
   title: () => page.value.seoTitle,
@@ -132,7 +146,9 @@ useSeoMeta({
 
 <template>
   <main>
-    <section class="landing-hero" :style="heroStyle">
+    <section class="landing-hero">
+      <img class="hero-media" v-bind="heroImage" sizes="100vw" :alt="heroVisual.alt" fetchpriority="high">
+      <div class="hero-shade" aria-hidden="true" />
       <div class="public-container hero-inner">
         <div class="hero-copy">
           <p class="eyebrow">{{ page.eyebrow }}</p>
@@ -178,7 +194,7 @@ useSeoMeta({
       </div>
 
       <figure class="story-visual">
-        <img :src="storyVisual.url" :alt="storyVisual.alt" loading="lazy">
+        <img v-bind="responsiveImage(storyVisual.url, 1280)" sizes="(max-width: 900px) 100vw, 45vw" :alt="storyVisual.alt" loading="lazy">
       </figure>
     </section>
 
@@ -199,9 +215,9 @@ useSeoMeta({
           </NuxtLink>
         </div>
 
-        <div class="gallery-grid">
+        <div class="gallery-grid" :style="{ '--gallery-columns': Math.min(galleryVisuals.length, 4) }">
           <figure v-for="visual in galleryVisuals" :key="visual.url">
-            <img :src="visual.url" :alt="visual.alt" loading="lazy">
+            <img v-bind="responsiveImage(visual.url, 640)" sizes="(max-width: 600px) 50vw, 25vw" :alt="visual.alt" loading="lazy">
           </figure>
         </div>
       </div>
@@ -230,7 +246,7 @@ useSeoMeta({
         </div>
 
         <figure>
-          <img :src="closingVisual.url" :alt="closingVisual.alt" loading="lazy">
+          <img v-bind="responsiveImage(closingVisual.url, 1280)" sizes="(max-width: 900px) 100vw, 40vw" :alt="closingVisual.alt" loading="lazy">
         </figure>
       </div>
     </section>
@@ -239,17 +255,35 @@ useSeoMeta({
 
 <style scoped>
 .landing-hero {
+  position: relative;
   min-height: 72svh;
   display: grid;
   align-items: center;
   padding: 8rem 0 5rem;
-  background-size: cover;
-  background-position: center;
+  overflow: hidden;
+  background: #08080b;
   border-bottom: 1px solid #28232e;
 }
 
-.hero-inner {
+.hero-media {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 7, 9, .97) 0%, rgba(7, 7, 9, .82) 35%, rgba(7, 7, 9, .26) 67%, rgba(7, 7, 9, .16) 100%),
+    linear-gradient(0deg, rgba(7, 7, 9, .72), transparent 50%);
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-copy {
@@ -407,7 +441,7 @@ useSeoMeta({
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--gallery-columns, 4), 1fr);
   gap: .65rem;
 }
 
@@ -486,7 +520,10 @@ useSeoMeta({
   .landing-hero {
     min-height: 64svh;
     padding: 7rem 0 4rem;
-    background-position: 62% center;
+  }
+
+  .hero-media {
+    object-position: 62% center;
   }
 
   .benefits {
@@ -533,7 +570,10 @@ useSeoMeta({
     min-height: 70svh;
     align-items: end;
     padding-bottom: 3rem;
-    background-position: 68% center;
+  }
+
+  .hero-media {
+    object-position: 68% center;
   }
 
   .landing-hero h1 {

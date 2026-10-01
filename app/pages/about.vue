@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { responsiveImage } from '~~/shared/responsive-image'
+
 definePageMeta({ layout: 'public' })
 
 const { data } = await useSiteContent()
@@ -29,7 +31,7 @@ const leadVisual = computed(() => {
 
 const roomVisual = computed(() => content.value?.publicCopy.visuals.aboutRoomImageUrl
   ? { url: content.value.publicCopy.visuals.aboutRoomImageUrl, alt: content.value.publicCopy.visuals.aboutRoomAlt }
-  : gallery.value[1] || gallery.value[0] || roomFallback)
+  : gallery.value.find(image => image.url !== leadVisual.value.url) || gallery.value[0] || roomFallback)
 
 useSeoMeta({
   title: () => `Over — ${content.value?.brandName || 'DJ NightLight'}`,
@@ -48,7 +50,7 @@ useSeoMeta({
         </div>
 
         <figure class="intro-visual">
-          <img :src="leadVisual.url" :alt="leadVisual.alt">
+          <img v-bind="responsiveImage(leadVisual.url, 1280)" sizes="(max-width: 900px) 100vw, 40vw" :alt="leadVisual.alt" fetchpriority="high">
           <figcaption>
             <span>{{ content.publicCopy.about.imageEyebrow }}</span>
             <strong>{{ content.publicCopy.about.imageCaption }}</strong>
@@ -65,7 +67,7 @@ useSeoMeta({
       </section>
 
       <figure class="room-visual">
-        <img :src="roomVisual.url" :alt="roomVisual.alt" loading="lazy">
+        <img v-bind="responsiveImage(roomVisual.url, 1920)" sizes="100vw" :alt="roomVisual.alt" loading="lazy">
         <div class="room-overlay" />
         <figcaption>
           <p class="eyebrow">{{ content.publicCopy.about.momentEyebrow }}</p>
@@ -82,7 +84,7 @@ useSeoMeta({
 
         <div class="principles">
           <article v-for="(principle,index) in content.publicCopy.about.principles" :key="principle.title">
-            <span>0{{ index + 1 }}</span>
+            <span>{{ String(index + 1).padStart(2, '0') }}</span>
             <h3>{{ principle.title }}</h3>
             <p>{{ principle.body }}</p>
           </article>

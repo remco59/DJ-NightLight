@@ -53,7 +53,7 @@ watch(() => route.path, () => {
       <nav v-if="menuOpen" class="mobile-nav" aria-label="Mobiele navigatie">
         <div class="mobile-nav-links">
           <NuxtLink v-for="(item,index) in nav" :key="item.to" :to="item.to">
-            <span>0{{ index + 1 }}</span>
+            <span>{{ String(index + 1).padStart(2, '0') }}</span>
             <strong>{{ item.label }}</strong>
           </NuxtLink>
         </div>

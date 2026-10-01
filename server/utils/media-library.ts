@@ -23,6 +23,7 @@ import { db } from './db'
 import { gigTitleSql } from './gig-title'
 import { collectProjectAssetIds } from '../../shared/video-project'
 import { getMediaStorage } from './media-storage'
+import { deleteImageVariants } from './media-variants'
 
 export const MAX_MEDIA_BYTES = 15 * 1024 * 1024
 export const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
@@ -299,6 +300,7 @@ export async function deleteMediaAssets(ids: string[]) {
     await db.delete(mediaAssets).where(eq(mediaAssets.id, row.id))
     await storage.delete(row.storageKey)
     await storage.delete(row.thumbnailKey)
+    await deleteImageVariants(row.id)
     deleted.push(row.id)
   }
   const missing = ids.filter(id => !rows.some(row => row.id === id))

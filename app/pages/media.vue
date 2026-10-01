@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { responsiveImage } from '~~/shared/responsive-image'
+
 definePageMeta({ layout: 'public' })
 
 const { data } = await useSiteContent()
@@ -24,7 +26,7 @@ const showreelVisual = computed(() => content.value?.publicCopy.visuals.mediaSho
 
 const showreelStyle = computed(() => showreelVisual.value
   ? {
-      backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.84), rgba(7,7,9,.26)), linear-gradient(0deg, rgba(7,7,9,.82), transparent 55%), url("${showreelVisual.value.url}")`,
+      backgroundImage: `linear-gradient(90deg, rgba(7,7,9,.84), rgba(7,7,9,.26)), linear-gradient(0deg, rgba(7,7,9,.82), transparent 55%), url("${responsiveImage(showreelVisual.value.url, 1920).src}")`,
     }
   : undefined)
 
@@ -103,8 +105,8 @@ useSeoMeta({
             :aria-label="`Open beeld ${index + 1}: ${image.alt}`"
             @click="openImage(image)"
           >
-            <img :src="image.url" :alt="image.alt" loading="lazy">
-            <span class="image-index">0{{ index + 1 }}</span>
+            <img v-bind="responsiveImage(image.url, 1280)" sizes="(max-width: 700px) 100vw, 50vw" :alt="image.alt" loading="lazy">
+            <span class="image-index">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="image-caption">{{ image.alt }}</span>
           </button>
         </div>
@@ -131,7 +133,7 @@ useSeoMeta({
     <div v-if="selectedImage" class="lightbox" role="dialog" aria-modal="true" aria-label="Afbeelding bekijken" @click.self="closeImage">
       <button type="button" class="lightbox-close" :aria-label="content.publicCopy.media.closeLabel" @click="closeImage">{{ content.publicCopy.media.closeLabel }} <Icon name="lucide:x" aria-hidden="true" /></button>
       <figure>
-        <img :src="selectedImage.url" :alt="selectedImage.alt">
+        <img v-bind="responsiveImage(selectedImage.url, 1920)" sizes="100vw" :alt="selectedImage.alt">
         <figcaption>{{ selectedImage.alt }}</figcaption>
       </figure>
     </div>
