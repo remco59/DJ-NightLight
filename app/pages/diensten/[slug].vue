@@ -333,7 +333,7 @@ useSeoMeta({
 }
 
 .benefits article + article {
-  border-left: 1px solid #2b2631;
+  border-left: 1px solid var(--border);
 }
 
 .benefit-icon {

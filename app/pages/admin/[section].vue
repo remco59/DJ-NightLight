@@ -55,5 +55,5 @@ p { color: #918b9a; }
   border: 1px dashed #302a38;
   border-radius: 1rem;
 }
-.coming span { color: #9a93a4; }
+.coming span { color: var(--text-subtle); }
 </style>

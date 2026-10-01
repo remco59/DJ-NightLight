@@ -174,7 +174,7 @@ useSeoMeta({
           <div class="summary-body">
             <div class="summary-label"><span>Openstaand</span><Icon name="lucide:chevron-right" /></div>
             <strong class="summary-value">{{ formatCurrency(data?.summary.unpaidAmountCents ?? 0) }}</strong>
-            <span class="summary-detail">{{ data?.summary.unpaidInvoices ?? 0 }} facturen niet betaald</span>
+            <span class="summary-detail">{{ data?.summary.unpaidInvoices ?? 0 }} {{ (data?.summary.unpaidInvoices ?? 0) === 1 ? 'factuur' : 'facturen' }} niet betaald</span>
           </div>
         </NuxtLink>
 
@@ -244,7 +244,7 @@ useSeoMeta({
           <div class="week-list">
             <NuxtLink to="/admin/calendar" class="week-row">
               <span class="week-icon"><Icon name="lucide:calendar-days" /></span>
-              <strong>{{ data?.week.gigs ?? 0 }} gigs</strong>
+              <strong>{{ data?.week.gigs ?? 0 }} {{ (data?.week.gigs ?? 0) === 1 ? 'gig' : 'gigs' }}</strong>
               <Icon name="lucide:chevron-right" />
             </NuxtLink>
             <div class="week-row">
@@ -254,12 +254,12 @@ useSeoMeta({
             </div>
             <div class="week-row">
               <span class="week-icon cyan"><Icon name="lucide:file-text" /></span>
-              <strong>{{ data?.week.invoicesDue ?? 0 }} facturen</strong>
+              <strong>{{ data?.week.invoicesDue ?? 0 }} {{ (data?.week.invoicesDue ?? 0) === 1 ? 'factuur' : 'facturen' }} te betalen</strong>
               <span />
             </div>
             <div class="week-row">
               <span class="week-icon"><Icon name="lucide:file-signature" /></span>
-              <strong>{{ data?.week.contractsOpen ?? 0 }} contracten open</strong>
+              <strong>{{ data?.week.contractsOpen ?? 0 }} {{ (data?.week.contractsOpen ?? 0) === 1 ? 'contract' : 'contracten' }} open</strong>
               <span />
             </div>
           </div>
@@ -316,7 +316,7 @@ useSeoMeta({
 .page-header p:last-child { margin:0; color:#9a93a6; }
 .actions { display:flex; align-items:center; gap:.65rem; }
 .actions a,.actions button { min-height:42px; border-radius:.72rem; padding:.68rem .9rem; text-decoration:none; font-weight:700; font-size:.82rem; }
-.primary { background:linear-gradient(135deg,#7c3aed,#9d4edd); color:white; box-shadow:0 0 24px rgba(124,58,237,.24); }
+.primary { background:var(--button-primary-bg); color:var(--button-primary-fg); }
 .secondary { border:1px solid #2f2b35; background:#0d0b10; color:#d0c9d8; cursor:pointer; }
 .with-icon { display:inline-flex; align-items:center; gap:.45rem; }
 .with-icon :deep(svg) { width:1rem; height:1rem; }
@@ -332,7 +332,7 @@ useSeoMeta({
 .setup-warnings a { display:inline-flex; align-items:center; min-height:2.75rem; padding:0 .25rem; color:#ffe2a8; font-weight:700; white-space:nowrap; }
 
 .summary-grid { display:grid; grid-template-columns:1.35fr repeat(3,1fr); gap:.85rem; }
-.summary-card { min-width:0; min-height:132px; display:grid; grid-template-columns:48px minmax(0,1fr); gap:1rem; padding:1rem 1.05rem; border:1px solid #292530; border-radius:.9rem; background:linear-gradient(145deg,#100e14,#0d0b10); color:inherit; text-decoration:none; }
+.summary-card { min-width:0; min-height:132px; display:grid; grid-template-columns:48px minmax(0,1fr); gap:1rem; padding:1rem 1.05rem; border:1px solid #292530; border-radius:.9rem; background:linear-gradient(145deg,var(--surface-card),#0d0b10); color:inherit; text-decoration:none; }
 .summary-card:hover { border-color:#3c334a; background:#121017; }
 .summary-icon,.heading-icon { display:grid; place-items:center; width:46px; height:46px; border-radius:.7rem; background:#211439; color:#a66cff; }
 .summary-icon :deep(svg),.heading-icon :deep(svg) { width:1.25rem; height:1.25rem; }
@@ -348,11 +348,11 @@ useSeoMeta({
 .next-copy { min-width:0; display:grid; gap:.45rem; align-content:center; }
 .next-copy > strong { font-size:.92rem; }
 .muted { color:#a59cad; font-size:.74rem; }
-.summary-empty { margin-top:1rem; color:#9a93a4; font-size:.8rem; }
+.summary-empty { margin-top:1rem; color:var(--text-subtle); font-size:.8rem; }
 .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 .dashboard-grid { display:grid; grid-template-columns:minmax(0,2.15fr) minmax(300px,.85fr); gap:.85rem; margin-top:.85rem; }
-.panel { overflow:hidden; border:1px solid #292530; border-radius:.9rem; background:#100e14; }
+.panel { overflow:hidden; border:1px solid #292530; border-radius:.9rem; background:var(--surface-card); }
 .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:64px; padding:.85rem 1rem; border-bottom:1px solid #26212d; }
 .heading-title { display:flex; align-items:center; gap:.75rem; min-width:0; }
 .heading-icon { width:38px; height:38px; border-radius:.62rem; }
@@ -362,7 +362,7 @@ useSeoMeta({
 .panel-heading a :deep(svg) { width:.9rem; }
 
 .attention-list { padding:0 1rem; }
-.attention-row { display:grid; grid-template-columns:42px minmax(0,1fr) auto 18px; gap:.8rem; align-items:center; min-height:66px; padding:.55rem .25rem; border-bottom:1px solid #29242f; color:inherit; text-decoration:none; }
+.attention-row { display:grid; grid-template-columns:42px minmax(0,1fr) auto 18px; gap:.8rem; align-items:center; min-height:66px; padding:.55rem .25rem; border-bottom:1px solid var(--border); color:inherit; text-decoration:none; }
 .attention-row:last-child { border-bottom:0; }
 .attention-row:hover { background:rgba(255,255,255,.012); }
 .attention-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:.7rem; background:#26131b; color:#fb7185; }
@@ -376,7 +376,7 @@ useSeoMeta({
 .row-chevron { width:1rem; height:1rem; color:#c3b5d4; }
 
 .week-list { padding:0 1rem; }
-.week-row { display:grid; grid-template-columns:38px minmax(0,1fr) 18px; align-items:center; gap:.7rem; min-height:57px; border-bottom:1px solid #29242f; color:inherit; text-decoration:none; }
+.week-row { display:grid; grid-template-columns:38px minmax(0,1fr) 18px; align-items:center; gap:.7rem; min-height:57px; border-bottom:1px solid var(--border); color:inherit; text-decoration:none; }
 .week-row:last-child { border-bottom:0; }
 .week-row strong { font-size:.82rem; font-weight:750; }
 .week-icon { display:grid; place-items:center; width:32px; height:32px; color:#b45cff; }
@@ -387,8 +387,8 @@ useSeoMeta({
 .upcoming-panel { margin-top:.85rem; }
 .gig-table { padding:0 1rem .35rem; }
 .gig-table-head,.gig-row { display:grid; grid-template-columns:130px minmax(180px,1.15fr) minmax(190px,1fr) minmax(140px,.75fr) 20px; gap:1rem; align-items:center; }
-.gig-table-head { min-height:38px; color:#a29aaa; font-size:.7rem; font-weight:700; border-bottom:1px solid #29242f; }
-.gig-row { min-height:62px; border-bottom:1px solid #29242f; color:inherit; text-decoration:none; }
+.gig-table-head { min-height:38px; color:#a29aaa; font-size:.7rem; font-weight:700; border-bottom:1px solid var(--border); }
+.gig-row { min-height:62px; border-bottom:1px solid var(--border); color:inherit; text-decoration:none; }
 .gig-row:last-child { border-bottom:0; }
 .gig-row:hover { background:rgba(255,255,255,.012); }
 .gig-date { display:grid; gap:.08rem; }
@@ -398,7 +398,7 @@ useSeoMeta({
 .gig-detail { min-width:0; color:#9c93aa; font-size:.74rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 .empty { display:grid; gap:.3rem; padding:2rem 1.2rem; color:#aaa3b4; }
-.empty span { color:#9a93a4; }
+.empty span { color:var(--text-subtle); }
 .empty.compact { grid-template-columns:auto 1fr; align-items:center; padding:1.4rem 1.2rem; }
 .empty.compact :deep(svg) { width:1.4rem; height:1.4rem; color:#34d399; }
 .state { padding:3rem 0; color:#8f8998; }

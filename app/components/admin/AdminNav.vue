@@ -164,7 +164,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .nav-group:first-child { margin-top: .2rem; }
 .nav-group p {
   margin: 0 .6rem .25rem;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .7rem;
   font-weight: 700;
   letter-spacing: .12em;
@@ -184,7 +184,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 @media (max-width: 820px) {
   .nav-link { min-height: 2.75rem; }
 }
-.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #9a93a4; }
+.nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: var(--text-subtle); }
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }
 .nav-link:hover svg, .nav-link.active svg { color: #c7b5de; }
@@ -230,7 +230,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .account-profile > svg {
   width: .9rem;
   height: .9rem;
-  color: #9a93a4;
+  color: var(--text-subtle);
 }
 .account-avatar {
   display: grid;

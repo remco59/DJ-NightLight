@@ -173,7 +173,7 @@ button { border: 1px solid #39323f; border-radius: .65rem; padding: .65rem .85re
 a { color: #c9b2df; }
 .panel { margin-top: .8rem; }
 .rows { display: grid; }
-.rows > div { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; padding: .8rem 0; border-top: 1px solid #29242f; }
+.rows > div { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; padding: .8rem 0; border-top: 1px solid var(--border); }
 .rows > div:first-child { border-top: 0; }
 .rows small { grid-column: 2; }
 .ok { color: #90c9a7; }

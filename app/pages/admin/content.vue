@@ -782,7 +782,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .eyebrow {
   margin: 0;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
   font-weight: 800;
   letter-spacing: .12em;
@@ -871,9 +871,9 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .page-sidebar {
   position: sticky;
   top: 6.2rem;
-  border: 1px solid #29242f;
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: #100e14;
+  background: var(--surface-card);
   overflow: hidden;
 }
 
@@ -881,7 +881,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   display: grid;
   gap: .18rem;
   padding: .9rem .9rem .75rem;
-  border-bottom: 1px solid #29242f;
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-label span {
@@ -891,7 +891,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .sidebar-label small {
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
 }
 
@@ -929,7 +929,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .page-sidebar nav small {
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
 }
 
@@ -939,7 +939,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .sidebar-note {
   padding: .85rem .9rem 1rem;
-  border-top: 1px solid #29242f;
+  border-top: 1px solid var(--border);
 }
 
 .sidebar-note strong {
@@ -949,7 +949,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .sidebar-note p {
   margin: .3rem 0 .55rem;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
   line-height: 1.5;
 }
@@ -989,9 +989,9 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .editor-section {
   margin-bottom: .75rem;
-  border: 1px solid #2b2631;
+  border: 1px solid var(--border);
   border-radius: .9rem;
-  background: #100e14;
+  background: var(--surface-card);
   overflow: hidden;
 }
 
@@ -1021,7 +1021,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 }
 
 .editor-section summary small {
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
   font-weight: 500;
 }
@@ -1033,12 +1033,12 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   place-items: center;
   border: 1px solid #312b36;
   border-radius: .55rem;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
 }
 
 .editor-section[open] summary {
-  border-bottom: 1px solid #29242f;
+  border-bottom: 1px solid var(--border);
   background: #131017;
 }
 
@@ -1066,11 +1066,11 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 .repeat-card input,
 .repeat-card textarea {
   width: 100%;
-  border: 1px solid #332e39;
+  border: 1px solid var(--border-strong);
   border-radius: .65rem;
   padding: .72rem .75rem;
-  background: #0b0a0d;
-  color: #f6f3fa;
+  background: var(--surface-input);
+  color: var(--text);
   font: inherit;
 }
 
@@ -1103,7 +1103,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   border: 1px solid #302a36;
   border-radius: .7rem;
   background: #0d0b10;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .7rem;
   line-height: 1.55;
 }
@@ -1125,7 +1125,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
 
 .subsection-heading p {
   margin: 0;
-  color: #9a93a4;
+  color: var(--text-subtle);
   font-size: .75rem;
   line-height: 1.45;
 }
@@ -1139,7 +1139,7 @@ useSeoMeta({ title: 'Website-inhoud — DJ NightLight', robots: 'noindex, nofoll
   display: grid;
   gap: .75rem;
   padding: .9rem;
-  border: 1px solid #2b2631;
+  border: 1px solid var(--border);
   border-radius: .8rem;
   background: #0d0b10;
 }

@@ -121,7 +121,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.layer { position: fixed; inset: 0; z-index: 1060; display: grid; place-items: center; padding: 1rem; }
+.layer { position: fixed; inset: 0; z-index: var(--z-modal-nested); display: grid; place-items: center; padding: 1rem; }
 .layer .mh-backdrop { border: 0; cursor: default; }
 .dialog { position: relative; display: grid; gap: 1.1rem; width: min(40rem, 100%); max-height: calc(100dvh - 2rem); overflow: auto; border: 1px solid #2c2733; border-radius: 1.1rem; padding: 1.4rem; background: #0f0d13; box-shadow: 0 2rem 5rem rgba(0, 0, 0, .6); }
 header { display: flex; justify-content: space-between; gap: 1rem; }
@@ -133,7 +133,7 @@ header p { margin: 0; color: #8f879a; font-size: .82rem; line-height: 1.5; }
 .list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .list li { display: flex; align-items: center; gap: .8rem; border: 1px solid #25212c; border-radius: .75rem; padding: .55rem; background: #121016; }
 .thumb { flex: none; width: 3.4rem; height: 2.5rem; border-radius: .45rem; object-fit: cover; }
-.thumb.empty { display: grid; place-items: center; background: #1a1720; color: #9a93a4; }
+.thumb.empty { display: grid; place-items: center; background: #1a1720; color: var(--text-subtle); }
 .name { display: grid; flex: 1; gap: .1rem; min-width: 0; border: 0; padding: 0; background: none; color: #fff; font: inherit; text-align: left; cursor: pointer; }
 .name:hover strong { color: #c4b1f5; }
 .name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

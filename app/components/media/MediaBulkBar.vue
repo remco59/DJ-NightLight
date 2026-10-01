@@ -200,7 +200,7 @@ function create() {
 .clear { margin-left: auto; color: #c9c2d1; }
 .pop { display: grid; gap: .8rem; width: 18rem; padding: .5rem; }
 .pop.list { gap: .1rem; padding: .2rem; }
-.pop.list small { margin-left: auto; color: #9a93a4; }
+.pop.list small { margin-left: auto; color: var(--text-subtle); }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .new { display: flex; gap: .4rem; padding: .3rem; }
 .new .mh-input { min-height: 2.3rem; }

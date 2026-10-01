@@ -71,7 +71,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 .admin-shell {
   min-height: 100vh;
   background: #0a090d;
-  color: #f6f3fa;
+  color: var(--text);
 }
 .sidebar {
   position: fixed;
