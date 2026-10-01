@@ -14,7 +14,7 @@ export function invoiceLineInputs(detail: InvoiceDetail) {
   return detail.lines.map(line => ({ description: line.description, quantity: line.quantity, unitPriceCents: line.unitPriceCents }))
 }
 
-export function buildInvoiceSnapshot(detail: InvoiceDetail, settings: BusinessSettings, invoiceNumber: string): InvoiceSnapshot {
+export function buildInvoiceSnapshot(detail: InvoiceDetail, settings: BusinessSettings, invoiceNumber: string, portalUrl?: string): InvoiceSnapshot {
   const lineInputs = invoiceLineInputs(detail)
   const totals = calculateInvoiceTotals(lineInputs, detail.invoice.vatMode, detail.invoice.vatRateBasisPoints)
   return {
@@ -30,6 +30,7 @@ export function buildInvoiceSnapshot(detail: InvoiceDetail, settings: BusinessSe
     client: { name: invoiceClientName(detail.invoice), email: detail.invoice.clientEmail || '', billingAddress: detail.invoice.clientBillingAddress || '' },
     lines: lineInputs.map(line => ({ ...line, totalCents: calculateLineTotalCents(line) })), totals,
     paymentTerms: detail.invoice.paymentTerms, legalText: detail.invoice.legalText, notes: detail.invoice.notes,
+    portalUrl: portalUrl || undefined,
   }
 }
 
