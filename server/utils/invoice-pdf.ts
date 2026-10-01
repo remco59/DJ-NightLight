@@ -53,6 +53,7 @@ function shortText(value: string, max = 54) {
 }
 
 export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
+  const portalUrl = snapshot.portalUrl && /^https?:\/\//i.test(snapshot.portalUrl) ? snapshot.portalUrl : ''
   const bankTransfer: BankTransferInstructions | null = snapshot.business.iban
     ? {
         iban: snapshot.business.iban,
@@ -73,6 +74,8 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
   objects[1] = Buffer.from(`<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`, 'latin1')
   objects[2] = Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>', 'latin1')
   objects[3] = Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>', 'latin1')
+
+  const portalAnnotationId = portalUrl ? 5 + pages.length * 2 : null
 
   pages.forEach((items, pageIndex) => {
     const pageId = 5 + pageIndex * 2
@@ -114,7 +117,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
 
       commands.push(
         textCommand(`${money(snapshot.totals.totalCents, snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
-        textCommand('Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', '0.25 0.30 0.75'),
+        textCommand('Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.25 0.30 0.75' : '0.35 0.35 0.35'),
       )
     } else {
       commands.push(
@@ -189,13 +192,18 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
     }
 
     const pageStream = Buffer.from(commands.join('\n'), 'latin1')
-    objects[pageId - 1] = Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`, 'latin1')
+    const annotations = pageIndex === 0 && portalAnnotationId ? ` /Annots [${portalAnnotationId} 0 R]` : ''
+    objects[pageId - 1] = Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R${annotations} >>`, 'latin1')
     objects[contentId - 1] = Buffer.concat([
       Buffer.from(`<< /Length ${pageStream.length} >>\nstream\n`, 'latin1'),
       pageStream,
       Buffer.from('\nendstream', 'latin1'),
     ])
   })
+
+  if (portalUrl && portalAnnotationId) {
+    objects[portalAnnotationId - 1] = Buffer.from(`<< /Type /Annot /Subtype /Link /Rect [34 520 332 539] /Border [0 0 0] /A << /S /URI /URI (${safeText(portalUrl)}) >> >>`, 'latin1')
+  }
 
   const parts = [Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'latin1')]
   const offsets = [0]
