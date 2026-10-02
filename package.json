@@ -15,7 +15,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "security:audit": "npm audit --omit=dev --audit-level=high",
+    "security:audit": "node scripts/security-audit.mjs",
     "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh",
     "test:e2e": "tsx e2e/nightlight-e2e.ts",
     "worker:video": "tsx scripts/video-render-worker.ts"
