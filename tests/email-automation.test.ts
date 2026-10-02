@@ -47,6 +47,23 @@ describe('email automation helpers', () => {
     expect(html.match(/https:\/\/example\.com\/client/g)?.length).toBe(1)
   })
 
+  it('links invoice emails to the customer portal', () => {
+    const html = renderBrandedEmailHtml(
+      'invoice_sent',
+      'Hoi Sam,\n\nJe factuur staat klaar.\n\nhttps://example.com/client/invoice-token',
+      {
+        invoiceNumber: 'NL-2026-0001',
+        invoiceTotal: '€ 121,00',
+        invoiceDueDate: '2026-10-20',
+        portalUrl: 'https://example.com/client/invoice-token',
+      },
+    )
+
+    expect(html).toContain('Open klantenportaal')
+    expect(html).toContain('href="https://example.com/client/invoice-token"')
+    expect(html.match(/https:\/\/example\.com\/client\/invoice-token/g)?.length).toBe(1)
+  })
+
   it('does not create unsafe CTA links', () => {
     const html = renderBrandedEmailHtml('review_request', 'Hoi Sam', {
       reviewUrl: 'javascript:alert(1)',

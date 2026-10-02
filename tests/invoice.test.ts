@@ -37,10 +37,14 @@ describe('invoice PDF', () => {
       client: { name: 'Test client', email: '', billingAddress: '' },
       lines: [{ description: 'DJ services', quantity: '1.000', unitPriceCents: 10000, totalCents: 10000 }],
       totals: { subtotalCents: 10000, vatAmountCents: 2100, totalCents: 12100 }, paymentTerms: '30 days', legalText: '', notes: '',
+      portalUrl: 'https://example.com/client/invoice-token',
     }
     const first = buildInvoicePdf(snapshot)
     const second = buildInvoicePdf(snapshot)
     expect(first.equals(second)).toBe(true)
     expect(first.subarray(0, 8).toString()).toBe('%PDF-1.4')
+    const pdfText = first.toString('latin1')
+    expect(pdfText).toContain('/Subtype /Link')
+    expect(pdfText).toContain('/URI (https://example.com/client/invoice-token)')
   })
 })
