@@ -22,6 +22,7 @@ import {
   type ItemKeyframes,
   type KeyframeProp,
 } from './video-keyframes'
+import { MOTION_BLUR_QUALITY_KEYS, type MotionBlurQuality, type ProjectMotionBlur } from './video-motion-blur'
 
 // A video project is a small NLE sequence: fixed output settings plus ordered
 // tracks holding timeline items. All times are integer frames at project fps.
@@ -75,6 +76,8 @@ type ItemBase = {
   opacity: number
   /** Animation of transform, opacity and volume; frames are relative to `start`. */
   keyframes?: ItemKeyframes
+  /** Motion blur strength (0–1) overriding the project's; 0 = never blur this item. */
+  motionBlur?: number
 }
 
 export type VideoClipItem = ItemBase & {
@@ -169,6 +172,8 @@ export type VideoProject = {
   markers?: TimelineMarker[]
   /** Media the user added to this project's media panel, oldest first. Assets used on the timeline always show up too. */
   mediaIds?: string[]
+  /** Export-only motion blur; unset = off. */
+  motionBlur?: ProjectMotionBlur
 }
 
 /** Minimal asset info the composition needs to resolve an assetId. */
@@ -432,6 +437,7 @@ const baseSchema = {
   start: frame,
   duration,
   opacity: z.number().min(0).max(1),
+  motionBlur: z.number().min(0).max(1).optional(),
 }
 const templatePropValue = z.union([
   z.string().max(500),
@@ -531,6 +537,11 @@ export const videoProjectSchema = z.object({
     color: z.enum(MARKER_COLORS).optional(),
   })).max(100).optional(),
   mediaIds: z.array(z.string().uuid()).max(MAX_PROJECT_MEDIA).optional(),
+  motionBlur: z.object({
+    enabled: z.boolean(),
+    strength: z.number().min(0).max(1),
+    quality: z.enum(MOTION_BLUR_QUALITY_KEYS as [MotionBlurQuality, ...MotionBlurQuality[]]),
+  }).optional(),
 }).superRefine((project, context) => {
   const ids = new Set<string>()
   project.tracks.forEach((track, trackIndex) => {
