@@ -5,7 +5,6 @@ import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { assertPortalRateLimit } from '../../../../utils/portal-rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
-import { stripeIntegrationIdentifier } from '../../../../utils/stripe'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
 export default defineEventHandler(async (event) => {
@@ -57,7 +56,6 @@ export default defineEventHandler(async (event) => {
   const attempt = payment.attemptCount + 1
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
-    integration_identifier: stripeIntegrationIdentifier(),
     line_items: [{
       price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
@@ -80,7 +78,23 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `nightlight-${payment.id}-${attempt}` })
+  const createSession = (sessionParams: Stripe.Checkout.SessionCreateParams, suffix = '') =>
+    stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `nightlight-${payment.id}-${attempt}${suffix}` })
+  let session: Stripe.Checkout.Session
+  try {
+    try {
+      session = await createSession(params)
+    } catch (error) {
+      // Bank transfer may not be enabled on the Stripe account; retry with card + iDEAL only.
+      if (!(error instanceof Error) || (error as { type?: string }).type !== 'StripeInvalidRequestError' || !params.payment_method_options) throw error
+      console.error('[checkout] Stripe rejected session with bank transfer, retrying without it:', error.message)
+      const { payment_method_options: _omit, ...rest } = params
+      session = await createSession({ ...rest, payment_method_types: ['card', 'ideal'] }, '-nobt')
+    }
+  } catch (error) {
+    console.error('[checkout] Stripe checkout session failed:', error)
+    throw createError({ statusCode: 502, statusMessage: 'De betaalpagina kon niet worden aangemaakt. Probeer het later opnieuw.' })
+  }
   if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe gaf geen checkout-URL terug' })
 
   await db.update(payments).set({
