@@ -13,6 +13,7 @@ import {
   type VideoTrack,
 } from './video-project'
 import { timelineDisplayOrder } from './video-editor-ui'
+import { rebaseKeyframes } from './video-keyframes'
 
 // Pure timeline editing operations. Every function returns a new project and
 // leaves its input untouched so the editor can keep snapshots for undo/redo.
@@ -124,6 +125,7 @@ export function trimItem(
     item.start += change
     item.duration -= change
     if (hasTrim) item.trimStart = Math.max(0, Math.round(item.trimStart + change * speed))
+    rebaseKeyframes(item, change)
   } else {
     const nextStart = neighbours.filter(entry => entry.start >= itemEnd(item)).reduce((start, entry) => Math.min(start, entry.start), maxFrame(next))
     change = Math.min(change, nextStart - itemEnd(item))
@@ -173,6 +175,8 @@ export function splitItem(project: VideoProject, itemId: string, frame: number) 
   tail.start = at
   tail.duration = head.duration - headDuration
   head.duration = headDuration
+  // The head keeps its keyframes (those past its end are inert); the tail restarts at the cut with the value it had there.
+  rebaseKeyframes(tail, headDuration)
   if (tail.type === 'video') tail.trimStart = Math.round(tail.trimStart + headDuration * tail.speed)
   if (tail.type === 'audio') {
     tail.trimStart += headDuration

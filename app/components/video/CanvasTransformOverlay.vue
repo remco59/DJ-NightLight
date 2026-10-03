@@ -2,6 +2,7 @@
 import { hitsItem, snapPosition, type Point, type SnapGuides } from '~~/shared/video-canvas'
 import type { VideoProject } from '~~/shared/video-project'
 import { updateItem } from '~~/shared/video-timeline'
+import { itemTransformAt, setValueAt } from '~~/shared/video-keyframes'
 import { useCanvasItems, type CanvasEntry } from '~/composables/useCanvasItems'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
@@ -30,9 +31,14 @@ const outline = computed(() => {
   return {
     ...boxStyle(entry, props.scale),
     // Keep the outline and handles a constant on-screen size however far the clip is scaled.
-    '--inverse-scale': String(1 / Math.max(0.01, entry.item.transform.scale)),
+    '--inverse-scale': String(1 / Math.max(0.01, transformOf(entry).scale)),
   }
 })
+
+/** Transform of an entry at the playhead, keyframes included. */
+function transformOf(entry: CanvasEntry) {
+  return itemTransformAt(entry.item, state.frame - entry.item.start)
+}
 
 function canvasPoint(event: PointerEvent): Point {
   const rect = layer.value!.getBoundingClientRect()
@@ -40,7 +46,7 @@ function canvasPoint(event: PointerEvent): Point {
 }
 
 function entryAt(point: Point) {
-  const hit = (entry: CanvasEntry) => hitsItem(point, entry.box, entry.item.transform, canvas.value)
+  const hit = (entry: CanvasEntry) => hitsItem(point, entry.box, transformOf(entry), canvas.value)
   if (selected.value && hit(selected.value)) return selected.value
   return entries.value.find(hit) || null
 }
@@ -101,8 +107,9 @@ function pointerDown(event: PointerEvent) {
   if (!entry || !item || touchSelectOnly) return
   event.preventDefault()
   const base = snapshot()
-  const start = { ...item.transform }
+  const start = { ...transformOf(entry) }
   const box = entry.box
+  const relative = state.frame - item.start
   track(event, (moveEvent) => {
     const point = canvasPoint(moveEvent)
     let dx = point.x - origin.x
@@ -122,9 +129,8 @@ function pointerDown(event: PointerEvent) {
       guides.value = { vertical: [], horizontal: [] }
     }
     editor.transient(updateItem(base, item.id, (entry) => {
-      if (!('transform' in entry)) return
-      entry.transform.x = Math.round(x)
-      entry.transform.y = Math.round(y)
+      setValueAt(entry, 'x', relative, Math.round(x))
+      setValueAt(entry, 'y', relative, Math.round(y))
     }))
   })
 }
@@ -135,7 +141,8 @@ function handleDown(event: PointerEvent) {
   event.preventDefault()
   event.stopPropagation()
   const base = snapshot()
-  const start = { ...item.transform }
+  const start = { ...transformOf(selected.value!) }
+  const relative = state.frame - item.start
   const centre = { x: canvas.value.width / 2 + start.x, y: canvas.value.height / 2 + start.y }
   const from = canvasPoint(event)
   const startDistance = Math.max(1, Math.hypot(from.x - centre.x, from.y - centre.y))
@@ -144,7 +151,7 @@ function handleDown(event: PointerEvent) {
     const distance = Math.hypot(point.x - centre.x, point.y - centre.y)
     const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, start.scale * distance / startDistance))
     editor.transient(updateItem(base, item.id, (entry) => {
-      if ('transform' in entry) entry.transform.scale = Math.round(scale * 100) / 100
+      setValueAt(entry, 'scale', relative, Math.round(scale * 100) / 100)
     }))
   })
 }

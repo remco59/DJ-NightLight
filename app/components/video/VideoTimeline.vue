@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { MARKER_COLORS, findItem, formatTimecode, itemEnd, type MarkerColor, type TimelineItem, type TimelineMarker, type TrackKind, type VideoProject, type VideoTrack } from '~~/shared/video-project'
-import { moveItem, reorderTrack, snapFrame, snapTargets, updateMarker } from '~~/shared/video-timeline'
+import { moveItem, reorderTrack, snapFrame, snapTargets, updateItem, updateMarker } from '~~/shared/video-timeline'
+import { keyframeFrames, moveKeyframes } from '~~/shared/video-keyframes'
 import { MOTION_TEMPLATES, type MotionTemplateKey } from '~~/shared/video-templates'
 import { clampZoom, fitZoom, pinchZoom, timelineDisplayOrder } from '~~/shared/video-editor-ui'
 import { useVideoEditor } from '~/composables/useVideoEditor'
@@ -204,6 +205,51 @@ function startDrag(event: PointerEvent, item: TimelineItem, mode: DragMode) {
   target.addEventListener('pointerup', end)
   target.addEventListener('pointercancel', end)
   window.addEventListener('keydown', cancel)
+}
+
+// --- Keyframes -------------------------------------------------------------------
+// Diamonds on a clip: click jumps the playhead there, dragging moves the
+// keyframes on that frame (all properties) and snaps to the playhead.
+
+function visibleKeyframes(item: TimelineItem) {
+  return keyframeFrames(item).filter(frame => frame < item.duration)
+}
+
+function startKeyframeDrag(event: PointerEvent, item: TimelineItem, frame: number) {
+  if (event.button !== 0) return
+  event.stopPropagation()
+  state.selectedId = item.id
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+  const startX = event.clientX
+  const base = JSON.parse(JSON.stringify(toRaw(state.project))) as VideoProject
+  let started = false
+  const move = (moveEvent: PointerEvent) => {
+    const dx = moveEvent.clientX - startX
+    if (!started) {
+      if (Math.abs(dx) < 3) return
+      started = true
+      editor.beginTransient()
+    }
+    let to = Math.min(item.duration - 1, Math.max(0, frame + Math.round(dx / pxPerFrame.value)))
+    const playhead = state.frame - item.start
+    if (state.snap && Math.abs(to - playhead) * pxPerFrame.value <= SNAP_PX.value && playhead >= 0 && playhead < item.duration) to = playhead
+    editor.transient(updateItem(base, item.id, target => moveKeyframes(target, frame, to)))
+  }
+  const end = (endEvent: PointerEvent) => {
+    target.removeEventListener('pointermove', move)
+    target.removeEventListener('pointerup', end)
+    target.removeEventListener('pointercancel', end)
+    if (started) {
+      if (endEvent.type === 'pointercancel') editor.cancelTransient()
+      else editor.endTransient()
+    } else {
+      emit('seek', Math.min(editor.duration.value - 1, item.start + frame))
+    }
+  }
+  target.addEventListener('pointermove', move)
+  target.addEventListener('pointerup', end)
+  target.addEventListener('pointercancel', end)
 }
 
 /** Source in-point as m:ss.t for the slip tooltip. */
@@ -726,6 +772,16 @@ defineExpose({ zoomToFit, zoomToSelection })
                 :style="{ left: `${x(cue.frame)}px` }"
                 :title="`Geluid: ${TEMPLATE_SOUNDS[cue.sound].label}`"
               />
+              <i
+                v-for="frame in visibleKeyframes(item)"
+                :key="`kf-${frame}`"
+                class="kf"
+                :class="{ at: state.frame - item.start === frame }"
+                :style="{ left: `${x(frame)}px` }"
+                title="Keyframe — klik om erheen te gaan, sleep om te verplaatsen"
+                @pointerdown="startKeyframeDrag($event, item, frame)"
+                @click.stop
+              />
               <span class="label">
                 <b v-if="item.type === 'graphic'"><Icon name="lucide:type" aria-hidden="true" /></b>
                 <b v-else-if="item.type === 'audio'"><Icon name="lucide:music" aria-hidden="true" /></b>
@@ -1098,6 +1154,21 @@ defineExpose({ zoomToFit, zoomToSelection })
 
 .marker:empty { width: 10px; padding: 0; }
 .marker.selected { background: var(--marker); color: #111; }
+
+.kf {
+  position: absolute;
+  bottom: 2px;
+  z-index: 3;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border: 1px solid rgba(0, 0, 0, .7);
+  background: #a78bfa;
+  cursor: ew-resize;
+  transform: rotate(45deg);
+}
+
+.kf.at { background: #facc15; }
 
 .marker-line {
   position: absolute;
