@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
-import { uploadMediaFile } from '~/utils/media-upload'
 import { mediaKind, type MediaKind } from '~~/shared/video-project'
 import { MOTION_TEMPLATES, type MotionTemplateDefinition, type MotionTemplateKey } from '~~/shared/video-templates'
 import { templateHasSound } from '~~/shared/template-sounds'
@@ -8,6 +7,7 @@ import { filterMediaAssets, formatMediaDuration, type MediaFilter } from '~~/sha
 import { canCancelRender, canRetryRender } from '~~/shared/video-generator'
 import { labelFor, renderStatusLabels } from '~~/shared/labels'
 import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEditor'
+import type { MediaLibraryItem } from '~~/shared/media-library'
 
 // Desktop shows media / templates / exports in the side panel. The mobile
 // editor reuses this panel for its bottom tabs (plus an Audio tab) with
@@ -31,13 +31,15 @@ const editor = useVideoEditor()
 const { state } = editor
 const filter = ref<MediaFilter>('all')
 const search = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
-const uploading = ref('')
 const message = ref('')
+// The project's media panel only lists media added to this project (plus what
+// the timeline already uses); new media comes in through the shared media picker.
+const pickerOpen = ref(false)
+const projectMediaIds = computed(() => editor.projectMedia.value.map(asset => asset.id))
 
 const activeFilter = computed<MediaFilter>(() => props.replaceKind || filter.value)
-const filteredMedia = computed(() => filterMediaAssets(state.media, activeFilter.value, search.value))
-const audioMedia = computed(() => filterMediaAssets(state.media, 'audio', search.value))
+const filteredMedia = computed(() => filterMediaAssets(editor.projectMedia.value, activeFilter.value, search.value))
+const audioMedia = computed(() => filterMediaAssets(editor.projectMedia.value, 'audio', search.value))
 const selectedAudio = computed(() => {
   const item = editor.selection.value?.item
   return item?.type === 'audio' ? item : null
@@ -100,22 +102,10 @@ function dragTemplate(event: DragEvent, key: string) {
   event.dataTransfer!.effectAllowed = 'copy'
 }
 
-async function uploadFiles(files: FileList | File[] | null | undefined) {
-  const list = [...(files || [])]
-  if (!list.length) return
-  message.value = ''
-  try {
-    for (const [index, file] of list.entries()) {
-      uploading.value = `Uploaden ${index + 1}/${list.length}: ${file.name}`
-      await uploadMediaFile(file)
-    }
-    emit('refreshMedia')
-  } catch (error) {
-    message.value = error instanceof Error && !('data' in error) ? error.message : apiErrorMessage(error, 'Uploaden mislukt.')
-  } finally {
-    uploading.value = ''
-    if (fileInput.value) fileInput.value.value = ''
-  }
+function addToProject(assets: MediaLibraryItem[]) {
+  editor.addToProject(assets.map(asset => asset.id))
+  // The picker knows the new assets before the editor's copy of the library does.
+  emit('refreshMedia')
 }
 
 async function retryRender(id: string) {
@@ -152,21 +142,23 @@ async function deleteRender(id: string) {
 
 <template>
   <section ref="panel" class="panel" :class="{ mobile: props.mobile }">
-    <input
-      ref="fileInput"
-      class="file-input"
-      type="file"
+    <AdminMediaPicker
+      v-model:open="pickerOpen"
+      bare
       multiple
-      :accept="props.tab === 'audio' ? 'audio/mpeg,audio/mp4,audio/wav,audio/ogg' : 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg'"
-      @change="uploadFiles(($event.target as HTMLInputElement).files)"
-    >
+      :kind="props.tab === 'audio' ? 'audio' : 'all'"
+      :title="props.tab === 'audio' ? 'Audio toevoegen aan dit project' : 'Media toevoegen aan dit project'"
+      :exclude-ids="projectMediaIds"
+      upload-tags=""
+      @selected-many="addToProject"
+    />
 
     <!-- Mobile: tap-first media library -->
     <template v-if="props.mobile && props.tab === 'media'">
       <header class="panel-head">
         <h2>{{ props.replaceKind ? 'Media vervangen' : 'Media' }}</h2>
-        <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
-          <Icon name="lucide:upload" aria-hidden="true" /><span>{{ uploading ? 'Uploaden…' : 'Media uploaden' }}</span>
+        <button class="pill" type="button" @click="pickerOpen = true">
+          <Icon name="lucide:plus" aria-hidden="true" /><span>Media toevoegen</span>
         </button>
       </header>
       <p v-if="props.replaceKind" class="replace-hint">
@@ -179,7 +171,6 @@ async function deleteRender(id: string) {
         </button>
       </div>
       <input v-model="search" class="search" type="search" placeholder="Zoek media…" aria-label="Media zoeken">
-      <p v-if="uploading" class="hint">{{ uploading }}</p>
       <p v-if="message" class="message">{{ message }}</p>
       <div class="m-media-grid">
         <article v-for="asset in filteredMedia" :key="asset.id" class="m-media-card" :class="mediaKind(asset.mimeType)">
@@ -202,7 +193,7 @@ async function deleteRender(id: string) {
           </button>
           <span class="m-title">{{ assetTitle(asset) }}</span>
         </article>
-        <p v-if="!filteredMedia.length" class="empty">Geen media gevonden. Upload clips, foto’s of muziek om te beginnen.</p>
+        <p v-if="!filteredMedia.length" class="empty">{{ search || activeFilter !== 'all' ? 'Geen media gevonden in dit project.' : 'Nog geen media in dit project. Voeg clips, foto’s of muziek toe uit de mediabibliotheek.' }}</p>
       </div>
     </template>
 
@@ -229,8 +220,8 @@ async function deleteRender(id: string) {
     <template v-else-if="props.tab === 'audio'">
       <header class="panel-head">
         <h2>Audio</h2>
-        <button class="pill" type="button" :disabled="Boolean(uploading)" @click="fileInput?.click()">
-          <Icon name="lucide:plus" aria-hidden="true" /><span>{{ uploading ? 'Uploaden…' : 'Audio uploaden' }}</span>
+        <button class="pill" type="button" @click="pickerOpen = true">
+          <Icon name="lucide:plus" aria-hidden="true" /><span>Audio toevoegen</span>
         </button>
       </header>
       <button v-if="selectedAudio" type="button" class="selected-audio" @click="emit('openEdit')">
@@ -239,7 +230,6 @@ async function deleteRender(id: string) {
         <Icon name="lucide:chevron-right" aria-hidden="true" />
       </button>
       <input v-model="search" class="search" type="search" placeholder="Zoek audio…" aria-label="Audio zoeken">
-      <p v-if="uploading" class="hint">{{ uploading }}</p>
       <p v-if="message" class="message">{{ message }}</p>
       <ul class="m-audio-list">
         <li v-for="asset in audioMedia" :key="asset.id">
@@ -247,7 +237,7 @@ async function deleteRender(id: string) {
           <span class="audio-copy"><strong>{{ assetTitle(asset) }}</strong><small>{{ formatMediaDuration(asset.durationMs) }}</small></span>
           <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
         </li>
-        <li v-if="!audioMedia.length" class="empty">Nog geen audio. Upload muziek, geluidseffecten of een voice-over.</li>
+        <li v-if="!audioMedia.length" class="empty">Nog geen audio in dit project. Voeg muziek, geluidseffecten of een voice-over toe.</li>
       </ul>
     </template>
 
@@ -261,16 +251,9 @@ async function deleteRender(id: string) {
         </button>
       </div>
       <input v-model="search" class="search" type="search" placeholder="Zoek media…">
-      <button
-        class="upload"
-        type="button"
-        :disabled="Boolean(uploading)"
-        @click="fileInput?.click()"
-        @dragover.prevent
-        @drop.prevent="uploadFiles($event.dataTransfer?.files)"
-      >
-        <Icon name="lucide:upload" aria-hidden="true" />
-        <span>{{ uploading || 'Media uploaden' }}</span>
+      <button class="upload" type="button" @click="pickerOpen = true">
+        <Icon name="lucide:plus" aria-hidden="true" />
+        <span>Media toevoegen</span>
       </button>
       <p v-if="message" class="message">{{ message }}</p>
 
@@ -296,10 +279,17 @@ async function deleteRender(id: string) {
           <span v-if="asset.durationMs" class="duration">{{ formatDuration(asset.durationMs) }}</span>
           <footer>
             <span>{{ asset.title || asset.originalFilename }}</span>
+            <button
+              v-if="!editor.usedAssetIds.value.has(asset.id)"
+              type="button"
+              title="Uit dit project halen"
+              :aria-label="`${asset.title || asset.originalFilename} uit dit project halen`"
+              @click="editor.removeFromProject(asset.id)"
+            ><Icon name="lucide:x" aria-hidden="true" /></button>
             <button type="button" title="Toevoegen bij de afspeelpositie" @click="editor.addMedia(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
           </footer>
         </article>
-        <p v-if="!filteredMedia.length" class="empty">Nog geen media. Upload clips, foto’s of muziek om te beginnen.</p>
+        <p v-if="!filteredMedia.length" class="empty">{{ search || filter !== 'all' ? 'Geen media gevonden in dit project.' : 'Nog geen media in dit project. Voeg clips, foto’s of muziek toe uit de mediabibliotheek.' }}</p>
       </div>
     </template>
 
@@ -427,8 +417,6 @@ h3 {
   color: var(--ve-text);
 }
 
-.file-input { display: none; }
-
 .upload {
   display: flex;
   align-items: center;
@@ -446,7 +434,6 @@ h3 {
   white-space: nowrap;
 }
 
-.upload:disabled { opacity: .7; cursor: progress; }
 
 .message {
   margin: 0;
@@ -723,7 +710,6 @@ h3 {
   cursor: pointer;
 }
 
-.pill:disabled { opacity: .7; cursor: progress; }
 
 .scroll-x {
   overflow-x: auto;

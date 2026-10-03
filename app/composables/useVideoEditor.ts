@@ -2,6 +2,7 @@ import type { InjectionKey } from 'vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import type { MediaAssetMetadata } from '~~/shared/media'
 import {
+  MAX_PROJECT_MEDIA,
   MAX_PROJECT_SECONDS,
   MIN_ITEM_FRAMES,
   VIDEO_ASPECTS,
@@ -10,8 +11,12 @@ import {
   createTrack,
   findItem,
   mediaKind,
+  collectProjectAssetIds,
   projectDurationFrames,
+  projectMediaIds,
   trackAccepts,
+  withProjectMedia,
+  withoutProjectMedia,
   type ProjectAssetMap,
   type TimelineItem,
   type TimelineItemType,
@@ -233,6 +238,11 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
   const duration = computed(() => projectDurationFrames(state.project))
   const selection = computed(() => state.selectedId ? findItem(state.project, state.selectedId) : null)
   const mediaById = computed(() => new Map(state.media.map(asset => [asset.id, asset])))
+  /** The project's own media panel: media added to it plus everything the timeline uses. */
+  const projectMedia = computed(() => projectMediaIds(state.project)
+    .map(id => mediaById.value.get(id))
+    .filter((asset): asset is EditorMediaAsset => Boolean(asset)))
+  const usedAssetIds = computed(() => new Set(collectProjectAssetIds(state.project)))
   const assetMap = computed<ProjectAssetMap>(() => {
     const map: ProjectAssetMap = {}
     for (const asset of state.media) {
@@ -276,6 +286,19 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     if (placed && placed.duration < item.duration) {
       state.notice = `De clip is ingekort zodat hij binnen de limiet van ${MAX_PROJECT_SECONDS / 60} minuten past. Verplaats hem naar voren en sleep dan de eindgreep om de rest terug te krijgen.`
     }
+  }
+
+  function addToProject(ids: string[]) {
+    const next = withProjectMedia(state.project, ids)
+    if (next === state.project) {
+      if (ids.length) state.notice = `Er passen maximaal ${MAX_PROJECT_MEDIA} bestanden in de mediabibliotheek van een project.`
+      return
+    }
+    commit(next)
+  }
+
+  function removeFromProject(id: string) {
+    commit(withoutProjectMedia(state.project, id))
   }
 
   function addMedia(asset: EditorMediaAsset, trackId?: string, start = state.frame) {
@@ -439,6 +462,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     duration,
     selection,
     mediaById,
+    projectMedia,
+    usedAssetIds,
     assetMap,
     commit,
     beginTransient,
@@ -450,6 +475,8 @@ export function createVideoEditor(initial: { id: string, name: string, revision:
     save,
     rename,
     sourceFrames,
+    addToProject,
+    removeFromProject,
     addMedia,
     addTemplate,
     move,
