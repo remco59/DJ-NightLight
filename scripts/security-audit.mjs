@@ -6,6 +6,11 @@ const ALLOWED_ADVISORIES = new Set([
   // only Nuxt's built .output directory, so node-forge is not present at
   // runtime. There is currently no patched release for this advisory.
   'https://github.com/advisories/GHSA-86w9-cpqp-85rv',
+  // braces (via micromatch, fast-glob and globby) is pulled in by nitropack's
+  // build tooling. A production `nuxt build` output contains none of these
+  // packages and the runtime image copies only .output. There is no patched
+  // release yet (latest braces 3.0.3 is inside the affected range <=3.0.3).
+  'https://github.com/advisories/GHSA-vfj7-8cjw-p6xm',
 ])
 
 const result = spawnSync(
