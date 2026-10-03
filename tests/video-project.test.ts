@@ -8,8 +8,11 @@ import {
   graphicBackdrop,
   parseVideoProject,
   projectDurationFrames,
+  projectMediaIds,
   projectThumbnailFrame,
   trackAccepts,
+  withProjectMedia,
+  withoutProjectMedia,
 } from '../shared/video-project'
 import { isLucideIcon } from '../shared/lucide-icons'
 import { GIG_ROW_COLUMNS, MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, iconProp, joinListRow, parseGigRow, splitListRow } from '../shared/video-templates'
@@ -101,6 +104,47 @@ describe('video project model', () => {
     recap.templateProps.media = [assetId, otherAssetId]
     project.tracks[1]!.items.push(recap)
     expect(collectProjectAssetIds(project).sort()).toEqual([assetId, otherAssetId])
+  })
+})
+
+describe('project media panel', () => {
+  const thirdAssetId = '33333333-3333-4333-8333-333333333333'
+
+  it('lists added media newest first, then what the timeline uses', () => {
+    const project = createVideoProject()
+    expect(projectMediaIds(project)).toEqual([])
+
+    project.tracks[0]!.items.push(createMediaItem({ id: thirdAssetId, mimeType: 'image/jpeg', durationMs: null }, 0, 30))
+    const added = withProjectMedia(withProjectMedia(project, [assetId]), [otherAssetId, thirdAssetId])
+    expect(added.mediaIds).toEqual([assetId, otherAssetId, thirdAssetId])
+    // Newest added first; the timeline asset is already in the panel, so it is not listed twice.
+    expect(projectMediaIds(added)).toEqual([thirdAssetId, otherAssetId, assetId])
+    // Assets used on the timeline show up even when they were never added explicitly.
+    expect(projectMediaIds(project)).toEqual([thirdAssetId])
+  })
+
+  it('ignores duplicates and returns the same project when nothing changes', () => {
+    const project = withProjectMedia(createVideoProject(), [assetId, assetId])
+    expect(project.mediaIds).toEqual([assetId])
+    expect(withProjectMedia(project, [assetId])).toBe(project)
+    expect(withProjectMedia(project, [])).toBe(project)
+  })
+
+  it('removes media from the panel but keeps what the timeline still uses', () => {
+    const project = createVideoProject()
+    project.tracks[0]!.items.push(createMediaItem({ id: assetId, mimeType: 'image/jpeg', durationMs: null }, 0, 30))
+    const added = withProjectMedia(project, [assetId, otherAssetId])
+    const without = withoutProjectMedia(added, otherAssetId)
+    expect(without.mediaIds).toEqual([assetId])
+    expect(withoutProjectMedia(without, otherAssetId)).toBe(without)
+    expect(projectMediaIds(withoutProjectMedia(without, assetId))).toEqual([assetId])
+  })
+
+  it('survives saving: the schema keeps media ids and rejects bad ones', () => {
+    const project = withProjectMedia(createVideoProject(), [assetId])
+    expect(parseVideoProject(project).mediaIds).toEqual([assetId])
+    expect(parseVideoProject(createVideoProject()).mediaIds).toBeUndefined()
+    expect(() => parseVideoProject({ ...project, mediaIds: ['not-a-uuid'] })).toThrow()
   })
 })
 

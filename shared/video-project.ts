@@ -41,6 +41,7 @@ export const VIDEO_ASPECT_KEYS = Object.keys(VIDEO_ASPECTS) as VideoAspect[]
 
 export const VIDEO_FPS_OPTIONS = [24, 25, 30, 60] as const
 export const MAX_PROJECT_SECONDS = 180
+export const MAX_PROJECT_MEDIA = 300
 export const MIN_ITEM_FRAMES = 3
 
 export const TRACK_KINDS = ['video', 'graphics', 'audio'] as const
@@ -166,6 +167,8 @@ export type VideoProject = {
   showSafeZones: boolean
   tracks: VideoTrack[]
   markers?: TimelineMarker[]
+  /** Media the user added to this project's media panel, oldest first. Assets used on the timeline always show up too. */
+  mediaIds?: string[]
 }
 
 /** Minimal asset info the composition needs to resolve an assetId. */
@@ -355,6 +358,27 @@ export function collectProjectAssetIds(project: VideoProject) {
   return [...ids]
 }
 
+/** Ids shown in the project's media panel: what the user added (newest first), then anything else the timeline uses. */
+export function projectMediaIds(project: VideoProject) {
+  const added = [...new Set(project.mediaIds || [])].reverse()
+  const seen = new Set(added)
+  return [...added, ...collectProjectAssetIds(project).filter(id => !seen.has(id))]
+}
+
+/** Adds media to the project's media panel; returns the same project when nothing changes or the panel is full. */
+export function withProjectMedia(project: VideoProject, ids: string[]): VideoProject {
+  const current = project.mediaIds || []
+  const fresh = [...new Set(ids)].filter(id => !current.includes(id))
+  if (!fresh.length || current.length + fresh.length > MAX_PROJECT_MEDIA) return project
+  return { ...project, mediaIds: [...current, ...fresh] }
+}
+
+/** Takes media out of the project's media panel; assets still used on the timeline stay visible. */
+export function withoutProjectMedia(project: VideoProject, id: string): VideoProject {
+  if (!project.mediaIds?.includes(id)) return project
+  return { ...project, mediaIds: project.mediaIds.filter(entry => entry !== id) }
+}
+
 export function findItem(project: VideoProject, itemId: string) {
   for (const track of project.tracks) {
     const item = track.items.find(entry => entry.id === itemId)
@@ -506,6 +530,7 @@ export const videoProjectSchema = z.object({
     label: z.string().trim().max(40).optional(),
     color: z.enum(MARKER_COLORS).optional(),
   })).max(100).optional(),
+  mediaIds: z.array(z.string().uuid()).max(MAX_PROJECT_MEDIA).optional(),
 }).superRefine((project, context) => {
   const ids = new Set<string>()
   project.tracks.forEach((track, trackIndex) => {
