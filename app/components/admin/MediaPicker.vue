@@ -12,8 +12,14 @@ const props = withDefaults(defineProps<{
   modelValue?: string | null
   label?: string
   description?: string
-  kind?: 'image' | 'all'
+  kind?: 'image' | 'audio' | 'all'
   allowExternal?: boolean
+  /** Pick several assets at once and confirm with a button; they arrive through `selectedMany`. */
+  multiple?: boolean
+  /** Assets that are already in use by the caller and should not be offered again. */
+  excludeIds?: string[]
+  /** Replaces the default "<label> kiezen" dialog title. */
+  title?: string
   /** Render only the picker dialog; the parent opens it with `v-model:open`. */
   bare?: boolean
   uploadTags?: string
@@ -25,6 +31,9 @@ const props = withDefaults(defineProps<{
   description: '',
   kind: 'image',
   allowExternal: true,
+  multiple: false,
+  excludeIds: () => [],
+  title: '',
   bare: false,
   uploadTags: 'website',
   gigId: null,
@@ -33,6 +42,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string | null]
   selected: [asset: MediaLibraryItem]
+  selectedMany: [assets: MediaLibraryItem[]]
 }>()
 
 const { assets, collections, gigs, venues, refresh, byId } = await useMediaLibrary()
@@ -60,11 +70,18 @@ function applyExternalUrl() {
   emit('update:modelValue', externalUrl.value.trim() || null)
 }
 
-const pool = computed(() => props.kind === 'all' ? assets.value : assets.value.filter(asset => asset.mimeType.startsWith('image/')))
+const chosen = ref<string[]>([])
+const pool = computed(() => {
+  const excluded = new Set(props.excludeIds)
+  const prefix = props.kind === 'image' ? 'image/' : props.kind === 'audio' ? 'audio/' : ''
+  return assets.value.filter(asset => !excluded.has(asset.id) && asset.mimeType.startsWith(prefix))
+})
 const selectedAsset = computed(() => pool.value.find(asset => asset.url === props.modelValue) || null)
 const selectedPreview = computed(() => selectedAsset.value?.thumbnailUrl || props.modelValue)
-const mediaNoun = computed(() => props.kind === 'all' ? 'media' : 'afbeelding')
-const chooseLabel = computed(() => props.kind === 'all' ? 'Media kiezen' : 'Afbeelding kiezen')
+const mediaNoun = computed(() => props.kind === 'image' ? 'afbeelding' : props.kind === 'audio' ? 'audio' : 'media')
+const chooseLabel = computed(() => props.kind === 'image' ? 'Afbeelding kiezen' : props.kind === 'audio' ? 'Audio kiezen' : 'Media kiezen')
+const dialogTitle = computed(() => props.title || `${props.label} kiezen`)
+const itemsNoun = computed(() => props.kind === 'image' ? 'afbeeldingen' : props.kind === 'audio' ? 'audio' : 'media')
 const tabs = computed(() => [
   { value: 'all' as const, label: 'Alles' },
   { value: 'recent' as const, label: 'Recent' },
@@ -92,6 +109,29 @@ function selectAsset(asset: MediaLibraryItem) {
   search.value = ''
 }
 
+function toggleAsset(asset: MediaLibraryItem) {
+  chosen.value = chosen.value.includes(asset.id)
+    ? chosen.value.filter(id => id !== asset.id)
+    : [...chosen.value, asset.id]
+}
+
+function onCardOpen(asset: MediaLibraryItem) {
+  if (props.multiple) toggleAsset(asset)
+  else selectAsset(asset)
+}
+
+function finishMany(ids: string[]) {
+  const picked = ids.map(id => byId.value.get(id)).filter((asset): asset is MediaLibraryItem => Boolean(asset))
+  if (picked.length) emit('selectedMany', picked)
+  chosen.value = []
+  search.value = ''
+  open.value = false
+}
+
+watch(open, (value) => {
+  if (!value) chosen.value = []
+})
+
 function clearSelection() {
   externalUrl.value = ''
   emit('update:modelValue', null)
@@ -99,6 +139,11 @@ function clearSelection() {
 
 async function onUploaded(ids: string[]) {
   await refresh()
+  // In multiple mode everything just uploaded is handed over straight away.
+  if (props.multiple) {
+    finishMany(ids)
+    return
+  }
   // A single upload is what the editor asked for: use it straight away.
   const asset = ids.length === 1 ? byId.value.get(ids[0]!) : null
   if (asset) selectAsset(asset)
@@ -151,11 +196,11 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
     <Teleport to="body">
       <div v-if="open" class="picker-backdrop" @click.self="open = false">
-        <section ref="pickerDialog" class="picker-modal" role="dialog" aria-modal="true" :aria-label="`${label} kiezen`" @keydown.esc="open = false">
+        <section ref="pickerDialog" class="picker-modal" role="dialog" aria-modal="true" :aria-label="dialogTitle" @keydown.esc="open = false">
           <header class="picker-header">
             <div>
               <p class="picker-eyebrow">Mediabibliotheek</p>
-              <h2>{{ label }} kiezen</h2>
+              <h2>{{ dialogTitle }}</h2>
             </div>
             <div class="header-actions">
               <button type="button" class="mh-btn primary" @click="uploadOpen = true"><Icon name="lucide:plus" aria-hidden="true" />Uploaden</button>
@@ -166,7 +211,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
           <div class="picker-toolbar">
             <label class="picker-search">
               <Icon name="lucide:search" aria-hidden="true" />
-              <input v-model="search" type="search" :placeholder="`Zoek ${kind === 'all' ? 'media' : 'afbeeldingen'} op titel, tag, gig of locatie…`" :aria-label="`${kind === 'all' ? 'Media' : 'Afbeeldingen'} zoeken`">
+              <input v-model="search" type="search" :placeholder="`Zoek ${itemsNoun} op titel, tag, gig of locatie…`" :aria-label="`${itemsNoun} zoeken`">
             </label>
             <div class="picker-tabs" role="tablist">
               <button
@@ -193,17 +238,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
               :key="asset.id"
               :item="asset"
               :interactive="false"
-              :active="asset.url === modelValue"
-              @open="selectAsset(asset)"
+              :active="multiple ? chosen.includes(asset.id) : asset.url === modelValue"
+              @open="onCardOpen(asset)"
             />
             <div v-if="!filteredAssets.length" class="mh-empty no-results">
               <Icon name="lucide:images" aria-hidden="true" />
-              <strong>Nog geen {{ kind === 'all' ? 'media' : 'afbeeldingen' }} hier</strong>
-              <button type="button" class="mh-btn" @click="uploadOpen = true"><Icon name="lucide:upload" aria-hidden="true" />{{ kind === 'all' ? 'Media' : 'Afbeelding' }} uploaden</button>
+              <strong>Nog geen {{ itemsNoun }} hier</strong>
+              <button type="button" class="mh-btn" @click="uploadOpen = true"><Icon name="lucide:upload" aria-hidden="true" />{{ kind === 'image' ? 'Afbeelding' : kind === 'audio' ? 'Audio' : 'Media' }} uploaden</button>
             </div>
           </div>
           <footer class="picker-footer">
-            <span>{{ filteredAssets.length }} item{{ filteredAssets.length === 1 ? '' : 's' }}</span>
+            <span>{{ filteredAssets.length }} item{{ filteredAssets.length === 1 ? '' : 's' }}<template v-if="multiple && chosen.length"> · {{ chosen.length }} geselecteerd</template></span>
+            <button v-if="multiple" type="button" class="mh-btn primary" :disabled="!chosen.length" @click="finishMany(chosen)">
+              {{ chosen.length ? `${chosen.length} toevoegen` : 'Kies media om toe te voegen' }}
+            </button>
             <NuxtLink to="/admin/media" target="_blank">Beheren in Mediabibliotheek<Icon name="lucide:arrow-up-right" aria-hidden="true" /></NuxtLink>
           </footer>
         </section>
