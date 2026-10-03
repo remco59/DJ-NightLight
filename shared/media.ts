@@ -133,10 +133,10 @@ export type MediaAssetMetadata = {
 
 /**
  * How an asset entered the library: uploaded by hand, fetched from a URL,
- * rendered by a NightLight generator, or an edit (crop, enhanced export) of
- * another asset.
+ * rendered by a NightLight generator, an edit (crop, enhanced export) of
+ * another asset, or linked in place from the server's media folder (`library`).
  */
-export const MEDIA_SOURCES = ['upload', 'url', 'generated', 'derived'] as const
+export const MEDIA_SOURCES = ['upload', 'url', 'generated', 'derived', 'library'] as const
 export type MediaSource = typeof MEDIA_SOURCES[number]
 
 export function isMediaSource(value: unknown): value is MediaSource {

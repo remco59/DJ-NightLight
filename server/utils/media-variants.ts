@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import { RESPONSIVE_IMAGE_WIDTHS } from '../../shared/responsive-image'
-import { getGeneratedStorage, getMediaStorage } from './media-storage'
+import { getGeneratedStorage, readAssetFile } from './media-storage'
 
 const RESIZABLE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -13,8 +13,8 @@ export function canResizeImage(mimeType: string) {
   return RESIZABLE_MIME_TYPES.has(mimeType)
 }
 
-function variantKey(assetId: string, width: number) {
-  return `image-variants/${assetId}/${width}.webp`
+function variantKey(assetId: string, width: number, version = '') {
+  return `image-variants/${assetId}/${width}${version ? `-${version}` : ''}.webp`
 }
 
 const inFlight = new Map<string, Promise<Buffer>>()
@@ -22,11 +22,12 @@ const inFlight = new Map<string, Promise<Buffer>>()
 /**
  * Web-sized WebP rendition of an uploaded image. Originals are camera files of
  * several megabytes; public pages request one of the fixed widths instead and
- * the result is cached in generated storage after the first request.
+ * the result is cached in generated storage after the first request. Linked
+ * files can change on disk, so their `version` (modified time) is part of the key.
  */
-export async function getImageVariant(asset: { id: string, storageKey: string }, width: number) {
+export async function getImageVariant(asset: { id: string, storageKey: string }, width: number, version = '') {
   const generated = getGeneratedStorage()
-  const key = variantKey(asset.id, width)
+  const key = variantKey(asset.id, width, version)
   try {
     return await readFile(generated.path(key))
   } catch {
@@ -37,7 +38,7 @@ export async function getImageVariant(asset: { id: string, storageKey: string },
   if (pending) return pending
 
   const render = (async () => {
-    const original = await getMediaStorage().read(asset.storageKey)
+    const original = await readAssetFile(asset.storageKey)
     const output = await sharp(original, { failOn: 'none' })
       .rotate()
       .resize({ width, withoutEnlargement: true })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MediaLibraryBrowser from '~/components/media/MediaLibraryBrowser.vue'
 import { mediaKindFromMime, humanizeFilename } from '~~/shared/media'
 import { collectMediaTags, mediaDisplayTitle, type MediaCollectionSummary, type MediaLibraryItem } from '~~/shared/media-library'
 import {
@@ -47,7 +48,12 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 
-const tab = ref<'upload' | 'url'>('upload')
+const tab = ref<'upload' | 'url' | 'server'>('upload')
+// Whether the server media folder is configured; null until checked once.
+const libraryEnabled = useState<boolean | null>('media-library-enabled', () => null)
+const serverSelection = ref<string[]>([])
+const linking = ref(false)
+const linkErrors = ref<Array<{ path: string, error: string }>>([])
 const queue = ref<QueueItem[]>([])
 const dragging = ref(false)
 const running = ref(false)
@@ -67,6 +73,7 @@ const meta = reactive({
   collectionIds: [] as string[],
 })
 
+const itemCount = computed(() => tab.value === 'server' ? serverSelection.value.length : queue.value.length)
 const accept = computed(() => props.imagesOnly ? 'image/jpeg,image/png,image/webp' : ACCEPTED_MEDIA_TYPES)
 const pending = computed(() => queue.value.filter(item => item.status === 'ready' || (item.status === 'error' && !item.invalid)))
 const doneCount = computed(() => queue.value.filter(item => item.status === 'done').length)
@@ -86,8 +93,15 @@ const uploadLabel = computed(() => {
   return `${count} bestand${count === 1 ? '' : 'en'} uploaden`
 })
 
-watch(open, (value) => {
+watch(open, async (value) => {
   if (!value) return
+  if (libraryEnabled.value === null) {
+    try {
+      libraryEnabled.value = (await $fetch<{ enabled: boolean }>('/api/admin/media/library/browse', { query: { kind: 'image' } })).enabled
+    } catch {
+      libraryEnabled.value = false
+    }
+  }
   const preset = props.preset || {}
   meta.parentAssetId = preset.parentAssetId || ''
   meta.variantLabel = preset.variantLabel || ''
@@ -201,6 +215,8 @@ async function startUpload() {
 function reset() {
   for (const item of queue.value) if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
   queue.value = []
+  serverSelection.value = []
+  linkErrors.value = []
   meta.title = ''
   meta.altText = ''
   remoteError.value = ''
@@ -208,9 +224,50 @@ function reset() {
 }
 
 function close() {
-  if (running.value) return
+  if (running.value || linking.value) return
   open.value = false
   reset()
+}
+
+function linkTitle(path: string, index: number, total: number) {
+  const base = meta.title.trim()
+  return base ? (total > 1 ? `${base} ${index + 1}` : base) : humanizeFilename(path.split('/').pop() || path)
+}
+
+/** Links the chosen server files into the library; nothing is uploaded or copied. */
+async function linkSelected() {
+  const paths = [...serverSelection.value]
+  if (!paths.length || linking.value) return
+  linking.value = true
+  linkErrors.value = []
+  try {
+    const result = await $fetch<{
+      assets: Array<{ path: string, asset: { id: string } }>
+      failed: Array<{ path: string, error: string }>
+    }>('/api/admin/media/library/link', {
+      method: 'POST',
+      body: {
+        items: paths.map((path, index) => ({ path, title: linkTitle(path, index, paths.length) })),
+        altText: meta.altText,
+        tags: meta.tags,
+        gigId: meta.gigId,
+        venueId: meta.venueId,
+        parentAssetId: meta.parentAssetId,
+        variantLabel: meta.parentAssetId ? meta.variantLabel : '',
+        collectionIds: meta.collectionIds,
+      },
+    })
+    const linked = new Set(result.assets.map(entry => entry.path))
+    serverSelection.value = serverSelection.value.filter(path => !linked.has(path))
+    linkErrors.value = result.failed
+    if (result.assets.length) emit('uploaded', result.assets.map(entry => entry.asset.id))
+    if (!result.failed.length) close()
+  } catch (error) {
+    const message = (error as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Koppelen is niet gelukt.'
+    linkErrors.value = [{ path: '', error: message }]
+  } finally {
+    linking.value = false
+  }
 }
 
 function toggleCollection(id: string) {
@@ -236,13 +293,14 @@ onBeforeUnmount(() => {
         <button type="button" class="mh-backdrop" aria-label="Uploaden sluiten" @click="close" />
         <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="upload-title">
           <header class="drawer-header">
-            <h2 id="upload-title">{{ preset?.parentAssetId ? 'Variant uploaden' : 'Media uploaden' }}</h2>
+            <h2 id="upload-title">{{ tab === 'server' ? 'Media koppelen' : preset?.parentAssetId ? 'Variant uploaden' : 'Media uploaden' }}</h2>
             <button type="button" class="mh-icon-btn close" aria-label="Sluiten" :disabled="running" @click="close"><Icon name="lucide:x" aria-hidden="true" /></button>
           </header>
 
           <div class="tabs" role="tablist">
             <button type="button" role="tab" :aria-selected="tab === 'upload'" :class="{ active: tab === 'upload' }" @click="tab = 'upload'">Uploaden</button>
             <button type="button" role="tab" :aria-selected="tab === 'url'" :class="{ active: tab === 'url' }" @click="tab = 'url'">Via URL</button>
+            <button v-if="libraryEnabled" type="button" role="tab" :aria-selected="tab === 'server'" :class="{ active: tab === 'server' }" @click="tab = 'server'">Servermap</button>
           </div>
 
           <div class="drawer-body">
@@ -262,6 +320,13 @@ onBeforeUnmount(() => {
               <small>JPG, PNG of WebP · max. 15 MB per bestand<template v-if="!imagesOnly"><br>Video’s tot 250 MB · audio tot 50 MB</template></small>
             </label>
 
+            <div v-else-if="tab === 'server'">
+              <MediaLibraryBrowser v-model="serverSelection" :kind="imagesOnly ? 'image' : 'all'" :disabled="linking" />
+              <ul v-if="linkErrors.length" class="errors">
+                <li v-for="failure in linkErrors" :key="failure.path || failure.error"><strong v-if="failure.path">{{ failure.path.split('/').pop() }}</strong><template v-if="failure.path"> — </template>{{ failure.error }}</li>
+              </ul>
+            </div>
+
             <div v-else class="remote">
               <label class="mh-field">
                 <span>Bestands-URL</span>
@@ -274,7 +339,7 @@ onBeforeUnmount(() => {
               <p v-if="remoteError" class="error">{{ remoteError }}</p>
             </div>
 
-            <ul v-if="queue.length" class="queue" aria-label="Gekozen bestanden">
+            <ul v-if="queue.length && tab !== 'server'" class="queue" aria-label="Gekozen bestanden">
               <li v-for="item in queue" :key="item.key" class="queue-item" :class="item.status" :title="item.error || item.file.name">
                 <img v-if="item.previewUrl && item.file.type.startsWith('image/')" :src="item.previewUrl" alt="">
                 <video v-else-if="item.previewUrl" :src="item.previewUrl" muted preload="metadata" />
@@ -287,12 +352,12 @@ onBeforeUnmount(() => {
                 </button>
               </li>
             </ul>
-            <ul v-if="queue.some(entry => entry.status === 'error')" class="errors">
+            <ul v-if="tab !== 'server' && queue.some(entry => entry.status === 'error')" class="errors">
               <li v-for="item in queue.filter(entry => entry.status === 'error')" :key="item.key"><strong>{{ item.file.name }}</strong> — {{ item.error }}</li>
             </ul>
 
             <section class="meta">
-              <h3>Gegevens <span>{{ queue.length > 1 ? `(geldt voor alle ${queue.length} bestanden)` : '' }}</span></h3>
+              <h3>Gegevens <span>{{ itemCount > 1 ? `(geldt voor alle ${itemCount} bestanden)` : '' }}</span></h3>
               <label class="mh-field">
                 <span>Titel</span>
                 <input v-model="meta.title" class="mh-input" placeholder="bijv. Main room moments">
@@ -373,7 +438,13 @@ onBeforeUnmount(() => {
           </div>
 
           <footer class="drawer-footer">
-            <template v-if="finished">
+            <template v-if="tab === 'server'">
+              <button type="button" class="mh-btn primary block" :disabled="!serverSelection.length || linking" @click="linkSelected">
+                {{ linking ? 'Koppelen…' : serverSelection.length ? `${serverSelection.length} bestand${serverSelection.length === 1 ? '' : 'en'} koppelen` : 'Koppelen' }}
+              </button>
+              <button type="button" class="mh-btn block" :disabled="linking" @click="close">Annuleren</button>
+            </template>
+            <template v-else-if="finished">
               <p class="summary">
                 <Icon name="lucide:circle-check" aria-hidden="true" />{{ doneCount }} geüpload<template v-if="failedCount">, {{ failedCount }} mislukt</template>
               </p>

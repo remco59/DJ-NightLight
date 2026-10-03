@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, normalize, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { isLibraryKey, libraryPathFromKey } from '../../shared/media-library-browse'
 
 export interface MediaStorage {
   put(buffer: Uint8Array, extension: string, prefix?: string): Promise<string>
@@ -67,4 +68,50 @@ export function getMediaStorage() {
 export function getGeneratedStorage() {
   const config = useRuntimeConfig()
   return new LocalMediaStorage(String(config.storageGenerated))
+}
+
+/**
+ * Read-only storage for the server media folder. Files are linked into the
+ * library in place, so this class can read them but never writes or deletes.
+ */
+export class LibraryMediaStorage {
+  constructor(private root: string) {}
+
+  /** Lexical path inside the root (rejects `..`); symlinks are not resolved. */
+  path(relativePath: string) {
+    return safePath(this.root, relativePath)
+  }
+
+  /** Resolves symlinks and refuses anything that ends up outside the root. */
+  async realPath(relativePath: string) {
+    const [root, target] = await Promise.all([realpath(this.root), realpath(this.path(relativePath))])
+    if (target !== root && !target.startsWith(root + '/')) throw new Error('Unsafe storage path')
+    return target
+  }
+}
+
+export function getLibraryStorage() {
+  const config = useRuntimeConfig()
+  const root = String(config.storageLibrary || '').trim()
+  return root ? new LibraryMediaStorage(root) : null
+}
+
+/** Absolute path of an asset's original, whether it lives in uploads or the server media folder. */
+export async function assetFilePath(storageKey: string) {
+  if (isLibraryKey(storageKey)) {
+    const library = getLibraryStorage()
+    if (!library) throw new Error('The server media folder is not configured')
+    return library.realPath(libraryPathFromKey(storageKey))
+  }
+  return getMediaStorage().path(storageKey)
+}
+
+export async function readAssetFile(storageKey: string) {
+  return readFile(await assetFilePath(storageKey))
+}
+
+/** Deletes an asset's own file; files linked from the server media folder are never touched. */
+export async function deleteAssetFile(storageKey: string | null | undefined) {
+  if (!storageKey || isLibraryKey(storageKey)) return
+  await getMediaStorage().delete(storageKey)
 }

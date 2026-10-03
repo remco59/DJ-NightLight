@@ -38,8 +38,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const placement = {
-      // Generated assets are only created by NightLight's own generators.
-      source: requestedSource === 'generated' ? undefined : requestedSource,
+      // Generated and library assets are only created by NightLight itself.
+      source: requestedSource === 'generated' || requestedSource === 'library' ? undefined : requestedSource,
       parentAssetId: await validateParentAsset(parentAssetId.data),
       variantLabel: text('variantLabel'),
       sourceUrl: origin.data || undefined,

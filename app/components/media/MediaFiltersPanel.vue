@@ -17,6 +17,7 @@ const sourceLabels: Record<typeof MEDIA_SOURCES[number], string> = {
   url: 'Via URL',
   generated: 'Gegenereerd',
   derived: 'Bewerkte variant',
+  library: 'Server-map',
 }
 const showAllTags = ref(false)
 const visibleTags = computed(() => showAllTags.value ? props.tags : props.tags.slice(0, 18))

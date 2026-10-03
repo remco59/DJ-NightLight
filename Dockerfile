@@ -17,6 +17,9 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
+# ffprobe/ffmpeg read duration, thumbnails and waveform peaks of files linked from the server media folder.
+RUN apk add --no-cache ffmpeg
+
 RUN addgroup -S -g "${NIGHTLIGHT_GID}" nightlight \
   && adduser -S -D -H -u "${NIGHTLIGHT_UID}" -G nightlight nightlight \
   && mkdir -p /app/storage/uploads /app/storage/generated /app/storage/backups \
