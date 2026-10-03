@@ -1,6 +1,7 @@
 import type React from 'react'
 import { createElement as h } from 'react'
-import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
+import { CameraMotionBlur } from '@remotion/motion-blur'
+import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion'
 import type {
   AudioClipItem,
   GraphicItem,
@@ -19,6 +20,7 @@ import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
 import { graphicSoundCues, soundFrames, TEMPLATE_SOUNDS } from '../shared/template-sounds'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
+import { blurSamples, itemBlurStrength, itemMoves, shutterAngle } from '../shared/video-motion-blur'
 
 // Single source of truth for what a project looks like. The editor mounts
 // this component in @remotion/player and the render worker renders it with
@@ -42,7 +44,9 @@ const MediaItemView: React.FC<{
   assets: ProjectAssetMap
   trackKind: TrackKind
   trackMuted: boolean
-}> = ({ item, assets, trackKind, trackMuted }) => {
+  /** The clip is drawn several times for motion blur; its audio then plays once, separately. */
+  detachAudio?: boolean
+}> = ({ item, assets, trackKind, trackMuted, detachAudio }) => {
   const frame = useCurrentFrame()
   const { width, height } = useVideoConfig()
   const kenBurns = item.type === 'image' ? 1 + item.kenBurns * 0.12 * (frame / Math.max(1, item.duration)) : 1
@@ -73,7 +77,7 @@ const MediaItemView: React.FC<{
       trimBefore: item.type === 'video' ? item.trimStart : undefined,
       playbackRate: item.type === 'video' ? item.speed : undefined,
       volume: item.type === 'video' ? (isAnimated(item, 'volume') ? (at: number) => itemVolumeAt(item, at) : item.volume) : undefined,
-      muted: item.type === 'video' ? item.muted || trackMuted : true,
+      muted: item.type === 'video' ? item.muted || trackMuted || Boolean(detachAudio) : true,
     }),
   )
 }
@@ -204,8 +208,29 @@ function graphicSounds(item: GraphicItem, fps: number) {
   )
 }
 
+/** Sound of a video clip whose picture is rendered through the motion-blur wrapper. */
+const DetachedClipAudio: React.FC<{ item: VideoClipItem, assets: ProjectAssetMap }> = ({ item, assets }) => {
+  const asset = assets[item.assetId]
+  if (!asset) return null
+  return h(Html5Audio, {
+    src: asset.src,
+    trimBefore: item.trimStart || undefined,
+    playbackRate: item.speed,
+    volume: isAnimated(item, 'volume') ? (at: number) => itemVolumeAt(item, at) : item.volume,
+    pauseWhenBuffering: true,
+  })
+}
+
 export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project, assets }) => {
   const { fps } = useVideoConfig()
+  // Motion blur multiplies the work per frame, so it only runs in the export.
+  const { isRendering } = useRemotionEnvironment()
+  const blurred = (item: VideoClipItem | ImageClipItem | GraphicItem) =>
+    isRendering && itemMoves(item) && itemBlurStrength(project, item) > 0
+  const withBlur = (item: VideoClipItem | ImageClipItem | GraphicItem, child: React.ReactElement) =>
+    blurred(item)
+      ? h(CameraMotionBlur, { shutterAngle: shutterAngle(itemBlurStrength(project, item)), samples: blurSamples(project), children: child })
+      : child
   return h(
     AbsoluteFill,
     { style: { backgroundColor: project.background, overflow: 'hidden' } },
@@ -225,17 +250,19 @@ export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project,
               name: item.type,
             },
             item.type === 'graphic'
-              ? h(GraphicItemView, { item, assets })
+              ? withBlur(item, h(GraphicItemView, { item, assets }))
               : item.type === 'audio'
                 ? track.muted
                   ? null
                   : h(AudioItemView, { item, assets })
-                : h(MediaItemView, {
-                    item,
-                    assets,
-                    trackKind: track.kind,
-                    trackMuted: track.muted,
-                  }),
+                : blurred(item)
+                  ? h(
+                      AbsoluteFill,
+                      null,
+                      withBlur(item, h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted, detachAudio: true })),
+                      item.type === 'video' && !item.muted && !track.muted ? h(DetachedClipAudio, { item, assets }) : null,
+                    )
+                  : h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted }),
           ),
           ...(item.type === 'graphic' && !track.muted ? graphicSounds(item, fps) : []),
         ]),
