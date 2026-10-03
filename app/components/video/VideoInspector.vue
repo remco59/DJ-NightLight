@@ -56,6 +56,7 @@ import {
   upcomingPublicGigs,
 } from '~~/shared/template-gigs'
 import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
+import { MOTION_BLUR_QUALITIES, MOTION_BLUR_QUALITY_KEYS, itemMoves, projectMotionBlur, type MotionBlurQuality, type ProjectMotionBlur } from '~~/shared/video-motion-blur'
 import KeyframeButton from '~/components/video/KeyframeButton.vue'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
@@ -145,6 +146,31 @@ function setEasing(easing: KeyframeEasing) {
   patch((target) => {
     setKeyframeEasing(target, state.frame - target.start, easing)
   }, 'easing')
+}
+
+// --- Motion blur ---------------------------------------------------------------
+
+const blur = computed(() => projectMotionBlur(state.project))
+const itemBlur = computed(() => item.value && item.value.type !== 'audio' ? item.value.motionBlur ?? blur.value.strength : 0)
+const blurNote = computed(() => {
+  const current = item.value
+  if (!blur.value.enabled) return 'Zet motion blur eerst aan bij de projectinstellingen (kies niets in de timeline).'
+  if (!current || !itemMoves(current)) return 'Dit item beweegt niet, dus er wordt geen blur toegepast. Voeg keyframes toe of kies een in-/uitanimatie.'
+  return current.motionBlur === undefined ? 'Volgt de sterkte van het project.' : 'Eigen sterkte voor dit item (0% = nooit blur).'
+})
+
+function setProjectBlur(change: Partial<ProjectMotionBlur>) {
+  editor.patchProject((project) => {
+    project.motionBlur = { ...projectMotionBlur(project), ...change }
+  }, 'motionBlur')
+}
+
+function setItemBlur(value: number | undefined) {
+  patch((target) => {
+    if (target.type === 'audio') return
+    if (value === undefined) delete target.motionBlur
+    else target.motionBlur = Math.min(1, Math.max(0, value))
+  }, 'motionBlur')
 }
 
 function clearAnimation() {
@@ -411,6 +437,24 @@ const assetTitle = computed(() => {
           <input type="checkbox" :checked="state.project.showSafeZones" @change="editor.patchProject(project => { project.showSafeZones = ($event.target as HTMLInputElement).checked })">
         </label>
       </component>
+      <component :is="sectionTag" class="block">
+        <component :is="headingTag">Motion blur</component>
+        <label class="row check"><span>Motion blur in de export</span>
+          <input type="checkbox" :checked="blur.enabled" @change="setProjectBlur({ enabled: ($event.target as HTMLInputElement).checked })">
+        </label>
+        <template v-if="blur.enabled">
+          <label class="row"><span>Sterkte</span>
+            <input type="range" min="0" max="1" step="0.05" :value="blur.strength" @input="setProjectBlur({ strength: Number(($event.target as HTMLInputElement).value) })">
+            <output>{{ Math.round(blur.strength * 100) }}%</output>
+          </label>
+          <label class="row"><span>Kwaliteit</span>
+            <select :value="blur.quality" @change="setProjectBlur({ quality: ($event.target as HTMLSelectElement).value as MotionBlurQuality })">
+              <option v-for="key in MOTION_BLUR_QUALITY_KEYS" :key="key" :value="key">{{ MOTION_BLUR_QUALITIES[key].label }}</option>
+            </select>
+          </label>
+        </template>
+        <p class="note">Alleen items die bewegen (keyframes of in-/uitanimatie) krijgen blur. Het effect zie je in de export, niet in dit voorbeeld; hogere kwaliteit maakt het renderen trager.</p>
+      </component>
       <section v-if="!props.mobile">
         <h3>Sneltoetsen</h3>
         <dl class="shortcuts">
@@ -615,6 +659,16 @@ const assetTitle = computed(() => {
           <p class="note">Waarden met een keyframe volgen de animatie; wijzig je er een, dan past dat het keyframe op de playhead aan.
             <button type="button" class="ghost small" @click.prevent="clearAnimation">Animatie wissen</button></p>
         </template>
+      </component>
+
+      <component :is="sectionTag" v-if="item.type !== 'audio'" class="block">
+        <component :is="headingTag">Motion blur</component>
+        <label class="row keyed"><span>Sterkte</span>
+          <input type="range" min="0" max="1" step="0.05" :disabled="!blur.enabled" :value="itemBlur" @input="setItemBlur(Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(itemBlur * 100) }}%</output>
+          <button type="button" class="ghost small" :disabled="item.motionBlur === undefined" title="Sterkte van het project gebruiken" @click.prevent="setItemBlur(undefined)">Project</button>
+        </label>
+        <p class="note">{{ blurNote }}</p>
       </component>
 
       <component :is="sectionTag" v-if="'crop' in item" class="block">
