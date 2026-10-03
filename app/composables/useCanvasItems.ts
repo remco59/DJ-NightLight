@@ -1,4 +1,5 @@
 import { itemBoxSize, visualItemsAt, type CanvasItem, type Size } from '~~/shared/video-canvas'
+import { itemTransformAt } from '~~/shared/video-keyframes'
 import type { TrackKind } from '~~/shared/video-project'
 import { useVideoEditor } from '~/composables/useVideoEditor'
 
@@ -19,7 +20,7 @@ export function useCanvasItems() {
 
   /** Screen-space style placing an element exactly over an entry's transformed box. */
   function boxStyle(entry: CanvasEntry, scale: number) {
-    const { x, y, rotation, scale: itemScale } = entry.item.transform
+    const { x, y, rotation, scale: itemScale } = itemTransformAt(entry.item, state.frame - entry.item.start)
     return {
       left: `${(state.project.width - entry.box.width) / 2 * scale}px`,
       top: `${(state.project.height - entry.box.height) / 2 * scale}px`,

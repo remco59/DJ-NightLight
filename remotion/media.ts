@@ -12,7 +12,8 @@ export const MediaFill: React.FC<{
   style?: React.CSSProperties
   trimBefore?: number
   playbackRate?: number
-  volume?: number
+  /** A function receives the frame since the clip started. */
+  volume?: number | ((frame: number) => number)
   muted?: boolean
 }> = ({ asset, style, trimBefore, playbackRate, volume, muted }) => {
   if (!asset) {

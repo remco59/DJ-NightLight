@@ -15,6 +15,13 @@ import {
 } from './video-templates'
 import { MAX_BPM, MIN_BPM, type BeatGrid } from './beat-grid'
 import { DEFAULT_ITEM_SOUND, type ItemSound } from './template-sounds'
+import {
+  KEYFRAME_EASINGS,
+  KEYFRAME_LIMITS,
+  MAX_KEYFRAMES_PER_PROP,
+  type ItemKeyframes,
+  type KeyframeProp,
+} from './video-keyframes'
 
 // A video project is a small NLE sequence: fixed output settings plus ordered
 // tracks holding timeline items. All times are integer frames at project fps.
@@ -65,6 +72,8 @@ type ItemBase = {
   /** Length on the timeline in frames. */
   duration: number
   opacity: number
+  /** Animation of transform, opacity and volume; frames are relative to `start`. */
+  keyframes?: ItemKeyframes
 }
 
 export type VideoClipItem = ItemBase & {
@@ -379,6 +388,21 @@ const cropSchema = z.object({
   bottom: z.number().min(0).max(0.45),
   left: z.number().min(0).max(0.45),
 })
+const keyframeList = (prop: KeyframeProp) => z.array(z.object({
+  frame,
+  value: z.number().min(KEYFRAME_LIMITS[prop].min).max(KEYFRAME_LIMITS[prop].max),
+  easing: z.enum(KEYFRAME_EASINGS),
+})).min(1).max(MAX_KEYFRAMES_PER_PROP).refine(
+  list => list.every((entry, index) => index === 0 || entry.frame > list[index - 1]!.frame),
+  'Keyframes moeten oplopend en op unieke frames staan',
+)
+const transformKeyframes = {
+  x: keyframeList('x').optional(),
+  y: keyframeList('y').optional(),
+  scale: keyframeList('scale').optional(),
+  rotation: keyframeList('rotation').optional(),
+  opacity: keyframeList('opacity').optional(),
+}
 const baseSchema = {
   id: itemId,
   start: frame,
@@ -402,6 +426,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     speed: z.number().min(0.25).max(4),
     volume: z.number().min(0).max(1),
     muted: z.boolean(),
+    keyframes: z.object({ ...transformKeyframes, volume: keyframeList('volume').optional() }).optional(),
   }),
   z.object({
     ...baseSchema,
@@ -411,6 +436,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     crop: cropSchema,
     fit: z.enum(MEDIA_FITS).optional(),
     kenBurns: z.number().min(0).max(1),
+    keyframes: z.object(transformKeyframes).optional(),
   }),
   z.object({
     ...baseSchema,
@@ -424,6 +450,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
       bpm: z.number().min(MIN_BPM / 2).max(MAX_BPM * 2),
       offset: z.number().min(0).max(60),
     }).optional(),
+    keyframes: z.object({ volume: keyframeList('volume').optional() }).optional(),
   }),
   z.object({
     ...baseSchema,
@@ -443,6 +470,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     }).optional(),
     transform: transformSchema,
     gigId: uuid.optional(),
+    keyframes: z.object(transformKeyframes).optional(),
   }),
 ])
 

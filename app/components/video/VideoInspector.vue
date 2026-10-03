@@ -19,6 +19,21 @@ import {
 import { LUCIDE_ICONS, LUCIDE_ICON_GROUPS } from '~~/shared/lucide-icons'
 import { updateItem } from '~~/shared/video-timeline'
 import {
+  KEYFRAME_EASINGS,
+  KEYFRAME_EASING_LABELS,
+  clearKeyframes,
+  hasKeyframes,
+  itemOpacityAt,
+  itemTransformAt,
+  itemVolumeAt,
+  keyframeAt,
+  keyframePropsFor,
+  setKeyframeEasing,
+  setValueAt,
+  type KeyframeEasing,
+  type KeyframeProp,
+} from '~~/shared/video-keyframes'
+import {
   BACKDROP_STYLES,
   ENTRANCE_ANIMATIONS,
   EXIT_ANIMATIONS,
@@ -41,6 +56,7 @@ import {
   upcomingPublicGigs,
 } from '~~/shared/template-gigs'
 import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
+import KeyframeButton from '~/components/video/KeyframeButton.vue'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { MAX_BPM, MIN_BPM, withDownbeatAt, type BeatGrid } from '~~/shared/beat-grid'
@@ -90,11 +106,53 @@ function setTiming(key: 'start' | 'duration', value: number) {
     : editor.trim(state.project, item.value.id, 'end', frames - item.value.duration))
 }
 
-function setTransform(key: keyof ItemTransform, value: number) {
+/** Values at the playhead: keyframes drive them where there are any, otherwise the static value. */
+const frameInItem = computed(() => item.value ? state.frame - item.value.start : 0)
+const now = computed(() => {
+  const current = item.value
+  if (!current) return null
+  const at = frameInItem.value
+  return {
+    transform: 'transform' in current ? itemTransformAt(current, at) : null,
+    opacity: itemOpacityAt(current, at),
+    volume: itemVolumeAt(current, at),
+  }
+})
+const tf = computed(() => now.value?.transform ?? defaultTransform())
+const animatedHere = computed(() => item.value ? hasKeyframes(item.value) : false)
+const keyframeHere = computed(() => {
+  const current = item.value
+  return current ? keyframePropsFor(current).some(prop => keyframeAt(current, prop, frameInItem.value)) : false
+})
+const easingHere = computed(() => {
+  const current = item.value
+  if (!current) return 'linear' as KeyframeEasing
+  for (const prop of keyframePropsFor(current)) {
+    const keyframe = keyframeAt(current, prop, frameInItem.value)
+    if (keyframe) return keyframe.easing
+  }
+  return 'linear' as KeyframeEasing
+})
+
+function setKeyframedValue(prop: KeyframeProp, value: number, key = prop as string) {
   if (!Number.isFinite(value)) return
   patch((target) => {
-    if ('transform' in target) target.transform[key] = value
-  }, `transform.${key}`)
+    setValueAt(target, prop, state.frame - target.start, value)
+  }, key)
+}
+
+function setEasing(easing: KeyframeEasing) {
+  patch((target) => {
+    setKeyframeEasing(target, state.frame - target.start, easing)
+  }, 'easing')
+}
+
+function clearAnimation() {
+  patch(target => clearKeyframes(target, keyframePropsFor(target)))
+}
+
+function setTransform(key: keyof ItemTransform, value: number) {
+  setKeyframedValue(key, value, `transform.${key}`)
 }
 
 // Scrubbing a label is one undo step: the drag edits the project transiently
@@ -110,7 +168,7 @@ function scrubTransform(key: keyof ItemTransform, value: number) {
   const id = item.value?.id
   if (!scrubBase || !id) return
   editor.transient(updateItem(scrubBase, id, (target) => {
-    if ('transform' in target) target.transform[key] = value
+    setValueAt(target, key, state.frame - target.start, value)
   }))
 }
 
@@ -176,6 +234,7 @@ function resetTransform() {
   patch((target) => {
     if ('transform' in target) target.transform = defaultTransform()
     if ('crop' in target) target.crop = defaultCrop()
+    clearKeyframes(target, ['x', 'y', 'scale', 'rotation'])
   })
 }
 
@@ -527,22 +586,35 @@ const assetTitle = computed(() => {
         </label>
         <div class="row"><span>Positie</span>
           <div class="pair">
-            <label><ScrubLabel :value="item.transform.x" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('x', $event)" @end="scrubEnd">X</ScrubLabel> <input type="number" step="10" :value="item.transform.x" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
-            <label><ScrubLabel :value="item.transform.y" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('y', $event)" @end="scrubEnd">Y</ScrubLabel> <input type="number" step="10" :value="item.transform.y" @input="setTransform('y', Number(($event.target as HTMLInputElement).value))"></label>
+            <label><ScrubLabel :value="tf.x" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('x', $event)" @end="scrubEnd">X</ScrubLabel> <input type="number" step="10" :value="Math.round(tf.x * 10) / 10" @input="setTransform('x', Number(($event.target as HTMLInputElement).value))"></label>
+            <label><ScrubLabel :value="tf.y" :step="1" :min="-5000" :max="5000" :precision="1" @start="scrubStart" @scrub="scrubTransform('y', $event)" @end="scrubEnd">Y</ScrubLabel> <input type="number" step="10" :value="Math.round(tf.y * 10) / 10" @input="setTransform('y', Number(($event.target as HTMLInputElement).value))"></label>
           </div>
+          <KeyframeButton :item="item" :props="['x', 'y']" label="positie" />
         </div>
-        <label class="row"><ScrubLabel :value="item.transform.scale" :step="0.005" :min="0.1" :max="3" :precision="3" @start="scrubStart" @scrub="scrubTransform('scale', $event)" @end="scrubEnd">Schaal</ScrubLabel>
-          <input type="range" min="0.1" max="3" step="0.01" :value="item.transform.scale" @input="setTransform('scale', Number(($event.target as HTMLInputElement).value))">
-          <output>{{ Math.round(item.transform.scale * 100) }}%</output>
+        <label class="row keyed"><ScrubLabel :value="tf.scale" :step="0.005" :min="0.1" :max="3" :precision="3" @start="scrubStart" @scrub="scrubTransform('scale', $event)" @end="scrubEnd">Schaal</ScrubLabel>
+          <input type="range" min="0.1" max="3" step="0.01" :value="tf.scale" @input="setTransform('scale', Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(tf.scale * 100) }}%</output>
+          <KeyframeButton :item="item" :props="['scale']" label="schaal" />
         </label>
-        <label class="row"><ScrubLabel :value="item.transform.rotation" :step="0.5" :min="-180" :max="180" :precision="1" @start="scrubStart" @scrub="scrubTransform('rotation', $event)" @end="scrubEnd">Rotatie</ScrubLabel>
-          <input type="range" min="-180" max="180" step="1" :value="item.transform.rotation" @input="setTransform('rotation', Number(($event.target as HTMLInputElement).value))">
-          <output>{{ item.transform.rotation }}°</output>
+        <label class="row keyed"><ScrubLabel :value="tf.rotation" :step="0.5" :min="-180" :max="180" :precision="1" @start="scrubStart" @scrub="scrubTransform('rotation', $event)" @end="scrubEnd">Rotatie</ScrubLabel>
+          <input type="range" min="-180" max="180" step="1" :value="tf.rotation" @input="setTransform('rotation', Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(tf.rotation) }}°</output>
+          <KeyframeButton :item="item" :props="['rotation']" label="rotatie" />
         </label>
-        <label class="row"><span>Dekking</span>
-          <input type="range" min="0" max="1" step="0.01" :value="item.opacity" @input="patch(target => { target.opacity = Number(($event.target as HTMLInputElement).value) }, 'opacity')">
-          <output>{{ Math.round(item.opacity * 100) }}%</output>
+        <label class="row keyed"><span>Dekking</span>
+          <input type="range" min="0" max="1" step="0.01" :value="now!.opacity" @input="setKeyframedValue('opacity', Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(now!.opacity * 100) }}%</output>
+          <KeyframeButton :item="item" :props="['opacity']" label="dekking" />
         </label>
+        <template v-if="animatedHere">
+          <label class="row"><span>Easing</span>
+            <select :value="easingHere" :disabled="!keyframeHere" :title="keyframeHere ? '' : 'Zet de playhead op een keyframe'" @change="setEasing(($event.target as HTMLSelectElement).value as KeyframeEasing)">
+              <option v-for="easing in KEYFRAME_EASINGS" :key="easing" :value="easing">{{ KEYFRAME_EASING_LABELS[easing] }}</option>
+            </select>
+          </label>
+          <p class="note">Waarden met een keyframe volgen de animatie; wijzig je er een, dan past dat het keyframe op de playhead aan.
+            <button type="button" class="ghost small" @click.prevent="clearAnimation">Animatie wissen</button></p>
+        </template>
       </component>
 
       <component :is="sectionTag" v-if="'crop' in item" class="block">
@@ -568,9 +640,10 @@ const assetTitle = computed(() => {
             <option v-for="speed in [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]" :key="speed" :value="speed">{{ speed }}×</option>
           </select>
         </label>
-        <label class="row"><span>Volume</span>
-          <input type="range" min="0" max="1" step="0.01" :value="item.volume" @input="patch(target => { if (target.type === 'video') target.volume = Number(($event.target as HTMLInputElement).value) }, 'volume')">
-          <output>{{ Math.round(item.volume * 100) }}%</output>
+        <label class="row keyed"><span>Volume</span>
+          <input type="range" min="0" max="1" step="0.01" :value="now!.volume" @input="setKeyframedValue('volume', Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(now!.volume * 100) }}%</output>
+          <KeyframeButton :item="item" :props="['volume']" label="volume" />
         </label>
         <label class="row check"><span>Audio van clip dempen</span>
           <input type="checkbox" :checked="item.muted" @change="patch(target => { if (target.type === 'video') target.muted = ($event.target as HTMLInputElement).checked })">
@@ -579,9 +652,10 @@ const assetTitle = computed(() => {
 
       <component :is="sectionTag" v-if="item.type === 'audio'" class="block" :open="props.mobile || undefined">
         <component :is="headingTag">Audio</component>
-        <label class="row"><span>Volume</span>
-          <input type="range" min="0" max="1" step="0.01" :value="item.volume" @input="patch(target => { if (target.type === 'audio') target.volume = Number(($event.target as HTMLInputElement).value) }, 'volume')">
-          <output>{{ Math.round(item.volume * 100) }}%</output>
+        <label class="row keyed"><span>Volume</span>
+          <input type="range" min="0" max="1" step="0.01" :value="now!.volume" @input="setKeyframedValue('volume', Number(($event.target as HTMLInputElement).value))">
+          <output>{{ Math.round(now!.volume * 100) }}%</output>
+          <KeyframeButton :item="item" :props="['volume']" label="volume" />
         </label>
         <label class="row"><span>Fade in</span>
           <input type="range" min="0" :max="Math.min(item.duration, fps * 5)" :value="item.fadeIn" @input="patch(target => { if (target.type === 'audio') target.fadeIn = Number(($event.target as HTMLInputElement).value) }, 'fadeIn')">
@@ -687,6 +761,10 @@ h3 {
 
 .row.check {
   grid-template-columns: 1fr auto;
+}
+
+.row.keyed {
+  grid-template-columns: 38% 1fr auto auto;
 }
 
 .stack {

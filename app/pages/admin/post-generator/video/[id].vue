@@ -18,6 +18,7 @@ import {
   type EditorMediaAsset,
   type EditorRender,
 } from '~/composables/useVideoEditor'
+import { itemTransformAt, setValueAt } from '~~/shared/video-keyframes'
 import { VIDEO_ASPECTS, formatTimecode, type MediaKind, type VideoProject } from '~~/shared/video-project'
 import type { TemplateGig } from '~~/shared/template-gigs'
 import {
@@ -283,8 +284,10 @@ function nudgeSelected(key: string, large: boolean) {
   const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0
   editor.patchItem(item.id, (target) => {
     if (!('transform' in target)) return
-    target.transform.x = Math.max(-5000, Math.min(5000, target.transform.x + dx))
-    target.transform.y = Math.max(-5000, Math.min(5000, target.transform.y + dy))
+    const at = editor.state.frame - target.start
+    const current = itemTransformAt(target, at)
+    setValueAt(target, 'x', at, current.x + dx)
+    setValueAt(target, 'y', at, current.y + dy)
   }, `nudge:${item.id}`)
   return true
 }

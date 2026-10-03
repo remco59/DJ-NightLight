@@ -13,6 +13,7 @@ import type {
 } from '../shared/video-project'
 import { graphicBackdrop, mediaFit } from '../shared/video-project'
 import { mediaBoxSize } from '../shared/video-canvas'
+import { isAnimated, itemOpacityAt, itemTransformAt, itemVolumeAt } from '../shared/video-keyframes'
 import { animationState, animationStyle } from './animation'
 import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
@@ -60,9 +61,9 @@ const MediaItemView: React.FC<{
         top: (height - box.height) / 2,
         width: box.width,
         height: box.height,
-        opacity: item.opacity,
+        opacity: itemOpacityAt(item, frame),
         clipPath: cropClipPath(item.crop),
-        ...transformStyle(item.transform, kenBurns),
+        ...transformStyle(itemTransformAt(item, frame), kenBurns),
       },
     },
     h(MediaFill, {
@@ -71,7 +72,7 @@ const MediaItemView: React.FC<{
       style: { objectFit: fit },
       trimBefore: item.type === 'video' ? item.trimStart : undefined,
       playbackRate: item.type === 'video' ? item.speed : undefined,
-      volume: item.type === 'video' ? item.volume : undefined,
+      volume: item.type === 'video' ? (isAnimated(item, 'volume') ? (at: number) => itemVolumeAt(item, at) : item.volume) : undefined,
       muted: item.type === 'video' ? item.muted || trackMuted : true,
     }),
   )
@@ -120,14 +121,15 @@ const GraphicItemView: React.FC<{
   // Full-frame treatment of the footage underneath; it ignores the item's
   // transform and fades with the entrance/exit so the cut-in stays smooth.
   const strength = graphicBackdrop(item)
-  const fade = item.opacity * state.opacity
+  const opacity = itemOpacityAt(item, frame)
+  const fade = opacity * state.opacity
   return h(
     AbsoluteFill,
     null,
     strength > 0 && fade > 0 ? h(AbsoluteFill, { style: backdropStyle(item, strength, fade) }) : null,
     h(
       AbsoluteFill,
-      { style: { opacity: item.opacity, ...transformStyle(item.transform) } },
+      { style: { opacity, ...transformStyle(itemTransformAt(item, frame)) } },
       h(
         'div',
         {
@@ -170,7 +172,7 @@ const AudioItemView: React.FC<{
       item.fadeOut > 0
         ? interpolate(frame, [item.duration - item.fadeOut, item.duration], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
         : 1
-    return Math.max(0, Math.min(1, item.volume * fadeIn * fadeOut))
+    return Math.max(0, Math.min(1, itemVolumeAt(item, frame) * fadeIn * fadeOut))
   }
   return h(Html5Audio, {
     src: asset.src,
