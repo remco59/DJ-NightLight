@@ -75,6 +75,7 @@ const sourceLabel = computed(() => ({
   url: 'Geïmporteerd via URL',
   generated: 'Gegenereerd door NightLight',
   derived: 'Bewerkte variant',
+  library: 'Gekoppeld vanaf de server',
 }[props.item.source]))
 
 function fillForm() {

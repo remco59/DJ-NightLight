@@ -92,11 +92,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       STORAGE_UPLOADS: /app/storage/uploads
       STORAGE_GENERATED: /app/storage/generated
+      STORAGE_LIBRARY: ${MEDIA_LIBRARY_PATH:+/app/storage/library}
       REMOTION_BROWSER_EXECUTABLE: /usr/bin/chromium
       RENDER_VIDEO_BITRATE: ${RENDER_VIDEO_BITRATE:-10M}
     volumes:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads:ro
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
+      - ${MEDIA_LIBRARY_PATH:-${APP_DATA_ROOT}/library}:/app/storage/library:ro
       # Intel GPU for VAAPI encoding. A bind mount (not `devices:`) keeps the
       # worker starting on hosts without /dev/dri; the worker detects whether a
       # usable GPU is present and offers it in Settings. Docker Desktop (macOS,
@@ -182,6 +184,8 @@ services:
       NUXT_STORAGE_UPLOADS: /app/storage/uploads
       NUXT_STORAGE_GENERATED: /app/storage/generated
       NUXT_STORAGE_BACKUPS: /app/storage/backups
+      # Server media folder, linked in place (never copied). Set MEDIA_LIBRARY_PATH to enable.
+      NUXT_STORAGE_LIBRARY: ${MEDIA_LIBRARY_PATH:+/app/storage/library}
       NUXT_UPDATER_URL: http://updater:8080
       NUXT_UPDATER_TOKEN: ${UPDATER_TOKEN:-}
     ports:
@@ -190,6 +194,7 @@ services:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
       - ${APP_DATA_ROOT}/backups:/app/storage/backups:ro
+      - ${MEDIA_LIBRARY_PATH:-${APP_DATA_ROOT}/library}:/app/storage/library:ro
     depends_on:
       db:
         condition: service_healthy

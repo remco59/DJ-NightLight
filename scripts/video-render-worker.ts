@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs'
-import { readFile, mkdir, rm, stat } from 'node:fs/promises'
+import { readFile, mkdir, realpath, rm, stat } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { dirname, resolve } from 'node:path'
@@ -21,6 +21,9 @@ import {
 
 const connectionString = process.env.DATABASE_URL
 const uploadsRoot = process.env.STORAGE_UPLOADS || '/app/storage/uploads'
+// Read-only server media folder whose files are linked in place (`library:<path>` keys).
+const libraryRoot = process.env.STORAGE_LIBRARY || ''
+const LIBRARY_KEY_PREFIX = 'library:'
 const generatedRoot = process.env.STORAGE_GENERATED || '/app/storage/generated'
 const browserExecutable = process.env.REMOTION_BROWSER_EXECUTABLE
 
@@ -75,6 +78,18 @@ function safePath(root: string, key: string) {
   const base = resolve(root)
   const target = resolve(root, key)
   if (target !== base && !target.startsWith(base + '/')) throw new Error('Unsafe storage path')
+  return target
+}
+
+/** Original file of an asset: in uploads, or in the server media folder for linked files. */
+async function assetSourcePath(storageKey: string) {
+  if (!storageKey.startsWith(LIBRARY_KEY_PREFIX)) return safePath(uploadsRoot, storageKey)
+  if (!libraryRoot) throw new Error('The server media folder is not mounted in the render worker (STORAGE_LIBRARY)')
+  const [root, target] = await Promise.all([
+    realpath(libraryRoot),
+    realpath(safePath(libraryRoot, storageKey.slice(LIBRARY_KEY_PREFIX.length))),
+  ])
+  if (target !== root && !target.startsWith(root + '/')) throw new Error('Unsafe storage path')
   return target
 }
 
@@ -317,7 +332,7 @@ async function prepareProjectAssets(project: VideoProject) {
 
   const assets: ProjectAssetMap = {}
   for (const row of rows) {
-    const sourcePath = safePath(uploadsRoot, row.storage_key)
+    const sourcePath = await assetSourcePath(row.storage_key)
     const proxyPath = row.mime_type.startsWith('video/')
       ? await ensureVideoRenderProxy({
           assetId: row.id,
@@ -418,7 +433,7 @@ async function renderJob(job: JobRow, serveUrl: string, cancelSignal: CancelSign
   const asset = assets[0]
   if (!asset) throw new Error('Source media asset no longer exists')
 
-  const imageBuffer = await readFile(safePath(uploadsRoot, asset.storage_key))
+  const imageBuffer = await readFile(await assetSourcePath(asset.storage_key))
   const imageSrc = dataUri(asset.mime_type, imageBuffer)
 
   let audioSrc: string | null = null

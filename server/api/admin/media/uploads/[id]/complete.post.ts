@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
       tags: normalizeTags(parsed.data.tags),
       gigId: gigId.data,
       venueId: venueId.data,
-      source: requestedSource === 'generated' ? undefined : requestedSource,
+      source: requestedSource === 'generated' || requestedSource === 'library' ? undefined : requestedSource,
       parentAssetId: await validateParentAsset(parentAssetId.data),
       variantLabel: parsed.data.variantLabel,
       sourceUrl: origin.data || undefined,

@@ -22,7 +22,7 @@ import {
 import { db } from './db'
 import { gigTitleSql } from './gig-title'
 import { collectProjectAssetIds } from '../../shared/video-project'
-import { getMediaStorage } from './media-storage'
+import { deleteAssetFile, getMediaStorage } from './media-storage'
 import { deleteImageVariants } from './media-variants'
 
 export const MAX_MEDIA_BYTES = 15 * 1024 * 1024
@@ -298,7 +298,8 @@ export async function deleteMediaAssets(ids: string[]) {
       continue
     }
     await db.delete(mediaAssets).where(eq(mediaAssets.id, row.id))
-    await storage.delete(row.storageKey)
+    // Files linked from the server media folder are never deleted, only their own thumbnail.
+    await deleteAssetFile(row.storageKey)
     await storage.delete(row.thumbnailKey)
     await deleteImageVariants(row.id)
     deleted.push(row.id)

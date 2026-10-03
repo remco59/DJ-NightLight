@@ -3,7 +3,8 @@ import { stat } from 'node:fs/promises'
 import { eq } from 'drizzle-orm'
 import { mediaAssets } from '../../../db/schema'
 import { db } from '../../utils/db'
-import { getMediaStorage } from '../../utils/media-storage'
+import { assetFilePath, getMediaStorage, readAssetFile } from '../../utils/media-storage'
+import { isLibraryKey } from '../../../shared/media-library-browse'
 import { canResizeImage, getImageVariant, isResponsiveWidth } from '../../utils/media-variants'
 
 /** Parses a single `bytes=start-end` range; null when absent or unsatisfiable. */
@@ -29,12 +30,16 @@ export default defineEventHandler(async (event) => {
   const useThumbnail = variant === 'thumb' && Boolean(asset.thumbnailKey)
   const key = useThumbnail ? asset.thumbnailKey! : asset.storageKey
   const storage = getMediaStorage()
+  // Linked files can change on disk, so they get a short cache lifetime instead of `immutable`.
+  const linked = !useThumbnail && isLibraryKey(asset.storageKey)
+  const cacheControl = linked ? 'public, max-age=300' : 'public, max-age=31536000, immutable'
 
   if (!query.download && query.w !== undefined && isResponsiveWidth(query.w) && canResizeImage(asset.mimeType)) {
     try {
-      const data = await getImageVariant(asset, Number(query.w))
+      const version = isLibraryKey(asset.storageKey) ? String(Math.floor((await stat(await assetFilePath(asset.storageKey))).mtimeMs)) : ''
+      const data = await getImageVariant(asset, Number(query.w), version)
       setHeader(event, 'content-type', 'image/webp')
-      setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
+      setHeader(event, 'cache-control', isLibraryKey(asset.storageKey) ? 'public, max-age=300' : 'public, max-age=31536000, immutable')
       setHeader(event, 'content-length', data.length)
       return data
     } catch {
@@ -52,14 +57,14 @@ export default defineEventHandler(async (event) => {
     let path: string
     let size: number
     try {
-      path = storage.path(key)
+      path = useThumbnail ? storage.path(key) : await assetFilePath(key)
       size = (await stat(path)).size
     } catch {
       throw createError({ statusCode: 404, statusMessage: 'Het opgeslagen mediabestand ontbreekt' })
     }
     setHeader(event, 'content-type', asset.mimeType)
     setHeader(event, 'accept-ranges', 'bytes')
-    setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
+    setHeader(event, 'cache-control', cacheControl)
     const rangeHeader = getRequestHeader(event, 'range')
     const range = parseRange(rangeHeader, size)
     if (rangeHeader && !range) {
@@ -77,9 +82,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const data = await storage.read(key)
+    const data = useThumbnail ? await storage.read(key) : await readAssetFile(key)
     setHeader(event, 'content-type', useThumbnail ? 'image/jpeg' : asset.mimeType)
-    setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
+    setHeader(event, 'cache-control', cacheControl)
     setHeader(event, 'content-length', data.length)
     return data
   } catch {

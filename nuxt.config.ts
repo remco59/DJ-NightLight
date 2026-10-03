@@ -45,6 +45,8 @@ export default defineNuxtConfig({
     },
     storageUploads: process.env.NUXT_STORAGE_UPLOADS || `${defaultStorageRoot}/uploads`,
     storageGenerated: process.env.NUXT_STORAGE_GENERATED || `${defaultStorageRoot}/generated`,
+    // Optional read-only folder whose files are linked into the media library without copying. Empty disables it.
+    storageLibrary: process.env.NUXT_STORAGE_LIBRARY || '',
     storageBackups: process.env.NUXT_STORAGE_BACKUPS || `${defaultStorageRoot}/backups`,
     // Self-update sidecar (docker-compose.unraid.yml → updater). Empty disables updates.
     updater: {

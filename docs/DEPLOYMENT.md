@@ -88,6 +88,8 @@ Create these before the first deployment:
 
 The application container is disposable. User-generated and database data live outside it.
 
+Optionally set `MEDIA_LIBRARY_PATH` to an existing folder with clips and photos to link them into the media library read-only, without copying (see [MEDIA_STORAGE.md](MEDIA_STORAGE.md#server-media-folder-linked-not-copied)).
+
 ## Staging
 
 Copy `.env.staging.example` to a private environment file on Unraid and replace all placeholder secrets.

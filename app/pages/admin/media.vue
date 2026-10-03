@@ -90,7 +90,7 @@ const activeChips = computed(() => {
   if (f.gigId) chips.push({ key: 'gig', label: `Gig: ${gigName(f.gigId)}`, clear: () => { f.gigId = '' } })
   if (f.venueId) chips.push({ key: 'venue', label: `Locatie: ${venueName(f.venueId)}`, clear: () => { f.venueId = '' } })
   for (const tag of f.tags) chips.push({ key: `tag-${tag}`, label: `Tag: ${tag}`, clear: () => { f.tags = f.tags.filter(existing => existing !== tag) } })
-  if (f.source) chips.push({ key: 'source', label: `Bron: ${{ upload: 'geüpload', url: 'via URL', generated: 'gegenereerd', derived: 'bewerkte variant' }[f.source]}`, clear: () => { f.source = '' } })
+  if (f.source) chips.push({ key: 'source', label: `Bron: ${{ upload: 'geüpload', url: 'via URL', generated: 'gegenereerd', derived: 'bewerkte variant', library: 'server-map' }[f.source]}`, clear: () => { f.source = '' } })
   if (f.orientation) chips.push({ key: 'orientation', label: { landscape: 'Liggend', portrait: 'Staand', square: 'Vierkant' }[f.orientation], clear: () => { f.orientation = '' } })
   if (f.added) chips.push({ key: 'added', label: `Toegevoegd: ${{ '7d': 'afgelopen 7 dagen', '30d': 'afgelopen 30 dagen', '90d': 'afgelopen 90 dagen', '365d': 'afgelopen jaar' }[f.added]}`, clear: () => { f.added = '' } })
   if (f.usage) chips.push({ key: 'usage', label: f.usage === 'used' ? 'Gebruikt' : 'Ongebruikt', clear: () => { f.usage = '' } })

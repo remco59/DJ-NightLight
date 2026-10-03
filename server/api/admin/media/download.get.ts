@@ -2,7 +2,7 @@ import { inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { mediaAssets } from '../../../../db/schema'
 import { db } from '../../../utils/db'
-import { getMediaStorage } from '../../../utils/media-storage'
+import { readAssetFile } from '../../../utils/media-storage'
 import { requireStaff } from '../../../utils/require-staff'
 import { uniqueZipNames, writeStoredZip } from '../../../utils/zip'
 
@@ -24,7 +24,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 413, statusMessage: 'De selectie is groter dan 1 GB; download minder bestanden tegelijk' })
   }
 
-  const storage = getMediaStorage()
   const names = uniqueZipNames(rows.map(row => row.originalFilename))
   const stamp = new Date().toISOString().slice(0, 10)
   const response = event.node.res
@@ -36,7 +35,7 @@ export default defineEventHandler(async (event) => {
   async function* entries() {
     for (const [index, row] of rows.entries()) {
       try {
-        yield { name: names[index]!, data: await storage.read(row.storageKey), modifiedAt: row.createdAt }
+        yield { name: names[index]!, data: await readAssetFile(row.storageKey), modifiedAt: row.createdAt }
       } catch {
         // A missing file on disk should not abort the rest of the archive.
       }
