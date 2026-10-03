@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { and, desc, eq, ne, sql } from 'drizzle-orm'
 import type Stripe from 'stripe'
 import { clients, invoices, payments } from '../../../../../db/schema'
@@ -79,7 +80,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const createSession = (sessionParams: Stripe.Checkout.SessionCreateParams, suffix = '') =>
-    stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `nightlight-${payment.id}-${attempt}${suffix}` })
+    stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `nightlight-${payment.id}-${attempt}${suffix}-${createHash('sha256').update(JSON.stringify(sessionParams)).digest('hex').slice(0, 12)}` })
   let session: Stripe.Checkout.Session
   try {
     try {
@@ -93,7 +94,8 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error) {
     console.error('[checkout] Stripe checkout session failed:', error)
-    throw createError({ statusCode: 502, statusMessage: 'De betaalpagina kon niet worden aangemaakt. Probeer het later opnieuw.' })
+    const code = (error as { code?: string, type?: string })?.code || (error as { type?: string })?.type || 'unknown'
+    throw createError({ statusCode: 502, statusMessage: `De betaalpagina kon niet worden aangemaakt. Probeer het later opnieuw. (${code})` })
   }
   if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe gaf geen checkout-URL terug' })
 
