@@ -7,8 +7,9 @@ export const emailHeroImageUrlSchema = z.preprocess(
   z.string().trim().max(2000),
 ).transform((value, ctx) => {
   if (!value) return null
-  if (internalMediaUrlPattern.test(value) || z.url().safeParse(value).success) return value
-  ctx.addIssue({ code: 'custom', message: 'Vul een geldige afbeeldings-URL in' })
+  const isHttpsUrl = /^https:\/\//i.test(value) && z.url().safeParse(value).success
+  if (internalMediaUrlPattern.test(value) || isHttpsUrl) return value
+  ctx.addIssue({ code: 'custom', message: 'Kies een afbeelding uit Media of gebruik een geldige HTTPS-URL' })
   return z.NEVER
 })
 
