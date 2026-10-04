@@ -112,6 +112,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
   return {
     recipient: row.clientEmail,
     gigId: row.gigId,
+    invoiceNumber: row.invoiceNumber,
     status: row.invoiceStatus,
     paymentStatus: row.paymentStatus,
     dueDate: row.dueDate,
@@ -135,6 +136,7 @@ export async function queueEmailJob(input: {
   gigId?: string | null
   invoiceId?: string | null
   runAt?: Date
+  attachments?: EmailAttachment[]
 }) {
   const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.key, input.templateKey)).limit(1)
   if (!template?.enabled) return null
@@ -147,6 +149,7 @@ export async function queueEmailJob(input: {
     gigId: input.gigId || null,
     invoiceId: input.invoiceId || null,
     runAt,
+    ...(input.attachments?.length ? { attachments: input.attachments } : {}),
   }).onConflictDoNothing({ target: emailJobs.dedupeKey }).returning()
   return job || null
 }
@@ -200,6 +203,9 @@ export async function queueInvoiceEmail(templateKey: string, invoiceId: string, 
     recipient: context.recipient,
     variables: context.variables,
     dedupeKey,
+    attachments: templateKey === 'invoice_sent' && context.invoiceNumber
+      ? [{ kind: 'invoice', invoiceId, filename: `${context.invoiceNumber}.pdf` }]
+      : undefined,
   })
 }
 
