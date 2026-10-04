@@ -1,7 +1,7 @@
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { invoices, payments, portalLinks } from '../../../../db/schema'
 import { recordAudit } from '../../../utils/audit'
-import { db } from '../../../utils/db'
+import { db, sql } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
 import { getPortalForm } from '../../../utils/portal-form'
 import { assertPortalRateLimit } from '../../../utils/portal-rate-limit'
@@ -32,6 +32,14 @@ export default defineEventHandler(async (event) => {
     eq(invoices.gigId, access.gigId), ne(invoices.status, 'void'),
   )).orderBy(desc(invoices.finalizedAt), desc(invoices.createdAt)).limit(1)
 
+  const imageRows = await sql<[{ imageUrl: string | null }]>`
+    SELECT coalesce(g.client_portal_image_url, bs.client_portal_default_image_url) AS "imageUrl"
+    FROM gigs g
+    LEFT JOIN business_settings bs ON bs.key = 'default'
+    WHERE g.id = ${access.gigId}
+    LIMIT 1
+  `
+
   return {
     gig: {
       id: access.gigId,
@@ -40,6 +48,7 @@ export default defineEventHandler(async (event) => {
       status: access.status,
       startsAt: access.startsAt,
       endsAt: access.endsAt,
+      imageUrl: imageRows[0]?.imageUrl || null,
       venue: access.venueName ? { name: access.venueName, city: access.venueCity } : null,
     },
     client: {
