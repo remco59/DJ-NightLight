@@ -22,6 +22,7 @@ import {
   type EmailVariables,
 } from '../../shared/email-automation'
 import { db } from './db'
+import { loadEmailBranding } from './email-branding'
 import { sendEmail } from './email-provider'
 import { loadEmailIntegration } from './integration-settings'
 import { gigTitleSql } from './gig-title'
@@ -291,7 +292,8 @@ export async function processEmailJob(jobId: string) {
 
   const subject = job.subjectOverride ?? renderEmailTemplate(template.subject, job.variables)
   const text = normalizeEmailText(job.bodyOverride ?? renderEmailTemplate(template.body, job.variables))
-  const html = renderBrandedEmailHtml(template.key, text, job.variables)
+  const branding = await loadEmailBranding(template.key)
+  const html = renderBrandedEmailHtml(template.key, text, job.variables, branding)
   try {
     const attachments = job.attachments.length ? await loadAttachments(job.attachments) : undefined
     const sent = await sendEmail({ to: job.recipient, subject, text, html, idempotencyKey: job.dedupeKey, attachments })
