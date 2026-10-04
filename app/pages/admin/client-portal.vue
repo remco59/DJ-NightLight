@@ -133,7 +133,7 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
       <label class="gig-select">
         Gig
         <select v-model="selectedGigId">
-          <option v-for="gig in data.gigs" :key="gig.id" :value="gig.id">{{ formatGig(gig) }}</option>
+          <option v-for="gig in (data?.gigs || [])" :key="gig.id" :value="gig.id">{{ formatGig(gig) }}</option>
         </select>
       </label>
 
