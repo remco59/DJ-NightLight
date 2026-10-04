@@ -271,21 +271,21 @@ function ctaHtml(label: string | undefined, url: string) {
 }
 
 function headerHtml(branding: EmailBranding) {
-  const logoUrl = safeAssetUrl(branding.logoUrl || '/brand/web/wordmark-arcs-960.webp', branding.siteUrl)
+  const logoUrl = safeAssetUrl(branding.logoUrl || '/brand/logo/wordmark-thumb.webp', branding.siteUrl)
   const heroUrl = safeAssetUrl(branding.heroImageUrl || '/images/login-background.webp', branding.siteUrl)
   const logo = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" width="176" alt="NightLight" style="display:block;width:100%;max-width:176px;height:auto;border:0;outline:none;text-decoration:none;">`
+    ? `<img class="email-logo" src="${escapeHtml(logoUrl)}" width="150" alt="NightLight" style="display:block;width:150px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">`
     : '<span style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:.16em;">NIGHTLIGHT</span>'
   const hero = heroUrl
-    ? `<img src="${escapeHtml(heroUrl)}" width="360" height="150" alt="" style="display:block;width:100%;height:150px;object-fit:cover;border:0;outline:none;text-decoration:none;">`
+    ? `<img class="email-hero" src="${escapeHtml(heroUrl)}" width="600" height="210" alt="" style="display:block;width:100%;height:210px;object-fit:cover;border:0;outline:none;text-decoration:none;">`
     : ''
 
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0d0b11;border-radius:18px 18px 0 0;border-collapse:separate;overflow:hidden;">
       <tr>
-        <td width="40%" valign="middle" style="padding:24px 20px 24px 28px;background:#0d0b11;">${logo}</td>
-        <td width="60%" valign="middle" style="background:#15101d;overflow:hidden;">${hero}</td>
+        <td align="left" style="padding:22px 26px 18px;background:#0d0b11;">${logo}</td>
       </tr>
+      ${hero ? `<tr><td style="padding:0;background:#15101d;overflow:hidden;">${hero}</td></tr>` : ''}
     </table>`
 }
 
@@ -318,6 +318,8 @@ export function renderBrandedEmailHtml(templateKey: string, text: string, variab
       .email-shell { padding:16px 10px !important; }
       .email-content { padding:28px 20px 26px !important; }
       .email-title { font-size:31px !important; line-height:1.08 !important; }
+      .email-logo { width:132px !important; }
+      .email-hero { height:165px !important; }
     }
   </style>
 </head>
