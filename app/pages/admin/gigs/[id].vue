@@ -137,7 +137,7 @@ async function requestRemove(){
   }
   const invoices=data.value?.invoices||[]
   if(invoices.length){
-    const invoice=invoices[0]
+    const invoice=invoices[0]!
     const invoiceLabel=invoice.invoiceNumber||'de gekoppelde conceptfactuur'
     const choice=await chooseAction({title:'Definitief verwijderen kan niet',body:invoices.length===1?`Deze gig is gekoppeld aan ${invoiceLabel}. Vanwege de financiële historie kan de gig niet definitief worden verwijderd, maar wel worden gearchiveerd.`:`Deze gig is gekoppeld aan ${invoices.length} facturen. Vanwege de financiële historie kan de gig niet definitief worden verwijderd, maar wel worden gearchiveerd.`,confirmLabel:'Gig archiveren',secondaryLabel:invoices.length===1?'Factuur openen':'Eerste factuur openen'})
     if(choice==='confirm')await performRemoval()
