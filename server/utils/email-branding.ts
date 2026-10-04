@@ -1,7 +1,7 @@
 import type { EmailBranding } from '../../shared/email-automation'
 import { sql } from './db'
 
-const DEFAULT_LOGO_URL = '/brand/web/wordmark-arcs-960.webp'
+const DEFAULT_LOGO_URL = '/brand/logo/wordmark-thumb.webp'
 const DEFAULT_HERO_URL = '/images/login-background.webp'
 
 type BrandingRow = {
