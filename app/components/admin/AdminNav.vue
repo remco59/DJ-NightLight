@@ -34,7 +34,8 @@ const groups: NavGroup[] = [
 
 const footerItems: NavItem[] = [
   {label:'E-mails',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
-  {label:'Klantportaal',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
+  {label:'Klantportaal',to:'/admin/client-portal',icon:'lucide:image',roles:['owner']},
+  {label:'Vragenlijst',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
   {label:'Instellingen',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
   {label:'Systeemstatus',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
   {label:'Gebruikers',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
