@@ -39,6 +39,20 @@ function fmt(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Amsterdam' }).format(new Date(value))
 }
 
+function fmtDateOnly(value: string | null | undefined) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeZone: 'Europe/Amsterdam' }).format(new Date(`${value}T12:00:00.000Z`))
+}
+
+function todayInAmsterdam() {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Europe/Amsterdam',
+  }).format(new Date())
+}
+
 /** Gig, client and template variables for a gig, also when the client has no email address. */
 export async function loadGigEmailDetails(gigId: string) {
   const [row] = await db
@@ -122,7 +136,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
       gigTitle: row.gigTitle,
       invoiceNumber: row.invoiceNumber || '',
       invoiceTotal: formatMoney(row.totalCents, row.currency),
-      invoiceDueDate: row.dueDate,
+      invoiceDueDate: fmtDateOnly(row.dueDate),
       portalUrl,
       invoiceUrl: portalUrl,
     } satisfies EmailVariables,
@@ -254,10 +268,14 @@ async function shouldSkipCurrentState(job: typeof emailJobs.$inferSelect) {
   }
 
   if (['payment_reminder', 'overdue_reminder', 'invoice_sent', 'payment_received'].includes(job.templateKey) && job.invoiceId) {
-    const [invoice] = await db.select({ status: invoices.status, paymentStatus: invoices.paymentStatus })
-      .from(invoices).where(eq(invoices.id, job.invoiceId)).limit(1)
+    const [invoice] = await db.select({
+      status: invoices.status,
+      paymentStatus: invoices.paymentStatus,
+      dueDate: invoices.dueDate,
+    }).from(invoices).where(eq(invoices.id, job.invoiceId)).limit(1)
     if (!invoice || invoice.status === 'void') return 'De factuur hoeft niet meer betaald te worden'
     if (['payment_reminder', 'overdue_reminder'].includes(job.templateKey) && invoice.paymentStatus === 'paid') return 'De factuur is al betaald'
+    if (job.templateKey === 'overdue_reminder' && invoice.dueDate >= todayInAmsterdam()) return 'De factuur is nog niet verlopen'
   }
   return null
 }
