@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { emailHeroImageUrlSchema } from '../shared/email-branding'
 import {
   attachmentExtension,
   clientAllowsAutomaticEmail,
@@ -39,12 +40,33 @@ describe('email automation helpers', () => {
       },
     )
 
-    expect(html).toContain('NIGHTLIGHT')
-    expect(html).toContain('Je NightLight-portaal staat klaar')
+    expect(html).toContain('Activeer je klantenportaal')
     expect(html).toContain('Bruiloft Sam &amp; Noor')
-    expect(html).toContain('Open je portaal')
+    expect(html).toContain('Account activeren')
     expect(html).toContain('href="https://example.com/client"')
     expect(html.match(/https:\/\/example\.com\/client/g)?.length).toBe(1)
+  })
+
+  it('renders configured logo and hero images as absolute email assets', () => {
+    const html = renderBrandedEmailHtml(
+      'invoice_sent',
+      'Hoi Sam,\n\nJe factuur staat klaar.',
+      {
+        invoiceNumber: 'NL-2026-0001',
+        invoiceTotal: '€ 121,00',
+        invoiceDueDate: '20 oktober 2026',
+        portalUrl: 'https://example.com/client/invoice-token',
+      },
+      {
+        siteUrl: 'https://djnightlight.nl/',
+        logoUrl: '/brand/web/wordmark-arcs-960.webp',
+        heroImageUrl: '/api/media/123e4567-e89b-42d3-a456-426614174000',
+      },
+    )
+
+    expect(html).toContain('src="https://djnightlight.nl/brand/web/wordmark-arcs-960.webp"')
+    expect(html).toContain('src="https://djnightlight.nl/api/media/123e4567-e89b-42d3-a456-426614174000"')
+    expect(html.indexOf('Open klantenportaal')).toBeLessThan(html.indexOf('Factuurnummer'))
   })
 
   it('links invoice emails to the customer portal', () => {
@@ -62,6 +84,14 @@ describe('email automation helpers', () => {
     expect(html).toContain('Open klantenportaal')
     expect(html).toContain('href="https://example.com/client/invoice-token"')
     expect(html.match(/https:\/\/example\.com\/client\/invoice-token/g)?.length).toBe(1)
+  })
+
+  it('accepts media-library and https hero images but rejects unsafe values', () => {
+    expect(emailHeroImageUrlSchema.parse('/api/media/123e4567-e89b-42d3-a456-426614174000'))
+      .toBe('/api/media/123e4567-e89b-42d3-a456-426614174000')
+    expect(emailHeroImageUrlSchema.parse('https://example.com/hero.jpg')).toBe('https://example.com/hero.jpg')
+    expect(emailHeroImageUrlSchema.safeParse('javascript:alert(1)').success).toBe(false)
+    expect(emailHeroImageUrlSchema.parse('')).toBeNull()
   })
 
   it('does not create unsafe CTA links', () => {

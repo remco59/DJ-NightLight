@@ -14,6 +14,7 @@ type Template = {
   body: string
   scheduleAnchor: 'event' | 'gig_start' | 'gig_end' | 'invoice_due'
   offsetMinutes: number
+  heroImageUrl: string | null
 }
 type Job = {
   id: string
@@ -37,6 +38,7 @@ type Attempt = {
 }
 type EmailData = {
   providerConfigured: boolean
+  branding: { defaultHeroImageUrl: string | null }
   templates: Template[]
   jobs: Job[]
   attempts: Attempt[]
@@ -46,13 +48,22 @@ type EmailData = {
 
 const { data, refresh } = await useFetch<EmailData>('/api/admin/email')
 const selectedKey = ref('')
-const form = reactive({
+const form = reactive<{
+  enabled: boolean
+  subject: string
+  body: string
+  scheduleAnchor: Template['scheduleAnchor']
+  offsetMinutes: number
+  heroImageUrl: string | null
+}>({
   enabled: true,
   subject: '',
   body: '',
-  scheduleAnchor: 'event' as Template['scheduleAnchor'],
+  scheduleAnchor: 'event',
   offsetMinutes: 0,
+  heroImageUrl: null,
 })
+const defaultHeroImageUrl = ref<string | null>(data.value?.branding.defaultHeroImageUrl ?? null)
 const preview = ref<{ subject: string, body: string, html: string } | null>(null)
 const testRecipient = ref('')
 const suppressionGigId = ref('')
@@ -87,6 +98,7 @@ function loadTemplate(template: Template) {
   form.body = normalizeEmailText(template.body)
   form.scheduleAnchor = template.scheduleAnchor
   form.offsetMinutes = template.offsetMinutes
+  form.heroImageUrl = template.heroImageUrl
   loadOffset(template.offsetMinutes)
   preview.value = null
 }
@@ -106,6 +118,7 @@ const isDirty = computed(() => {
     || form.body !== normalizeEmailText(template.body)
     || form.scheduleAnchor !== template.scheduleAnchor
     || form.offsetMinutes !== template.offsetMinutes
+    || form.heroImageUrl !== template.heroImageUrl
 })
 const pendingKey = ref('')
 function selectTemplate(key: string) {
@@ -131,10 +144,29 @@ const sampleVariables = {
   gigTitle: 'Bruiloft Sam & Noor',
   gigDate: '12 juni 2027 om 20:00',
   portalUrl: 'https://djnightlight.nl/client/voorbeeld',
+  invoiceUrl: 'https://djnightlight.nl/client/voorbeeld',
   invoiceNumber: 'NL-2027-0012',
   invoiceTotal: '€ 950,00',
   invoiceDueDate: '12 juni 2027',
   reviewUrl: 'https://example.com/review',
+}
+
+async function saveBranding() {
+  busy.value = 'branding'
+  message.value = ''
+  try {
+    const result = await $fetch<{ imageUrl: string | null }>('/api/admin/email/branding', {
+      method: 'PUT',
+      body: { imageUrl: defaultHeroImageUrl.value },
+    })
+    defaultHeroImageUrl.value = result.imageUrl
+    message.value = 'Standaardfoto voor e-mails opgeslagen.'
+    await refresh()
+  } catch (error) {
+    message.value = apiErrorMessage(error, 'Standaardfoto opslaan mislukt.')
+  } finally {
+    busy.value = ''
+  }
 }
 
 async function saveTemplate() {
@@ -159,7 +191,13 @@ async function makePreview() {
   try {
     preview.value = await $fetch<{ subject: string, body: string, html: string }>('/api/admin/email/preview', {
       method: 'POST',
-      body: { templateKey: selected.value.key, variables: sampleVariables },
+      body: {
+        templateKey: selected.value.key,
+        variables: sampleVariables,
+        subject: form.subject,
+        body: form.body,
+        heroImageUrl: form.heroImageUrl,
+      },
     })
   } finally {
     busy.value = ''
@@ -287,6 +325,26 @@ function templateName(key: string, fallback?: string) {
 
     <p v-if="message" class="message">{{ message }}</p>
 
+    <section class="panel branding-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Huisstijl</p>
+          <h2>Standaard headerfoto</h2>
+          <p>Deze afbeelding wordt gebruikt voor alle e-mails, tenzij je bij een template een eigen foto kiest. Het NightLight-logo linksboven komt automatisch uit de huisstijl.</p>
+        </div>
+        <button class="primary" type="button" :disabled="busy === 'branding'" @click="saveBranding">
+          {{ busy === 'branding' ? 'Opslaan…' : 'Standaardfoto opslaan' }}
+        </button>
+      </div>
+      <MediaPicker
+        v-model="defaultHeroImageUrl"
+        label="Globale standaardfoto"
+        description="Kies uit de mediabibliotheek of gebruik een externe HTTPS-afbeelding."
+        kind="image"
+        upload-tags="email"
+      />
+    </section>
+
     <section class="workspace">
       <aside class="template-list">
         <button
@@ -328,6 +386,17 @@ function templateName(key: string, fallback?: string) {
           <span>Tekst</span>
           <textarea v-model="form.body" rows="11" />
         </label>
+
+        <div class="template-image">
+          <MediaPicker
+            v-model="form.heroImageUrl"
+            label="Headerfoto voor deze e-mail"
+            description="Optioneel. Laat leeg om de globale standaardfoto hierboven te gebruiken."
+            kind="image"
+            upload-tags="email"
+          />
+          <small v-if="!form.heroImageUrl">Gebruikt de globale standaardfoto.</small>
+        </div>
 
         <div class="timing">
           <label>
@@ -464,6 +533,10 @@ label { display: grid; gap: .4rem; margin-top: 1rem; color: #bbb4c2; font-size: 
 .template-list button.active { border-color: #82738f; background: #211c28; }
 .panel { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 1rem; background: #121016; }
 .workspace .panel { margin-top: 0; }
+.branding-panel { display: grid; gap: 1rem; }
+.branding-panel .section-head { gap: 1.5rem; }
+.template-image { margin-top: 1rem; padding: 1rem; border: 1px solid #2f2935; border-radius: .8rem; background: #0e0c11; }
+.template-image small { display: block; margin-top: .6rem; }
 .timing { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .offset { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 0; padding: 0; border: 0; min-width: 0; }
 .offset legend { width: 100%; margin-bottom: .4rem; padding: 0; color: #bbb4c2; font-size: .85rem; }
@@ -496,7 +569,7 @@ label { display: grid; gap: .4rem; margin-top: 1rem; color: #bbb4c2; font-size: 
   .workspace { grid-template-columns: 1fr; }
   .template-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .suppression { grid-template-columns: 1fr; }
-  .header, .history-row { display: grid; }
+  .header, .history-row, .branding-panel .section-head { display: grid; }
   .history-row > div:nth-child(2) { min-width: 0; }
 }
 @media (max-width: 560px) {
