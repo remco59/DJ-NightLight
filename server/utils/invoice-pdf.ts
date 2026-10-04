@@ -117,8 +117,9 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
 
       commands.push(
         textCommand(`${money(snapshot.totals.totalCents, snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
-        textCommand('Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.25 0.30 0.75' : '0.35 0.35 0.35'),
+        textCommand('Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.05 0.25 0.8' : '0.35 0.35 0.35'),
       )
+      if (portalUrl) commands.push(lineCommand(36, 524, 262, 524, 0.5, '0.05 0.25 0.8'))
     } else {
       commands.push(
         textCommand('Factuur', 36, 790, 16, 'F2'),
