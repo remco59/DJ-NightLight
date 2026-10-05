@@ -26,11 +26,16 @@ type GigListResponse = { gigs:GigRow[]; options:{clients:ClientOption[];venues:V
 
 const gigStatuses=['lead','booked','declined','cancelled'] as const
 const initialStatus=gigStatuses.find(value=>value===route.query.status)??''
-const filters=reactive({search:'',status:initialStatus as string,timing:'',eventType:'',public:'',clientId:'',venueId:'',assignedUserId:'',startDate:'',endDate:''})
+const emptyFilters={search:'',status:'',timing:'',eventType:'',public:'',clientId:'',venueId:'',assignedUserId:'',startDate:'',endDate:''}
+// Filters and sorting are remembered in a cookie so they survive a reload (and work during SSR).
+const saved=useCookie<{filters?:Partial<typeof emptyFilters>;sort?:string}>('admin-gig-filters',{maxAge:60*60*24*365,sameSite:'lax',default:()=>({})})
+const savedFilters=Object.fromEntries(Object.entries(saved.value?.filters??{}).filter(([key,value])=>key in emptyFilters&&typeof value==='string'))
+const filters=reactive({...emptyFilters,...savedFilters,...(initialStatus?{status:initialStatus as string}:{})})
 const statusTabs=[{value:'',label:'Alle'},{value:'lead',label:'Leads'},{value:'booked',label:'Geboekt'},{value:'declined',label:'Afgewezen'},{value:'cancelled',label:'Geannuleerd'}]
 const showAdvancedFilters=ref(false)
-const dateMode=ref('')
-const sort=ref<'date_desc'|'date_asc'>('date_desc')
+const dateMode=ref(filters.timing||(filters.startDate||filters.endDate?'custom':''))
+const sort=ref<'date_desc'|'date_asc'>(saved.value?.sort==='date_asc'?'date_asc':'date_desc')
+watch([filters,sort],()=>{saved.value={filters:{...filters},sort:sort.value}},{deep:true})
 const showCreate=ref(route.query.new==='1')
 const saving=ref(false)
 const formError=ref('')
