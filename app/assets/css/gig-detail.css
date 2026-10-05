@@ -1,0 +1,409 @@
+/* Gig detail redesign
+   Keeps the existing functionality intact while bringing the page closer to the
+   approved NightLight mockups: stronger hierarchy, denser desktop layout and a
+   substantially more compact mobile presentation. */
+
+/* Scope everything to the gig detail page. */
+.detail {
+  max-width: 1180px !important;
+  padding-bottom: 3rem;
+}
+
+.detail .back {
+  margin-bottom: .75rem !important;
+  color: #b8b0c2 !important;
+  font-size: .9rem;
+}
+
+.detail .hero {
+  align-items: center !important;
+  margin-bottom: 1rem !important;
+}
+
+.detail .hero h1 {
+  max-width: 18ch;
+  margin: .15rem 0 !important;
+  font-size: clamp(2.6rem, 5vw, 4.7rem) !important;
+  line-height: .98;
+  letter-spacing: -.045em !important;
+  text-wrap: balance;
+}
+
+.detail .hero-actions {
+  align-self: flex-end;
+}
+
+.detail .icon-button {
+  width: 3rem !important;
+  height: 3rem !important;
+  border: 1px solid #30283b !important;
+  background: #17121e !important;
+}
+
+.detail .gig-facts {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, .38fr) !important;
+  gap: 1rem !important;
+  margin-bottom: 1.2rem !important;
+  padding: 1rem !important;
+  border-color: #2d2636 !important;
+  border-radius: 1.15rem !important;
+  background:
+    linear-gradient(180deg, rgba(25,20,31,.92), rgba(15,12,19,.96)) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.018), 0 22px 70px rgba(0,0,0,.16);
+}
+
+.detail .gig-facts dl {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: .65rem !important;
+}
+
+.detail .gig-facts dl > div {
+  min-width: 0;
+  padding: .75rem .8rem;
+  border: 1px solid #2a2431;
+  border-radius: .85rem;
+  background: rgba(12,10,16,.48);
+}
+
+.detail .gig-facts dl > div:last-child {
+  grid-column: 1 / -1;
+  width: fit-content;
+  min-width: 9rem;
+}
+
+.detail .gig-facts dt {
+  color: #aaa1b6 !important;
+  font-size: .69rem !important;
+  letter-spacing: .1em !important;
+}
+
+.detail .gig-facts dd {
+  margin-top: .32rem !important;
+  font-size: .98rem;
+}
+
+.detail .next-step {
+  border-color: rgba(157,92,255,.46) !important;
+  border-radius: .9rem !important;
+  background:
+    radial-gradient(circle at 85% 10%, rgba(115,53,214,.24), transparent 55%),
+    #17121f !important;
+  box-shadow: inset 0 0 0 1px rgba(157,92,255,.04), 0 0 1.5rem rgba(109,40,217,.06);
+}
+
+.detail .next-step span {
+  color: #cfb8f5 !important;
+  letter-spacing: .11em !important;
+}
+
+.detail .next-step strong {
+  font-size: 1.3rem !important;
+}
+
+.detail .next-step .primary {
+  min-width: 10rem;
+  justify-content: center;
+  border-radius: .7rem;
+}
+
+/* Turn the long form into a calmer card grid on wide screens. */
+.detail form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.detail form > .card {
+  min-width: 0;
+  margin-bottom: 0 !important;
+  border-color: #292330 !important;
+  border-radius: 1rem !important;
+  background: linear-gradient(180deg, #110e15, #0f0d12) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.014);
+}
+
+/* Overview is the most important editable block, so let it breathe. */
+.detail form > .card:first-child {
+  grid-column: 1 / -1;
+}
+
+/* Invoice and planning side-by-side; contacts spans full width for easier editing. */
+.detail form > .card:nth-of-type(4) {
+  grid-column: 1 / -1;
+}
+
+/* Visibility and internal notes are secondary and intentionally quieter. */
+.detail form > .card:nth-of-type(5),
+.detail form > .card:nth-of-type(6) {
+  background: #0d0b10 !important;
+}
+
+/* Client portal and submission belong together visually. */
+.detail form > .card:nth-of-type(7),
+.detail form > .card:nth-of-type(8) {
+  border-color: #30263d !important;
+}
+
+.detail .card > .eyebrow:first-child,
+.detail .section-title .eyebrow {
+  color: #c0b9c9 !important;
+}
+
+.detail .section-title {
+  margin-top: 0 !important;
+  align-items: center !important;
+}
+
+.detail .section-title h2,
+.detail .activity h2 {
+  font-size: 1.28rem;
+}
+
+.detail input,
+.detail select,
+.detail textarea {
+  min-height: 2.75rem;
+  border-color: #302a36 !important;
+  border-radius: .72rem !important;
+  background: #0b0a0d !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.detail textarea {
+  line-height: 1.5;
+}
+
+.detail input:focus,
+.detail select:focus,
+.detail textarea:focus {
+  border-color: rgba(157,92,255,.72) !important;
+  box-shadow: 0 0 0 3px rgba(157,92,255,.08);
+}
+
+.detail label {
+  color: #aba4b2 !important;
+}
+
+.detail .invoice-card {
+  min-height: 100%;
+}
+
+.detail .invoice-heading {
+  align-items: center !important;
+}
+
+.detail .invoice-heading .subtle-copy {
+  max-width: 42rem;
+}
+
+.detail .timeline-row {
+  grid-template-columns: 6.2rem minmax(10rem, 1fr) minmax(12rem, 1.2fr) 2rem !important;
+}
+
+.detail .contact-card {
+  padding: 1rem !important;
+  border-color: #292330 !important;
+  background: #0d0b10;
+}
+
+.detail .portal-actions {
+  grid-template-columns: minmax(7rem, 10rem) 1fr 1.25fr !important;
+}
+
+.detail .submission-status {
+  border: 1px solid #292330;
+  background: #15111b !important;
+}
+
+.detail .one-time-link,
+.detail .portal-row {
+  border-color: #30283a !important;
+  background: #0c0a0f !important;
+}
+
+/* Emails and activity are important but should scan quickly. */
+.detail > .activity,
+.detail > .card.activity {
+  margin-top: 1rem;
+  border-color: #292330 !important;
+  background: #0f0d12 !important;
+}
+
+.detail .activity-row {
+  min-height: 3rem;
+}
+
+.detail .save-bar {
+  grid-column: 1 / -1;
+  border: 1px solid #372c44;
+  background: rgba(18,14,23,.94);
+  backdrop-filter: blur(16px);
+}
+
+/* Mobile: prioritize summary + action, then turn the page into compact stacked cards. */
+@media (max-width: 760px) {
+  .detail {
+    width: 100%;
+    padding-inline: .15rem;
+  }
+
+  .detail .back {
+    min-height: 2.25rem !important;
+    margin-bottom: .5rem !important;
+  }
+
+  .detail .hero {
+    align-items: flex-start !important;
+  }
+
+  .detail .hero h1 {
+    max-width: 10ch;
+    font-size: clamp(2.2rem, 10vw, 3.3rem) !important;
+    line-height: .98;
+  }
+
+  .detail .hero-actions {
+    padding-top: .25rem;
+  }
+
+  .detail .gig-facts {
+    grid-template-columns: 1fr !important;
+    padding: .8rem !important;
+  }
+
+  .detail .gig-facts dl {
+    grid-template-columns: 1fr 1fr !important;
+    gap: .55rem !important;
+  }
+
+  .detail .gig-facts dl > div {
+    padding: .72rem !important;
+  }
+
+  .detail .gig-facts dl > div:last-child {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .detail .gig-facts dd {
+    font-size: .94rem;
+  }
+
+  .detail .next-step {
+    padding: .9rem !important;
+  }
+
+  .detail .next-step .primary {
+    width: 100%;
+    min-height: 3rem !important;
+  }
+
+  .detail form {
+    display: block;
+  }
+
+  .detail form > .card {
+    margin-bottom: .8rem !important;
+    padding: 1rem !important;
+  }
+
+  .detail .grid {
+    grid-template-columns: 1fr !important;
+    gap: .7rem !important;
+  }
+
+  .detail .section-title {
+    gap: .6rem !important;
+  }
+
+  .detail .section-title h2,
+  .detail .activity h2 {
+    font-size: 1.22rem;
+  }
+
+  .detail .invoice-heading {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .detail .invoice-heading > button {
+    width: 100%;
+    min-height: 2.8rem;
+  }
+
+  .detail .invoice-row {
+    grid-template-columns: 1fr auto !important;
+    gap: .5rem !important;
+  }
+
+  .detail .invoice-statuses {
+    grid-column: 1 / -1;
+  }
+
+  .detail .timeline-row {
+    grid-template-columns: 5rem 1fr 2rem !important;
+  }
+
+  .detail .timeline-row input:nth-of-type(3) {
+    grid-column: 1 / -1;
+  }
+
+  .detail .portal-actions {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .detail .portal-actions label {
+    grid-column: 1 / -1;
+  }
+
+  .detail .portal-actions .primary {
+    grid-column: 1 / -1;
+  }
+
+  .detail .one-time-link,
+  .detail .portal-row {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .detail .one-time-link button,
+  .detail .portal-row button {
+    width: 100%;
+  }
+
+  .detail .answer-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail .wish-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail .save-bar {
+    left: .75rem;
+    right: .75rem;
+    bottom: .75rem;
+    width: auto;
+  }
+}
+
+@media (max-width: 460px) {
+  .detail .gig-facts dl {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail .portal-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail .portal-actions label,
+  .detail .portal-actions .primary {
+    grid-column: auto;
+  }
+
+  .detail .portal-actions button {
+    width: 100%;
+  }
+}
