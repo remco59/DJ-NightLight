@@ -130,7 +130,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'gig-announcement': {
     key: 'gig-announcement',
     label: 'Gig Announcement',
-    description: 'Logo bovenaan, woorden van de kop die over de neonlijn van het logo knallen, met datum, tijd en locatie.',
+    description: 'Logo bovenaan, de datum als held tussen de neonlijnen van het logo, met tijd, locatie en een knop eronder.',
     category: 'Aankondigen',
     defaultDurationSeconds: 6,
     defaultAccent: 'ultraviolet',
@@ -141,7 +141,6 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       text('headline', 'Kop', 60),
       text('venue', 'Locatie', 60),
       text('date', 'Datum', 40),
-      icon('dateIcon', 'Icoon datum'),
       text('time', 'Tijd', 40),
       icon('timeIcon', 'Icoon tijd'),
       text('location', 'Plaats', 60),
@@ -153,7 +152,6 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
       headline: 'DIT WEEKEND',
       venue: 'CLUB NOVA',
       date: 'ZAT 26 APR',
-      dateIcon: 'calendar',
       time: '22:00 - 04:00',
       timeIcon: 'clock',
       location: 'Amsterdam',
@@ -348,7 +346,7 @@ export const MOTION_TEMPLATES: Record<MotionTemplateKey, MotionTemplateDefinitio
   'electric-gig-poster': {
     key: 'electric-gig-poster',
     label: 'Electric Gig Poster',
-    description: 'Logo bovenaan, datum in de ring van het logo en de kop tussen de lijnen van het logo.',
+    description: 'Logo bovenaan, de datum als held in de ring van het logo, met kop, locatie, tijd en een knop.',
     category: 'Aankondigen',
     defaultDurationSeconds: 6,
     defaultAccent: 'ultraviolet',

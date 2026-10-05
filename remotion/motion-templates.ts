@@ -5,6 +5,7 @@ import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import type { LucideIconName } from '../shared/lucide-icons'
 import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
 import { boltTransitionMid, clipRecapSlot, hypeTitlePerLine } from '../shared/template-sounds'
+import { safeInsets } from '../shared/template-layout'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
 import { BODY_FONT_FAMILY, DISPLAY_FONT_FAMILY } from './fonts'
@@ -49,11 +50,6 @@ const body: React.CSSProperties = {
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
 
-/** Keep-clear insets: tall canvases (Reels/Stories) reserve room for Instagram's UI. */
-function safeInsets(width: number, height: number) {
-  return height / width > 1.5 ? { top: 240, bottom: 430 } : { top: 90, bottom: 90 }
-}
-
 function colorsFor(item: GraphicItem): Colors {
   return MOTION_ACCENTS[item.accent] || MOTION_ACCENTS['neon-purple']
 }
@@ -76,6 +72,19 @@ function ctaLabel(text: string, icon: LucideIconName | null) {
     h(LucideIcon, { name: icon, style: { marginLeft: '0.3em', verticalAlign: '-0.12em' } }),
   )
 }
+
+// ── Hierarchy ───────────────────────────────────────────────────────────────
+//
+// Every template ranks its text on the same four levels so they read alike:
+//   1 hero     the one thing to get in a second: gradient type between the
+//              logo's neon rules (bandText), or the date in the ring badge
+//   2 facts    what / when / where: white display type at TYPE.fact, in an
+//              InfoPanel or as a LeadIn line
+//   3 support  presenter line, source, handle, counters: Kicker, TYPE.support
+//   action     the CTA: a Pill, never more than one, always at the bottom
+// The logo's bolt strikes once per screen, so it never competes with the hero.
+
+const TYPE = { fact: 44, lead: 54, support: 28, cta: 40 } as const
 
 // ── Logo building blocks ────────────────────────────────────────────────────
 
@@ -310,8 +319,10 @@ const RingBadge: React.FC<{
   frame: number
   start: number
   seed: string
+  /** Strike the emblem's bolt; off when another bolt already strikes on screen. */
+  bolt?: boolean
   children?: React.ReactNode
-}> = ({ colors, width, frame, start, seed, children }) => {
+}> = ({ colors, width, frame, start, seed, bolt = true, children }) => {
   const scale = width / BRAND_LOGOS.emblem.width
   const ring = reveal(frame, start, 18)
   return h(
@@ -341,7 +352,7 @@ const RingBadge: React.FC<{
       style: { position: 'absolute', left: 0, top: 0 },
       layer: (name) => {
         if (name === 'frame') return ringMask(ring)
-        if (name === 'bolt') return slam(reveal(frame, start + 14, 6), 1.8)
+        if (name === 'bolt') return bolt ? slam(reveal(frame, start + 14, 6), 1.8) : null
         if (name === 'arcs') return { opacity: flicker(frame, `${seed}-arcs`, start + 18) }
         return null
       },
@@ -465,7 +476,7 @@ const EdgeArcs: React.FC<{
     ),
   )
 
-/** Skewed call-to-action tag in the logo's violet. */
+/** Skewed call-to-action tag in the logo's violet. The only element styled as a button. */
 const Pill: React.FC<{
   colors: Colors
   children?: React.ReactNode
@@ -477,10 +488,10 @@ const Pill: React.FC<{
       style: {
         ...display,
         display: 'inline-block',
-        padding: '14px 40px',
+        padding: '18px 52px',
         background: `linear-gradient(90deg, ${colors.glow}, ${colors.accent})`,
         transform: 'skewX(-12deg) rotate(-3deg)',
-        fontSize: 36,
+        fontSize: TYPE.cta,
         letterSpacing: 2,
         boxShadow: `0 0 30px ${colors.glow}aa`,
         ...style,
@@ -489,14 +500,14 @@ const Pill: React.FC<{
     children,
   )
 
-/** Small letter-spaced label in the soft accent. */
+/** Support text (level 3): small, letter-spaced, in the soft accent. */
 const Kicker: React.FC<{
   colors: Colors
   size?: number
   style?: React.CSSProperties
   children?: React.ReactNode
-}> = ({ colors, size = 28, style, children }) =>
-  h('div', { style: { ...body, fontSize: size, fontWeight: 800, letterSpacing: size * 0.4, color: colors.soft, textShadow: `0 0 16px ${colors.glow}`, ...style } }, children)
+}> = ({ colors, size = TYPE.support, style, children }) =>
+  h('div', { style: { ...body, fontSize: size, fontWeight: 800, letterSpacing: size * 0.36, color: colors.soft, textShadow: `0 0 16px ${colors.glow}`, ...style } }, children)
 
 const EqBars: React.FC<{
   colors: Colors
@@ -519,6 +530,96 @@ const EqBars: React.FC<{
     ),
   )
 
+/** The wordmark once, small, with the presenter line: the header of every announcement. */
+const LogoHeader: React.FC<{
+  colors: Colors
+  width: number
+  frame: number
+  seed: string
+  align?: 'center' | 'flex-start'
+}> = ({ colors, width, frame, seed, align = 'center' }) =>
+  h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', alignItems: align } },
+    h(WordmarkBuild, { colors, width, frame, start: 0, seed, step: 1 }),
+    h(Kicker, { colors, style: { marginTop: -6, opacity: reveal(frame, 16, 10) } }, 'PRESENTEERT'),
+  )
+
+/** Level 2 line above the hero: white display type that slams in on the beat. */
+const LeadIn: React.FC<{
+  colors: Colors
+  frame: number
+  start: number
+  size?: number
+  children?: React.ReactNode
+}> = ({ colors, frame, start, size = TYPE.lead, children }) =>
+  h(
+    'div',
+    {
+      style: slam(reveal(frame, start, 8), 1.3, {
+        ...display,
+        fontSize: size,
+        lineHeight: 1,
+        letterSpacing: 2,
+        textAlign: 'center',
+        textShadow: glow(colors, 26),
+        transform: `${TILT} skewX(-8deg)`,
+      }),
+    },
+    children,
+  )
+
+type InfoRowData = { key: string, icon: LucideIconName | null, text: string, detail?: string }
+
+/** Level 2 facts (time, place, ...) as icon + white text rows in a neon panel. */
+const InfoPanel: React.FC<{
+  colors: Colors
+  frame: number
+  start: number
+  rows: InfoRowData[]
+}> = ({ colors, frame, start, rows }) => {
+  // Keep the text column aligned when only some rows have an icon.
+  const withIcons = rows.some(row => row.icon)
+  return h(
+    NeonPanel,
+    { colors, style: { padding: '26px 48px', minWidth: 560, opacity: reveal(frame, start, 10) } },
+    h(
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', gap: 20 } },
+      rows.map((row, index) => {
+        const t = reveal(frame, start + 2 + index * 3, 10)
+        return h(
+          'div',
+          { key: row.key, style: { display: 'flex', gap: 22, alignItems: 'center', opacity: t, transform: `translateX(${(1 - t) * -40}px)` } },
+          withIcons
+            ? h('span', { style: { display: 'flex', justifyContent: 'center', width: 44, flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 10px ${colors.glow})` } }, row.icon ? h(LucideIcon, { name: row.icon, size: TYPE.fact }) : null)
+            : null,
+          h(
+            'div',
+            null,
+            h('div', { style: { ...display, fontStyle: 'normal', fontSize: TYPE.fact, lineHeight: 1.1, whiteSpace: 'pre-line' } }, row.text),
+            row.detail ? h(Kicker, { colors, style: { marginTop: 6 } }, row.detail) : null,
+          ),
+        )
+      }),
+    ),
+  )
+}
+
+/** The template's single action: a Pill that slams in. */
+const CtaButton: React.FC<{
+  colors: Colors
+  frame: number
+  start: number
+  icon: LucideIconName | null
+  children: string
+}> = ({ colors, frame, start, icon, children }) =>
+  h(
+    'div',
+    { style: { opacity: reveal(frame, start, 10), transform: `scale(${interpolate(reveal(frame, start, 10), [0, 1], [1.4, 1])})` } },
+    h(Pill, { colors }, ctaLabel(children, icon)),
+  )
+
 // ── Templates ───────────────────────────────────────────────────────────────
 //
 // Each template's hit moments (slams, bolt strikes, flashes, cuts) have sound
@@ -528,96 +629,47 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
   const colors = colorsFor(item)
   const props = item.templateProps
   const headline = textProp(props, 'headline')
-  const words = headline.split(/\s+/).filter(Boolean)
-  const rows = [
-    { key: 'date', icon: iconOf(item, 'dateIcon'), text: textProp(props, 'date') },
+  const date = textProp(props, 'date')
+  const cta = textProp(props, 'cta')
+  const location = textProp(props, 'location')
+  const facts: InfoRowData[] = [
     { key: 'time', icon: iconOf(item, 'timeIcon'), text: textProp(props, 'time') },
-    { key: 'venue', icon: iconOf(item, 'venueIcon'), text: [textProp(props, 'venue'), textProp(props, 'location')].filter(Boolean).join('\n') },
+    { key: 'venue', icon: iconOf(item, 'venueIcon'), text: textProp(props, 'venue') || location, detail: textProp(props, 'venue') ? location : '' },
   ].filter(row => row.text)
-  // Keep the text column aligned when only some rows have an icon.
-  const rowIcons = rows.some(row => row.icon)
   const landscape = width > height
   const safe = safeInsets(width, height)
   // Square canvases get a tighter stack so the CTA keeps clear of the edge.
-  const compact = !landscape && height < 1400
-  const k = compact ? 0.78 : 1
-  const align = landscape ? 'flex-start' : 'center'
-  const wordsAt = 12
-  const cta = textProp(props, 'cta')
+  const k = !landscape && height < 1400 ? 0.8 : 1
+  const heroAt = 12
+  const title = h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 } },
+    headline ? h(LeadIn, { colors, frame, start: 8, size: TYPE.lead * k }, headline) : null,
+    date
+      ? h(RuleFrame, { colors, width: Math.min(width - 60, landscape ? 900 : 1040) * (landscape ? 1 : Math.max(k, 0.9)), frame, start: heroAt, bolt: false, seed: `gig-hero-${item.id}`, content: band => bandText(colors, band, date, reveal(frame, heroAt + 4, 12)) })
+      : null,
+  )
+  const header = h(LogoHeader, { colors, width: (landscape ? 440 : 480) * k, frame, seed: `gig-mark-${item.id}` })
+  const bottom = h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30, transform: k < 1 ? `scale(${k})` : undefined, transformOrigin: 'bottom center' } },
+    facts.length ? h(InfoPanel, { colors, frame, start: 26, rows: facts }) : null,
+    cta ? h(CtaButton, { colors, frame, start: 38, icon: iconOf(item, 'ctaIcon') }, cta) : null,
+  )
+  if (landscape) {
+    return h(
+      AbsoluteFill,
+      { style: { padding: '70px 110px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 60 } },
+      h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 40 } }, header, title),
+      bottom,
+    )
+  }
   return h(
     AbsoluteFill,
-    {
-      style: {
-        padding: landscape ? '70px 120px' : compact ? '40px 80px 70px' : `${safe.top - 90}px 80px ${safe.bottom}px`,
-        justifyContent: 'space-between',
-        alignItems: align,
-      },
-    },
-    h(
-      'div',
-      { style: { display: 'flex', flexDirection: 'column', alignItems: align } },
-      h(WordmarkBuild, { colors, width: (landscape ? 500 : 580) * k, frame, start: 0, seed: `gig-mark-${item.id}`, step: 1.5 }),
-      h(Kicker, { colors, size: 24, style: { marginTop: -6, opacity: reveal(frame, 18, 10) } }, 'PRESENTEERT'),
-    ),
-    h(
-      'div',
-      { style: { display: 'flex', flexDirection: 'column', alignItems: align, textAlign: landscape ? 'left' : 'center', transform: TILT } },
-      words.map((word, index) =>
-        h(
-          'div',
-          {
-            key: `${word}-${index}`,
-            style: slam(reveal(frame, wordsAt + index * 4, 8), 1.4, {
-              ...gradientText(colors, 26, index % 2 === 1),
-              fontSize: landscape ? 150 : Math.min(180, 1350 / Math.max(4, word.length)) * k,
-              lineHeight: 0.9,
-              letterSpacing: -4,
-              transform: 'skewX(-8deg)',
-            }),
-          },
-          word,
-        ),
-      ),
-      h(NeonRule, { colors, width: (landscape ? 620 : 700) * k, progress: reveal(frame, wordsAt + words.length * 4, 14), style: { marginTop: -24 } }),
-    ),
-    h(
-      'div',
-      { style: { display: 'flex', flexDirection: 'column', gap: 30, alignItems: align, width: '100%', transform: compact ? `scale(${k})` : undefined, transformOrigin: 'bottom center' } },
-      rows.length
-        ? h(
-            NeonPanel,
-            { colors, style: { padding: '24px 46px', minWidth: 520, opacity: reveal(frame, 24, 10) } },
-            h(
-              'div',
-              { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
-              rows.map((row, index) =>
-                h(
-                  'div',
-                  {
-                    key: row.key,
-                    style: {
-                      display: 'flex',
-                      gap: 22,
-                      alignItems: 'center',
-                      opacity: reveal(frame, 26 + index * 3, 10),
-                      transform: `translateX(${(1 - reveal(frame, 26 + index * 3, 10)) * -40}px)`,
-                    },
-                  },
-                  rowIcons ? h('span', { style: { display: 'flex', justifyContent: 'center', width: 44, flexShrink: 0, color: colors.soft, filter: `drop-shadow(0 0 10px ${colors.glow})` } }, row.icon ? h(LucideIcon, { name: row.icon, size: 40 }) : null) : null,
-                  h('span', { style: { ...display, fontStyle: 'normal', fontSize: 42, whiteSpace: 'pre-line', lineHeight: 1.1, color: index ? colors.soft : '#fff' } }, row.text),
-                ),
-              ),
-            ),
-          )
-        : null,
-      cta
-        ? h(
-            'div',
-            { style: { opacity: reveal(frame, 36, 10), transform: `scale(${interpolate(reveal(frame, 36, 10), [0, 1], [1.4, 1])})` } },
-            h(Pill, { colors, style: { fontSize: 44, padding: '18px 56px' } }, ctaLabel(cta, iconOf(item, 'ctaIcon'))),
-          )
-        : null,
-    ),
+    { style: { padding: k < 1 ? '40px 40px 70px' : `${safe.top - 120}px 40px ${safe.bottom}px`, alignItems: 'center' } },
+    header,
+    // Hero, facts and CTA read as one group in the space below the logo.
+    h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: k < 1 ? 40 : 90 } }, title, bottom),
   )
 }
 
@@ -631,7 +683,7 @@ const RecapIntro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   return h(
     AbsoluteFill,
     { style: { alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 80, gap: 30 } },
-    textProp(props, 'kicker') ? h('div', { style: { opacity: reveal(frame, 0, 8) } }, h(Pill, { colors }, textProp(props, 'kicker'))) : null,
+    textProp(props, 'kicker') ? h(Kicker, { colors, style: { opacity: reveal(frame, 0, 8) } }, textProp(props, 'kicker')) : null,
     h(
       'div',
       { style: { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: TILT } },
@@ -655,7 +707,7 @@ const RecapIntro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
       h(NeonRule, { colors, width: 620, progress: reveal(frame, 12, 14), style: { marginTop: -20 } }),
     ),
     textProp(props, 'meta')
-      ? h(Kicker, { colors, size: 36, style: { transform: TILT, opacity: reveal(frame, 18, 10) } }, textProp(props, 'meta'))
+      ? h('div', { style: { ...display, fontStyle: 'normal', fontSize: TYPE.fact, textShadow: glow(colors, 26), transform: TILT, opacity: reveal(frame, 18, 10) } }, textProp(props, 'meta'))
       : null,
   )
 }
@@ -671,7 +723,7 @@ const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height
   const contentWidth = Math.min(width - 140, landscape ? 980 : 900)
   const top = landscape ? 80 : Math.max(90, safe.top - 90)
   const quoteSize = landscape ? 52 : height / width > 1.5 ? 62 : 54
-  const ratingWidth = Math.min(contentWidth * .7, 620)
+  const ratingWidth = Math.min(contentWidth * .5, 460)
 
   return h(
     AbsoluteFill,
@@ -700,37 +752,31 @@ const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height
         },
       },
       rating
-        ? h(RuleFrame, {
-            colors,
-            width: ratingWidth,
-            frame,
-            start: 4,
-            seed: `review-stars-${item.id}`,
-            content: band => h(
-              'div',
-              {
-                style: {
-                  ...body,
-                  color: colors.soft,
-                  fontSize: Math.min(58, band.height * .34),
-                  fontWeight: 900,
-                  letterSpacing: 12,
-                  textShadow: glow(colors, 26),
-                  opacity: reveal(frame, 8, 10),
-                  whiteSpace: 'nowrap',
-                },
+        ? h(
+            'div',
+            {
+              style: {
+                ...body,
+                color: colors.soft,
+                fontSize: 44,
+                fontWeight: 900,
+                letterSpacing: 12,
+                textShadow: glow(colors, 26),
+                opacity: reveal(frame, 4, 10),
+                whiteSpace: 'nowrap',
               },
-              rating,
-            ),
-          })
+            },
+            rating,
+          )
         : null,
+      h(NeonRule, { colors, width: ratingWidth, progress: reveal(frame, 8, 14), style: { marginTop: 14 } }),
       quote
         ? h(
             'div',
             {
               style: {
                 ...body,
-                marginTop: 54,
+                marginTop: 40,
                 maxWidth: contentWidth * .9,
                 color: '#fff',
                 fontSize: quoteSize,
@@ -751,11 +797,9 @@ const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height
             Kicker,
             {
               colors,
-              size: 27,
               style: {
                 marginTop: 42,
                 maxWidth: contentWidth * .82,
-                letterSpacing: 7,
                 lineHeight: 1.35,
                 opacity: reveal(frame, 28, 10),
               },
@@ -829,7 +873,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
         h(
           'div',
           { style: { minWidth: 0 } },
-          h('div', { style: { ...body, fontSize: 40 * k, fontWeight: 900, lineHeight: 1.1 } }, gig.title),
+          h('div', { style: { ...body, fontSize: TYPE.fact * k, fontWeight: 900, lineHeight: 1.1 } }, gig.title),
           meta.length
             ? h(
                 'div',
@@ -837,7 +881,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
                 meta.map(part =>
                   h(
                     'span',
-                    { key: part.key, style: { ...body, display: 'flex', alignItems: 'center', gap: 10 * k, fontSize: 28 * k, fontWeight: part.key === 'time' ? 800 : 500, color: colors.soft } },
+                    { key: part.key, style: { ...body, display: 'flex', alignItems: 'center', gap: 10 * k, fontSize: TYPE.support * k, fontWeight: part.key === 'time' ? 800 : 500, color: colors.soft } },
                     part.icon ? h('span', { style: iconStyle(28 * k) }, h(LucideIcon, { name: part.icon })) : null,
                     part.text,
                   ),
@@ -858,9 +902,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
     ),
   )
   const ctaAt = listAt + gigs.length * 4 + 4
-  const ctaNode = cta
-    ? h('div', { key: 'cta', style: { opacity: reveal(frame, ctaAt, 10), transform: `scale(${interpolate(reveal(frame, ctaAt, 10), [0, 1], [1.4, 1])})` } }, h(Pill, { colors }, ctaLabel(cta, iconOf(item, 'ctaIcon'))))
-    : null
+  const ctaNode = cta ? h(CtaButton, { key: 'cta', colors, frame, start: ctaAt, icon: iconOf(item, 'ctaIcon') }, cta) : null
   if (landscape) {
     return h(
       AbsoluteFill,
@@ -916,10 +958,10 @@ const LogoSting: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
     AbsoluteFill,
     { style: { alignItems: 'center', justifyContent: 'center', gap: 16 } },
     h(AbsoluteFill, { style: { background: `radial-gradient(circle, ${colors.glow}55, transparent 60%)`, opacity: reveal(frame, 0, 20) } }),
-    kicker ? h(Kicker, { colors, size: 34, style: { letterSpacing: 18, transform: TILT, opacity: reveal(frame, 2, 8) } }, kicker) : null,
+    kicker ? h(Kicker, { colors, style: { transform: TILT, opacity: reveal(frame, 2, 8) } }, kicker) : null,
     h(WordmarkBuild, { colors, width: Math.min(width - 80, 1000), frame, start: 0, seed: `sting-${item.id}`, step: 1 }),
     h(WaveMark, { colors, frame, start: 12, height: 90 }),
-    tagline ? h(Kicker, { colors, size: 30, style: { letterSpacing: 14, opacity: reveal(frame, 18, 10) } }, tagline) : null,
+    tagline ? h(Kicker, { colors, style: { opacity: reveal(frame, 18, 10) } }, tagline) : null,
     h(AbsoluteFill, { style: { background: `radial-gradient(circle, #ffffff, ${colors.soft})`, opacity: flash } }),
   )
 }
@@ -942,23 +984,7 @@ const LowerThird: React.FC<TemplateRenderProps> = ({ item, frame, width, height 
         { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: -20 } },
         h(RuleFrame, { colors, width: frameWidth, frame, start: 4, seed: `lt-rules-${item.id}`, bolt: false, arcs: false, content: band => bandText(colors, band, title, reveal(frame, 8, 12)) }),
         subtitle
-          ? h(
-              'div',
-              {
-                style: {
-                  ...body,
-                  fontSize: 32,
-                  fontWeight: 700,
-                  marginTop: -10,
-                  marginLeft: frameWidth * 0.12,
-                  color: colors.soft,
-                  transform: TILT,
-                  opacity: reveal(frame, 14, 10),
-                  textShadow: `0 0 14px ${colors.glow}, 0 4px 18px rgba(0,0,0,.8)`,
-                },
-              },
-              subtitle,
-            )
+          ? h(Kicker, { colors, style: { marginTop: -10, marginLeft: frameWidth * 0.12, transform: TILT, opacity: reveal(frame, 14, 10) } }, subtitle)
           : null,
       ),
     ),
@@ -1139,7 +1165,7 @@ const ClipRecap: React.FC<TemplateRenderProps> = ({ item, frame, width, height, 
       title ? h(RuleFrame, { colors, width: frameWidth, frame, start: 4, seed: `clips-${item.id}`, content: band => bandText(colors, band, title, reveal(frame, 8, 12)) }) : null,
       h(
         Kicker,
-        { colors, size: 30, style: { marginTop: -6, marginLeft: frameWidth * 0.14, transform: TILT, opacity: reveal(frame, 14, 10) } },
+        { colors, style: { marginTop: -6, marginLeft: frameWidth * 0.14, transform: TILT, opacity: reveal(frame, 14, 10) } },
         String(Math.min(count, Math.floor(frame / slot) + 1)).padStart(2, '0'),
         ' / ',
         String(count).padStart(2, '0'),
@@ -1184,14 +1210,12 @@ const NeonLogoReveal: React.FC<TemplateRenderProps> = ({ item, frame, width, hei
               Kicker,
               {
                 colors,
-                size: 34,
                 style: {
                   position: 'absolute',
                   top: artHeight + 30,
                   left: -200,
                   right: -200,
                   textAlign: 'center',
-                  letterSpacing: 14,
                   opacity: reveal(frame, 34, 12),
                 },
               },
@@ -1214,7 +1238,7 @@ const LightningBanner: React.FC<TemplateRenderProps> = ({ item, frame, width }) 
     { style: { alignItems: 'center', justifyContent: 'center', gap: 34 } },
     h(RuleFrame, { colors, width: frameWidth, frame, seed: `banner-${item.id}`, content: band => bandText(colors, band, title, reveal(frame, 6, 12)) }),
     subtitle
-      ? h(Kicker, { colors, size: 32, style: { letterSpacing: 10, transform: TILT, opacity: reveal(frame, 16, 12) } }, subtitle)
+      ? h(Kicker, { colors, style: { transform: TILT, opacity: reveal(frame, 16, 12) } }, subtitle)
       : null,
   )
 }
@@ -1224,56 +1248,31 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
   const props = item.templateProps
   const landscape = width > height
   const safe = safeInsets(width, height)
-  const padding = landscape ? { top: 70, bottom: 70 } : { top: safe.top - 60, bottom: safe.bottom - 60 }
+  const padding = landscape ? { top: 70, bottom: 70 } : { top: safe.top - 90, bottom: safe.bottom - 40 }
   // Shrink the stack on short canvases (square) so nothing collides.
-  const k = landscape ? 1 : Math.min(1, (height - padding.top - padding.bottom) / 1260)
+  const k = landscape ? 1 : Math.min(1, (height - padding.top - padding.bottom) / 1180)
   const headline = textProp(props, 'headline')
-  const info = [
+  const facts: InfoRowData[] = [
     { key: 'venue', icon: iconOf(item, 'venueIcon'), text: textProp(props, 'venue') },
     { key: 'time', icon: iconOf(item, 'timeIcon'), text: textProp(props, 'time') },
   ].filter(row => row.text)
-  const infoIcons = info.some(row => row.icon)
   const cta = textProp(props, 'cta')
   const badgeWidth = (landscape ? 640 : 520) * k
   const ringSize = (2 * EMBLEM_RING.radius * badgeWidth) / BRAND_LOGOS.emblem.width
   const day = reveal(frame, 16, 8)
 
-  const header = h(WordmarkBuild, { colors, width: (landscape ? 700 : 660) * k, frame, start: 0, seed: `poster-mark-${item.id}` })
+  const header = h(LogoHeader, { colors, width: (landscape ? 440 : 480) * k, frame, seed: `poster-mark-${item.id}` })
+  // The date is the hero: the ring badge carries it, so the bolt already struck in the header stays the only one.
   const badge = h(
     RingBadge,
-    { colors, width: badgeWidth, frame, start: 6, seed: `poster-ring-${item.id}` },
+    { colors, width: badgeWidth, frame, start: 6, seed: `poster-ring-${item.id}`, bolt: false },
     h('div', { style: { ...gradientText(colors, 26), fontSize: ringSize * 0.5, lineHeight: 0.9, letterSpacing: -8, transform: 'skewX(-8deg)', ...slam(day) } }, textProp(props, 'day')),
     h('div', { style: { ...display, fontSize: ringSize * 0.13, letterSpacing: 14, color: colors.soft, textShadow: `0 0 18px ${colors.glow}`, opacity: reveal(frame, 20, 10) } }, textProp(props, 'month')),
   )
-  const blocks = [
-    headline
-      ? h(RuleFrame, { key: 'headline', colors, width: (landscape ? 820 : 900) * k, frame, start: 18, seed: `poster-rules-${item.id}`, arcs: false, bolt: false, content: band => bandText(colors, band, headline, reveal(frame, 22, 12)) })
-      : null,
-    info.length
-      ? h(
-          NeonPanel,
-          { key: 'info', colors, style: { transform: `skewX(-12deg) scale(${k})`, opacity: reveal(frame, 28, 12) } },
-          h(
-            'div',
-            { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            info.map((row, index) =>
-              h(
-                'div',
-                { key: row.key, style: { ...display, fontStyle: 'normal', fontSize: index ? 34 : 40, color: index ? colors.soft : '#fff', display: 'flex', alignItems: 'center', gap: 16 } },
-                infoIcons ? h('span', { style: { display: 'flex', width: 38, flexShrink: 0, color: colors.soft } }, row.icon ? h(LucideIcon, { name: row.icon, size: 38 }) : null) : null,
-                row.text,
-              ),
-            ),
-          ),
-        )
-      : null,
-    cta
-      ? h(
-          'div',
-          { key: 'cta', style: { opacity: reveal(frame, 32, 10), transform: `scale(${interpolate(reveal(frame, 32, 10), [0, 1], [1.4, 1]) * k})` } },
-          h(Pill, { colors, style: { fontSize: 40 } }, ctaLabel(cta, iconOf(item, 'ctaIcon'))),
-        )
-      : null,
+  const leadIn = headline ? h(LeadIn, { key: 'lead', colors, frame, start: 10, size: TYPE.lead * k }, headline) : null
+  const bottom = [
+    facts.length ? h('div', { key: 'facts', style: { transform: k < 1 ? `scale(${k})` : undefined } }, h(InfoPanel, { colors, frame, start: 28, rows: facts })) : null,
+    cta ? h('div', { key: 'cta', style: { transform: k < 1 ? `scale(${k})` : undefined } }, h(CtaButton, { colors, frame, start: 36, icon: iconOf(item, 'ctaIcon') }, cta)) : null,
   ]
   return h(
     AbsoluteFill,
@@ -1282,13 +1281,13 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
         padding: landscape ? '70px 110px' : `${padding.top}px 60px ${padding.bottom}px`,
         flexDirection: landscape ? 'row' : 'column',
         alignItems: 'center',
-        justifyContent: landscape ? 'center' : 'space-evenly',
+        justifyContent: landscape ? 'center' : 'space-between',
         gap: landscape ? 70 : 10,
       },
     },
     ...(landscape
-      ? [badge, h('div', { key: 'details', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30 } }, header, ...blocks)]
-      : [header, badge, ...blocks]),
+      ? [badge, h('div', { key: 'details', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30 } }, header, leadIn, ...bottom)]
+      : [header, leadIn, badge, ...bottom]),
   )
 }
 
@@ -1306,7 +1305,7 @@ const NowPlaying: React.FC<TemplateRenderProps> = ({ item, frame, width, height 
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 18, marginLeft: frameWidth * 0.2, marginBottom: -6, transform: TILT, opacity: reveal(frame, 4, 10) } },
         h(EqBars, { colors, frame }),
-        h(Kicker, { colors, size: 26, style: { letterSpacing: 9 } }, textProp(props, 'label')),
+        h(Kicker, { colors }, textProp(props, 'label')),
       ),
       h(RuleFrame, { colors, width: frameWidth, frame, seed: `np-${item.id}`, content: band => bandText(colors, band, textProp(props, 'artist'), reveal(frame, 6, 12)) }),
       textProp(props, 'track')
@@ -1315,8 +1314,8 @@ const NowPlaying: React.FC<TemplateRenderProps> = ({ item, frame, width, height 
             {
               style: {
                 ...body,
-                fontSize: 34,
-                fontWeight: 700,
+                fontSize: TYPE.fact,
+                fontWeight: 800,
                 marginTop: -8,
                 marginLeft: frameWidth * 0.14,
                 transform: TILT,
@@ -1414,7 +1413,7 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
     textProp(props, 'handle')
       ? h(
           'div',
-          { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: 64, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10), display: 'flex', alignItems: 'center', gap: 20 } },
+          { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: TYPE.fact + 12, color: '#fff', textShadow: glow(colors, 24), opacity: reveal(frame, 26, 10), display: 'flex', alignItems: 'center', gap: 20 } },
           handleIcon ? h(LucideIcon, { name: handleIcon, size: '0.85em', style: { filter: `drop-shadow(0 0 14px ${colors.glow})` } }) : null,
           textProp(props, 'handle'),
         )
@@ -1422,7 +1421,7 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
     textProp(props, 'website')
       ? h(
           Kicker,
-          { colors, size: 30, style: { letterSpacing: 10, opacity: reveal(frame, 30, 10), display: 'flex', alignItems: 'center', gap: 14, textShadow: undefined } },
+          { colors, style: { opacity: reveal(frame, 30, 10), display: 'flex', alignItems: 'center', gap: 14, textShadow: undefined } },
           websiteIcon ? h(LucideIcon, { name: websiteIcon }) : null,
           textProp(props, 'website'),
         )

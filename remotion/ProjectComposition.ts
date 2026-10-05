@@ -20,7 +20,6 @@ import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
 import { graphicSoundCues, soundFrames, TEMPLATE_SOUNDS } from '../shared/template-sounds'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
-import { GigAnnouncementTemplate } from './gig-announcement-template'
 import { blurSamples, itemBlurStrength, itemMoves, shutterAngle } from '../shared/video-motion-blur'
 
 // Single source of truth for what a project looks like. The editor mounts
@@ -112,11 +111,7 @@ const GraphicItemView: React.FC<{
   const unit = Math.min(width, height) / 1080
   const virtualWidth = width / unit
   const virtualHeight = height / unit
-  // The redesigned Gig Announcement is intentionally scoped to tall social
-  // canvases. Square and landscape projects keep their existing composition.
-  const Template = item.templateKey === 'gig-announcement' && virtualHeight / virtualWidth > 1.5
-    ? GigAnnouncementTemplate
-    : MOTION_TEMPLATE_COMPONENTS[item.templateKey]
+  const Template = MOTION_TEMPLATE_COMPONENTS[item.templateKey]
   if (!Template) return null
   const state = animationState({
     frame,

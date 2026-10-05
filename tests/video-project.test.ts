@@ -191,16 +191,16 @@ describe('motion templates', () => {
 
   it('lets items swap or hide template icons', () => {
     const item = createGraphicItem('gig-announcement', 0, 30)
-    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('calendar')
-    item.templateProps.dateIcon = 'ticket'
-    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('ticket')
-    item.templateProps.dateIcon = ''
-    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBeNull()
-    item.templateProps.dateIcon = 'not-an-icon'
-    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBeNull()
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('clock')
+    item.templateProps.timeIcon = 'ticket'
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('ticket')
+    item.templateProps.timeIcon = ''
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBeNull()
+    item.templateProps.timeIcon = 'not-an-icon'
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBeNull()
     // Projects saved before icons were editable keep the template default.
-    delete item.templateProps.dateIcon
-    expect(iconProp(item.templateKey, item.templateProps, 'dateIcon')).toBe('calendar')
+    delete item.templateProps.timeIcon
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('clock')
   })
 
   it('dims the footage behind a template by default and lets items override it', () => {
