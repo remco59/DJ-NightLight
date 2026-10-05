@@ -36,7 +36,7 @@ const templateName = (key: string) => labelFor(emailTemplateLabels, key)
 const automaticTemplates = computed(() => data.value?.templates.filter(template => template.automatic) || [])
 const automaticForClient = computed(() => automaticTemplates.value.filter(template =>
   template.enabled && clientAllowsAutomaticEmail(data.value?.client?.emailAutomationDisabled, template.key)))
-const portalVariables = computed((): Variables => props.portalUrl ? { portalUrl: props.portalUrl } : {})
+const portalVariables = computed((): Variables => props.portalUrl ? { portalUrl: props.portalUrl, reviewUrl: props.portalUrl } : {})
 const invitationAutomatic = computed(() => {
   const template = data.value?.templates.find(item => item.key === 'client_portal_invitation')
   return Boolean(template?.enabled && data.value?.client?.email

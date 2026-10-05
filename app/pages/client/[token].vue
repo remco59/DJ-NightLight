@@ -13,6 +13,9 @@ type PortalData = {
   gig: { id: string, title: string, eventType: string | null, status: string, startsAt: string | null, endsAt: string | null, imageUrl: string | null, venue: { name: string, city: string | null } | null }
   client: { name: string | null }
   expiresAt: string
+  finished: boolean
+  reviewOpen: boolean
+  review: { rating: number, comment: string | null, createdAt: string } | null
   questionnaire: { version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
   invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
@@ -33,6 +36,12 @@ const message = ref('')
 const paymentBusy = ref(false)
 const categoryLabels = musicWishCategoryLabels as Record<Wish['category'], string>
 const confirming = ref(false)
+const reviewRating = ref(0)
+const reviewHover = ref(0)
+const reviewComment = ref('')
+const reviewName = ref('')
+const reviewBusy = ref(false)
+const reviewMessage = ref('')
 
 const categoryMeta: Record<Wish['category'], { icon: string, description: string }> = {
   must_play: { icon: 'lucide:heart', description: 'Nummers die er zeker bij moeten komen.' },
@@ -109,6 +118,23 @@ async function submit() {
     submitting.value = false
   }
 }
+async function submitReview() {
+  if (!reviewRating.value) { reviewMessage.value = 'Kies eerst een aantal sterren.'; return }
+  reviewBusy.value = true
+  reviewMessage.value = ''
+  try {
+    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/review`, { method: 'POST', body: {
+      rating: reviewRating.value,
+      comment: reviewComment.value,
+      authorName: reviewName.value,
+    } })
+    await refresh()
+  } catch (reviewError: unknown) {
+    reviewMessage.value = apiErrorMessage(reviewError, 'Je review versturen is niet gelukt. Probeer het opnieuw.')
+  } finally {
+    reviewBusy.value = false
+  }
+}
 async function payInvoice() {
   paymentBusy.value = true
   message.value = ''
@@ -155,7 +181,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
         </div>
 
-        <div class="progress-card">
+        <div v-if="!data.finished" class="progress-card">
           <div class="progress-copy">
             <Icon name="lucide:clipboard-check" aria-hidden="true" />
             <strong>{{ progressLabel }}</strong>
@@ -179,12 +205,37 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         </article>
       </section>
 
-      <section v-if="data.questionnaire.status === 'submitted'" class="submitted-banner">
+      <section v-if="!data.finished && data.questionnaire.status === 'submitted'" class="submitted-banner">
         <Icon name="lucide:circle-check" aria-hidden="true" />
         <div><strong>Alles is verstuurd</strong><span>Je gegevens zijn ontvangen op {{ formatDate(data.questionnaire.submittedAt) }}.</span></div>
       </section>
 
-      <form @submit.prevent="submit">
+      <section v-if="data.finished" id="review" class="surface step-section review-card">
+        <div v-if="data.review" class="review-done">
+          <Icon name="lucide:circle-check" aria-hidden="true" />
+          <div>
+            <strong>Bedankt voor je review!</strong>
+            <span class="review-stars-static" :aria-label="`${data.review.rating} van 5 sterren`"><Icon v-for="n in 5" :key="n" name="lucide:star" :class="{ on: n <= data.review.rating }" aria-hidden="true" /></span>
+            <p v-if="data.review.comment">“{{ data.review.comment }}”</p>
+          </div>
+        </div>
+        <form v-else-if="data.reviewOpen" @submit.prevent="submitReview">
+          <p class="eyebrow">Review</p>
+          <h2>Hoe heb je NightLight ervaren?</h2>
+          <p class="review-intro">Bedankt dat ik erbij mocht zijn! Een review helpt mij enorm.</p>
+          <div class="star-picker" role="radiogroup" aria-label="Beoordeling">
+            <button v-for="n in 5" :key="n" type="button" role="radio" :aria-checked="reviewRating === n" :aria-label="`${n} ${n === 1 ? 'ster' : 'sterren'}`" :class="{ on: n <= (reviewHover || reviewRating) }" @click="reviewRating = n" @mouseenter="reviewHover = n" @mouseleave="reviewHover = 0">
+              <Icon name="lucide:star" aria-hidden="true" />
+            </button>
+          </div>
+          <label>Jouw ervaring (optioneel)<textarea v-model="reviewComment" rows="4" maxlength="2000" /></label>
+          <label>Je naam (optioneel)<input v-model="reviewName" maxlength="200" autocomplete="name"></label>
+          <p v-if="reviewMessage" class="message" role="status">{{ reviewMessage }}</p>
+          <div class="submit-actions"><button class="primary-action" :disabled="reviewBusy || !reviewRating">{{ reviewBusy ? 'Versturen…' : 'Review versturen' }} <Icon v-if="!reviewBusy" name="lucide:arrow-right" aria-hidden="true" /></button></div>
+        </form>
+      </section>
+
+      <form v-else @submit.prevent="submit">
         <section class="surface step-section" :class="{ complete: questionnaireComplete }">
           <div class="step-header">
             <span class="step-number"><Icon v-if="questionnaireComplete" name="lucide:check" aria-hidden="true" /><template v-else>1</template></span>
@@ -281,6 +332,8 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
+.review-card{display:grid;gap:1rem}.review-card h2{margin:.2rem 0;font-size:1.5rem;letter-spacing:-.025em}.review-card form{display:grid;gap:1rem}.review-intro{margin:0;color:var(--text-subtle)}.star-picker{display:flex;gap:.25rem}.star-picker button{border:0;background:none;padding:.2rem;color:#4a4352;font-size:2.2rem;line-height:0;cursor:pointer}.star-picker button.on{color:#ffbf47}.star-picker button.on svg{fill:currentColor}.review-done{display:flex;align-items:flex-start;gap:.85rem;color:#bdebd1}.review-done>svg{font-size:1.5rem;margin-top:.1rem}.review-done div{display:grid;gap:.4rem}.review-done p{margin:0;color:var(--text-subtle)}.review-stars-static{display:flex;gap:.15rem;color:#4a4352}.review-stars-static .on{color:#ffbf47;fill:currentColor}
+
 .portal-shell{width:min(960px,calc(100% - 2rem));margin:0 auto;padding:1.5rem 0 4rem;color:var(--text)}
 .portal-nav{display:flex;align-items:center;justify-content:space-between;min-height:3.5rem;margin-bottom:2rem}.portal-brand{color:var(--text);font-size:1.15rem;font-weight:800;text-decoration:none;letter-spacing:-.02em}
 .portal-hero{position:relative;display:grid;gap:1.5rem;margin-bottom:1.25rem;padding:clamp(1.4rem,4vw,2.2rem);overflow:hidden;border:1px solid #2c2138;border-radius:1.5rem;background:radial-gradient(circle at 75% 15%,rgba(131,67,255,.26),transparent 34%),linear-gradient(145deg,#0c0911 10%,#15101e 100%)}
