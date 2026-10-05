@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminNav from '~/components/admin/AdminNav.vue'
+import { worksOffline } from '~~/shared/offline-routes'
 
 const route = useRoute()
 
@@ -16,18 +17,9 @@ useHead({
   ],
 })
 
-// Offline: gig pages keep working from the service worker cache, everything else needs a connection.
-const online = ref(true)
-function syncOnline() { online.value = navigator.onLine }
-onMounted(() => {
-  syncOnline()
-  window.addEventListener('online', syncOnline)
-  window.addEventListener('offline', syncOnline)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('online', syncOnline)
-  window.removeEventListener('offline', syncOnline)
-})
+// Offline: only gig pages keep working (from the service worker cache); anything else is replaced by an offline notice.
+const online = useOnline()
+const blocked = computed(() => !online.value && !worksOffline(route.path))
 const mobileOpen = ref(false)
 const sidebar = ref<HTMLElement | null>(null)
 const menuButton = ref<HTMLButtonElement | null>(null)
@@ -83,11 +75,12 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 
     <div v-if="!online" class="offline-banner" role="status">
       <Icon name="lucide:wifi-off" aria-hidden="true" />
-      Offline — je ziet de laatst opgehaalde gigs. Wijzigingen opslaan kan pas weer met verbinding.
+      Offline — je ziet de laatst opgehaalde gigs. Aanmaken en wijzigen kan alleen met verbinding.
     </div>
 
     <main id="main" class="admin-main" tabindex="-1" :inert="(isCompact && mobileOpen) || undefined">
-      <slot />
+      <AdminOfflineNotice v-if="blocked" />
+      <slot v-else />
     </main>
 
     <button

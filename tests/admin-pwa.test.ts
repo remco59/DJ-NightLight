@@ -33,3 +33,16 @@ describe('admin PWA', () => {
     expect(sw).toContain("request.method !== 'GET'")
   })
 })
+
+describe('offline routes', () => {
+  it('only keeps the gig list, gig details and the offline page available offline', async () => {
+    const { worksOffline } = await import('../shared/offline-routes')
+    const id = '123e4567-e89b-12d3-a456-426614174000'
+    expect(worksOffline('/admin/gigs')).toBe(true)
+    expect(worksOffline(`/admin/gigs/${id}`)).toBe(true)
+    expect(worksOffline('/admin/offline')).toBe(true)
+    for (const path of ['/admin', '/admin/invoices', '/admin/clients', '/admin/calendar', '/admin/gigs/new', '/admin/settings']) {
+      expect(worksOffline(path)).toBe(false)
+    }
+  })
+})
