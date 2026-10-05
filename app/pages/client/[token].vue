@@ -34,6 +34,11 @@ const wishes = ref<Wish[]>((data.value?.wishes || []).map(wish => ({ ...wish }))
 const submitting = ref(false)
 const message = ref('')
 const paymentBusy = ref(false)
+// Stripe redirects back with ?payment=success|cancelled; the webhook (not this param) decides the real status.
+const paymentReturn = computed(() => {
+  const value = Array.isArray(route.query.payment) ? route.query.payment[0] : route.query.payment
+  return value === 'success' || value === 'cancelled' ? value : null
+})
 const categoryLabels = musicWishCategoryLabels as Record<Wish['category'], string>
 const confirming = ref(false)
 const reviewRating = ref(0)
@@ -205,6 +210,8 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             <strong v-if="data.invoice.paymentStatus === 'paid'" class="invoice-paid"><Icon name="lucide:check" aria-hidden="true" />Betaald</strong>
             <strong class="invoice-amount">{{ invoiceAmount() }}</strong>
             <span class="invoice-status" :class="`status-${data.invoice.paymentStatus}`"><i />{{ invoiceStatusLabel() }}</span>
+            <p v-if="paymentReturn === 'cancelled' && data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" class="payment-notice" role="status">Je betaling is niet afgerond. Er is niets afgeschreven, je kunt het opnieuw proberen.</p>
+            <p v-else-if="paymentReturn === 'success' && data.invoice.paymentStatus !== 'paid'" class="payment-notice" role="status">Bedankt! We verwerken je betaling. Dit kan even duren, dan zie je hier dat de factuur is betaald.</p>
           </div>
           <div class="invoice-actions">
             <button v-if="data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" type="button" :class="invoiceProminent ? 'primary-action' : 'secondary-action'" :disabled="paymentBusy" @click="payInvoice">
@@ -342,6 +349,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
+.payment-notice{margin:.5rem 0 0;font-size:.9rem;color:var(--text-subtle)}
 .review-card{display:grid;gap:1rem}.review-card h2{margin:.2rem 0;font-size:1.5rem;letter-spacing:-.025em}.review-card form{display:grid;gap:1rem}.review-intro{margin:0;color:var(--text-subtle)}.star-picker{display:flex;gap:.25rem}.star-picker button{border:0;background:none;padding:.2rem;color:#7d7489;font-size:2.2rem;line-height:0;cursor:pointer;transition:color .12s,transform .12s}.star-picker button:hover{transform:scale(1.1)}.star-picker button.on{color:#a66eff}.star-picker button.on svg{fill:currentColor}.review-done{display:flex;align-items:flex-start;gap:.85rem;color:#bdebd1}.review-done>svg{font-size:1.5rem;margin-top:.1rem}.review-done div{display:grid;gap:.4rem}.review-done p{margin:0;color:var(--text-subtle)}.review-stars-static{display:flex;gap:.15rem;color:#4a4352}.review-stars-static .on{color:#a66eff;fill:currentColor}
 
 .portal-shell{width:min(960px,calc(100% - 2rem));margin:0 auto;padding:1.5rem 0 4rem;color:var(--text)}
