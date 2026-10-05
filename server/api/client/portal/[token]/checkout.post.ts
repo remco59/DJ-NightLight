@@ -56,7 +56,14 @@ export default defineEventHandler(async (event) => {
   const metadata = { invoiceId: invoice.id, paymentId: payment.id, gigId: access.gigId }
   const attempt = payment.attemptCount + 1
   const params: Stripe.Checkout.SessionCreateParams = {
+    ui_mode: 'hosted_page',
     mode: 'payment',
+    billing_address_collection: 'auto',
+    phone_number_collection: { enabled: false },
+    automatic_tax: { enabled: false },
+    allow_promotion_codes: false,
+    submit_type: 'auto',
+    origin_context: 'web',
     line_items: [{
       price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
