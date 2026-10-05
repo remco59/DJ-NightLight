@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RevenueMonth, Urgency } from '../../../shared/dashboard'
+import type { RevenueMonth, Urgency } from '~~/shared/dashboard'
 
 definePageMeta({ layout: 'admin' })
 

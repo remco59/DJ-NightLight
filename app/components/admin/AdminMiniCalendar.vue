@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { addMonths, dayKey, monthGrid, monthKey } from '../../../shared/dashboard'
+import { addMonths, dayKey, monthGrid, monthKey } from '~~/shared/dashboard'
 
 type CalendarGig = { id: string, title: string, startsAt: string | Date | null }
 

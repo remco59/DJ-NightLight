@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RevenueMonth } from '../../../shared/dashboard'
+import type { RevenueMonth } from '~~/shared/dashboard'
 
 const props = defineProps<{ months: RevenueMonth[] }>()
 
