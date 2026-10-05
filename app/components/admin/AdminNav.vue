@@ -23,6 +23,7 @@ const groups: NavGroup[] = [
     {label:'Agenda',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
     {label:'Klanten',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
     {label:'Locaties',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
+    {label:'Reviews',to:'/admin/reviews',icon:'lucide:star',roles:['owner','manager']},
   ]},
   { label:'Website & social', items:[
     {label:'Website',to:'/admin/content',icon:'lucide:globe',roles:['owner','content_editor']},

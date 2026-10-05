@@ -53,6 +53,7 @@ const saving=ref(false);const message=ref('')
 const portalMessage=ref('');const portalUrl=ref('');const portalDays=ref(30);const portalBusy=ref(false)
 const actionMenu=ref<HTMLDetailsElement|null>(null)
 const {data:portalData,refresh:refreshPortal}=await useFetch<{links:PortalLink[]}>(`/api/admin/gigs/${id}/portal-links`,{immediate:canManageGigs.value})
+const {data:reviewData}=await useFetch<{review:{rating:number,comment:string|null,authorName:string|null,createdAt:string}|null}>(`/api/admin/gigs/${id}/review`,{immediate:canManageGigs.value})
 const {data:submissionData}=await useFetch<PortalSubmission>(`/api/admin/gigs/${id}/portal-submission`,{immediate:canManageGigs.value})
 
 function addContact(){contacts.value.push({name:'',role:'',email:'',phone:'',notes:''})}
@@ -242,6 +243,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </aside>
 </div>
 <div class="summary-grid">
+<section v-if="reviewData?.review" class="card"><p class="eyebrow">Review van de klant</p><p><strong>{{'★'.repeat(reviewData.review.rating)}}{{'☆'.repeat(5-reviewData.review.rating)}}</strong> <small>{{reviewData.review.authorName||'Anoniem'}}</small></p><p v-if="reviewData.review.comment">“{{reviewData.review.comment}}”</p></section>
 <section class="card"><div class="section-title"><p class="eyebrow">Planning</p><button type="button" class="text-button with-icon" @click="tab='planning'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><ol class="mini-timeline"><li v-for="row in planningRows" :key="row.label"><strong>{{row.label}}</strong><span>{{row.value}}</span></li></ol></section>
 <section class="card"><div class="section-title"><p class="eyebrow">Financieel</p><button type="button" class="text-button with-icon" @click="tab='finance'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><dl class="kv"><div><dt>Gage</dt><dd>{{feeLabel}}</dd></div><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div><div><dt>Facturen</dt><dd>{{data.invoices.length?`${data.invoices.length} gekoppeld`:'Nog geen facturen voor deze gig.'}}</dd></div></dl></section>
 </div>
