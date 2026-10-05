@@ -1,9 +1,5 @@
 import { z } from 'zod'
-
-/** Today's date in the Netherlands as YYYY-MM-DD, so "today" matches the visitor's calendar. */
-export function todayInAmsterdam(now = new Date()) {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Amsterdam' }).format(now)
-}
+import { todayInAmsterdam } from '../dates'
 
 export const inquiryInputSchema = z.object({
   name: z.string().trim()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { inquiryInputSchema, todayInAmsterdam, type InquiryField } from '~~/shared/schemas/inquiry'
+import { todayInAmsterdam } from '~~/shared/dates'
+import { inquiryInputSchema, type InquiryField } from '~~/shared/schemas/inquiry'
 import { apiErrorMessage, apiFieldErrors } from '~/utils/api-error'
 
 definePageMeta({layout:'public'})
