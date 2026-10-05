@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { generatedPosts } from '../../../../db/schema'
 import { inspectImage } from '../../../../shared/media'
-import { POST_PRESETS, POST_TEMPLATE_KEYS } from '../../../../shared/post-generator'
+import { DEFAULT_POST_BRAND, normalizePostBrand, POST_PRESETS, POST_TEMPLATE_KEYS } from '../../../../shared/post-generator'
 import { db } from '../../../utils/db'
 import { storeGeneratedImage } from '../../../utils/media-library'
 import { getGeneratedStorage } from '../../../utils/media-storage'
@@ -28,7 +28,12 @@ const gigItemSchema = z.object({
 const designSchema = z.object({
   preset: z.enum(['square', 'portrait', 'story']),
   templateKey: z.enum(POST_TEMPLATE_KEYS),
-  brandPreset: z.enum(['night', 'mono', 'warm']),
+  // Older clients still send the pre-accent presets (night, warm).
+  brandPreset: z.string().transform((value, context) => {
+    const brand = normalizePostBrand(value)
+    if (!brand) context.addIssue({ code: 'custom', message: 'Unknown brand preset' })
+    return brand ?? DEFAULT_POST_BRAND
+  }),
   headline: z.string().max(180),
   subline: z.string().max(260),
   dateText: z.string().max(160),

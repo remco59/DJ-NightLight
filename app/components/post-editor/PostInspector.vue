@@ -456,14 +456,10 @@ function onDrop(event: DragEvent) {
               </span>
               <span class="brand-copy">
                 <strong>{{ brand.label }}</strong>
-                <small>{{ brand.description }}</small>
               </span>
               <Icon v-if="design.brandPreset === brand.key" class="brand-check" name="lucide:check" aria-hidden="true" />
             </button>
           </div>
-          <p v-if="!template.flexibleText && design.brandPreset !== 'night'" class="empty-note">
-            De campagne-artwork van {{ template.label }} wordt alleen gebruikt met de NightLight-stijl.
-          </p>
         </section>
 
         <section class="group">

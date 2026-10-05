@@ -2,6 +2,7 @@ import type { InjectionKey, Ref } from 'vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import { createMediaThumbnail } from '~/utils/media-upload'
 import { renderPostCanvas, type PostTextBox } from '~/utils/post-renderer'
+import { MOTION_ACCENT_KEYS, MOTION_ACCENTS } from '~~/shared/video-templates'
 import {
   applyPostTemplate,
   coverImageRect,
@@ -51,11 +52,12 @@ export type PostGeneratorData = {
 export type PostEditorTool = 'media' | 'template' | 'text' | 'design' | 'effects'
 export type PostCanvasSelection = 'none' | 'image' | 'text'
 
-export const POST_BRANDS = [
-  { key: 'night' as const, label: 'NightLight', description: 'Paars nachtleven-accent.', colors: ['#9d5cff', '#17131d', '#858093', '#f7f4fb'] },
-  { key: 'mono' as const, label: 'Mono', description: 'Zwart-wit.', colors: ['#ffffff', '#0d0b10', '#77717d', '#d8d4dc'] },
-  { key: 'warm' as const, label: 'Warm', description: 'Warm oranje accent.', colors: ['#ff7a45', '#1c1210', '#9f7465', '#fff3eb'] },
-]
+/** The same accents as the video editor; swatches are accent, soft, glow and the dark base. */
+export const POST_BRANDS = MOTION_ACCENT_KEYS.map(key => ({
+  key,
+  label: MOTION_ACCENTS[key].label,
+  colors: [MOTION_ACCENTS[key].accent, MOTION_ACCENTS[key].soft, MOTION_ACCENTS[key].glow, '#0d0b10'],
+}))
 
 export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
