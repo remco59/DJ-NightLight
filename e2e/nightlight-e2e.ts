@@ -404,7 +404,7 @@ async function main() {
   const design = {
     preset: 'square',
     templateKey: 'gradient',
-    brandPreset: 'night',
+    brandPreset: 'ultraviolet',
     headline: 'E2E NIGHT',
     subline: 'DJ NightLight',
     dateText: 'TEST',

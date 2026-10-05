@@ -5,13 +5,16 @@ import {
   defaultPostDesign,
   defaultPostGigItems,
   defaultPostVisibility,
+  normalizePostBrand,
   postImageDragDelta,
+  POST_BRAND_PRESETS,
   POST_PRESETS,
   POST_TEMPLATE_KEYS,
   POST_TEMPLATES,
   restorePostDesign,
   safeAreaInsets,
 } from '../shared/post-generator'
+import { MOTION_ACCENT_KEYS } from '../shared/video-templates'
 
 describe('post generator', () => {
   it('uses the exact social export dimensions', () => {
@@ -180,12 +183,33 @@ describe('post templates', () => {
   })
 })
 
+describe('brand presets', () => {
+  it('uses the video accents', () => {
+    expect(POST_BRAND_PRESETS).toEqual(MOTION_ACCENT_KEYS)
+    expect(defaultPostDesign().brandPreset).toBe('ultraviolet')
+  })
+
+  it('maps presets saved before the accents to their closest accent', () => {
+    expect(normalizePostBrand('night')).toBe('ultraviolet')
+    expect(normalizePostBrand('warm')).toBe('sunset')
+    expect(normalizePostBrand('mono')).toBe('mono')
+    expect(normalizePostBrand('hot-pink')).toBe('hot-pink')
+    expect(normalizePostBrand('neon')).toBeNull()
+    expect(normalizePostBrand(3)).toBeNull()
+  })
+
+  it('restores a legacy preset as its accent', () => {
+    const restored = restorePostDesign(defaultPostDesign(), { brandPreset: 'warm' })
+    expect(restored.brandPreset).toBe('sunset')
+  })
+})
+
 describe('restoring a stored design', () => {
   it('loads every valid stored field', () => {
     const stored = applyPostTemplate(defaultPostDesign(), 'recap')
     stored.imageX = .4
     stored.zoom = 2
-    stored.brandPreset = 'warm'
+    stored.brandPreset = 'sunset'
     expect(restorePostDesign(defaultPostDesign(), stored)).toEqual({ ...stored, showSafeArea: true })
   })
 

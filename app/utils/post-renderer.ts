@@ -1,873 +1,288 @@
 import {
   coverImageRect,
+  DEFAULT_POST_BRAND,
   postPresetSize,
   safeAreaInsets,
-  type PostBrandPreset,
   type PostDesign,
   type PostFieldVisibility,
 } from '~~/shared/post-generator'
+import { MOTION_ACCENTS } from '~~/shared/video-templates'
+import {
+  BODY_FONT,
+  DISPLAY_FONT,
+  TYPE,
+  ctaBlock,
+  drawBackdrop,
+  drawElectricEdge,
+  drawGradientText,
+  drawKicker,
+  drawStack,
+  heroFrameBlock,
+  heroLinesBlock,
+  infoBlock,
+  kickerBlock,
+  leadInBlock,
+  loadPostAssets,
+  logoBlock,
+  neonRuleBlock,
+  stackHeight,
+  wrapText,
+  type AccentColors,
+  type Block,
+  type InfoRow,
+  type PostAssets,
+  type Scene,
+} from './post-lightning'
 
-type Palette = {
-  text: string
-  accent: string
-  accentStrong: string
-  shadow: string
-  overlay: string
-  panel: string
-  panelSolid: string
-}
-
-const palettes: Record<PostBrandPreset, Palette> = {
-  night: {
-    text: '#ffffff',
-    accent: '#b18cff',
-    accentStrong: '#8f2cff',
-    shadow: 'rgba(0,0,0,.68)',
-    overlay: '#09070d',
-    panel: 'rgba(12,9,18,.78)',
-    panelSolid: '#120c1a',
-  },
-  mono: {
-    text: '#ffffff',
-    accent: '#ffffff',
-    accentStrong: '#d9d9d9',
-    shadow: 'rgba(0,0,0,.72)',
-    overlay: '#000000',
-    panel: 'rgba(0,0,0,.78)',
-    panelSolid: '#0d0d0d',
-  },
-  warm: {
-    text: '#fffaf5',
-    accent: '#ff9a7c',
-    accentStrong: '#ff5f35',
-    shadow: 'rgba(26,8,3,.68)',
-    overlay: '#1e0b06',
-    panel: 'rgba(35,11,5,.76)',
-    panelSolid: '#2a1009',
-  },
-}
-
-
-type CampaignArtwork = {
-  overlay: HTMLImageElement | null
-  card: HTMLImageElement | null
-  dateBadge: HTMLImageElement | null
-  titleBrush: HTMLImageElement | null
-}
-
-const CAMPAIGN_ARTWORK_URLS = {
-  overlay: '/post-generator/nightlight-campaign-overlay.svg',
-  card: '/post-generator/nightlight-event-card.svg',
-  dateBadge: '/post-generator/nightlight-date-badge.svg',
-  titleBrush: '/post-generator/nightlight-title-brush.svg',
-} as const
-
-let campaignArtworkPromise: Promise<CampaignArtwork> | null = null
-
-function loadArtworkImage(src: string) {
-  return new Promise<HTMLImageElement | null>((resolve) => {
-    const image = new Image()
-    image.decoding = 'async'
-    image.onload = () => resolve(image)
-    image.onerror = () => resolve(null)
-    image.src = src
-  })
-}
-
-function loadCampaignArtwork() {
-  if (!campaignArtworkPromise) {
-    campaignArtworkPromise = Promise.all([
-      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.overlay),
-      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.card),
-      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.dateBadge),
-      loadArtworkImage(CAMPAIGN_ARTWORK_URLS.titleBrush),
-    ]).then(([overlay, card, dateBadge, titleBrush]) => ({
-      overlay,
-      card,
-      dateBadge,
-      titleBrush,
-    }))
-  }
-  return campaignArtworkPromise
-}
+// Photo templates share one look with the video templates (see post-lightning.ts):
+// the lightning wordmark, gradient hero type, white facts in a neon panel,
+// kicker support text and a single CTA pill. Colours are the video accents.
 
 function isVisible(design: PostDesign, field: keyof PostFieldVisibility) {
   return design.visibility[field]
 }
 
-function alignX(align: CanvasTextAlign, left: number, right: number) {
-  if (align === 'center') return (left + right) / 2
-  if (align === 'right') return right
-  return left
+function filled(design: PostDesign, field: keyof PostFieldVisibility, value: string) {
+  return isVisible(design, field) && value.trim() ? value.trim() : ''
 }
 
-function wrapLines(context: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines = 4) {
-  const words = text.trim().split(/\s+/).filter(Boolean)
-  if (!words.length) return []
-  const lines: string[] = []
-  let line = ''
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word
-    if (context.measureText(candidate).width <= maxWidth || !line) {
-      line = candidate
-      continue
-    }
-    lines.push(line)
-    line = word
-    if (lines.length >= maxLines - 1) break
-  }
-  if (line && lines.length < maxLines) lines.push(line)
-  if (lines.length === maxLines && words.join(' ') !== lines.join(' ')) {
-    while (lines[maxLines - 1] && context.measureText(`${lines[maxLines - 1]}…`).width > maxWidth) {
-      lines[maxLines - 1] = lines[maxLines - 1]!.slice(0, -1)
-    }
-    lines[maxLines - 1] = `${lines[maxLines - 1]}…`
-  }
-  return lines
+/** Whether the logo text is the brand name, so the real wordmark artwork stands in for it. */
+function usesWordmark(design: PostDesign) {
+  return design.logoText.trim().toUpperCase() === 'NIGHTLIGHT' || !design.logoText.trim()
 }
 
-function roundedRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  const r = Math.min(radius, width / 2, height / 2)
-  context.beginPath()
-  context.moveTo(x + r, y)
-  context.lineTo(x + width - r, y)
-  context.quadraticCurveTo(x + width, y, x + width, y + r)
-  context.lineTo(x + width, y + height - r)
-  context.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
-  context.lineTo(x + r, y + height)
-  context.quadraticCurveTo(x, y + height, x, y + height - r)
-  context.lineTo(x, y + r)
-  context.quadraticCurveTo(x, y, x + r, y)
-  context.closePath()
+function sceneFor(context: CanvasRenderingContext2D, assets: PostAssets, colors: AccentColors, width: number, scale: number, cx: number): Scene {
+  return { context, assets, colors, width, u: (width / 1080) * scale, cx }
 }
 
-function fillRoundedRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-  fill: string,
-  stroke?: string,
-  lineWidth = 2,
-) {
-  roundedRect(context, x, y, width, height, radius)
-  context.fillStyle = fill
-  context.fill()
-  if (stroke) {
-    context.strokeStyle = stroke
-    context.lineWidth = lineWidth
-    context.stroke()
-  }
+// ── Campaign templates ──────────────────────────────────────────────────────
+
+type CampaignLayout = {
+  /** The logo, pinned to the top of the safe area. */
+  header: Block | null
+  /** Everything else, grouped and centred in the space below the header. */
+  body: Block[]
 }
 
-function drawBrushAccent(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  palette: Palette,
-) {
-  context.save()
-  context.globalAlpha = .92
-  context.fillStyle = palette.accentStrong
-  context.translate(x, y)
-  context.rotate(-.045)
-  context.fillRect(0, 0, width, 12)
-  context.fillRect(width * .08, 18, width * .78, 7)
-  context.fillRect(width * .16, -8, width * .55, 4)
-  context.restore()
-}
-
-function drawLightningBolt(
-  context: CanvasRenderingContext2D,
-  points: Array<[number, number]>,
-  palette: Palette,
-  width: number,
-) {
-  if (points.length < 2) return
-
-  context.save()
-  context.lineCap = 'round'
-  context.lineJoin = 'round'
-  context.strokeStyle = '#ffffff'
-  context.lineWidth = Math.max(2, width * .003)
-  context.shadowColor = palette.accentStrong
-  context.shadowBlur = Math.max(14, width * .025)
-  context.beginPath()
-  points.forEach(([x, y], index) => {
-    if (index === 0) context.moveTo(x, y)
-    else context.lineTo(x, y)
-  })
-  context.stroke()
-
-  context.globalAlpha = .7
-  context.strokeStyle = palette.accent
-  context.lineWidth = Math.max(1, width * .0015)
-  context.shadowBlur = Math.max(22, width * .035)
-  context.stroke()
-  context.restore()
-}
-
-function drawRoughPanel(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  palette: Palette,
-) {
-  const tooth = Math.max(8, Math.round(width * .018))
-  context.save()
-  context.beginPath()
-  context.moveTo(x + tooth, y)
-  context.lineTo(x + width - tooth * 1.6, y)
-  context.lineTo(x + width, y + tooth * .7)
-  context.lineTo(x + width - tooth * .35, y + height - tooth * .8)
-  context.lineTo(x + width - tooth * 1.25, y + height)
-  context.lineTo(x + tooth * 1.2, y + height)
-  context.lineTo(x, y + height - tooth * .5)
-  context.lineTo(x + tooth * .35, y + tooth)
-  context.closePath()
-  context.fillStyle = 'rgba(6,4,9,.9)'
-  context.fill()
-  context.strokeStyle = palette.accentStrong
-  context.lineWidth = Math.max(2, width * .004)
-  context.shadowColor = palette.accentStrong
-  context.shadowBlur = Math.max(8, width * .015)
-  context.stroke()
-  context.shadowBlur = 0
-
-  context.globalAlpha = .5
-  context.fillStyle = palette.accentStrong
-  context.fillRect(x - tooth * .3, y + tooth * .3, tooth * .45, height - tooth * .55)
-  context.fillRect(x + width - tooth * .1, y + tooth * .8, tooth * .35, height - tooth * 1.4)
-  context.restore()
-}
-
-function drawCampaignCard(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  if (artwork?.card) {
-    const pad = Math.max(4, width * .009)
-    context.drawImage(artwork.card, x - pad, y - pad, width + pad * 2, height + pad * 2)
-    return
-  }
-  drawRoughPanel(context, x, y, width, height, palette)
-}
-
-function drawDateBadge(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  if (artwork?.dateBadge) {
-    const pad = Math.max(3, width * .025)
-    context.drawImage(artwork.dateBadge, x - pad, y - pad, width + pad * 2, height + pad * 2)
-    return
-  }
-  fillRoundedRect(context, x, y, width, height, 16, palette.accentStrong, '#ffffff', 2)
-}
-
-function drawTitleBrush(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  if (artwork?.titleBrush) {
-    context.drawImage(artwork.titleBrush, x, y, width, height)
-    return
-  }
-
-  context.save()
-  context.fillStyle = palette.accentStrong
-  context.translate(x, y + height * .15)
-  context.rotate(-.025)
-  context.fillRect(0, 0, width, height * .68)
-  context.restore()
-}
-
-function drawCampaignTexture(
-  context: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  palette: Palette,
-  opacity: number,
-  artwork: CampaignArtwork | null,
-) {
-  const shade = context.createLinearGradient(0, 0, 0, height)
-  shade.addColorStop(0, 'rgba(3,2,5,.18)')
-  shade.addColorStop(.46, 'rgba(7,3,12,.3)')
-  shade.addColorStop(1, 'rgba(2,1,4,.78)')
-  context.globalAlpha = Math.max(.42, opacity * .82)
-  context.fillStyle = shade
-  context.fillRect(0, 0, width, height)
-  context.globalAlpha = 1
-
-  if (artwork?.overlay) {
-    context.drawImage(artwork.overlay, 0, 0, width, height)
-    return
-  }
-
-  context.save()
-  context.globalAlpha = .32
-  context.fillStyle = palette.accentStrong
-  context.translate(-width * .08, height * .08)
-  context.rotate(-.18)
-  context.fillRect(0, 0, width * .34, width * .02)
-  context.fillRect(width * .04, width * .03, width * .26, width * .008)
-  context.restore()
-
-  context.save()
-  context.globalAlpha = .28
-  context.fillStyle = palette.accentStrong
-  context.translate(width * .76, height * .82)
-  context.rotate(-.18)
-  context.fillRect(0, 0, width * .34, width * .02)
-  context.fillRect(width * .02, width * .035, width * .22, width * .008)
-  context.restore()
-
-  drawLightningBolt(context, [
-    [width * .08, height * .08],
-    [width * .16, height * .15],
-    [width * .12, height * .2],
-    [width * .22, height * .27],
-    [width * .18, height * .34],
-  ], palette, width)
-
-  drawLightningBolt(context, [
-    [width * .91, height * .06],
-    [width * .84, height * .13],
-    [width * .88, height * .2],
-    [width * .78, height * .28],
-    [width * .82, height * .36],
-  ], palette, width)
-}
-
-function setCampaignDisplayFont(
-  context: CanvasRenderingContext2D,
-  size: number,
-) {
-  context.font = `italic 900 ${size}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-}
-
-function drawCampaignHeadline(
-  context: CanvasRenderingContext2D,
-  text: string,
-  width: number,
-  maxWidth: number,
-  y: number,
-  size: number,
-  maxLines: number,
-  palette: Palette,
-) {
-  context.textAlign = 'center'
-  context.textBaseline = 'top'
-  context.shadowColor = palette.accentStrong
-  context.shadowBlur = Math.max(24, width * .028)
-  context.lineJoin = 'round'
-  context.strokeStyle = 'rgba(54,8,90,.7)'
-  context.lineWidth = Math.max(3, width * .0045)
-  context.fillStyle = '#ffffff'
-  setCampaignDisplayFont(context, size)
-  const lines = wrapLines(context, text.toUpperCase(), maxWidth, maxLines)
-  for (const line of lines) {
-    context.strokeText(line, width / 2, y, maxWidth)
-    context.fillText(line, width / 2, y, maxWidth)
-    y += size * .86
-  }
-  context.shadowBlur = 0
-  return y
-}
-
-function drawCampaignSubline(
-  context: CanvasRenderingContext2D,
-  text: string,
-  width: number,
-  y: number,
-  bannerWidth: number,
-  bannerHeight: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  const x = (width - bannerWidth) / 2
-  drawTitleBrush(context, x, y, bannerWidth, bannerHeight, palette, artwork)
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillStyle = '#ffffff'
-  context.shadowColor = 'rgba(0,0,0,.72)'
-  context.shadowBlur = 12
-  context.font = `900 ${Math.round(width * .046)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-  context.fillText(text.toUpperCase(), width / 2, y + bannerHeight * .52, bannerWidth * .78)
-  context.shadowBlur = 0
-}
-
-function drawBrand(context: CanvasRenderingContext2D, design: PostDesign, width: number, palette: Palette) {
-  if (!isVisible(design, 'logo')) return
-  const safe = safeAreaInsets(design.preset)
-  context.textBaseline = 'top'
-  context.textAlign = 'left'
-  context.shadowColor = palette.shadow
-  context.shadowBlur = 14
-  context.fillStyle = palette.text
-  context.font = `900 ${Math.round(width * .034)}px Arial, sans-serif`
-  context.fillText((design.logoText || 'NIGHTLIGHT').toUpperCase(), safe.left, safe.top, width - safe.left - safe.right)
-  context.fillStyle = palette.accent
-  context.fillRect(safe.left, safe.top + Math.round(width * .052), Math.round(width * .08), Math.max(6, Math.round(width * .007)))
-  context.shadowBlur = 0
-}
-
-function drawGenericTextBlock(
+/**
+ * Lays a campaign template out. `build` is called with a scene scaled by `scale`;
+ * the scale is lowered until the stack fits the safe area, so a square post
+ * gets the same composition as a story, only tighter.
+ */
+function drawCampaign(
   context: CanvasRenderingContext2D,
   design: PostDesign,
   width: number,
   height: number,
-  palette: Palette,
+  colors: AccentColors,
+  assets: PostAssets,
+  build: (scene: Scene, contentWidth: number) => CampaignLayout,
 ) {
   const safe = safeAreaInsets(design.preset)
-  const left = safe.left
-  const right = width - safe.right
-  const maxWidth = right - left
-  const canvasAlign = design.textAlign as CanvasTextAlign
-  const x = alignX(canvasAlign, left, right)
-  context.textAlign = canvasAlign
-  context.textBaseline = 'top'
-  context.shadowColor = palette.shadow
-  context.shadowBlur = 22
-
-  const baseHeadline = Math.round(width * (design.preset === 'story' ? .105 : .085))
-  const headlineSize = Math.max(64, Math.min(126, baseHeadline))
-  context.font = `900 ${headlineSize}px Arial, sans-serif`
-  const headlineLines = isVisible(design, 'headline')
-    ? wrapLines(context, design.headline, maxWidth, design.preset === 'story' ? 5 : 4)
-    : []
-  const headlineLineHeight = Math.round(headlineSize * .92)
-
-  context.font = `600 ${Math.round(headlineSize * .34)}px Arial, sans-serif`
-  const sublineLines = isVisible(design, 'subline') ? wrapLines(context, design.subline, maxWidth, 3) : []
-  const sublineLineHeight = Math.round(headlineSize * .43)
-  const metaSize = Math.round(headlineSize * .27)
-  const meta = [
-    isVisible(design, 'date') ? design.dateText : '',
-    isVisible(design, 'time') ? design.timeText : '',
-    isVisible(design, 'location') ? design.locationText : '',
-  ].filter(Boolean).join('  ·  ').toUpperCase()
-  const ctaLines = isVisible(design, 'cta') ? wrapLines(context, design.ctaText, maxWidth, 2) : []
-  const blockHeight = headlineLines.length * headlineLineHeight
-    + (sublineLines.length ? 28 + sublineLines.length * sublineLineHeight : 0)
-    + (meta ? 42 + metaSize * 1.25 : 0)
-    + (ctaLines.length ? 36 + metaSize * 1.35 : 0)
-
-  let y = safe.top + 110
-  if (design.textPosition === 'middle') y = Math.max(safe.top, (height - blockHeight) / 2)
-  if (design.textPosition === 'bottom') y = Math.max(safe.top, height - safe.bottom - blockHeight)
-
-  context.fillStyle = palette.text
-  context.font = `900 ${headlineSize}px Arial, sans-serif`
-  for (const line of headlineLines) {
-    context.fillText(line, x, y, maxWidth)
-    y += headlineLineHeight
-  }
-
-  if (sublineLines.length) {
-    y += 28
-    context.globalAlpha = .92
-    context.font = `600 ${Math.round(headlineSize * .34)}px Arial, sans-serif`
-    for (const line of sublineLines) {
-      context.fillText(line, x, y, maxWidth)
-      y += sublineLineHeight
-    }
-    context.globalAlpha = 1
-  }
-
-  if (meta) {
-    y += 42
-    context.shadowBlur = 10
-    context.fillStyle = palette.accent
-    context.font = `800 ${metaSize}px Arial, sans-serif`
-    context.fillText(meta, x, y, maxWidth)
-    y += metaSize * 1.25
-  }
-
-  if (ctaLines.length) {
-    y += 30
-    context.fillStyle = palette.text
-    context.font = `800 ${Math.round(metaSize * 1.06)}px Arial, sans-serif`
-    for (const line of ctaLines) {
-      context.fillText(line.toUpperCase(), x, y, maxWidth)
-      y += metaSize * 1.2
-    }
-  }
-
-  context.shadowBlur = 0
-  context.globalAlpha = 1
-}
-
-function drawGigAnnouncement(
-  context: CanvasRenderingContext2D,
-  design: PostDesign,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  const safe = safeAreaInsets(design.preset)
-  const left = safe.left
   const contentWidth = width - safe.left - safe.right
+  const usable = height - safe.top - safe.bottom
+  const cx = width / 2
 
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
-  drawBrand(context, design, width, palette)
-
-  let y = safe.top + width * .145
-  if (isVisible(design, 'headline') && design.headline.trim()) {
-    y = drawCampaignHeadline(
-      context,
-      design.headline,
-      width,
-      contentWidth,
-      y,
-      Math.round(width * .108),
-      3,
-      palette,
-    )
-    y += width * .015
+  const measure = (scale: number) => {
+    const scene = sceneFor(context, assets, colors, width, scale, cx)
+    const layout = build(scene, contentWidth)
+    const gap = 36 * scene.u
+    const blocks = layout.header ? [layout.header, ...layout.body] : layout.body
+    return { scene, layout, gap, total: stackHeight(blocks, gap) }
   }
 
-  if (isVisible(design, 'subline') && design.subline.trim()) {
-    const bannerWidth = contentWidth * .72
-    const bannerHeight = Math.max(100, width * .12)
-    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
-    y += bannerHeight + width * .035
+  let attempt = measure(1)
+  for (let pass = 0; pass < 2 && attempt.total > usable; pass++) {
+    attempt = measure(Math.max(0.4, attempt.scene.u / (width / 1080) * usable / attempt.total))
   }
 
-  const cardGap = Math.round(width * .022)
-  const cards = [
-    { visible: isVisible(design, 'date'), label: 'DATUM', value: design.dateText },
-    { visible: isVisible(design, 'time'), label: 'TIJD', value: design.timeText },
-  ].filter(card => card.visible && card.value.trim())
+  const { layout, gap } = attempt
+  let top = safe.top
+  if (layout.header) {
+    layout.header.draw(top)
+    top += layout.header.height + gap
+  }
+  const bodyHeight = stackHeight(layout.body, gap)
+  const space = height - safe.bottom - top
+  drawStack(layout.body, top + Math.max(0, (space - bodyHeight) / 2), gap)
+}
 
-  if (cards.length) {
-    const cardWidth = (contentWidth - cardGap * (cards.length - 1)) / cards.length
-    const cardHeight = Math.max(132, Math.round(width * .15))
-    cards.forEach((card, index) => {
-      const x = left + index * (cardWidth + cardGap)
-      drawCampaignCard(context, x, y, cardWidth, cardHeight, palette, artwork)
+function headerBlock(scene: Scene, design: PostDesign, widthPx: number, presents?: string): Block | null {
+  if (!isVisible(design, 'logo')) return null
+  if (usesWordmark(design)) return logoBlock(scene, widthPx, presents)
+  // A custom logo text is set as gradient type instead of the wordmark.
+  const size = TYPE.lead * scene.u
+  return {
+    height: size * 1.2,
+    draw: top => drawGradientText(scene, design.logoText.trim().toUpperCase(), scene.cx, top + size * 0.6, size, widthPx),
+  }
+}
+
+/** Date is the hero; the headline leads in above it; time and place are facts. */
+function drawGigAnnouncement(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number, colors: AccentColors, assets: PostAssets) {
+  drawCampaign(context, design, width, height, colors, assets, (scene, contentWidth) => {
+    const headline = filled(design, 'headline', design.headline)
+    const date = filled(design, 'date', design.dateText)
+    const subline = filled(design, 'subline', design.subline)
+    const rows: InfoRow[] = [
+      { icon: 'clock' as const, text: filled(design, 'time', design.timeText) },
+      { icon: 'pin' as const, text: filled(design, 'location', design.locationText) },
+    ].filter(row => row.text)
+    const cta = filled(design, 'cta', design.ctaText)
+    // Without a date the headline takes the hero's place.
+    const hero = date || headline
+    const body: Block[] = [
+      date && headline ? leadInBlock(scene, headline, contentWidth) : null,
+      hero ? heroFrameBlock(scene, hero, Math.min(contentWidth, 1040 * scene.u)) : null,
+      subline ? kickerBlock(scene, subline, contentWidth) : null,
+      rows.length ? infoBlock(scene, rows, contentWidth) : null,
+      cta ? ctaBlock(scene, cta, contentWidth) : null,
+    ].filter((block): block is Block => Boolean(block))
+    return { header: headerBlock(scene, design, 480 * scene.u, 'PRESENTEERT'), body }
+  })
+}
+
+/** The headline is the hero; the subline sets the scene above it; date and place are facts. */
+function drawRecap(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number, colors: AccentColors, assets: PostAssets) {
+  drawCampaign(context, design, width, height, colors, assets, (scene, contentWidth) => {
+    const headline = filled(design, 'headline', design.headline)
+    const subline = filled(design, 'subline', design.subline)
+    const rows: InfoRow[] = [
+      { icon: 'calendar' as const, text: filled(design, 'date', design.dateText) },
+      { icon: 'pin' as const, text: filled(design, 'location', design.locationText) },
+    ].filter(row => row.text)
+    const cta = filled(design, 'cta', design.ctaText)
+    const body: Block[] = [
+      subline ? kickerBlock(scene, subline, contentWidth) : null,
+      headline ? heroLinesBlock(scene, headline, contentWidth, 3, 170 * scene.u) : null,
+      headline ? neonRuleBlock(scene, Math.min(contentWidth * 0.62, 620 * scene.u)) : null,
+      rows.length ? infoBlock(scene, rows, contentWidth) : null,
+      cta ? ctaBlock(scene, cta, contentWidth) : null,
+    ].filter((block): block is Block => Boolean(block))
+    return { header: headerBlock(scene, design, 420 * scene.u), body }
+  })
+}
+
+/** The quote is the hero; the stars and the source are support. */
+function drawReview(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number, colors: AccentColors, assets: PostAssets) {
+  drawCampaign(context, design, width, height, colors, assets, (scene, contentWidth) => {
+    const stars = filled(design, 'headline', design.headline)
+    const quote = filled(design, 'subline', design.subline)
+    const source = filled(design, 'location', design.locationText)
+    const quoteWidth = contentWidth * 0.9
+    const body: Block[] = [
+      stars ? kickerBlock(scene, stars, contentWidth, 46 * scene.u) : null,
+      stars || quote ? neonRuleBlock(scene, Math.min(contentWidth * 0.5, 460 * scene.u)) : null,
+      quote ? quoteBlock(scene, quote, quoteWidth) : null,
+      source ? kickerBlock(scene, source, contentWidth) : null,
+    ].filter((block): block is Block => Boolean(block))
+    return { header: headerBlock(scene, design, 420 * scene.u), body }
+  })
+}
+
+/** Review quote: big white bold type, in curly quotes, wrapped over up to seven lines. */
+function quoteBlock(scene: Scene, text: string, maxWidth: number): Block {
+  const { context, u, cx } = scene
+  // The sample copy already carries curly quotes; wrap exactly once either way.
+  const quoted = `“${text.replace(/^[“”"„‟]+|[“”"„‟]+$/g, '').trim()}”`
+  let size = 66 * u
+  let lines: string[] = []
+  for (let attempt = 0; attempt < 10; attempt++) {
+    context.font = `800 ${size}px ${BODY_FONT}`
+    lines = wrapText(context, quoted, maxWidth, 7)
+    if (lines.length <= 5 || size < 40 * u) break
+    size *= 0.92
+  }
+  const lineHeight = size * 1.16
+  return {
+    height: lines.length * lineHeight,
+    draw: (top) => {
+      context.save()
+      context.font = `800 ${size}px ${BODY_FONT}`
       context.textAlign = 'center'
       context.textBaseline = 'top'
-      context.fillStyle = palette.accent
-      context.font = `800 ${Math.round(width * .021)}px Arial, sans-serif`
-      context.fillText(card.label, x + cardWidth / 2, y + cardHeight * .17)
+      context.shadowColor = 'rgba(0,0,0,.78)'
+      context.shadowBlur = 30 * u
+      context.shadowOffsetY = 10 * u
       context.fillStyle = '#ffffff'
-      context.font = `900 ${Math.round(width * .039)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-      context.fillText(card.value.toUpperCase(), x + cardWidth / 2, y + cardHeight * .47, cardWidth * .8)
-    })
-    y += cardHeight + cardGap
-  }
-
-  if (isVisible(design, 'location') && design.locationText.trim()) {
-    const cardHeight = Math.max(112, Math.round(width * .125))
-    drawCampaignCard(context, left, y, contentWidth, cardHeight, palette, artwork)
-    context.textAlign = 'left'
-    context.textBaseline = 'middle'
-    context.fillStyle = palette.accent
-    context.font = `900 ${Math.round(width * .03)}px Arial, sans-serif`
-    context.fillText('●', left + width * .04, y + cardHeight / 2)
-    context.fillStyle = '#ffffff'
-    context.font = `800 ${Math.round(width * .034)}px Arial, sans-serif`
-    context.fillText(design.locationText, left + width * .085, y + cardHeight / 2, contentWidth - width * .13)
-    y += cardHeight
-  }
-
-  if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const ctaY = Math.min(height - safe.bottom - width * .11, Math.max(y + width * .06, height * .8))
-    context.textAlign = 'center'
-    context.textBaseline = 'top'
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.shadow
-    context.shadowBlur = 18
-    setCampaignDisplayFont(context, Math.round(width * .052))
-    const lines = wrapLines(context, design.ctaText.toUpperCase(), contentWidth * .84, 2)
-    lines.forEach((line, index) => context.fillText(line, width / 2, ctaY + index * width * .05, contentWidth * .84))
-    context.shadowBlur = 0
-    drawBrushAccent(context, width * .33, ctaY + lines.length * width * .058, width * .34, palette)
+      lines.forEach((line, index) => context.fillText(line, cx, top + index * lineHeight, maxWidth))
+      context.restore()
+    },
   }
 }
 
-function drawRecap(
-  context: CanvasRenderingContext2D,
-  design: PostDesign,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  const safe = safeAreaInsets(design.preset)
-  const left = safe.left
-  const contentWidth = width - safe.left - safe.right
+/** The headline is the hero; each gig is a date, a title and a place. */
+function drawUpcomingGigs(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number, colors: AccentColors, assets: PostAssets) {
+  drawCampaign(context, design, width, height, colors, assets, (scene, contentWidth) => {
+    const headline = filled(design, 'headline', design.headline)
+    const subline = filled(design, 'subline', design.subline)
+    const cta = filled(design, 'cta', design.ctaText)
+    const items = isVisible(design, 'gigList') ? design.gigItems.filter(item => item.enabled).slice(0, 6) : []
+    const body: Block[] = [
+      headline ? heroFrameBlock(scene, headline, Math.min(contentWidth, 940 * scene.u)) : null,
+      subline ? kickerBlock(scene, subline, contentWidth) : null,
+      items.length ? gigListBlock(scene, items, contentWidth) : null,
+      cta ? ctaBlock(scene, cta, contentWidth) : null,
+    ].filter((block): block is Block => Boolean(block))
+    // The list needs the height, so only story posts also carry the logo.
+    const header = design.preset === 'story' ? headerBlock(scene, design, 420 * scene.u) : null
+    return { header, body }
+  })
+}
 
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
-  drawBrand(context, design, width, palette)
-
-  let y = safe.top + width * .15
-  context.textAlign = 'center'
-  context.textBaseline = 'top'
-
-  if (isVisible(design, 'headline') && design.headline.trim()) {
-    y = drawCampaignHeadline(
-      context,
-      design.headline,
-      width,
-      contentWidth,
-      y,
-      Math.round(width * .11),
-      3,
-      palette,
-    )
-    y += width * .012
-  }
-
-  if (isVisible(design, 'subline') && design.subline.trim()) {
-    const bannerWidth = contentWidth * .6
-    const bannerHeight = Math.max(98, width * .115)
-    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
-    y += bannerHeight + width * .045
-  }
-
-  const metaParts = [
-    isVisible(design, 'date') ? design.dateText : '',
-    isVisible(design, 'location') ? design.locationText : '',
-  ].filter(Boolean)
-
-  if (metaParts.length) {
-    const metaHeight = Math.max(150, width * .17)
-    drawCampaignCard(context, left, y, contentWidth, metaHeight, palette, artwork)
-    context.textAlign = 'left'
-    context.textBaseline = 'top'
-    context.fillStyle = '#ffffff'
-    context.font = `900 ${Math.round(width * .041)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-    context.fillText(metaParts[0]!.toUpperCase(), left + width * .052, y + metaHeight * .2, contentWidth * .82)
-    if (metaParts[1]) {
-      context.fillStyle = palette.accent
-      context.font = `800 ${Math.round(width * .028)}px Arial, sans-serif`
-      context.fillText(metaParts[1]!.toUpperCase(), left + width * .052, y + metaHeight * .59, contentWidth * .82)
-    }
-  }
-
-  if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const bannerWidth = contentWidth * .74
-    const bannerHeight = Math.max(92, width * .105)
-    const ctaY = height - safe.bottom - bannerHeight - width * .035
-    drawTitleBrush(context, (width - bannerWidth) / 2, ctaY, bannerWidth, bannerHeight, palette, artwork)
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.shadow
-    context.shadowBlur = 12
-    context.font = `900 ${Math.round(width * .034)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY + bannerHeight * .52, bannerWidth * .82)
-    context.shadowBlur = 0
+/** Gig rows in a neon-edged card: date in gradient type, title in white, place as support. */
+function gigListBlock(scene: Scene, items: PostDesign['gigItems'], maxWidth: number): Block {
+  const { context, colors, u, cx } = scene
+  const rowHeight = 150 * u
+  const padX = 40 * u
+  const padY = 10 * u
+  const width = Math.min(maxWidth, 900 * u)
+  const height = items.length * rowHeight + padY * 2
+  const dateColumn = 250 * u
+  return {
+    height,
+    draw: (top) => {
+      const left = cx - width / 2
+      drawElectricEdge(scene, left, top, width, height)
+      items.forEach((item, index) => {
+        const y = top + padY + index * rowHeight
+        if (index) {
+          context.save()
+          context.fillStyle = `${colors.accent}40`
+          context.fillRect(left + padX, y, width - padX * 2, Math.max(1, u))
+          context.restore()
+        }
+        const [day = '', ...rest] = item.dateText.trim().split(/\s+/)
+        drawGradientText(scene, [day, ...rest].join(' ').toUpperCase(), left + padX, y + rowHeight / 2, 46 * u, dateColumn - padX, { align: 'left' })
+        const textX = left + padX + dateColumn
+        const textWidth = width - padX * 2 - dateColumn
+        context.save()
+        context.font = `900 ${TYPE.fact * 0.95 * u}px ${BODY_FONT}`
+        context.textAlign = 'left'
+        context.textBaseline = 'middle'
+        context.shadowColor = 'rgba(0,0,0,.6)'
+        context.shadowBlur = 12 * u
+        context.fillStyle = '#ffffff'
+        context.fillText(item.title, textX, y + rowHeight * (item.locationText ? 0.38 : 0.5), textWidth)
+        context.restore()
+        if (item.locationText) {
+          drawKicker(scene, item.locationText, textX, y + rowHeight * 0.58, { size: TYPE.support * 0.85 * u, align: 'left', maxWidth: textWidth })
+        }
+      })
+    },
   }
 }
 
+// ── Flexible templates (gradient, poster, minimal) ──────────────────────────
 
-function drawReview(
-  context: CanvasRenderingContext2D,
-  design: PostDesign,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  const safe = safeAreaInsets(design.preset)
-  const contentWidth = width - safe.left - safe.right
-
-  drawCampaignTexture(context, width, height, palette, Math.min(.9, design.overlayOpacity + .08), artwork)
-  drawBrand(context, design, width, palette)
-
-  const centerX = width / 2
-  const quoteWidth = contentWidth * .86
-  let y = safe.top + width * .25
-
-  if (isVisible(design, 'headline') && design.headline.trim()) {
-    context.save()
-    context.textAlign = 'center'
-    context.textBaseline = 'top'
-    context.fillStyle = palette.accent
-    context.shadowColor = palette.accentStrong
-    context.shadowBlur = Math.max(18, width * .028)
-    context.font = `900 ${Math.round(width * .067)}px Arial, sans-serif`
-    context.fillText(design.headline, centerX, y, quoteWidth)
-    context.restore()
-    y += width * .13
-  }
-
-  if (isVisible(design, 'subline') && design.subline.trim()) {
-    const panelX = (width - quoteWidth) / 2
-    const panelY = y
-    const panelHeight = Math.min(height * .38, Math.max(width * .48, 430))
-    drawRoughPanel(context, panelX, panelY, quoteWidth, panelHeight, palette)
-
-    context.save()
-    context.textAlign = 'center'
-    context.textBaseline = 'top'
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.shadow
-    context.shadowBlur = 12
-    context.font = `800 ${Math.round(width * .052)}px Arial, sans-serif`
-    const lines = wrapLines(context, design.subline, quoteWidth * .76, 6)
-    const lineHeight = width * .067
-    const blockHeight = lines.length * lineHeight
-    const textY = panelY + Math.max(width * .07, (panelHeight - blockHeight) / 2)
-    lines.forEach((line, index) => context.fillText(line, centerX, textY + index * lineHeight, quoteWidth * .76))
-    context.restore()
-    y = panelY + panelHeight + width * .075
-  }
-
-  if (isVisible(design, 'location') && design.locationText.trim()) {
-    context.save()
-    context.textAlign = 'center'
-    context.textBaseline = 'top'
-    context.fillStyle = palette.accent
-    context.font = `800 ${Math.round(width * .031)}px Arial, sans-serif`
-    context.fillText(design.locationText.toUpperCase(), centerX, y, quoteWidth * .8)
-    context.restore()
-    drawBrushAccent(context, width * .34, y + width * .062, width * .32, palette)
-  }
-}
-
-function drawUpcomingGigs(
-  context: CanvasRenderingContext2D,
-  design: PostDesign,
-  width: number,
-  height: number,
-  palette: Palette,
-  artwork: CampaignArtwork | null,
-) {
-  const safe = safeAreaInsets(design.preset)
-  const left = safe.left
-  const contentWidth = width - safe.left - safe.right
-
-  drawCampaignTexture(context, width, height, palette, design.overlayOpacity, artwork)
-  drawBrand(context, design, width, palette)
-
-  let y = safe.top + width * .145
-  context.textAlign = 'center'
-  context.textBaseline = 'top'
-
-  if (isVisible(design, 'headline') && design.headline.trim()) {
-    y = drawCampaignHeadline(
-      context,
-      design.headline,
-      width,
-      contentWidth,
-      y,
-      Math.round(width * .108),
-      2,
-      palette,
-    )
-  }
-
-  if (isVisible(design, 'subline') && design.subline.trim()) {
-    y += width * .005
-    const bannerWidth = contentWidth * .64
-    const bannerHeight = Math.max(102, width * .118)
-    drawCampaignSubline(context, design.subline, width, y, bannerWidth, bannerHeight, palette, artwork)
-    y += bannerHeight + width * .045
-  }
-
-  if (isVisible(design, 'gigList')) {
-    const items = design.gigItems.filter(item => item.enabled).slice(0, 6)
-    const available = height - safe.bottom - y - (isVisible(design, 'cta') && design.ctaText.trim() ? width * .18 : width * .05)
-    const gap = Math.max(18, width * .019)
-    const cardHeight = Math.min(width * .148, Math.max(width * .1, (available - gap * Math.max(0, items.length - 1)) / Math.max(1, items.length)))
-
-    items.forEach((item, index) => {
-      const cardY = y + index * (cardHeight + gap)
-      drawCampaignCard(context, left, cardY, contentWidth, cardHeight, palette, artwork)
-
-      const dateWidth = Math.min(width * .19, contentWidth * .24)
-      const dateX = left + width * .018
-      const dateY = cardY + width * .011
-      const dateHeight = cardHeight - width * .022
-      drawDateBadge(context, dateX, dateY, dateWidth, dateHeight, palette, artwork)
-
-      const dateParts = item.dateText.trim().split(/\s+/)
-      context.textAlign = 'center'
-      context.textBaseline = 'middle'
-      context.fillStyle = '#ffffff'
-      context.shadowColor = 'rgba(0,0,0,.35)'
-      context.shadowBlur = 6
-      context.font = `900 ${Math.round(width * .045)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-      context.fillText(dateParts[0] || '', dateX + dateWidth / 2, cardY + cardHeight * .39, dateWidth * .76)
-      if (dateParts.length > 1) {
-        context.shadowBlur = 0
-        context.font = `900 ${Math.round(width * .019)}px Arial, sans-serif`
-        context.fillText(dateParts.slice(1).join(' ').toUpperCase(), dateX + dateWidth / 2, cardY + cardHeight * .7, dateWidth * .78)
-      }
-
-      const textX = dateX + dateWidth + width * .036
-      const textWidth = contentWidth - dateWidth - width * .09
-      context.textAlign = 'left'
-      context.fillStyle = '#ffffff'
-      context.shadowBlur = 0
-      context.font = `900 ${Math.round(width * .035)}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`
-      context.fillText(item.title, textX, cardY + cardHeight * .35, textWidth)
-      context.fillStyle = '#c797ff'
-      context.font = `800 ${Math.round(width * .023)}px Arial, sans-serif`
-      context.fillText(item.locationText, textX, cardY + cardHeight * .7, textWidth)
-    })
-  }
-
-  if (isVisible(design, 'cta') && design.ctaText.trim()) {
-    const ctaY = height - safe.bottom - width * .082
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.fillStyle = '#ffffff'
-    context.shadowColor = palette.shadow
-    context.shadowBlur = 18
-    setCampaignDisplayFont(context, Math.round(width * .044))
-    context.fillText(design.ctaText.toUpperCase(), width / 2, ctaY, contentWidth * .86)
-    context.shadowBlur = 0
-    drawBrushAccent(context, width * .32, ctaY + width * .045, width * .36, palette)
-  }
-}
-
-function drawTemplateOverlay(
-  context: CanvasRenderingContext2D,
-  design: PostDesign,
-  width: number,
-  height: number,
-  palette: Palette,
-) {
+function drawTemplateOverlay(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number, colors: AccentColors) {
   const opacity = Math.max(0, Math.min(.9, design.overlayOpacity))
 
   if (design.templateKey === 'gradient') {
     const gradient = context.createLinearGradient(0, 0, 0, height)
     gradient.addColorStop(0, 'rgba(0,0,0,.08)')
     gradient.addColorStop(.42, 'rgba(0,0,0,.05)')
-    gradient.addColorStop(1, palette.overlay)
+    gradient.addColorStop(1, '#09070d')
     context.globalAlpha = opacity
     context.fillStyle = gradient
     context.fillRect(0, 0, width, height)
@@ -877,13 +292,21 @@ function drawTemplateOverlay(
 
   if (design.templateKey === 'poster') {
     context.globalAlpha = Math.max(.25, opacity * .78)
-    context.fillStyle = palette.overlay
+    context.fillStyle = '#09070d'
     context.fillRect(0, 0, width, height)
     context.globalAlpha = 1
     const inset = Math.round(width * .035)
-    context.strokeStyle = palette.accent
-    context.lineWidth = Math.max(8, Math.round(width * .009))
+    context.save()
+    context.strokeStyle = colors.soft
+    context.lineWidth = Math.max(4, Math.round(width * .004))
+    context.shadowColor = colors.glow
+    context.shadowBlur = Math.round(width * .03)
     context.strokeRect(inset, inset, width - inset * 2, height - inset * 2)
+    context.shadowBlur = Math.round(width * .012)
+    context.strokeStyle = colors.accent
+    context.lineWidth = Math.max(2, Math.round(width * .002))
+    context.strokeRect(inset - width * .007, inset - width * .007, width - inset * 2 + width * .014, height - inset * 2 + width * .014)
+    context.restore()
     return
   }
 
@@ -891,14 +314,115 @@ function drawTemplateOverlay(
     const panelWidth = design.textAlign === 'center' ? width : Math.round(width * .76)
     const panelX = design.textAlign === 'right' ? width - panelWidth : 0
     context.globalAlpha = Math.max(.38, opacity)
-    context.fillStyle = palette.panel
+    context.fillStyle = 'rgba(8,5,14,.86)'
     context.fillRect(panelX, 0, panelWidth, height)
     context.globalAlpha = 1
-    context.fillStyle = palette.accent
-    if (design.textAlign === 'right') context.fillRect(width - 16, 0, 16, height)
-    else context.fillRect(0, 0, 16, height)
+    context.save()
+    context.fillStyle = colors.accent
+    context.shadowColor = colors.glow
+    context.shadowBlur = Math.round(width * .02)
+    if (design.textAlign === 'right') context.fillRect(width - 12, 0, 12, height)
+    else context.fillRect(0, 0, 12, height)
+    context.restore()
   }
 }
+
+/** Corner logo of the flexible templates: the wordmark, or the custom logo text as gradient type. */
+function drawBrand(scene: Scene, design: PostDesign, width: number) {
+  if (!isVisible(design, 'logo')) return
+  const safe = safeAreaInsets(design.preset)
+  const brand = headerBlock({ ...scene, cx: safe.left + width * .14 }, design, width * .28)
+  if (!brand) return
+  if (usesWordmark(design)) brand.draw(safe.top - width * .02)
+  else {
+    const size = width * .04
+    drawGradientText(scene, design.logoText.trim().toUpperCase(), safe.left, safe.top + size * .6, size, width - safe.left - safe.right, { align: 'left' })
+  }
+}
+
+/** Headline (hero), subline (support), facts (white) and CTA for the flexible templates. */
+function drawGenericTextBlock(scene: Scene, design: PostDesign, width: number, height: number) {
+  const { context, colors } = scene
+  const safe = safeAreaInsets(design.preset)
+  const left = safe.left
+  const right = width - safe.right
+  const maxWidth = right - left
+  const align = design.textAlign as CanvasTextAlign
+  const x = align === 'center' ? (left + right) / 2 : align === 'right' ? right : left
+  // The text region is its own scene so the CTA pill aligns with the text.
+  const region: Scene = { ...scene, cx: (left + right) / 2 }
+
+  const baseHeadline = Math.round(width * (design.preset === 'story' ? .105 : .085))
+  const headlineSize = Math.max(64, Math.min(126, baseHeadline)) * 1.05
+  context.font = `italic 900 ${headlineSize}px ${DISPLAY_FONT}`
+  const headlineLines = isVisible(design, 'headline')
+    ? wrapText(context, design.headline.toUpperCase(), maxWidth, design.preset === 'story' ? 5 : 4)
+    : []
+  const headlineLineHeight = Math.round(headlineSize * .92)
+
+  const sublineSize = Math.round(headlineSize * .3)
+  context.font = `700 ${sublineSize}px ${BODY_FONT}`
+  const sublineLines = isVisible(design, 'subline') ? wrapText(context, design.subline, maxWidth, 3) : []
+  const sublineLineHeight = Math.round(sublineSize * 1.3)
+
+  const factSize = Math.round(headlineSize * .36)
+  const meta = [
+    isVisible(design, 'date') ? design.dateText : '',
+    isVisible(design, 'time') ? design.timeText : '',
+    isVisible(design, 'location') ? design.locationText : '',
+  ].filter(Boolean).join('  ·  ').toUpperCase()
+
+  const cta = filled(design, 'cta', design.ctaText)
+  const ctaBlockInstance = cta ? ctaBlock({ ...region, u: width / 1080 }, cta, maxWidth, align === 'center' ? 'center' : align) : null
+
+  const blockHeight = headlineLines.length * headlineLineHeight
+    + (sublineLines.length ? 28 + sublineLines.length * sublineLineHeight : 0)
+    + (meta ? 36 + factSize * 1.2 : 0)
+    + (ctaBlockInstance ? 36 + ctaBlockInstance.height : 0)
+
+  let y = safe.top + 110
+  if (design.textPosition === 'middle') y = Math.max(safe.top, (height - blockHeight) / 2)
+  if (design.textPosition === 'bottom') y = Math.max(safe.top, height - safe.bottom - blockHeight)
+
+  headlineLines.forEach((line, index) => {
+    drawGradientText(scene, line, x, y + headlineLineHeight / 2, headlineSize, maxWidth, { align, deep: index % 2 === 1 })
+    y += headlineLineHeight
+  })
+
+  if (sublineLines.length) {
+    y += 28
+    context.save()
+    context.font = `700 ${sublineSize}px ${BODY_FONT}`
+    context.textAlign = align
+    context.textBaseline = 'top'
+    context.shadowColor = 'rgba(0,0,0,.72)'
+    context.shadowBlur = 16
+    context.fillStyle = colors.soft
+    for (const line of sublineLines) {
+      context.fillText(line, x, y, maxWidth)
+      y += sublineLineHeight
+    }
+    context.restore()
+  }
+
+  if (meta) {
+    y += 36
+    context.save()
+    context.font = `900 ${factSize}px ${DISPLAY_FONT}`
+    context.textAlign = align
+    context.textBaseline = 'top'
+    context.shadowColor = 'rgba(0,0,0,.72)'
+    context.shadowBlur = 14
+    context.fillStyle = '#ffffff'
+    context.fillText(meta, x, y, maxWidth)
+    context.restore()
+    y += factSize * 1.2
+  }
+
+  if (ctaBlockInstance) ctaBlockInstance.draw(y + 36)
+}
+
+// ── Editor plumbing ─────────────────────────────────────────────────────────
 
 function drawSafeArea(context: CanvasRenderingContext2D, design: PostDesign, width: number, height: number) {
   const safe = safeAreaInsets(design.preset)
@@ -921,7 +445,9 @@ export type PostTextBox = { x: number, y: number, width: number, height: number 
 
 /**
  * Record the bounds of every text run drawn on `context`, so the editor can
- * make text on the canvas clickable. Drawing itself is unchanged.
+ * make text on the canvas clickable. Drawing itself is unchanged. Text is
+ * often tilted or skewed, so each run's box is mapped through the current
+ * transform and stored as its axis-aligned bounds.
  */
 function recordTextBoxes(context: CanvasRenderingContext2D, boxes: PostTextBox[]) {
   const fillText = context.fillText.bind(context)
@@ -935,11 +461,18 @@ function recordTextBoxes(context: CanvasRenderingContext2D, boxes: PostTextBox[]
       const width = maxWidth === undefined ? metrics.width : Math.min(metrics.width, maxWidth)
       const align = context.textAlign
       const left = align === 'center' ? x - width / 2 : align === 'right' || align === 'end' ? x - width : x
+      const top = y - metrics.actualBoundingBoxAscent
+      const height = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+      const matrix = context.getTransform()
+      const corners = [[left, top], [left + width, top], [left, top + height], [left + width, top + height]]
+        .map(([px, py]) => ({ x: matrix.a * px! + matrix.c * py! + matrix.e, y: matrix.b * px! + matrix.d * py! + matrix.f }))
+      const minX = Math.min(...corners.map(corner => corner.x))
+      const minY = Math.min(...corners.map(corner => corner.y))
       boxes.push({
-        x: left,
-        y: y - metrics.actualBoundingBoxAscent,
-        width,
-        height: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+        x: minX,
+        y: minY,
+        width: Math.max(...corners.map(corner => corner.x)) - minX,
+        height: Math.max(...corners.map(corner => corner.y)) - minY,
       })
     }
     if (maxWidth === undefined) fillText(text, x, y)
@@ -978,29 +511,27 @@ export async function renderPostCanvas(
   context.imageSmoothingQuality = 'high'
   context.drawImage(image, rect.x, rect.y, rect.width, rect.height)
 
-  const palette = palettes[design.brandPreset]
-  const isCampaignTemplate = design.templateKey === 'gig-announcement'
-    || design.templateKey === 'recap'
-    || design.templateKey === 'review'
-    || design.templateKey === 'upcoming-gigs'
-  const artwork = design.brandPreset === 'night' && isCampaignTemplate
-    ? await loadCampaignArtwork()
-    : null
+  const assets = await loadPostAssets()
+  const colors = MOTION_ACCENTS[design.brandPreset] ?? MOTION_ACCENTS[DEFAULT_POST_BRAND]
+  const campaign = {
+    'gig-announcement': drawGigAnnouncement,
+    'recap': drawRecap,
+    'review': drawReview,
+    'upcoming-gigs': drawUpcomingGigs,
+  } as const
+  const drawTemplate = campaign[design.templateKey as keyof typeof campaign]
 
   const stopRecording = textBoxes ? recordTextBoxes(context, textBoxes) : null
   try {
-    if (design.templateKey === 'gig-announcement') {
-      drawGigAnnouncement(context, design, size.width, size.height, palette, artwork)
-    } else if (design.templateKey === 'recap') {
-      drawRecap(context, design, size.width, size.height, palette, artwork)
-    } else if (design.templateKey === 'review') {
-      drawReview(context, design, size.width, size.height, palette, artwork)
-    } else if (design.templateKey === 'upcoming-gigs') {
-      drawUpcomingGigs(context, design, size.width, size.height, palette, artwork)
+    if (drawTemplate) {
+      const boost = design.templateKey === 'review' ? .08 : 0
+      drawBackdrop(context, colors, size.width, size.height, Math.min(.9, design.overlayOpacity + boost))
+      drawTemplate(context, design, size.width, size.height, colors, assets)
     } else {
-      drawTemplateOverlay(context, design, size.width, size.height, palette)
-      drawBrand(context, design, size.width, palette)
-      drawGenericTextBlock(context, design, size.width, size.height, palette)
+      drawTemplateOverlay(context, design, size.width, size.height, colors)
+      const scene = sceneFor(context, assets, colors, size.width, 1, size.width / 2)
+      drawBrand(scene, design, size.width)
+      drawGenericTextBlock(scene, design, size.width, size.height)
     }
   } finally {
     stopRecording?.()

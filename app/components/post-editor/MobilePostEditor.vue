@@ -878,7 +878,7 @@ async function toggleFullscreen() {
             <div class="field brand-field">
               <span>Huisstijl</span>
               <select v-model="design.brandPreset">
-                <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }} — {{ brand.description }}</option>
+                <option v-for="brand in brands" :key="brand.key" :value="brand.key">{{ brand.label }}</option>
               </select>
             </div>
           </div>

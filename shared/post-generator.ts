@@ -1,3 +1,5 @@
+import { MOTION_ACCENT_KEYS, type MotionAccent } from './video-templates'
+
 export const POST_PRESETS = {
   square: { label: '1:1', width: 1080, height: 1080 },
   portrait: { label: '4:5', width: 1080, height: 1350 },
@@ -16,7 +18,8 @@ export const POST_TEMPLATE_KEYS = [
 
 export type PostPreset = keyof typeof POST_PRESETS
 export type PostTemplateKey = typeof POST_TEMPLATE_KEYS[number]
-export type PostBrandPreset = 'night' | 'mono' | 'warm'
+/** Photo colours are the video accents, so a post and a video can share one look. */
+export type PostBrandPreset = MotionAccent
 export type PostTextAlign = 'left' | 'center' | 'right'
 export type PostTextPosition = 'top' | 'middle' | 'bottom'
 
@@ -141,7 +144,18 @@ export function safeAreaInsets(preset: PostPreset) {
   return { top: 80, right: 80, bottom: 80, left: 80 }
 }
 
-export const POST_BRAND_PRESETS = ['night', 'mono', 'warm'] as const
+export const POST_BRAND_PRESETS = MOTION_ACCENT_KEYS
+export const DEFAULT_POST_BRAND: PostBrandPreset = 'ultraviolet'
+
+/** Presets saved before the photo editor adopted the video accents. */
+const LEGACY_POST_BRANDS: Record<string, PostBrandPreset> = { night: 'ultraviolet', warm: 'sunset', mono: 'mono' }
+
+/** A stored or submitted brand preset as a current accent, or null when unknown. */
+export function normalizePostBrand(value: unknown): PostBrandPreset | null {
+  if (typeof value !== 'string') return null
+  if ((POST_BRAND_PRESETS as readonly string[]).includes(value)) return value as PostBrandPreset
+  return LEGACY_POST_BRANDS[value] ?? null
+}
 
 export type PostTemplateCategory = 'Algemeen' | 'Minimaal' | 'Aankondigingen' | 'Terugblikken' | 'Reviews' | 'Aankomende gigs'
 
@@ -181,7 +195,7 @@ export function defaultPostDesign(): PostDesign {
   return {
     preset: 'square',
     templateKey: 'gradient',
-    brandPreset: 'night',
+    brandPreset: DEFAULT_POST_BRAND,
     headline: 'JOUW AVOND. JOUW SOUND.',
     subline: 'DJ NightLight · allround DJ',
     dateText: '',
@@ -284,7 +298,7 @@ export function restorePostDesign(base: PostDesign, stored: unknown): PostDesign
 
   next.preset = pickEnum(source.preset, Object.keys(POST_PRESETS) as PostPreset[]) ?? next.preset
   next.templateKey = pickEnum(source.templateKey, POST_TEMPLATE_KEYS) ?? next.templateKey
-  next.brandPreset = pickEnum(source.brandPreset, POST_BRAND_PRESETS) ?? next.brandPreset
+  next.brandPreset = normalizePostBrand(source.brandPreset) ?? next.brandPreset
   next.textAlign = pickEnum(source.textAlign, ['left', 'center', 'right'] as const) ?? next.textAlign
   next.textPosition = pickEnum(source.textPosition, ['top', 'middle', 'bottom'] as const) ?? next.textPosition
 
