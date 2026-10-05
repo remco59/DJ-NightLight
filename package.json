@@ -43,6 +43,7 @@
     "@nuxt/eslint": "^1.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-vue": "^6.0.9",
     "@vue/test-utils": "^2.4.6",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.0.0",

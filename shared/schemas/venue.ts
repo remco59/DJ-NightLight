@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { httpUrl } from './http-url'
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().transform(value => value || null)
 
@@ -19,7 +20,7 @@ export const venueInputSchema = z.object({
   contactPhone: optionalText(64),
   website: z.string().trim().max(1000).optional().transform((value, ctx) => {
     if (!value) return null
-    const parsed = z.url().safeParse(value)
+    const parsed = httpUrl.safeParse(value)
     if (!parsed.success) {
       ctx.addIssue({ code: 'custom', message: 'Ongeldige website-URL' })
       return z.NEVER
