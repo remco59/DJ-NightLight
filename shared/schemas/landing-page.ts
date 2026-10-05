@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { httpUrl } from './http-url'
 
 const mediaReference = z.string().trim().max(2000).refine((value) => {
   if (value.startsWith('/')) return true
-  return z.url().safeParse(value).success
+  return httpUrl.safeParse(value).success
 }, 'Vul een geldige URL in')
 
 const optionalMediaReference = z.preprocess(
@@ -20,7 +21,7 @@ const optionalMediaReference = z.preprocess(
 
 const hrefSchema = z.string().trim().min(1).max(500).refine((value) => {
   if (value.startsWith('/')) return true
-  return z.url().safeParse(value).success
+  return httpUrl.safeParse(value).success
 }, 'Gebruik een intern pad of een volledige URL')
 
 const benefitSchema = z.object({

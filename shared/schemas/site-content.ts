@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { httpUrl } from './http-url'
 
 const nullableString = (maxLength: number) => z.preprocess(
   value => value ?? '',
@@ -7,7 +8,7 @@ const nullableString = (maxLength: number) => z.preprocess(
 
 const optionalUrl = nullableString(2000).transform((value, ctx) => {
   if (!value) return null
-  const parsed = z.url().safeParse(value)
+  const parsed = httpUrl.safeParse(value)
   if (!parsed.success) {
     ctx.addIssue({ code: 'custom', message: 'Vul een geldige URL in' })
     return z.NEVER
@@ -18,7 +19,7 @@ const optionalUrl = nullableString(2000).transform((value, ctx) => {
 const internalMediaUrlPattern = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const siteImageUrl = z.string().trim().max(2000).refine(
-  value => internalMediaUrlPattern.test(value) || z.url().safeParse(value).success,
+  value => internalMediaUrlPattern.test(value) || httpUrl.safeParse(value).success,
   { message: 'Vul een geldige afbeeldings-URL in' },
 )
 
