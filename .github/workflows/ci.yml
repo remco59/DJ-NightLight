@@ -236,6 +236,9 @@ jobs:
       - name: Run critical E2E workflows
         run: npm run test:e2e
 
+      - name: Accessibility check (axe-core)
+        run: npm run test:a11y
+
       - name: Show application log
         if: always()
         run: cat /tmp/nightlight-e2e.log || true
