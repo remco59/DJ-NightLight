@@ -7,7 +7,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
-    "prepare": "nuxt prepare",
+    "prepare": "nuxt prepare && (husky || true)",
     "typecheck": "nuxt typecheck",
     "lint": "eslint .",
     "test": "vitest run",
@@ -23,36 +23,41 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.136",
     "@nuxt/icon": "^2.5.1",
-    "drizzle-orm": "^0.45.2",
-    "nuxt": "^4.0.0",
-    "nuxt-auth-utils": "^0.5.30",
-    "postgres": "^3.4.7",
-    "stripe": "22.4.0",
-    "zod": "^4.0.0",
     "@remotion/bundler": "4.0.526",
     "@remotion/fonts": "4.0.526",
     "@remotion/motion-blur": "4.0.526",
     "@remotion/player": "4.0.526",
     "@remotion/renderer": "4.0.526",
+    "drizzle-orm": "^0.45.2",
+    "nuxt": "^4.0.0",
+    "nuxt-auth-utils": "^0.5.30",
+    "postgres": "^3.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remotion": "4.0.526",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "stripe": "22.4.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@vue/test-utils": "^2.4.6",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.0.0",
     "happy-dom": "^18.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0",
-    "vue-tsc": "^3.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "vue-tsc": "^3.0.0"
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "lint-staged": {
+    "*.{js,mjs,ts,vue}": "eslint --fix --max-warnings=0"
   }
 }

@@ -24,6 +24,15 @@ npm test
 npm run build
 ```
 
+## Git hooks
+
+`npm install` sets up [husky](https://typicode.github.io/husky/) hooks (via the `prepare` script):
+
+- **pre-commit**: runs `eslint --fix` on the staged `.js/.mjs/.ts/.vue` files (lint-staged). The commit is blocked if lint errors remain.
+- **pre-push**: runs `npm run typecheck`. Type checking covers the whole project, so it runs when pushing instead of on every commit.
+
+CI runs the same checks, so the hooks only give you the feedback earlier. In an emergency you can skip them with `git commit --no-verify` / `git push --no-verify`, but CI will still fail on the same problems.
+
 ## Application areas
 
 - `/` — public website
