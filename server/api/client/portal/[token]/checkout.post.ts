@@ -8,6 +8,8 @@ import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
+const CHECKOUT_EXPIRY_SECONDS = 60 * 60
+
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token') || ''
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
@@ -68,6 +70,8 @@ export default defineEventHandler(async (event) => {
       price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
     }],
+    // Expire after 1 hour. Rounded up to 5 minutes so a double click yields identical params (idempotency key).
+    expires_at: Math.ceil(Date.now() / 1000 / 300) * 300 + CHECKOUT_EXPIRY_SECONDS,
     client_reference_id: invoice.id,
     customer: customerId,
     metadata,
@@ -110,6 +114,7 @@ export default defineEventHandler(async (event) => {
     providerSessionId: session.id, attemptCount: sql`${payments.attemptCount} + 1`,
     checkoutExpiresAt: new Date(session.expires_at * 1000), status: 'pending', failureCode: null, updatedAt: new Date(),
   }).where(eq(payments.id, payment.id))
-  await db.update(invoices).set({ paymentStatus: 'pending', updatedAt: new Date() }).where(and(eq(invoices.id, invoice.id), ne(invoices.paymentStatus, 'paid')))
+  // The invoice only becomes 'pending' via the webhook (checkout.session.completed with an unpaid
+  // bank transfer). Merely opening Checkout must not block the pay button.
   return { url: session.url }
 })
