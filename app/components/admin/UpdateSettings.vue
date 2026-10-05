@@ -4,7 +4,6 @@ import {
   UPDATE_BUSY_PHASES,
   type SystemUpdateStatus,
   type UpdateCheck,
-  type UpdateCommit,
 } from '~~/shared/system-update'
 
 const { data, refresh } = await useFetch<SystemUpdateStatus>('/api/admin/system/update')
