@@ -1,0 +1,17 @@
+{
+  "name": "DJ NightLight Back office",
+  "short_name": "NightLight",
+  "description": "Beheer van gigs, klanten en facturen voor DJ NightLight.",
+  "lang": "nl",
+  "id": "/admin",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#0a090d",
+  "theme_color": "#0a090d",
+  "icons": [
+    { "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

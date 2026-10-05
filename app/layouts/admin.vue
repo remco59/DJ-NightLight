@@ -2,6 +2,32 @@
 import AdminNav from '~/components/admin/AdminNav.vue'
 
 const route = useRoute()
+
+// Installable admin app: the manifest is scoped to /admin, so only the admin layout links it.
+useHead({
+  link: [
+    { rel: 'manifest', href: '/admin.webmanifest' },
+    { rel: 'apple-touch-icon', href: '/pwa/apple-touch-icon.png' },
+  ],
+  meta: [
+    { name: 'theme-color', content: '#0a090d' },
+    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    { name: 'apple-mobile-web-app-title', content: 'NightLight' },
+  ],
+})
+
+// Offline: gig pages keep working from the service worker cache, everything else needs a connection.
+const online = ref(true)
+function syncOnline() { online.value = navigator.onLine }
+onMounted(() => {
+  syncOnline()
+  window.addEventListener('online', syncOnline)
+  window.addEventListener('offline', syncOnline)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('online', syncOnline)
+  window.removeEventListener('offline', syncOnline)
+})
 const mobileOpen = ref(false)
 const sidebar = ref<HTMLElement | null>(null)
 const menuButton = ref<HTMLButtonElement | null>(null)
@@ -55,6 +81,11 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
       <AdminNav />
     </aside>
 
+    <div v-if="!online" class="offline-banner" role="status">
+      <Icon name="lucide:wifi-off" aria-hidden="true" />
+      Offline — je ziet de laatst opgehaalde gigs. Wijzigingen opslaan kan pas weer met verbinding.
+    </div>
+
     <main id="main" class="admin-main" tabindex="-1" :inert="(isCompact && mobileOpen) || undefined">
       <slot />
     </main>
@@ -103,6 +134,21 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 4rem;
 }
 .mobile-header, .backdrop { display: none; }
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  margin-left: 17rem;
+  padding: .55rem 1rem;
+  background: #3a2a05;
+  border-bottom: 1px solid #6b4e0a;
+  color: #ffe7a8;
+  font-size: .85rem;
+}
 .admin-main:focus { outline: none; }
 
 /* The post editor is a viewport-height workspace: the page itself does not
@@ -159,6 +205,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  .offline-banner { margin-left: 0; }
   /* Touch-sized controls on a phone (the post editor sizes its own). */
   .admin-shell:not(.post-editor-route) .admin-main :deep(:is(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]))) { min-height: 2.75rem; }
   .post-editor-route .admin-main { padding-top: 1rem; }
