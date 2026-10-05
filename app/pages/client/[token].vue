@@ -22,6 +22,13 @@ type PortalData = {
 }
 
 const { data, error, refresh } = await useFetch<PortalData>(`/api/client/portal/${encodeURIComponent(token)}`)
+// Returning via Stripe's cancel_url: release an invoice still marked pending so the pay button comes back.
+if (import.meta.client && route.query.payment === 'cancelled' && data.value?.invoice?.paymentStatus === 'pending') {
+  try {
+    const { reset } = await $fetch<{ reset: boolean }>(`/api/client/portal/${encodeURIComponent(token)}/checkout-cancelled`, { method: 'POST' })
+    if (reset) await refresh()
+  } catch { /* the invoice simply stays pending */ }
+}
 const { data: siteData } = await useSiteContent()
 const contact = computed(() => ({ email: siteData.value?.content.contactEmail || null, phone: siteData.value?.content.contactPhone || null }))
 const answers = reactive<Record<string, Answer>>({ ...(data.value?.questionnaire.answers || {}) })
