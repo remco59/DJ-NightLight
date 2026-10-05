@@ -75,6 +75,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'nl' },
       title: 'DJ NightLight',
       link: [
+        { rel: 'icon', type: 'image/png', sizes: '192x192', href: '/pwa/icon-192.png' },
         { rel: 'preload', href: '/fonts/Archivo-Variable.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
       ],
       meta: [
