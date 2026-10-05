@@ -69,6 +69,12 @@ const completedSteps = computed(() => {
 
 const progressLabel = computed(() => data.value?.questionnaire.status === 'submitted' ? 'Alles afgerond' : questionnaireComplete.value ? 'Nog 2 stappen te gaan' : 'Nog 3 stappen te gaan')
 
+// After the gig, an unpaid invoice is the main call to action on the page.
+const invoiceProminent = computed(() => {
+  const invoice = data.value?.invoice
+  return !!data.value?.finished && invoice?.status === 'finalized' && (invoice.paymentStatus === 'unpaid' || invoice.paymentStatus === 'failed')
+})
+
 function formatDate(value: string | null) {
   if (!value) return 'Datum volgt nog'
   return dutchDateTime(value)
@@ -191,14 +197,14 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         </div>
       </header>
 
-      <section v-if="data.invoice?.status === 'finalized'" class="summary-grid">
+      <section v-if="data.invoice?.status === 'finalized'" class="summary-grid" :class="{ 'is-prominent': invoiceProminent }">
         <article class="surface summary-card invoice-card">
           <div class="summary-icon"><Icon name="lucide:file-text" aria-hidden="true" /></div>
           <div class="invoice-copy">
             <p class="eyebrow">Factuur {{ data.invoice.invoiceNumber }}</p>
             <strong class="invoice-amount">{{ invoiceAmount() }}</strong>
             <span class="invoice-status" :class="`status-${data.invoice.paymentStatus}`"><i />{{ invoiceStatusLabel() }}</span>
-            <button v-if="data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" type="button" class="secondary-action" :disabled="paymentBusy" @click="payInvoice">
+            <button v-if="data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" type="button" :class="invoiceProminent ? 'primary-action' : 'secondary-action'" :disabled="paymentBusy" @click="payInvoice">
               {{ paymentBusy ? 'Betaalpagina openen…' : 'Veilig betalen' }} <Icon name="lucide:arrow-right" aria-hidden="true" />
             </button>
           </div>
@@ -347,7 +353,8 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 .wish-category-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.wish-category{display:flex;min-height:10.5rem;align-items:center;flex-direction:column;justify-content:center;gap:.55rem;padding:1rem;border:1px solid #332d39;border-radius:1rem;background:#0e0c12;color:var(--text);text-align:center;cursor:pointer;transition:transform .15s,border-color .15s,background .15s}.wish-category:hover{transform:translateY(-2px);border-color:#6f4a9b;background:#14101a}.wish-category>svg{font-size:1.75rem;color:#a96cff}.wish-category strong{font-size:.9rem}.wish-category span{color:var(--text-subtle);font-size:.75rem;line-height:1.4}.empty-wishes{display:flex;align-items:center;gap:.9rem;margin-top:1rem;padding:1rem;border:1px solid #28232f;border-radius:.9rem;background:#0d0b10}.empty-wishes>svg{font-size:1.5rem;color:#9861e9}.empty-wishes div{display:grid;gap:.15rem}.empty-wishes span{color:var(--text-subtle);font-size:.8rem}.wish-card{margin-top:1rem;padding:1rem;border:1px solid #302938;border-radius:1rem;background:#0c0a0f}.wish-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.9rem}.wish-head>div{display:flex;align-items:center;gap:.65rem}.wish-head button{display:flex;align-items:center;gap:.35rem;border:0;background:none;color:#a79fac;font-size:.75rem;cursor:pointer}.wish-head button:hover{color:#ff8ea0}.wish-type-icon{width:2rem;height:2rem;border-radius:.6rem}
 .review-list{overflow:hidden;border:1px solid #2d2733;border-radius:.9rem}.review-list>div{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.75rem;padding:.9rem;border-bottom:1px solid #27222c}.review-list>div:last-child{border-bottom:0}.review-list>div>svg:first-child{color:#a56cff;font-size:1.1rem}.review-list span{display:grid;gap:.15rem}.review-list small{color:var(--text-subtle);font-size:.75rem}.review-ok{color:#5edca1!important}.confirm-box{display:flex;align-items:flex-start;gap:.75rem;margin-top:1rem;padding:.9rem;border:1px solid #4d3b68;border-radius:.85rem;background:#171020}.confirm-box>svg{flex:0 0 auto;color:#a66fff;font-size:1.2rem}.confirm-box div{display:grid;gap:.2rem}.confirm-box span{color:var(--text-subtle);font-size:.8rem}.submit-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1rem}.message{margin:1rem 0 0;padding:1rem;border:1px solid #45404a;border-radius:.8rem;background:#121016}
 .portal-footer{display:flex;align-items:flex-start;gap:.8rem;margin-top:1.25rem;padding:.5rem;color:#b8b1bf}.portal-footer>svg{flex:0 0 auto;margin-top:.1rem}.portal-footer div{display:grid;gap:.2rem}.portal-footer strong{font-size:.85rem}.portal-footer span{color:var(--text-subtle);font-size:.75rem}.portal-footer a{color:#b987ff}.error-card{padding:1.5rem}.error-card>p{color:var(--text-subtle)}.error-contact{display:flex;gap:1rem;flex-wrap:wrap}.error-contact a{display:flex;align-items:center;gap:.4rem;color:#c895ff}
+.summary-grid.is-prominent{grid-template-columns:minmax(0,1fr)}.is-prominent .invoice-card{grid-template-columns:auto 1fr;align-items:center;gap:1.25rem;padding:clamp(1.25rem,4vw,1.9rem);border-color:#6a3fc0;background:radial-gradient(circle at 88% 20%,rgba(131,67,255,.28),transparent 45%),linear-gradient(145deg,#1a1228,#100c18);box-shadow:0 0 0 1px rgba(150,95,255,.18),0 18px 60px rgba(110,50,230,.22)}.is-prominent .summary-icon{width:3.2rem;height:3.2rem;border-radius:1rem;font-size:1.5rem;background:#2c1c47}.is-prominent .invoice-copy{gap:.5rem}.is-prominent .invoice-amount{font-size:clamp(2.2rem,7vw,3.2rem)!important;line-height:1;letter-spacing:-.04em}.is-prominent .invoice-status{font-size:.95rem;color:#e6dff0}.is-prominent .invoice-card .primary-action{width:max-content;margin-top:.6rem;padding:.95rem 1.5rem;font-size:1.05rem}
 @media(min-width:760px){.portal-hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);align-items:end}.progress-card{align-self:end}}
 @media(max-width:760px){.portal-shell{width:min(100% - 1rem,620px);padding-top:.75rem}.portal-nav{margin:0 .5rem 1rem}.portal-hero{margin-inline:0;border-radius:1.2rem}.portal-hero.has-image{min-height:25rem}.portal-hero h1{font-size:clamp(2.2rem,12vw,3.8rem)}.hero-image{width:100%;opacity:.72}.hero-image-scrim{background:linear-gradient(0deg,#0c0911 0%,rgba(12,9,17,.88) 43%,rgba(12,9,17,.28) 100%)}.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr;padding:1rem}.summary-icon{width:2rem;height:2rem}.field-grid{grid-template-columns:1fr}.wide{grid-column:auto}.wish-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.step-title-row{align-items:flex-start;flex-direction:column;gap:.45rem}.section-action{width:100%;margin-left:0}.submit-actions{flex-direction:column-reverse}.submit-actions button{width:100%}}
-@media(max-width:480px){.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr}.wish-category{min-height:9.25rem;padding:.8rem}.portal-hero{padding:1.1rem}.step-section{padding:1rem}.step-header{grid-template-columns:auto minmax(0,1fr)}.step-number{width:2.2rem;height:2.2rem}.step-title h2{font-size:1.2rem}.review-list>div{padding:.8rem}.invoice-card .secondary-action{width:100%}}
+@media(max-width:480px){.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr}.wish-category{min-height:9.25rem;padding:.8rem}.portal-hero{padding:1.1rem}.step-section{padding:1rem}.step-header{grid-template-columns:auto minmax(0,1fr)}.step-number{width:2.2rem;height:2.2rem}.step-title h2{font-size:1.2rem}.review-list>div{padding:.8rem}.invoice-card .secondary-action,.is-prominent .invoice-card .primary-action{width:100%}}
 </style>
