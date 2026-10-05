@@ -612,12 +612,12 @@ const CtaButton: React.FC<{
   frame: number
   start: number
   icon: LucideIconName | null
-  children: string
-}> = ({ colors, frame, start, icon, children }) =>
+  label: string
+}> = ({ colors, frame, start, icon, label }) =>
   h(
     'div',
     { style: { opacity: reveal(frame, start, 10), transform: `scale(${interpolate(reveal(frame, start, 10), [0, 1], [1.4, 1])})` } },
-    h(Pill, { colors }, ctaLabel(children, icon)),
+    h(Pill, { colors }, ctaLabel(label, icon)),
   )
 
 // ── Templates ───────────────────────────────────────────────────────────────
@@ -654,7 +654,7 @@ const GigAnnouncement: React.FC<TemplateRenderProps> = ({ item, frame, width, he
     'div',
     { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30, transform: k < 1 ? `scale(${k})` : undefined, transformOrigin: 'bottom center' } },
     facts.length ? h(InfoPanel, { colors, frame, start: 26, rows: facts }) : null,
-    cta ? h(CtaButton, { colors, frame, start: 38, icon: iconOf(item, 'ctaIcon') }, cta) : null,
+    cta ? h(CtaButton, { colors, frame, start: 38, icon: iconOf(item, 'ctaIcon'), label: cta }) : null,
   )
   if (landscape) {
     return h(
@@ -902,7 +902,7 @@ const UpcomingGigs: React.FC<TemplateRenderProps> = ({ item, frame, width, heigh
     ),
   )
   const ctaAt = listAt + gigs.length * 4 + 4
-  const ctaNode = cta ? h(CtaButton, { key: 'cta', colors, frame, start: ctaAt, icon: iconOf(item, 'ctaIcon') }, cta) : null
+  const ctaNode = cta ? h(CtaButton, { key: 'cta', colors, frame, start: ctaAt, icon: iconOf(item, 'ctaIcon'), label: cta }) : null
   if (landscape) {
     return h(
       AbsoluteFill,
@@ -1272,7 +1272,7 @@ const ElectricGigPoster: React.FC<TemplateRenderProps> = ({ item, frame, width, 
   const leadIn = headline ? h(LeadIn, { key: 'lead', colors, frame, start: 10, size: TYPE.lead * k }, headline) : null
   const bottom = [
     facts.length ? h('div', { key: 'facts', style: { transform: k < 1 ? `scale(${k})` : undefined } }, h(InfoPanel, { colors, frame, start: 28, rows: facts })) : null,
-    cta ? h('div', { key: 'cta', style: { transform: k < 1 ? `scale(${k})` : undefined } }, h(CtaButton, { colors, frame, start: 36, icon: iconOf(item, 'ctaIcon') }, cta)) : null,
+    cta ? h('div', { key: 'cta', style: { transform: k < 1 ? `scale(${k})` : undefined } }, h(CtaButton, { colors, frame, start: 36, icon: iconOf(item, 'ctaIcon'), label: cta })) : null,
   ]
   return h(
     AbsoluteFill,
