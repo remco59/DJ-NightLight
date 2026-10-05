@@ -1,4 +1,5 @@
-import type { H3Event } from 'h3'
+// Derived from the auto-imported helpers so it matches the h3 version Nitro uses
+type RateLimitEvent = Parameters<typeof setResponseHeader>[0]
 
 /**
  * Central rate-limit configuration. Limits are per key (usually per client IP) and
@@ -41,7 +42,7 @@ function sweep(now: number) {
 }
 
 /** Throws 429 with a `Retry-After` header once `key` exceeds the limit named `name`. */
-export function assertRateLimit(event: H3Event, name: RateLimitName, key: string, now = Date.now()) {
+export function assertRateLimit(event: RateLimitEvent, name: RateLimitName, key: string, now = Date.now()) {
   const config = RATE_LIMITS[name]
   const bucketKey = `${name}:${key}`
   sweep(now)
@@ -53,7 +54,7 @@ export function assertRateLimit(event: H3Event, name: RateLimitName, key: string
   }
 
   if (current.count >= config.limit) {
-    setResponseHeader(event, 'Retry-After', String(Math.max(1, Math.ceil((current.resetAt - now) / 1000))))
+    setResponseHeader(event, 'Retry-After', Math.max(1, Math.ceil((current.resetAt - now) / 1000)))
     throw createError({ statusCode: 429, statusMessage: config.message })
   }
 
@@ -64,7 +65,7 @@ export function clearRateLimit(name: RateLimitName, key: string) {
   buckets.delete(`${name}:${key}`)
 }
 
-export function requestClientKey(event: H3Event) {
+export function requestClientKey(event: RateLimitEvent) {
   return getRequestIP(event, { xForwardedFor: true }) || 'unknown'
 }
 

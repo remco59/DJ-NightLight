@@ -20,7 +20,7 @@ describe('rate limiting', () => {
     for (let i = 0; i < limit; i++) assertRateLimit(event, 'login', 'ip:a', now)
 
     expect(() => assertRateLimit(event, 'login', 'ip:a', now + 1000)).toThrowError(expect.objectContaining({ statusCode: 429 }))
-    expect(headers['Retry-After']).toBe(String(Math.ceil((windowMs - 1000) / 1000)))
+    expect(Number(headers['Retry-After'])).toBe(Math.ceil((windowMs - 1000) / 1000))
   })
 
   it('keeps separate buckets per key and per limit name', () => {
