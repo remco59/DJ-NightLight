@@ -3,11 +3,11 @@ import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, paym
 import { db } from '../../../utils/db'
 import { gigTitleSql } from '../../../utils/gig-title'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager', 'dj'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const accessCondition = user.role === 'dj'
     ? and(eq(gigs.id, id), eq(gigs.assignedUserId, user.id))

@@ -3,13 +3,13 @@ import { auditLogs, invoiceLineItems, invoices } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
 import { z } from 'zod'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 const schema = z.object({ createReplacement: z.boolean().default(true) })
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const parsed = schema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldig correctieverzoek' })
   const [current] = await db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.status, 'finalized'))).limit(1)

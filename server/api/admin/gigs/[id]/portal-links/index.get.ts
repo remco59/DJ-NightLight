@@ -4,11 +4,11 @@ import { decryptSecret } from '../../../../../../shared/secret-box'
 import { db } from '../../../../../utils/db'
 import { portalLinkState } from '../../../../../utils/portal-token'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
 
   const rows = await db.select({
     id: portalLinks.id,

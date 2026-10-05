@@ -3,10 +3,11 @@ import {
   readMediaUploadSession,
   writeMediaUploadChunk,
 } from '../../../../../utils/media-upload-sessions'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const uploadId = getRouterParam(event, 'id') || ''
+  const uploadId = requireUuidParam(event, 'id')
   const index = Number(getRouterParam(event, 'index'))
   const session = await readMediaUploadSession(uploadId)
 

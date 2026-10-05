@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { queuePortalEmails } from '../../../../../utils/email-automation'
 import { issuePortalLink } from '../../../../../utils/issue-portal-link'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 const schema = z.object({
   expiresInDays: z.coerce.number().int().min(1).max(365).default(30),
@@ -10,8 +11,7 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
   const parsed = schema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldige instellingen voor de portaallink' })
 

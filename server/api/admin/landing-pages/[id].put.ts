@@ -3,11 +3,11 @@ import { landingPages } from '../../../../db/schema'
 import { landingPageInputSchema } from '../../../../shared/schemas/landing-page'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Landing page-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const input = await readValidatedBody(event, landingPageInputSchema.parse)
   const [sameSlug] = await db.select({ id: landingPages.id }).from(landingPages).where(eq(landingPages.slug, input.slug)).limit(1)

@@ -4,11 +4,11 @@ import { db } from '../../utils/db'
 import { getGeneratedStorage } from '../../utils/media-storage'
 import { requireStaff } from '../../utils/require-staff'
 import { VIDEO_EDITOR_ROLES } from '../../utils/video-projects'
+import { requireUuidParam } from '../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, VIDEO_EDITOR_ROLES)
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Videoproject-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const [project] = await db
     .select({

@@ -4,14 +4,11 @@ import { isAutomaticEmailTemplate } from '../../../../shared/email-automation'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 import { gigTitleSql } from '../../../utils/gig-title'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
-  const id = getRouterParam(event, 'id')
-
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Klant-ID is verplicht' })
-  }
+  const id = requireUuidParam(event, 'id')
 
   const [client] = await db.select().from(clients).where(eq(clients.id, id)).limit(1)
   if (!client) {

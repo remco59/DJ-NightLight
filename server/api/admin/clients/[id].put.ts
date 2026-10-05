@@ -3,14 +3,11 @@ import { clients } from '../../../../db/schema'
 import { clientInputSchema } from '../../../../shared/schemas/client'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
-  const id = getRouterParam(event, 'id')
-
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Klant-ID is verplicht' })
-  }
+  const id = requireUuidParam(event, 'id')
 
   const input = await readValidatedBody(event, clientInputSchema.parse)
   const [client] = await db

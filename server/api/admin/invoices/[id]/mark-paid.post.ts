@@ -4,6 +4,7 @@ import { manualPaymentSchema } from '../../../../../shared/schemas/manual-paymen
 import { db } from '../../../../utils/db'
 import { queueInvoiceEmail } from '../../../../utils/email-automation'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 /**
  * Records a payment that did not go through Stripe (bank transfer, cash).
@@ -12,8 +13,7 @@ import { requireStaff } from '../../../../utils/require-staff'
  */
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const parsed = manualPaymentSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldige betaling' })
   const input = parsed.data

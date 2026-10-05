@@ -3,12 +3,12 @@ import { portalLinks } from '../../../../../../db/schema'
 import { recordAudit } from '../../../../../utils/audit'
 import { db } from '../../../../../utils/db'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  const linkId = getRouterParam(event, 'linkId')
-  if (!gigId || !linkId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID en link-ID zijn verplicht' })
+  const gigId = requireUuidParam(event, 'id')
+  const linkId = requireUuidParam(event, 'linkId')
 
   const [link] = await db.update(portalLinks).set({ revokedAt: new Date() }).where(and(
     eq(portalLinks.id, linkId),

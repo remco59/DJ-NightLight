@@ -4,14 +4,14 @@ import { clients, gigs } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { clientEmailPlan } from '../../../../utils/email-plan'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 // Client emails that a button on the gig page can trigger.
 const querySchema = z.object({ template: z.enum(['booking_accepted', 'client_portal_invitation']) })
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const query = querySchema.safeParse(getQuery(event))
   if (!query.success) throw createError({ statusCode: 422, statusMessage: 'Onbekende e-mail' })
   const [row] = await db.select({ clientEmail: clients.email }).from(gigs).leftJoin(clients, eq(gigs.clientId, clients.id)).where(eq(gigs.id, id)).limit(1)

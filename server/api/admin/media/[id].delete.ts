@@ -1,10 +1,10 @@
 import { deleteMediaAssets, getMediaUsage } from '../../../utils/media-library'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const usage = await getMediaUsage(id)
   if (!usage) throw createError({ statusCode: 404, statusMessage: 'Mediabestand niet gevonden' })

@@ -2,11 +2,11 @@ import { eq } from 'drizzle-orm'
 import { gigReviews } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
   const [review] = await db.select({
     rating: gigReviews.rating,
     comment: gigReviews.comment,

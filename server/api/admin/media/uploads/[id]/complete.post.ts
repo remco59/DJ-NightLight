@@ -12,6 +12,7 @@ import {
   removeMediaUploadSession,
 } from '../../../../../utils/media-upload-sessions'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 const optionalUuid = z.string().uuid().or(z.literal('')).transform(value => value || null)
 const sourceUrl = z.string().max(2000).url().refine(value => /^https?:\/\//i.test(value)).or(z.literal(''))
@@ -32,7 +33,7 @@ const completeSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const uploadId = getRouterParam(event, 'id') || ''
+  const uploadId = requireUuidParam(event, 'id')
   const session = await readMediaUploadSession(uploadId)
   const parsed = completeSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Ongeldige metadata voor upload' })

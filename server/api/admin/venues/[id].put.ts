@@ -3,14 +3,11 @@ import { venues } from '../../../../db/schema'
 import { venueInputSchema } from '../../../../shared/schemas/venue'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
-  const id = getRouterParam(event, 'id')
-
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Locatie-ID is verplicht' })
-  }
+  const id = requireUuidParam(event, 'id')
 
   const input = await readValidatedBody(event, venueInputSchema.parse)
   const [venue] = await db

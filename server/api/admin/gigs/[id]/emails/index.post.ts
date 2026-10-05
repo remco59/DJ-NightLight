@@ -15,6 +15,7 @@ import { db } from '../../../../../utils/db'
 import { loadGigEmailDetails, processEmailJob, queueManualEmail } from '../../../../../utils/email-automation'
 import { getMediaStorage } from '../../../../../utils/media-storage'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 const schema = z.object({
   templateKey: z.string().min(1).max(80),
@@ -40,8 +41,7 @@ function parseJson(value: string, fallback: unknown) {
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
 
   const parts = await readMultipartFormData(event)
   if (!parts) throw createError({ statusCode: 400, statusMessage: 'Multipart-formulier is verplicht' })

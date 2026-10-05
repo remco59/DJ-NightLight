@@ -3,14 +3,14 @@ import { videoRenderJobs } from '../../../../../../db/schema'
 import { CANCELLABLE_RENDER_STATUSES } from '../../../../../../shared/video-generator'
 import { db } from '../../../../../utils/db'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 // Works for project exports and legacy single-image videos alike. A job that
 // is rendering is stopped by the worker, which watches for this status change;
 // if no worker is running, the job is simply taken out of the queue.
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'content_editor'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Render-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const [job] = await db.select({ id: videoRenderJobs.id }).from(videoRenderJobs).where(eq(videoRenderJobs.id, id)).limit(1)
   if (!job) throw createError({ statusCode: 404, statusMessage: 'Render niet gevonden' })

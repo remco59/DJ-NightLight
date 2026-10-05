@@ -8,11 +8,11 @@ import { getInvoiceDetail } from '../../../../utils/invoice-data'
 import { buildInvoiceSnapshot, INVOICE_SENT_TEMPLATE, invoiceFinalizeBlockers, invoiceLineInputs, loadBusinessSettings } from '../../../../utils/invoice-finalize'
 import { createPortalToken, hashPortalToken, portalExpiry } from '../../../../utils/portal-token'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const detail = await getInvoiceDetail(id)
   if (!detail) throw createError({ statusCode: 404, statusMessage: 'Factuur niet gevonden' })
   if (detail.invoice.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'De factuur is al definitief' })

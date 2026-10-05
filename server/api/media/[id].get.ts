@@ -6,6 +6,7 @@ import { db } from '../../utils/db'
 import { assetFilePath, getMediaStorage, readAssetFile } from '../../utils/media-storage'
 import { isLibraryKey } from '../../../shared/media-library-browse'
 import { canResizeImage, getImageVariant, isResponsiveWidth } from '../../utils/media-variants'
+import { requireUuidParam } from '../../utils/route-params'
 
 /** Parses a single `bytes=start-end` range; null when absent or unsatisfiable. */
 function parseRange(header: string | undefined, size: number) {
@@ -20,8 +21,7 @@ function parseRange(header: string | undefined, size: number) {
 }
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, id)).limit(1)
   if (!asset) throw createError({ statusCode: 404, statusMessage: 'Mediabestand niet gevonden' })
 

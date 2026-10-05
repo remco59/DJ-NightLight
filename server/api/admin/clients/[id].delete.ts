@@ -2,14 +2,11 @@ import { count, eq } from 'drizzle-orm'
 import { clients, gigs } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Klant-ID is verplicht' })
-  }
+  const id = requireUuidParam(event, 'id')
 
   const [usage] = await db.select({ value: count() }).from(gigs).where(eq(gigs.clientId, id))
   if ((usage?.value ?? 0) > 0) {

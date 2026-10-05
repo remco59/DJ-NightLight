@@ -5,11 +5,11 @@ import { db } from '../../../../../utils/db'
 import { loadGigEmailDetails } from '../../../../../utils/email-automation'
 import { emailProviderConfigured } from '../../../../../utils/email-provider'
 import { requireStaff } from '../../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
 
   const details = await loadGigEmailDetails(gigId)
   if (!details) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })

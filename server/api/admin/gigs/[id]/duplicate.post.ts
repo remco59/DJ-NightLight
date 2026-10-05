@@ -3,11 +3,11 @@ import { gigContacts, gigs, gigTimelineItems } from '../../../../../db/schema'
 import { recordAudit } from '../../../../utils/audit'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const [source] = await db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
   if (!source) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })

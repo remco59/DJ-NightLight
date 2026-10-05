@@ -4,13 +4,13 @@ import { calculateInvoiceTotals } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
 import { gigTitleSql } from '../../../../utils/gig-title'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 function dateOnly(value: Date) { return value.toISOString().slice(0, 10) }
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
   const [row] = await db.select({ gig: gigs, displayTitle: gigTitleSql() }).from(gigs).where(eq(gigs.id, gigId)).limit(1)
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
   const { gig, displayTitle } = row
