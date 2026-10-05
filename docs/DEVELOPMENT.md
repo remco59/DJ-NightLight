@@ -13,6 +13,8 @@ npm install
 npm run dev
 ```
 
+`.env.example` lists all environment variables. On startup the server validates them (`server/utils/env-validation.ts`) and fails with a clear error if a required one (`DATABASE_URL`, `NUXT_SESSION_PASSWORD`) is missing or invalid. Keep the schema and `.env.example` in sync.
+
 ## Quality checks
 
 ```bash
