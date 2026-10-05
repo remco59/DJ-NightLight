@@ -2,12 +2,12 @@ import { eq } from 'drizzle-orm'
 import { auditLogs, invoices, payments } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 // Finalized invoices are financial records, so only voided ones (e.g. test invoices) can be removed for good.
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1)
   if (!invoice) throw createError({ statusCode: 404, statusMessage: 'Factuur niet gevonden' })

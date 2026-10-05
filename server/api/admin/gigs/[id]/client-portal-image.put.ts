@@ -2,11 +2,11 @@ import { clientPortalImageInputSchema } from '../../../../../shared/client-porta
 import { recordAudit } from '../../../../utils/audit'
 import { sql } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const gigId = requireUuidParam(event, 'id')
 
   const parsed = clientPortalImageInputSchema.safeParse(await readBody(event))
   if (!parsed.success) {

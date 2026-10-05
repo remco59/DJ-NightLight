@@ -4,6 +4,7 @@ import { videoProjects } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 import { VIDEO_EDITOR_ROLES, getProjectOr404, validateProject } from '../../../utils/video-projects'
+import { requireUuidParam } from '../../../utils/route-params'
 
 const schema = z.object({
   name: z.string().trim().min(1).max(160).optional(),
@@ -14,7 +15,7 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, VIDEO_EDITOR_ROLES)
-  const existing = await getProjectOr404(getRouterParam(event, 'id'))
+  const existing = await getProjectOr404(requireUuidParam(event, 'id'))
   const input = await readValidatedBody(event, schema.parse)
   const project = input.project === undefined ? existing.project : validateProject(input.project)
 

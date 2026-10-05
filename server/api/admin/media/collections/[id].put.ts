@@ -4,6 +4,7 @@ import { mediaCollections } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { collectionConflict } from '../../../../utils/media-library'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 const schema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -13,8 +14,7 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Collectie-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const input = await readValidatedBody(event, schema.parse)
   try {
     const [collection] = await db.update(mediaCollections)

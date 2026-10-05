@@ -4,11 +4,11 @@ import { updateManagedUserSchema } from '../../../../shared/schemas/user'
 import { recordAudit } from '../../../utils/audit'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const actor = await requireStaff(event, ['owner'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gebruikers-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const input = await readValidatedBody(event, updateManagedUserSchema.parse)
   const [existing] = await db.select().from(users).where(eq(users.id, id)).limit(1)

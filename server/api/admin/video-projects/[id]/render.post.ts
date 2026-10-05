@@ -3,10 +3,11 @@ import { projectDurationFrames } from '../../../../../shared/video-project'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
 import { VIDEO_EDITOR_ROLES, assertProjectAssetsExist, getProjectOr404, validateProject } from '../../../../utils/video-projects'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, VIDEO_EDITOR_ROLES)
-  const row = await getProjectOr404(getRouterParam(event, 'id'))
+  const row = await getProjectOr404(requireUuidParam(event, 'id'))
   // Renders always use the saved project; the job keeps its own snapshot so
   // later edits never change an export that is queued or finished.
   const project = validateProject(row.project)

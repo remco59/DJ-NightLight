@@ -5,6 +5,7 @@ import { normalizeTags } from '../../../../shared/media'
 import { db } from '../../../utils/db'
 import { MediaValidationError, addAssetsToCollections, mediaAssetUrls, validateParentAsset } from '../../../utils/media-library'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 // Every field is optional so the inspector, pickers and bulk tools can change
 // just what they edit; omitted fields keep their stored value.
@@ -21,8 +22,7 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Media-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const input = await readValidatedBody(event, schema.parse)
 
   let parentAssetId: string | null | undefined

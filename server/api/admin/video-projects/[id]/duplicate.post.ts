@@ -2,10 +2,11 @@ import { videoProjects } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
 import { VIDEO_EDITOR_ROLES, getProjectOr404 } from '../../../../utils/video-projects'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, VIDEO_EDITOR_ROLES)
-  const source = await getProjectOr404(getRouterParam(event, 'id'))
+  const source = await getProjectOr404(requireUuidParam(event, 'id'))
   const [row] = await db.insert(videoProjects).values({
     name: `${source.name} (copy)`.slice(0, 160),
     project: source.project,

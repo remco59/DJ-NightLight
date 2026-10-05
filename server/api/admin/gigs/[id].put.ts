@@ -7,11 +7,11 @@ import { queueGigEmail } from '../../../utils/email-automation'
 import { db } from '../../../utils/db'
 import { validateGigAssignee } from '../../../utils/gig-assignee'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const input = await readValidatedBody(event, gigInputSchema.parse)
   const { contacts, timeline, assignedUserId, ...gigValues } = input

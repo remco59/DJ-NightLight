@@ -3,11 +3,11 @@ import { auditLogs, invoiceLineItems, invoices } from '../../../../db/schema'
 import { calculateInvoiceTotals, invoiceDraftInputSchema } from '../../../../shared/invoice'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   const parsed = invoiceDraftInputSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldige factuur' })
   const totals = calculateInvoiceTotals(parsed.data.lines, parsed.data.vatMode, parsed.data.vatRateBasisPoints)

@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm'
 import { videoRenderJobs } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { getGeneratedStorage } from '../../utils/media-storage'
+import { requireUuidParam } from '../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'ID van de gegenereerde video is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const [job] = await db.select({
     outputKey: videoRenderJobs.outputKey,

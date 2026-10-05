@@ -3,14 +3,11 @@ import { clients, gigs, venues } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 import { gigTitleSql } from '../../../utils/gig-title'
+import { requireUuidParam } from '../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
-  const id = getRouterParam(event, 'id')
-
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Locatie-ID is verplicht' })
-  }
+  const id = requireUuidParam(event, 'id')
 
   const [venue] = await db.select().from(venues).where(eq(venues.id, id)).limit(1)
   if (!venue) {

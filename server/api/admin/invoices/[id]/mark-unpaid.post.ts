@@ -2,12 +2,12 @@ import { and, eq } from 'drizzle-orm'
 import { auditLogs, invoices, payments } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 /** Undoes a manually recorded payment. Stripe payments are never undone here. */
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Factuur-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
 
   const invoice = await db.transaction(async (tx) => {
     const [payment] = await tx.select().from(payments).where(and(eq(payments.invoiceId, id), eq(payments.provider, 'manual'))).limit(1)

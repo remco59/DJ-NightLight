@@ -4,11 +4,11 @@ import { resetManagedUserPasswordSchema } from '../../../../../shared/schemas/us
 import { recordAudit } from '../../../../utils/audit'
 import { db } from '../../../../utils/db'
 import { requireStaff } from '../../../../utils/require-staff'
+import { requireUuidParam } from '../../../../utils/route-params'
 
 export default defineEventHandler(async (event) => {
   const actor = await requireStaff(event, ['owner'])
-  const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gebruikers-ID is verplicht' })
+  const id = requireUuidParam(event, 'id')
   if (id === actor.id) {
     throw createError({ statusCode: 409, statusMessage: 'Wijzig je eigen wachtwoord via Mijn account' })
   }
