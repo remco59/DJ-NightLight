@@ -7,6 +7,7 @@ import { gigStatusLabels, labelFor } from '~~/shared/labels'
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
 const { user } = useUserSession()
+const online = useOnline()
 const canManageGigs = computed(() => user.value?.role === 'owner' || user.value?.role === 'manager')
 const removalNotice = computed(() => route.query.removed === 'archive'
   ? 'Gig gearchiveerd omdat er financiële gegevens aan gekoppeld zijn. De factuur- en betaalgeschiedenis is bewaard.'
@@ -286,12 +287,13 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
   <div class="gigs-page">
     <header class="page-header">
       <div><p class="eyebrow">Planning</p><h1>Gigs</h1><p>Leads, boekingen en je complete planning.</p></div>
-      <button v-if="canManageGigs" class="with-icon primary" type="button" @click="openCreate"><Icon name="lucide:plus" aria-hidden="true" />Nieuwe gig</button>
+      <button v-if="canManageGigs" class="with-icon primary" type="button" :disabled="!online" :title="online?undefined:'Nieuwe gigs aanmaken kan alleen online'" @click="openCreate"><Icon name="lucide:plus" aria-hidden="true" />Nieuwe gig</button>
     </header>
+    <div v-if="!online&&canManageGigs" class="notice" role="status">Je bent offline: nieuwe gigs aanmaken kan pas weer met verbinding.</div>
     <div v-if="removalNotice" class="notice">{{removalNotice}}</div>
 
     <Teleport to="body">
-      <div v-if="showCreate&&canManageGigs" class="modal-backdrop" @click.self="closeCreate">
+      <div v-if="showCreate&&canManageGigs&&online" class="modal-backdrop" @click.self="closeCreate">
         <section ref="createDialog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="new-gig-title" @keydown.esc="closeCreate">
           <header class="modal-header">
             <div><p class="eyebrow">Nieuwe boeking</p><h2 id="new-gig-title">Gig aanmaken</h2><p>Plan nu de basis. De rest kun je later aanvullen.</p></div>
