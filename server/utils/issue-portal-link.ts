@@ -1,5 +1,6 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import { auditLogs, gigs, portalLinks } from '../../db/schema'
+import { encryptSecret } from '../../shared/secret-box'
 import { db } from './db'
 import { createPortalToken, hashPortalToken, portalExpiry } from './portal-token'
 
@@ -27,6 +28,7 @@ export async function issuePortalLink(input: {
     const [link] = await tx.insert(portalLinks).values({
       gigId: input.gigId,
       tokenHash: hashPortalToken(token),
+      tokenEncrypted: encryptSecret(token, String(useRuntimeConfig().session.password || '')),
       expiresAt,
       createdByUserId: input.userId,
     }).returning({ id: portalLinks.id, expiresAt: portalLinks.expiresAt })
