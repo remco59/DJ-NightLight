@@ -279,6 +279,68 @@ async function createGig(){
   finally{saving.value=false}
 }
 
+// Time-aware list: land on the running gig, else the next one, else the most recent.
+type ReferenceKind='now'|'next'|'last'
+const DEFAULT_GIG_MS=4*60*60*1000
+const SCROLL_TOP_OFFSET=64
+const listEl=ref<HTMLElement|null>(null)
+const canScrollUp=ref(false)
+const canScrollDown=ref(false)
+const reference=ref<{id:string;kind:ReferenceKind}|null>(null)
+let scrolledKey=''
+
+function findReference(gigs:GigRow[],now:number):{id:string;kind:ReferenceKind}|null{
+  const dated=gigs.filter(gig=>gig.startsAt).map(gig=>{
+    const start=new Date(gig.startsAt as string).getTime()
+    const end=gig.endsAt?new Date(gig.endsAt).getTime():start+DEFAULT_GIG_MS
+    return {id:gig.id,start,end}
+  }).filter(item=>Number.isFinite(item.start))
+  const running=dated.filter(item=>item.start<=now&&now<item.end).sort((a,b)=>b.start-a.start)[0]
+  if(running)return {id:running.id,kind:'now'}
+  const next=dated.filter(item=>item.start>now).sort((a,b)=>a.start-b.start)[0]
+  if(next)return {id:next.id,kind:'next'}
+  const last=dated.sort((a,b)=>b.start-a.start)[0]
+  return last?{id:last.id,kind:'last'}:null
+}
+function referenceBadge(id:string){
+  if(reference.value?.id!==id)return ''
+  return reference.value.kind==='now'?'Nu bezig':reference.value.kind==='next'?'Volgende':'Laatste'
+}
+function updateScrollHints(){
+  const el=listEl.value
+  canScrollUp.value=!!el&&el.scrollTop>4
+  canScrollDown.value=!!el&&el.scrollTop+el.clientHeight<el.scrollHeight-4
+}
+function scrollListBy(direction:-1|1){
+  const el=listEl.value
+  el?.scrollBy({top:direction*el.clientHeight*.8,behavior:'smooth'})
+}
+// Direction labels follow the sort order: with newest first, scrolling up leads to later gigs.
+const upHint=computed(()=>sort.value==='date_desc'?'Scroll omhoog voor latere gigs':'Scroll omhoog voor eerdere gigs')
+const downHint=computed(()=>sort.value==='date_desc'?'Scroll omlaag voor eerdere gigs':'Scroll omlaag voor latere gigs')
+
+async function syncReference(){
+  if(!import.meta.client)return
+  const gigs=data.value?.gigs
+  reference.value=gigs?findReference(gigs,Date.now()):null
+  await nextTick()
+  const el=listEl.value
+  // Only auto-scroll on first load or when filters/sorting change, never on a plain refresh.
+  const key=JSON.stringify(query.value)
+  if(el&&key!==scrolledKey){
+    scrolledKey=key
+    const row=reference.value?el.querySelector<HTMLElement>(`[data-gig-id="${reference.value.id}"]`):null
+    el.scrollTop=row?Math.max(0,el.scrollTop+row.getBoundingClientRect().top-el.getBoundingClientRect().top-SCROLL_TOP_OFFSET):0
+  }
+  updateScrollHints()
+}
+onMounted(()=>{
+  syncReference()
+  window.addEventListener('resize',updateScrollHints)
+})
+onBeforeUnmount(()=>window.removeEventListener('resize',updateScrollHints))
+watch(data,syncReference)
+
 watch(()=>route.query.new,value=>{if(value==='1')showCreate.value=true})
 useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
 </script>
@@ -519,13 +581,17 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
       </template>
     </AdminFilterBar>
 
-    <div v-if="status==='pending'" class="empty">Gigs laden…</div><div v-else-if="!data?.gigs.length" class="empty">Geen gigs gevonden met deze filters.</div>
-    <div v-else class="gig-list"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('nl-NL',{month:'short'}):'n.n.b.'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><AdminStatusChip kind="gig" :status="gig.status" /><span v-if="gig.publicVisibility" class="public">Publiek</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'Geen locatie'}} · {{gig.eventType||'Soort evenement niet ingesteld'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
+    <div v-if="status==='pending'&&!data" class="empty">Gigs laden…</div><div v-else-if="!data?.gigs.length" class="empty">Geen gigs gevonden met deze filters.</div>
+    <div v-else class="gig-scroller">
+      <button v-if="canScrollUp" class="scroll-hint top" type="button" @click="scrollListBy(-1)"><Icon name="lucide:chevron-up" aria-hidden="true" />{{upHint}}</button>
+      <div ref="listEl" class="gig-list" @scroll.passive="updateScrollHints"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row" :data-gig-id="gig.id" :data-reference="reference?.id===gig.id?reference.kind:undefined"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('nl-NL',{month:'short'}):'n.n.b.'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><span v-if="referenceBadge(gig.id)" class="reference-badge" :data-kind="reference?.kind"><Icon v-if="reference?.kind==='now'" name="lucide:calendar-clock" aria-hidden="true" />{{referenceBadge(gig.id)}}</span><AdminStatusChip kind="gig" :status="gig.status" /><span v-if="gig.publicVisibility" class="public">Publiek</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'Geen locatie'}} · {{gig.eventType||'Soort evenement niet ingesteld'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
+      <button v-if="canScrollDown" class="scroll-hint bottom" type="button" @click="scrollListBy(1)"><Icon name="lucide:chevron-down" aria-hidden="true" />{{downHint}}</button>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.gigs-page{max-width:1180px;margin-inline:auto}.status-tabs{display:flex;gap:.35rem;margin-bottom:.85rem;overflow-x:auto;scrollbar-width:none}.status-tabs button{flex:0 0 auto;min-height:2.5rem;border:1px solid var(--border);border-radius:999px;padding:.45rem .95rem;background:transparent;color:#b8b2c1;font-weight:700;font-size:.84rem;cursor:pointer}.status-tabs button:hover{color:#fff;border-color:#3d3646}.status-tabs button[aria-pressed="true"]{border-color:var(--text);background:var(--text);color:#0b0910}.notice{margin-bottom:1rem;padding:.85rem 1rem;border:1px solid #324137;border-radius:.8rem;background:#121b16;color:#b8d7c2}.page-header{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.04em}.page-header p:last-child{margin:0;color:var(--text-subtle)}.primary,.secondary,.icon-button,.text-button,.picker-option{font:inherit}.primary{border:0;border-radius:.7rem;padding:.75rem 1rem;background:var(--button-primary-bg);color:var(--button-primary-fg);font-weight:800;cursor:pointer}.secondary{border:1px solid #393240;border-radius:.7rem;padding:.7rem .95rem;background:#17131c;color:var(--text);font-weight:700;cursor:pointer}.primary:disabled,.secondary:disabled{opacity:.55;cursor:not-allowed}label,.field{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}input,select,textarea{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text)}.wide{grid-column:1/-1}.checkbox{display:flex;align-items:center;gap:.6rem}.checkbox input{width:auto}.sort-control{display:flex;align-items:center;gap:.55rem;color:var(--text-subtle);font-size:.78rem}.sort-control span{white-space:nowrap}.gig-list{overflow:hidden;border:1px solid #292530;border-radius:1rem}.gig-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.95rem 1rem;border-bottom:1px solid #242029;text-decoration:none}.gig-row:last-child{border-bottom:0}.gig-row:hover{background:#141119}.date{display:grid;place-items:center;padding:.45rem;border-radius:.7rem;background:#1c1822}.date span{font-size:.75rem;color:#8d8696;text-transform:uppercase}.main{min-width:0}.title-line{display:flex;align-items:center;gap:.45rem;min-width:0}.main>span,.right span{display:block;color:#817a8b;font-size:.78rem}.status,.public{padding:.18rem .4rem;border-radius:999px;font-size:.75rem;text-transform:uppercase}.status{background:#27222e;color:#b8afc2}.status[data-status=booked]{background:#14251d;color:#9be6ba}.status[data-status=declined],.status[data-status=cancelled]{background:#2a181c;color:#e7a2ad}.public{background:#1a2030;color:#aebff8}.right{text-align:right}.right strong{display:block}.empty{padding:2rem;border:1px dashed #302a38;border-radius:1rem;color:#817a8b}.error{color:#ff9c9c}
+.gigs-page{max-width:1180px;margin-inline:auto}.status-tabs{display:flex;gap:.35rem;margin-bottom:.85rem;overflow-x:auto;scrollbar-width:none}.status-tabs button{flex:0 0 auto;min-height:2.5rem;border:1px solid var(--border);border-radius:999px;padding:.45rem .95rem;background:transparent;color:#b8b2c1;font-weight:700;font-size:.84rem;cursor:pointer}.status-tabs button:hover{color:#fff;border-color:#3d3646}.status-tabs button[aria-pressed="true"]{border-color:var(--text);background:var(--text);color:#0b0910}.notice{margin-bottom:1rem;padding:.85rem 1rem;border:1px solid #324137;border-radius:.8rem;background:#121b16;color:#b8d7c2}.page-header{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.04em}.page-header p:last-child{margin:0;color:var(--text-subtle)}.primary,.secondary,.icon-button,.text-button,.picker-option{font:inherit}.primary{border:0;border-radius:.7rem;padding:.75rem 1rem;background:var(--button-primary-bg);color:var(--button-primary-fg);font-weight:800;cursor:pointer}.secondary{border:1px solid #393240;border-radius:.7rem;padding:.7rem .95rem;background:#17131c;color:var(--text);font-weight:700;cursor:pointer}.primary:disabled,.secondary:disabled{opacity:.55;cursor:not-allowed}label,.field{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}input,select,textarea{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text)}.wide{grid-column:1/-1}.checkbox{display:flex;align-items:center;gap:.6rem}.checkbox input{width:auto}.sort-control{display:flex;align-items:center;gap:.55rem;color:var(--text-subtle);font-size:.78rem}.sort-control span{white-space:nowrap}.gig-scroller{position:relative;overflow:hidden;border:1px solid #292530;border-radius:1rem}.gig-list{position:relative;max-height:min(40rem,calc(100dvh - 18rem));min-height:12rem;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.scroll-hint{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:.4rem;border:0;padding:.55rem 1rem;color:#b9a5dc;font:inherit;font-size:.74rem;cursor:pointer}.scroll-hint.top{top:0;padding-bottom:1.4rem;background:linear-gradient(#1b1226,rgba(27,18,38,.85) 45%,transparent)}.scroll-hint.bottom{bottom:0;padding-top:1.4rem;background:linear-gradient(transparent,rgba(27,18,38,.85) 55%,#1b1226)}.scroll-hint:hover{color:#fff}.gig-row[data-reference]{background:linear-gradient(90deg,rgba(139,92,246,.16),rgba(139,92,246,.06));box-shadow:inset 0 0 0 1px rgba(167,139,250,.55),0 0 22px rgba(139,92,246,.18)}.gig-row[data-reference]:hover{background:linear-gradient(90deg,rgba(139,92,246,.22),rgba(139,92,246,.09))}.reference-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .5rem;border:1px solid rgba(167,139,250,.5);border-radius:999px;background:rgba(139,92,246,.2);color:#e3d6ff;font-size:.72rem;font-weight:700;white-space:nowrap}.reference-badge[data-kind=last]{background:transparent;color:#b9a5dc}.gig-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.95rem 1rem;border-bottom:1px solid #242029;text-decoration:none}.gig-row:last-child{border-bottom:0}.gig-row:hover{background:#141119}.date{display:grid;place-items:center;padding:.45rem;border-radius:.7rem;background:#1c1822}.date span{font-size:.75rem;color:#8d8696;text-transform:uppercase}.main{min-width:0}.title-line{display:flex;align-items:center;gap:.45rem;min-width:0}.main>span,.right span{display:block;color:#817a8b;font-size:.78rem}.status,.public{padding:.18rem .4rem;border-radius:999px;font-size:.75rem;text-transform:uppercase}.status{background:#27222e;color:#b8afc2}.status[data-status=booked]{background:#14251d;color:#9be6ba}.status[data-status=declined],.status[data-status=cancelled]{background:#2a181c;color:#e7a2ad}.public{background:#1a2030;color:#aebff8}.right{text-align:right}.right strong{display:block}.empty{padding:2rem;border:1px dashed #302a38;border-radius:1rem;color:#817a8b}.error{color:#ff9c9c}
 
 .modal-backdrop{position:fixed;inset:0;z-index:var(--z-modal);display:grid;place-items:center;padding:1rem;background:rgba(4,3,6,.78);backdrop-filter:blur(10px)}.modal-card{width:min(940px,100%);max-height:calc(100dvh - 2rem);overflow:auto;border:1px solid #342d3b;border-radius:1.2rem;background:#0d0b10;box-shadow:0 28px 100px rgba(0,0,0,.6)}.modal-header{position:sticky;top:0;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.35rem;border-bottom:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}.modal-header h2{margin:.12rem 0 .2rem;font-size:1.8rem;letter-spacing:-.035em}.modal-header p:last-child{margin:0;color:#837b8c;font-size:.86rem}.icon-button{display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #342e3b;border-radius:.7rem;background:#151119;color:#c8c0d0;font-size:1.15rem;cursor:pointer}.modal-form{padding:0 1.35rem 1.35rem}.form-section{display:grid;grid-template-columns:10rem minmax(0,1fr);gap:1.2rem;padding:1.25rem 0;border-bottom:1px solid #211d25}.section-heading{display:grid;align-content:start;gap:.25rem}.section-heading strong{color:#f4eff8}.section-heading span{color:var(--text-subtle);font-size:.75rem;line-height:1.45}.form-grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.timing-grid{grid-template-columns:1.35fr .8fr 1.35fr}.relation-grid{align-items:start}.field-label{color:var(--text-muted)}.picker{position:relative}.picker-input-row{display:flex;gap:.45rem}.picker-input-row input{min-width:0}.text-button{border:1px solid var(--border-strong);border-radius:.65rem;padding:0 .7rem;background:#151119;color:#aaa3b3;cursor:pointer}.picker-menu{position:absolute;z-index:7;top:calc(100% + .35rem);left:0;right:0;max-height:15rem;overflow:auto;padding:.35rem;border:1px solid #39313f;border-radius:.75rem;background:#131017;box-shadow:0 16px 45px rgba(0,0,0,.45)}.picker-option{display:flex;width:100%;align-items:center;justify-content:space-between;gap:.75rem;border:0;border-radius:.55rem;padding:.65rem .7rem;background:transparent;color:#f4eff8;text-align:left;cursor:pointer}.picker-option[data-active=true],.picker-option[data-selected=true]{background:#211a29}.picker-option strong{display:flex;align-items:center;gap:.45rem;min-width:0;overflow-wrap:anywhere}.create-option strong{color:#d7c6ef}.picker-option span{color:var(--text-subtle);font-size:.72rem}.picker-empty{padding:.8rem;color:var(--text-subtle);font-size:.78rem}.inline-create-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#f4eff8;font-size:.82rem}.inline-create-header .text-button{padding:.35rem .6rem;font-size:.72rem}.inline-create{display:grid;gap:.75rem;margin-top:.35rem;padding:.8rem;border:1px solid #302938;border-radius:.8rem;background:#121016}.compact-grid{gap:.6rem}.compact-grid label{font-size:.75rem}.inline-create .secondary{justify-self:start;font-size:.78rem}.modal-error{margin:1rem 0 0}.modal-actions{position:sticky;bottom:-1.35rem;z-index:4;display:flex;justify-content:flex-end;gap:.65rem;margin:0 -1.35rem -1.35rem;padding:1rem 1.35rem;border-top:1px solid #27222d;background:rgba(13,11,16,.96);backdrop-filter:blur(12px)}
 
