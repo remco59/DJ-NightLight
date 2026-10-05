@@ -24,6 +24,10 @@ npm test
 npm run build
 ```
 
+## API documentation
+
+`docs/openapi.yaml` describes the API and is generated from `server/api`; see [API.md](./API.md). After changing a route or the schema it validates with, run `npm run docs:openapi` and commit the result (a test fails when it is out of date).
+
 ## Accessibility check
 
 `npm run test:a11y` (`e2e/a11y.ts`) runs [axe-core](https://github.com/dequelabs/axe-core) against the public pages (home, over, media, agenda, boeken including its error state, and every published landing page) at a desktop and a mobile size. It checks WCAG 2.0/2.1 level A and AA plus axe's best practices and fails on any violation. CI runs it after the E2E workflows, against the production build.

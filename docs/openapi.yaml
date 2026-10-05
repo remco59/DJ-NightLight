@@ -1,0 +1,6622 @@
+openapi: 3.1.0
+info:
+  title: DJ NightLight API
+  version: 1.0.0
+  description: |-
+    Gegenereerd uit `server/api` met `npm run docs:openapi`. Niet met de hand bewerken.
+
+    Admin-routes vragen een ingelogde sessie (cookie `nuxt-session`) met een van de genoemde rollen (`x-roles`).
+    Klantportaal- en agenda-feed-routes hebben een geheim token in het pad (`x-access`); alle andere routes zonder beveiliging zijn publiek.
+    Foutresponses hebben de vorm `{ statusCode, statusMessage }`.
+    De antwoord-bodies zijn niet per route beschreven; zie de route-broncode voor de precieze velden.
+tags:
+  - name: admin/account
+    description: Back office (ingelogde medewerkers)
+  - name: admin/business-settings
+    description: Back office (ingelogde medewerkers)
+  - name: admin/calendar
+    description: Back office (ingelogde medewerkers)
+  - name: admin/clients
+    description: Back office (ingelogde medewerkers)
+  - name: admin/content
+    description: Back office (ingelogde medewerkers)
+  - name: admin/dashboard
+    description: Back office (ingelogde medewerkers)
+  - name: admin/email
+    description: Back office (ingelogde medewerkers)
+  - name: admin/gigs
+    description: Back office (ingelogde medewerkers)
+  - name: admin/integrations
+    description: Back office (ingelogde medewerkers)
+  - name: admin/invoices
+    description: Back office (ingelogde medewerkers)
+  - name: admin/landing-pages
+    description: Back office (ingelogde medewerkers)
+  - name: admin/me
+    description: Back office (ingelogde medewerkers)
+  - name: admin/media
+    description: Back office (ingelogde medewerkers)
+  - name: admin/post-generator
+    description: Back office (ingelogde medewerkers)
+  - name: admin/questionnaire
+    description: Back office (ingelogde medewerkers)
+  - name: admin/render-settings
+    description: Back office (ingelogde medewerkers)
+  - name: admin/reviews
+    description: Back office (ingelogde medewerkers)
+  - name: admin/session
+    description: Back office (ingelogde medewerkers)
+  - name: admin/stripe
+    description: Back office (ingelogde medewerkers)
+  - name: admin/system
+    description: Back office (ingelogde medewerkers)
+  - name: admin/users
+    description: Back office (ingelogde medewerkers)
+  - name: admin/venues
+    description: Back office (ingelogde medewerkers)
+  - name: admin/video-projects
+    description: Back office (ingelogde medewerkers)
+  - name: auth
+    description: Inloggen, uitloggen en de eerste eigenaar aanmaken
+  - name: calendar
+    description: Agenda-feed (ICS)
+  - name: client
+    description: Klantportaal via een persoonlijke link
+  - name: generated-posts
+  - name: generated-videos
+  - name: health
+  - name: maintenance
+  - name: media
+  - name: public
+    description: Publieke website-inhoud en het contactformulier
+  - name: ready
+  - name: video-project-thumbnails
+  - name: webhooks
+    description: Inkomende webhooks van externe diensten
+paths:
+  /api/admin/account/password:
+    post:
+      operationId: postAdminAccountPassword
+      tags:
+        - admin/account
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+                newPassword:
+                  type: string
+                  minLength: 12
+                  maxLength: 200
+                confirmPassword:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+              required:
+                - currentPassword
+                - newPassword
+                - confirmPassword
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/business-settings:
+    get:
+      operationId: getAdminBusinessSettings
+      tags:
+        - admin/business-settings
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminBusinessSettings
+      tags:
+        - admin/business-settings
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                companyName:
+                  type: string
+                  minLength: 1
+                  maxLength: 240
+                address:
+                  type: string
+                  maxLength: 500
+                postalCode:
+                  type: string
+                  maxLength: 32
+                city:
+                  type: string
+                  maxLength: 160
+                country:
+                  type: string
+                  maxLength: 120
+                email:
+                  anyOf:
+                    - type: string
+                      const: ""
+                    - type: string
+                      format: email
+                      pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                phone:
+                  type: string
+                  maxLength: 64
+                registrationNumber:
+                  type: string
+                  maxLength: 80
+                vatNumber:
+                  type: string
+                  maxLength: 80
+                iban:
+                  type: string
+                  maxLength: 64
+                invoicePrefix:
+                  type: string
+                  minLength: 1
+                  maxLength: 16
+                defaultVatMode:
+                  type: string
+                  enum:
+                    - exclusive
+                    - inclusive
+                    - exempt
+                defaultVatRateBasisPoints:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                defaultPaymentTermDays:
+                  type: integer
+                  minimum: 0
+                  maximum: 365
+                paymentTerms:
+                  type: string
+                  maxLength: 5000
+                legalText:
+                  type: string
+                  maxLength: 5000
+              required:
+                - companyName
+                - address
+                - postalCode
+                - city
+                - country
+                - email
+                - phone
+                - registrationNumber
+                - vatNumber
+                - iban
+                - invoicePrefix
+                - defaultVatMode
+                - defaultVatRateBasisPoints
+                - defaultPaymentTermDays
+                - paymentTerms
+                - legalText
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/calendar:
+    get:
+      operationId: getAdminCalendar
+      tags:
+        - admin/calendar
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/calendar/events:
+    get:
+      operationId: getAdminCalendarEvents
+      tags:
+        - admin/calendar
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - dj
+      parameters:
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/calendar/ics-token:
+    post:
+      operationId: postAdminCalendarIcsToken
+      tags:
+        - admin/calendar
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/calendar/settings:
+    put:
+      operationId: putAdminCalendarSettings
+      tags:
+        - admin/calendar
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                calendarId:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                cancellationBehavior:
+                  type: string
+                  enum:
+                    - delete
+                    - mark_cancelled
+                    - keep
+              required:
+                - enabled
+                - calendarId
+                - cancellationBehavior
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/calendar/sync:
+    post:
+      operationId: postAdminCalendarSync
+      tags:
+        - admin/calendar
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gigId:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/clients:
+    get:
+      operationId: getAdminClients
+      tags:
+        - admin/clients
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: hasEmail
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hasGigs
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminClients
+      tags:
+        - admin/clients
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - person
+                    - company
+                firstName:
+                  type: string
+                  maxLength: 120
+                lastName:
+                  type: string
+                  maxLength: 120
+                companyName:
+                  type: string
+                  maxLength: 200
+                email:
+                  type: string
+                  maxLength: 320
+                phone:
+                  type: string
+                  maxLength: 64
+                billingAddress:
+                  type: string
+                  maxLength: 1000
+                notes:
+                  type: string
+                  maxLength: 5000
+                emailAutomationDisabled:
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+              required:
+                - type
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/clients/{id}:
+    get:
+      operationId: getAdminClientsById
+      tags:
+        - admin/clients
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminClientsById
+      tags:
+        - admin/clients
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - person
+                    - company
+                firstName:
+                  type: string
+                  maxLength: 120
+                lastName:
+                  type: string
+                  maxLength: 120
+                companyName:
+                  type: string
+                  maxLength: 200
+                email:
+                  type: string
+                  maxLength: 320
+                phone:
+                  type: string
+                  maxLength: 64
+                billingAddress:
+                  type: string
+                  maxLength: 1000
+                notes:
+                  type: string
+                  maxLength: 5000
+                emailAutomationDisabled:
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+              required:
+                - type
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminClientsById
+      tags:
+        - admin/clients
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/content:
+    get:
+      operationId: getAdminContent
+      tags:
+        - admin/content
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminContent
+      tags:
+        - admin/content
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                brandName:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                heroEyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                heroTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                heroBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 3000
+                heroImageUrl:
+                  type: string
+                  maxLength: 2000
+                heroCtaLabel:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                aboutEyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                aboutTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                aboutBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 8000
+                mediaEyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                mediaTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                mediaBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                showreelUrl:
+                  type: string
+                  maxLength: 2000
+                agendaEyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                agendaTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                agendaBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                bookingEyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                bookingTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                bookingBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                contactEmail:
+                  type: string
+                  maxLength: 320
+                contactPhone:
+                  type: string
+                  maxLength: 64
+                instagramUrl:
+                  type: string
+                  maxLength: 2000
+                spotifyUrl:
+                  type: string
+                  maxLength: 2000
+                seoTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                seoDescription:
+                  type: string
+                  minLength: 1
+                  maxLength: 320
+                seoImageUrl:
+                  type: string
+                  maxLength: 2000
+                services:
+                  maxItems: 12
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      body:
+                        type: string
+                        minLength: 1
+                        maxLength: 1500
+                      imageUrl:
+                        type: string
+                        maxLength: 2000
+                      imageAlt:
+                        default: ""
+                        type: string
+                        maxLength: 240
+                    required:
+                      - title
+                      - body
+                gallery:
+                  maxItems: 40
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        maxLength: 2000
+                      alt:
+                        type: string
+                        maxLength: 240
+                    required:
+                      - url
+                      - alt
+                publicCopy:
+                  type: object
+                  properties:
+                    navigation:
+                      type: object
+                      properties:
+                        home:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        about:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        media:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        agenda:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        booking:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        menu:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        close:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        mobileEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        mobileBooking:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                      required:
+                        - home
+                        - about
+                        - media
+                        - agenda
+                        - booking
+                        - menu
+                        - close
+                        - mobileEyebrow
+                        - mobileBooking
+                    footer:
+                      type: object
+                      properties:
+                        eyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        title:
+                          type: string
+                          minLength: 1
+                          maxLength: 400
+                        cta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        location:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        instagram:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        spotify:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        email:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                      required:
+                        - eyebrow
+                        - title
+                        - cta
+                        - location
+                        - instagram
+                        - spotify
+                        - email
+                    home:
+                      type: object
+                      properties:
+                        secondaryCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        heroCaption:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        scrollLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        visualEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        visualBody:
+                          type: string
+                          maxLength: 500
+                        visualCaption:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        aboutCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        aboutImageCaption:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        servicesEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        servicesBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        proofEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        proofQuote:
+                          type: string
+                          minLength: 1
+                          maxLength: 600
+                        proofTags:
+                          minItems: 1
+                          maxItems: 12
+                          type: array
+                          items:
+                            type: string
+                            minLength: 1
+                            maxLength: 240
+                        bookingCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                      required:
+                        - secondaryCta
+                        - heroCaption
+                        - scrollLabel
+                        - visualEyebrow
+                        - visualBody
+                        - visualCaption
+                        - aboutCta
+                        - aboutImageCaption
+                        - servicesEyebrow
+                        - servicesBody
+                        - proofEyebrow
+                        - proofQuote
+                        - proofTags
+                        - bookingCta
+                    about:
+                      type: object
+                      properties:
+                        imageEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        imageCaption:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        storyTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        storyBody1:
+                          type: string
+                          minLength: 1
+                          maxLength: 1200
+                        storyBody2:
+                          type: string
+                          minLength: 1
+                          maxLength: 1200
+                        momentEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        momentQuote:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        momentBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 700
+                        principlesEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        principlesTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        principles:
+                          minItems: 1
+                          maxItems: 8
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              title:
+                                type: string
+                                minLength: 1
+                                maxLength: 160
+                              body:
+                                type: string
+                                minLength: 1
+                                maxLength: 700
+                            required:
+                              - title
+                              - body
+                        ctaEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        ctaTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 400
+                        ctaLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                      required:
+                        - imageEyebrow
+                        - imageCaption
+                        - storyTitle
+                        - storyBody1
+                        - storyBody2
+                        - momentEyebrow
+                        - momentQuote
+                        - momentBody
+                        - principlesEyebrow
+                        - principlesTitle
+                        - principles
+                        - ctaEyebrow
+                        - ctaTitle
+                        - ctaLabel
+                    media:
+                      type: object
+                      properties:
+                        typeLabels:
+                          minItems: 1
+                          maxItems: 8
+                          type: array
+                          items:
+                            type: string
+                            minLength: 1
+                            maxLength: 240
+                        showreelEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        showreelExternalLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        showreelTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        showreelBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        galleryEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        imageSingular:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        imagePlural:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        emptyEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        emptyTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        emptyBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 800
+                        emptyMeta:
+                          minItems: 1
+                          maxItems: 8
+                          type: array
+                          items:
+                            type: string
+                            minLength: 1
+                            maxLength: 240
+                        closeLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                      required:
+                        - typeLabels
+                        - showreelEyebrow
+                        - showreelExternalLabel
+                        - showreelTitle
+                        - showreelBody
+                        - galleryEyebrow
+                        - imageSingular
+                        - imagePlural
+                        - emptyEyebrow
+                        - emptyTitle
+                        - emptyBody
+                        - emptyMeta
+                        - closeLabel
+                    agenda:
+                      type: object
+                      properties:
+                        statusEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        loadingLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        dateSingular:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        datePlural:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        statusBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        emptyMarkerLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        emptyEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        emptyTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        emptyBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 900
+                        emptyCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        listEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        footerEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                        footerTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        footerBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 600
+                        footerCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                      required:
+                        - statusEyebrow
+                        - loadingLabel
+                        - dateSingular
+                        - datePlural
+                        - statusBody
+                        - emptyMarkerLabel
+                        - emptyEyebrow
+                        - emptyTitle
+                        - emptyBody
+                        - emptyCta
+                        - listEyebrow
+                        - footerEyebrow
+                        - footerTitle
+                        - footerBody
+                        - footerCta
+                    landing:
+                      type: object
+                      properties:
+                        asideEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        asideTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        asideBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 800
+                        asideCta:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                      required:
+                        - asideEyebrow
+                        - asideTitle
+                        - asideBody
+                        - asideCta
+                    booking:
+                      type: object
+                      properties:
+                        successEyebrow:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        successTitle:
+                          type: string
+                          minLength: 1
+                          maxLength: 300
+                        successBody:
+                          type: string
+                          minLength: 1
+                          maxLength: 600
+                        nameLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        companyLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        emailLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        phoneLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        eventTypeLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        dateLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        locationLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 120
+                        messageLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        optionalLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                        eventTypePlaceholder:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        locationPlaceholder:
+                          type: string
+                          minLength: 1
+                          maxLength: 240
+                        messagePlaceholder:
+                          type: string
+                          minLength: 1
+                          maxLength: 400
+                        submitLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        sendingLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                        errorFallback:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                      required:
+                        - successEyebrow
+                        - successTitle
+                        - successBody
+                        - nameLabel
+                        - companyLabel
+                        - emailLabel
+                        - phoneLabel
+                        - eventTypeLabel
+                        - dateLabel
+                        - locationLabel
+                        - messageLabel
+                        - optionalLabel
+                        - eventTypePlaceholder
+                        - locationPlaceholder
+                        - messagePlaceholder
+                        - submitLabel
+                        - sendingLabel
+                        - errorFallback
+                    visuals:
+                      type: object
+                      properties:
+                        homeFeatureImageUrl:
+                          type: string
+                          maxLength: 2000
+                        homeFeatureAlt:
+                          type: string
+                          maxLength: 240
+                        homeAboutImageUrl:
+                          type: string
+                          maxLength: 2000
+                        homeAboutAlt:
+                          type: string
+                          maxLength: 240
+                        aboutLeadImageUrl:
+                          type: string
+                          maxLength: 2000
+                        aboutLeadAlt:
+                          type: string
+                          maxLength: 240
+                        aboutRoomImageUrl:
+                          type: string
+                          maxLength: 2000
+                        aboutRoomAlt:
+                          type: string
+                          maxLength: 240
+                        mediaShowreelImageUrl:
+                          type: string
+                          maxLength: 2000
+                        mediaShowreelAlt:
+                          type: string
+                          maxLength: 240
+                      required:
+                        - homeFeatureAlt
+                        - homeAboutAlt
+                        - aboutLeadAlt
+                        - aboutRoomAlt
+                        - mediaShowreelAlt
+                  required:
+                    - navigation
+                    - footer
+                    - home
+                    - about
+                    - media
+                    - agenda
+                    - landing
+                    - booking
+                    - visuals
+              required:
+                - brandName
+                - heroEyebrow
+                - heroTitle
+                - heroBody
+                - heroCtaLabel
+                - aboutEyebrow
+                - aboutTitle
+                - aboutBody
+                - mediaEyebrow
+                - mediaTitle
+                - mediaBody
+                - agendaEyebrow
+                - agendaTitle
+                - agendaBody
+                - bookingEyebrow
+                - bookingTitle
+                - bookingBody
+                - seoTitle
+                - seoDescription
+                - services
+                - gallery
+                - publicCopy
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags:
+        - admin/dashboard
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/email:
+    get:
+      operationId: getAdminEmail
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/email/branding:
+    put:
+      operationId: putAdminEmailBranding
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageUrl:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/email/preview:
+    post:
+      operationId: postAdminEmailPreview
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                variables:
+                  default: {}
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties:
+                    type:
+                      - string
+                      - number
+                      - "null"
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 20000
+                heroImageUrl:
+                  type: string
+                  maxLength: 2000
+              required:
+                - templateKey
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/email/retry:
+    post:
+      operationId: postAdminEmailRetry
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jobId:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              required:
+                - jobId
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/email/run:
+    post:
+      operationId: postAdminEmailRun
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/email/suppressions:
+    post:
+      operationId: postAdminEmailSuppressions
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gigId:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                templateKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                suppressed:
+                  type: boolean
+              required:
+                - gigId
+                - templateKey
+                - suppressed
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/email/templates/{key}:
+    put:
+      operationId: putAdminEmailTemplatesByKey
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 20000
+                scheduleAnchor:
+                  type: string
+                  enum:
+                    - event
+                    - gig_start
+                    - gig_end
+                    - invoice_due
+                offsetMinutes:
+                  type: integer
+                  minimum: -525600
+                  maximum: 525600
+                heroImageUrl:
+                  type: string
+                  maxLength: 2000
+              required:
+                - enabled
+                - subject
+                - body
+                - scheduleAnchor
+                - offsetMinutes
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/email/test:
+    post:
+      operationId: postAdminEmailTest
+      tags:
+        - admin/email
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                recipient:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                variables:
+                  default: {}
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties:
+                    type:
+                      - string
+                      - number
+                      - "null"
+              required:
+                - templateKey
+                - recipient
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs:
+    get:
+      operationId: getAdminGigs
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - dj
+      parameters:
+        - name: assignedUserId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: eventType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: public
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: timing
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: venueId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminGigs
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 240
+                eventType:
+                  type: string
+                  maxLength: 120
+                clientId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                venueId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                assignedUserId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                status:
+                  type: string
+                  enum:
+                    - lead
+                    - booked
+                    - declined
+                    - cancelled
+                startsAt:
+                  type:
+                    - string
+                    - "null"
+                endsAt:
+                  type:
+                    - string
+                    - "null"
+                loadInAt:
+                  type:
+                    - string
+                    - "null"
+                fee:
+                  anyOf:
+                    - type: string
+                      pattern: ^\d+(?:\.\d{1,2})?$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                publicVisibility:
+                  type: boolean
+                publicTitle:
+                  type: string
+                  maxLength: 240
+                publicDescription:
+                  type: string
+                  maxLength: 5000
+                internalNotes:
+                  type: string
+                  maxLength: 10000
+                source:
+                  type: string
+                  maxLength: 160
+                contacts:
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 200
+                      role:
+                        type: string
+                        maxLength: 160
+                      email:
+                        type: string
+                        maxLength: 320
+                      phone:
+                        type: string
+                        maxLength: 64
+                      notes:
+                        type: string
+                        maxLength: 2000
+                    required:
+                      - name
+                timeline:
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      time:
+                        type: string
+                        maxLength: 16
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 240
+                      description:
+                        type: string
+                        maxLength: 2000
+                    required:
+                      - title
+              required:
+                - status
+                - currency
+                - publicVisibility
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}:
+    get:
+      operationId: getAdminGigsById
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - dj
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminGigsById
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 240
+                eventType:
+                  type: string
+                  maxLength: 120
+                clientId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                venueId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                assignedUserId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                status:
+                  type: string
+                  enum:
+                    - lead
+                    - booked
+                    - declined
+                    - cancelled
+                startsAt:
+                  type:
+                    - string
+                    - "null"
+                endsAt:
+                  type:
+                    - string
+                    - "null"
+                loadInAt:
+                  type:
+                    - string
+                    - "null"
+                fee:
+                  anyOf:
+                    - type: string
+                      pattern: ^\d+(?:\.\d{1,2})?$
+                    - type: string
+                      const: ""
+                    - type: "null"
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                publicVisibility:
+                  type: boolean
+                publicTitle:
+                  type: string
+                  maxLength: 240
+                publicDescription:
+                  type: string
+                  maxLength: 5000
+                internalNotes:
+                  type: string
+                  maxLength: 10000
+                source:
+                  type: string
+                  maxLength: 160
+                contacts:
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 200
+                      role:
+                        type: string
+                        maxLength: 160
+                      email:
+                        type: string
+                        maxLength: 320
+                      phone:
+                        type: string
+                        maxLength: 64
+                      notes:
+                        type: string
+                        maxLength: 2000
+                    required:
+                      - name
+                timeline:
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      time:
+                        type: string
+                        maxLength: 16
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 240
+                      description:
+                        type: string
+                        maxLength: 2000
+                    required:
+                      - title
+              required:
+                - status
+                - currency
+                - publicVisibility
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminGigsById
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/client-portal-image:
+    put:
+      operationId: putAdminGigsByIdClientPortalImage
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageUrl:
+                  type: string
+                  maxLength: 2000
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}/duplicate:
+    post:
+      operationId: postAdminGigsByIdDuplicate
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/email-plan:
+    get:
+      operationId: getAdminGigsByIdEmailPlan
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: template
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - booking_accepted
+              - client_portal_invitation
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/emails:
+    get:
+      operationId: getAdminGigsByIdEmails
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: postAdminGigsByIdEmails
+      tags:
+        - admin/gigs
+      description: Automatic emails that have not gone out yet and may be replaced by a manual one.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}/invoice:
+    post:
+      operationId: postAdminGigsByIdInvoice
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/portal-links:
+    get:
+      operationId: getAdminGigsByIdPortalLinks
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: postAdminGigsByIdPortalLinks
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expiresInDays:
+                  default: 30
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                revokeExisting:
+                  default: false
+                  type: boolean
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}/portal-links/{linkId}:
+    delete:
+      operationId: deleteAdminGigsByIdPortalLinksByLinkId
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/portal-links/resend:
+    post:
+      operationId: postAdminGigsByIdPortalLinksResend
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expiresInDays:
+                  default: 30
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}/portal-submission:
+    get:
+      operationId: getAdminGigsByIdPortalSubmission
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/review:
+    get:
+      operationId: getAdminGigsByIdReview
+      tags:
+        - admin/gigs
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/integrations:
+    get:
+      operationId: getAdminIntegrations
+      tags:
+        - admin/integrations
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminIntegrations
+      tags:
+        - admin/integrations
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    provider:
+                      type: string
+                      const: calendar
+                    enabled:
+                      type: boolean
+                    calendarId:
+                      type: string
+                      minLength: 1
+                      maxLength: 255
+                    cancellationBehavior:
+                      type: string
+                      enum:
+                        - delete
+                        - mark_cancelled
+                        - keep
+                    credentials:
+                      type: object
+                      properties:
+                        clientId:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        clientSecret:
+                          type: string
+                          minLength: 1
+                          maxLength: 4000
+                        refreshToken:
+                          type: string
+                          minLength: 1
+                          maxLength: 8000
+                      required:
+                        - clientId
+                        - clientSecret
+                        - refreshToken
+                  required:
+                    - provider
+                    - enabled
+                    - calendarId
+                    - cancellationBehavior
+                - type: object
+                  properties:
+                    provider:
+                      type: string
+                      const: email
+                    apiKey:
+                      type: string
+                      minLength: 8
+                      maxLength: 8000
+                    from:
+                      type: string
+                      maxLength: 500
+                    reviewUrl:
+                      type: string
+                      maxLength: 2000
+                  required:
+                    - provider
+                    - from
+                    - reviewUrl
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminIntegrations
+      tags:
+        - admin/integrations
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum:
+                    - calendar
+                    - email
+              required:
+                - provider
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/invoices:
+    get:
+      operationId: getAdminInvoices
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: payment
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/invoices/{id}:
+    get:
+      operationId: getAdminInvoicesById
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminInvoicesById
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issueDate:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                dueDate:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                vatMode:
+                  type: string
+                  enum:
+                    - exclusive
+                    - inclusive
+                    - exempt
+                vatRateBasisPoints:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                paymentTerms:
+                  type: string
+                  maxLength: 5000
+                legalText:
+                  type: string
+                  maxLength: 5000
+                notes:
+                  type: string
+                  maxLength: 5000
+                lines:
+                  minItems: 1
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      description:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      quantity:
+                        type: string
+                        pattern: ^\d{1,9}(?:\.\d{1,3})?$
+                      unitPriceCents:
+                        type: integer
+                        minimum: 0
+                        maximum: 100000000
+                    required:
+                      - description
+                      - quantity
+                      - unitPriceCents
+              required:
+                - issueDate
+                - dueDate
+                - currency
+                - vatMode
+                - vatRateBasisPoints
+                - paymentTerms
+                - legalText
+                - notes
+                - lines
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminInvoicesById
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/invoices/{id}/finalize:
+    post:
+      operationId: postAdminInvoicesByIdFinalize
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/invoices/{id}/finalize-check:
+    get:
+      operationId: getAdminInvoicesByIdFinalizeCheck
+      tags:
+        - admin/invoices
+      description: "What finalizing this draft would do: what blocks it and who gets the invoice email."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/invoices/{id}/mark-paid:
+    post:
+      operationId: postAdminInvoicesByIdMarkPaid
+      tags:
+        - admin/invoices
+      description: "Records a payment that did not go through Stripe (bank transfer, cash). Marking the invoice paid also stops pending payment reminders: they are skipped at send time for paid invoices."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paidOn:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                method:
+                  type: string
+                  enum:
+                    - bank_transfer
+                    - cash
+                    - other
+                note:
+                  default: ""
+                  type: string
+                  maxLength: 500
+                sendConfirmation:
+                  default: false
+                  type: boolean
+              required:
+                - paidOn
+                - method
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/invoices/{id}/mark-unpaid:
+    post:
+      operationId: postAdminInvoicesByIdMarkUnpaid
+      tags:
+        - admin/invoices
+      description: Undoes a manually recorded payment. Stripe payments are never undone here.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/invoices/{id}/pdf:
+    get:
+      operationId: getAdminInvoicesByIdPdf
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/invoices/{id}/void:
+    post:
+      operationId: postAdminInvoicesByIdVoid
+      tags:
+        - admin/invoices
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                createReplacement:
+                  default: true
+                  type: boolean
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/landing-pages:
+    get:
+      operationId: getAdminLandingPages
+      tags:
+        - admin/landing-pages
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminLandingPages
+      tags:
+        - admin/landing-pages
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                  pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+                navLabel:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                eyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                intro:
+                  type: string
+                  minLength: 1
+                  maxLength: 3000
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 12000
+                heroImageUrl:
+                  type: string
+                  maxLength: 2000
+                ctaLabel:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                ctaHref:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                published:
+                  type: boolean
+                showInNavigation:
+                  type: boolean
+                indexable:
+                  type: boolean
+                seoTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                seoDescription:
+                  type: string
+                  minLength: 1
+                  maxLength: 320
+                seoImageUrl:
+                  type: string
+                  maxLength: 2000
+                ordering:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                sections:
+                  type: object
+                  properties:
+                    benefits:
+                      minItems: 3
+                      maxItems: 3
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          icon:
+                            type: string
+                            minLength: 1
+                            maxLength: 120
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 160
+                          body:
+                            type: string
+                            minLength: 1
+                            maxLength: 500
+                        required:
+                          - icon
+                          - title
+                          - body
+                    storyEyebrow:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    storyTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    storyImageUrl:
+                      type: string
+                      maxLength: 2000
+                    galleryTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    galleryCtaLabel:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                    galleryCtaHref:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    galleryImages:
+                      minItems: 4
+                      maxItems: 4
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            maxLength: 2000
+                          alt:
+                            type: string
+                            maxLength: 300
+                        required:
+                          - alt
+                    closingEyebrow:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    closingTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    closingBody:
+                      type: string
+                      minLength: 1
+                      maxLength: 1500
+                    closingCtaLabel:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                    closingCtaHref:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    closingImageUrl:
+                      type: string
+                      maxLength: 2000
+                  required:
+                    - benefits
+                    - storyEyebrow
+                    - storyTitle
+                    - galleryTitle
+                    - galleryCtaLabel
+                    - galleryCtaHref
+                    - galleryImages
+                    - closingEyebrow
+                    - closingTitle
+                    - closingBody
+                    - closingCtaLabel
+                    - closingCtaHref
+              required:
+                - slug
+                - navLabel
+                - eyebrow
+                - title
+                - intro
+                - body
+                - ctaLabel
+                - ctaHref
+                - published
+                - showInNavigation
+                - indexable
+                - seoTitle
+                - seoDescription
+                - ordering
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/landing-pages/{id}:
+    get:
+      operationId: getAdminLandingPagesById
+      tags:
+        - admin/landing-pages
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminLandingPagesById
+      tags:
+        - admin/landing-pages
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                  pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+                navLabel:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                eyebrow:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                intro:
+                  type: string
+                  minLength: 1
+                  maxLength: 3000
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 12000
+                heroImageUrl:
+                  type: string
+                  maxLength: 2000
+                ctaLabel:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                ctaHref:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                published:
+                  type: boolean
+                showInNavigation:
+                  type: boolean
+                indexable:
+                  type: boolean
+                seoTitle:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                seoDescription:
+                  type: string
+                  minLength: 1
+                  maxLength: 320
+                seoImageUrl:
+                  type: string
+                  maxLength: 2000
+                ordering:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                sections:
+                  type: object
+                  properties:
+                    benefits:
+                      minItems: 3
+                      maxItems: 3
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          icon:
+                            type: string
+                            minLength: 1
+                            maxLength: 120
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 160
+                          body:
+                            type: string
+                            minLength: 1
+                            maxLength: 500
+                        required:
+                          - icon
+                          - title
+                          - body
+                    storyEyebrow:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    storyTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    storyImageUrl:
+                      type: string
+                      maxLength: 2000
+                    galleryTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    galleryCtaLabel:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                    galleryCtaHref:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    galleryImages:
+                      minItems: 4
+                      maxItems: 4
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            maxLength: 2000
+                          alt:
+                            type: string
+                            maxLength: 300
+                        required:
+                          - alt
+                    closingEyebrow:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    closingTitle:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    closingBody:
+                      type: string
+                      minLength: 1
+                      maxLength: 1500
+                    closingCtaLabel:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                    closingCtaHref:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    closingImageUrl:
+                      type: string
+                      maxLength: 2000
+                  required:
+                    - benefits
+                    - storyEyebrow
+                    - storyTitle
+                    - galleryTitle
+                    - galleryCtaLabel
+                    - galleryCtaHref
+                    - galleryImages
+                    - closingEyebrow
+                    - closingTitle
+                    - closingBody
+                    - closingCtaLabel
+                    - closingCtaHref
+              required:
+                - slug
+                - navLabel
+                - eyebrow
+                - title
+                - intro
+                - body
+                - ctaLabel
+                - ctaHref
+                - published
+                - showInNavigation
+                - indexable
+                - seoTitle
+                - seoDescription
+                - ordering
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminLandingPagesById
+      tags:
+        - admin/landing-pages
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/me:
+    get:
+      operationId: getAdminMe
+      tags:
+        - admin/me
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/media:
+    get:
+      operationId: getAdminMedia
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminMedia
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/media/{id}:
+    put:
+      operationId: putAdminMediaById
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 240
+                altText:
+                  type: string
+                  maxLength: 500
+                tags:
+                  anyOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                gigId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: "null"
+                venueId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: "null"
+                parentAssetId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: "null"
+                variantLabel:
+                  type: string
+                  maxLength: 80
+                collectionIds:
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminMediaById
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/media/bulk:
+    post:
+      operationId: postAdminMediaBulk
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: addTags
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    tags:
+                      anyOf:
+                        - type: string
+                        - type: array
+                          items:
+                            type: string
+                  required:
+                    - action
+                    - ids
+                    - tags
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: removeTags
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    tags:
+                      anyOf:
+                        - type: string
+                        - type: array
+                          items:
+                            type: string
+                  required:
+                    - action
+                    - ids
+                    - tags
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: setGig
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    gigId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: "null"
+                  required:
+                    - action
+                    - ids
+                    - gigId
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: setVenue
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    venueId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: "null"
+                  required:
+                    - action
+                    - ids
+                    - venueId
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: addToCollection
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    collectionId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - action
+                    - ids
+                    - collectionId
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: removeFromCollection
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    collectionId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - action
+                    - ids
+                    - collectionId
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: moveToCollection
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    fromCollectionId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    collectionId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - action
+                    - ids
+                    - fromCollectionId
+                    - collectionId
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      const: delete
+                    ids:
+                      minItems: 1
+                      maxItems: 500
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - action
+                    - ids
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/media/collections:
+    post:
+      operationId: postAdminMediaCollections
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                description:
+                  default: ""
+                  type: string
+                  maxLength: 240
+                assetIds:
+                  default: []
+                  maxItems: 500
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              required:
+                - name
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/media/collections/{id}:
+    put:
+      operationId: putAdminMediaCollectionsById
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                description:
+                  type: string
+                  maxLength: 240
+                sortOrder:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminMediaCollectionsById
+      tags:
+        - admin/media
+      description: Removes the grouping only; the assets themselves stay in the library.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/media/download:
+    get:
+      operationId: getAdminMediaDownload
+      tags:
+        - admin/media
+      description: Streams the selected originals as one stored ZIP archive.
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/media/library/browse:
+    get:
+      operationId: getAdminMediaLibraryBrowse
+      tags:
+        - admin/media
+      description: "Lists one folder of the server media folder; `{ enabled: false }` when it is not configured."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: path
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1000
+        - name: kind
+          in: query
+          required: false
+          schema:
+            default: all
+            type: string
+            enum:
+              - image
+              - all
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/media/library/link:
+    post:
+      operationId: postAdminMediaLibraryLink
+      tags:
+        - admin/media
+      description: Links files from the server media folder into the library without copying them.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  minItems: 1
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                        minLength: 1
+                        maxLength: 1000
+                      title:
+                        default: ""
+                        type: string
+                        maxLength: 240
+                    required:
+                      - path
+                altText:
+                  default: ""
+                  type: string
+                  maxLength: 500
+                tags:
+                  default: ""
+                  type: string
+                gigId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                venueId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                parentAssetId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    - type: string
+                      const: ""
+                variantLabel:
+                  default: ""
+                  type: string
+                  maxLength: 80
+                collectionIds:
+                  default: []
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              required:
+                - items
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/media/uploads:
+    post:
+      operationId: postAdminMediaUploads
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                byteSize:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 9007199254740991
+              required:
+                - filename
+                - byteSize
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/media/uploads/{id}:
+    get:
+      operationId: getAdminMediaUploadsById
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/media/uploads/{id}/{index}:
+    put:
+      operationId: putAdminMediaUploadsByIdByIndex
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/media/uploads/{id}/complete:
+    post:
+      operationId: postAdminMediaUploadsByIdComplete
+      tags:
+        - admin/media
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  default: ""
+                  type: string
+                  maxLength: 240
+                altText:
+                  default: ""
+                  type: string
+                  maxLength: 500
+                tags:
+                  default: ""
+                  type: string
+                gigId:
+                  default: ""
+                  type: string
+                venueId:
+                  default: ""
+                  type: string
+                parentAssetId:
+                  default: ""
+                  type: string
+                variantLabel:
+                  default: ""
+                  type: string
+                  maxLength: 80
+                collectionIds:
+                  default: []
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                source:
+                  default: ""
+                  type: string
+                sourceUrl:
+                  default: ""
+                  type: string
+                metadata: {}
+                thumbnailBase64:
+                  default: null
+                  anyOf:
+                    - type: string
+                      maxLength: 4000000
+                    - type: "null"
+              required:
+                - metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/post-generator:
+    get:
+      operationId: getAdminPostGenerator
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/post-generator/{id}:
+    delete:
+      operationId: deleteAdminPostGeneratorById
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/post-generator/render:
+    post:
+      operationId: postAdminPostGeneratorRender
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/post-generator/video:
+    get:
+      operationId: getAdminPostGeneratorVideo
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/post-generator/video/{id}:
+    delete:
+      operationId: deleteAdminPostGeneratorVideoById
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/post-generator/video/{id}/cancel:
+    post:
+      operationId: postAdminPostGeneratorVideoByIdCancel
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/post-generator/video/{id}/retry:
+    post:
+      operationId: postAdminPostGeneratorVideoByIdRetry
+      tags:
+        - admin/post-generator
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/questionnaire:
+    get:
+      operationId: getAdminQuestionnaire
+      tags:
+        - admin/questionnaire
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminQuestionnaire
+      tags:
+        - admin/questionnaire
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                fields:
+                  maxItems: 80
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        minLength: 1
+                        maxLength: 80
+                        pattern: ^[a-z0-9_]+$
+                      type:
+                        type: string
+                        enum:
+                          - short_text
+                          - long_text
+                          - email
+                          - phone
+                          - number
+                          - date
+                          - time
+                          - select
+                          - multi_select
+                          - checkbox
+                          - acknowledgement
+                          - url
+                      label:
+                        type: string
+                        minLength: 1
+                        maxLength: 300
+                      helpText:
+                        type: string
+                        maxLength: 500
+                      required:
+                        type: boolean
+                      options:
+                        maxItems: 50
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 160
+                    required:
+                      - id
+                      - type
+                      - label
+                      - required
+              required:
+                - name
+                - fields
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/questionnaire/portal-appearance:
+    get:
+      operationId: getAdminQuestionnairePortalAppearance
+      tags:
+        - admin/questionnaire
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminQuestionnairePortalAppearance
+      tags:
+        - admin/questionnaire
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageUrl:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/render-settings:
+    get:
+      operationId: getAdminRenderSettings
+      tags:
+        - admin/render-settings
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: putAdminRenderSettings
+      tags:
+        - admin/render-settings
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                engine:
+                  type: string
+                  enum:
+                    - auto
+                    - cpu
+                    - intel
+              required:
+                - engine
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/reviews:
+    get:
+      operationId: getAdminReviews
+      tags:
+        - admin/reviews
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/session/revoke-all:
+    post:
+      operationId: postAdminSessionRevokeAll
+      tags:
+        - admin/session
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/stripe:
+    get:
+      operationId: getAdminStripe
+      tags:
+        - admin/stripe
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      operationId: deleteAdminStripe
+      tags:
+        - admin/stripe
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/stripe/key:
+    post:
+      operationId: postAdminStripeKey
+      tags:
+        - admin/stripe
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secretKey:
+                  type: string
+                  pattern: ^(rk|sk)_(test|live)_[A-Za-z0-9]{10,}$
+              required:
+                - secretKey
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/stripe/test:
+    post:
+      operationId: postAdminStripeTest
+      tags:
+        - admin/stripe
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/stripe/webhook:
+    post:
+      operationId: postAdminStripeWebhook
+      tags:
+        - admin/stripe
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    mode:
+                      type: string
+                      const: auto
+                  required:
+                    - mode
+                - type: object
+                  properties:
+                    mode:
+                      type: string
+                      const: manual
+                    webhookSecret:
+                      type: string
+                      pattern: ^whsec_[A-Za-z0-9]{10,}$
+                  required:
+                    - mode
+                    - webhookSecret
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/system/status:
+    get:
+      operationId: getAdminSystemStatus
+      tags:
+        - admin/system
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/system/update:
+    get:
+      operationId: getAdminSystemUpdate
+      tags:
+        - admin/system
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminSystemUpdate
+      tags:
+        - admin/system
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/system/update/check:
+    post:
+      operationId: postAdminSystemUpdateCheck
+      tags:
+        - admin/system
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/users:
+    get:
+      operationId: getAdminUsers
+      tags:
+        - admin/users
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminUsers
+      tags:
+        - admin/users
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                role:
+                  type: string
+                  enum:
+                    - dj
+                    - manager
+                    - content_editor
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 200
+              required:
+                - email
+                - name
+                - role
+                - password
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/users/{id}:
+    put:
+      operationId: putAdminUsersById
+      tags:
+        - admin/users
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                role:
+                  type: string
+                  enum:
+                    - dj
+                    - manager
+                    - content_editor
+                active:
+                  type: boolean
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/users/{id}/password:
+    post:
+      operationId: postAdminUsersByIdPassword
+      tags:
+        - admin/users
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 200
+              required:
+                - password
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/venues:
+    get:
+      operationId: getAdminVenues
+      tags:
+        - admin/venues
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hasContact
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hasGigs
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminVenues
+      tags:
+        - admin/venues
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 240
+                address:
+                  type: string
+                  maxLength: 1000
+                city:
+                  type: string
+                  maxLength: 160
+                contactName:
+                  type: string
+                  maxLength: 200
+                contactEmail:
+                  type: string
+                  maxLength: 320
+                contactPhone:
+                  type: string
+                  maxLength: 64
+                website:
+                  type: string
+                  maxLength: 1000
+                parkingNotes:
+                  type: string
+                  maxLength: 3000
+                technicalNotes:
+                  type: string
+                  maxLength: 5000
+                notes:
+                  type: string
+                  maxLength: 5000
+              required:
+                - name
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/venues/{id}:
+    get:
+      operationId: getAdminVenuesById
+      tags:
+        - admin/venues
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminVenuesById
+      tags:
+        - admin/venues
+      security:
+        - staffSession: []
+      x-roles: any signed-in staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 240
+                address:
+                  type: string
+                  maxLength: 1000
+                city:
+                  type: string
+                  maxLength: 160
+                contactName:
+                  type: string
+                  maxLength: 200
+                contactEmail:
+                  type: string
+                  maxLength: 320
+                contactPhone:
+                  type: string
+                  maxLength: 64
+                website:
+                  type: string
+                  maxLength: 1000
+                parkingNotes:
+                  type: string
+                  maxLength: 3000
+                technicalNotes:
+                  type: string
+                  maxLength: 5000
+                notes:
+                  type: string
+                  maxLength: 5000
+              required:
+                - name
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminVenuesById
+      tags:
+        - admin/venues
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/video-projects:
+    get:
+      operationId: getAdminVideoProjects
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: postAdminVideoProjects
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  default: ""
+                  type: string
+                  maxLength: 160
+                aspect:
+                  default: 9:16
+                  type: string
+                  enum:
+                    - 9:16
+                    - 4:5
+                    - 1:1
+                    - 16:9
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/video-projects/{id}:
+    get:
+      operationId: getAdminVideoProjectsById
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminVideoProjectsById
+      tags:
+        - admin/video-projects
+      description: Revision the client edited; stale saves are rejected instead of overwriting.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                project: {}
+                revision:
+                  type: integer
+                  minimum: 1
+                  maximum: 9007199254740991
+              required:
+                - revision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminVideoProjectsById
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/video-projects/{id}/duplicate:
+    post:
+      operationId: postAdminVideoProjectsByIdDuplicate
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/video-projects/{id}/render:
+    post:
+      operationId: postAdminVideoProjectsByIdRender
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/video-projects/{id}/renders:
+    get:
+      operationId: getAdminVideoProjectsByIdRenders
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/video-projects/gigs:
+    get:
+      operationId: getAdminVideoProjectsGigs
+      tags:
+        - admin/video-projects
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/auth/bootstrap:
+    post:
+      operationId: postAuthBootstrap
+      tags:
+        - auth
+      security:
+        - bootstrapToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 200
+              required:
+                - email
+                - name
+                - password
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/auth/login:
+    post:
+      operationId: postAuthLogin
+      tags:
+        - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+              required:
+                - email
+                - password
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/auth/logout:
+    post:
+      operationId: postAuthLogout
+      tags:
+        - auth
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/calendar/feed/{token}:
+    get:
+      operationId: getCalendarFeedByToken
+      tags:
+        - calendar
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot de agenda-feed
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            text/calendar:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/client/portal/{token}:
+    get:
+      operationId: getClientPortalByToken
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/checkout:
+    post:
+      operationId: postClientPortalByTokenCheckout
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/invoice-pdf:
+    get:
+      operationId: getClientPortalByTokenInvoicePdf
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/review:
+    post:
+      operationId: postClientPortalByTokenReview
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  default: ""
+                  type: string
+                  maxLength: 2000
+                authorName:
+                  default: ""
+                  type: string
+                  maxLength: 200
+              required:
+                - rating
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/submit:
+    post:
+      operationId: postClientPortalByTokenSubmit
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties:
+                    anyOf:
+                      - type: string
+                        maxLength: 10000
+                      - type: number
+                      - type: boolean
+                      - maxItems: 50
+                        type: array
+                        items:
+                          type: string
+                          maxLength: 500
+                acceptedName:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                wishes:
+                  maxItems: 200
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      category:
+                        type: string
+                        enum:
+                          - must_play
+                          - nice_to_have
+                          - do_not_play
+                          - special_moment
+                      artist:
+                        default: ""
+                        type: string
+                        maxLength: 240
+                      title:
+                        default: ""
+                        type: string
+                        maxLength: 240
+                      spotifyUrl:
+                        default: ""
+                        type: string
+                        maxLength: 1000
+                      note:
+                        default: ""
+                        type: string
+                        maxLength: 2000
+                      ordering:
+                        type: integer
+                        minimum: 0
+                        maximum: 500
+                    required:
+                      - category
+                      - ordering
+              required:
+                - answers
+                - acceptedName
+                - wishes
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/generated-posts/{id}:
+    get:
+      operationId: getGeneratedPostsById
+      tags:
+        - generated-posts
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/generated-videos/{id}:
+    get:
+      operationId: getGeneratedVideosById
+      tags:
+        - generated-videos
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/health:
+    get:
+      operationId: getHealth
+      tags:
+        - health
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/maintenance:
+    get:
+      operationId: getMaintenance
+      tags:
+        - maintenance
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/media/{id}:
+    get:
+      operationId: getMediaById
+      tags:
+        - media
+      description: Parses a single `bytes=start-end` range; null when absent or unsatisfiable.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: download
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: variant
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: w
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/public/agenda:
+    get:
+      operationId: getPublicAgenda
+      tags:
+        - public
+      description: Venue name and city, without the street address. The venue name is left out when the gig is already listed under it, so the line never repeats the title.
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/public/content:
+    get:
+      operationId: getPublicContent
+      tags:
+        - public
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/public/inquiry:
+    post:
+      operationId: postPublicInquiry
+      tags:
+        - public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                company:
+                  type: string
+                  maxLength: 200
+                email:
+                  type: string
+                  format: email
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                phone:
+                  type: string
+                  maxLength: 64
+                eventType:
+                  type: string
+                  maxLength: 120
+                eventDate:
+                  anyOf:
+                    - type: string
+                      pattern: ^\d{4}-\d{2}-\d{2}$
+                    - type: string
+                      const: ""
+                location:
+                  type: string
+                  maxLength: 300
+                message:
+                  type: string
+                  maxLength: 5000
+                website:
+                  default: ""
+                  type: string
+                  maxLength: 200
+              required:
+                - name
+                - email
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/public/landing-pages/{slug}:
+    get:
+      operationId: getPublicLandingPagesBySlug
+      tags:
+        - public
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/public/landing-pages/navigation:
+    get:
+      operationId: getPublicLandingPagesNavigation
+      tags:
+        - public
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/public/recent-gigs:
+    get:
+      operationId: getPublicRecentGigs
+      tags:
+        - public
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/ready:
+    get:
+      operationId: getReady
+      tags:
+        - ready
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/video-project-thumbnails/{id}:
+    get:
+      operationId: getVideoProjectThumbnailsById
+      tags:
+        - video-project-thumbnails
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/webhooks/stripe:
+    post:
+      operationId: postWebhooksStripe
+      tags:
+        - webhooks
+      security:
+        - stripeSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              description: Raw request body (signed payload)
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  responses:
+    BadRequest:
+      description: Ongeldig verzoek
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Niet ingelogd
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Geen toegang voor deze rol
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Niet gevonden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Conflict met de huidige status
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unprocessable:
+      description: De ingestuurde gegevens zijn ongeldig
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Te veel verzoeken (zie Retry-After)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  securitySchemes:
+    staffSession:
+      type: apiKey
+      in: cookie
+      name: nuxt-session
+      description: Sessiecookie na `POST /api/auth/login`
+    stripeSignature:
+      type: apiKey
+      in: header
+      name: stripe-signature
+      description: Handtekening van Stripe over de ruwe body
+    bootstrapToken:
+      type: apiKey
+      in: header
+      name: x-bootstrap-token
+      description: Eenmalige `OWNER_BOOTSTRAP_TOKEN` om de eerste eigenaar aan te maken
+  schemas:
+    Error:
+      type: object
+      required:
+        - statusCode
+        - statusMessage
+      properties:
+        statusCode:
+          type: integer
+        statusMessage:
+          type: string
+          description: Korte foutmelding (Nederlands)
