@@ -26,7 +26,7 @@ describe('env-validation', () => {
   it('fails when DATABASE_URL is missing', () => {
     delete process.env.DATABASE_URL
 
-    expect(() => validateEnv()).toThrow('DATABASE_URL: Invalid input')
+    expect(() => validateEnv()).toThrow('DATABASE_URL is required')
   })
 
   it('fails when NUXT_SESSION_PASSWORD is too short', () => {
@@ -39,6 +39,13 @@ describe('env-validation', () => {
     process.env.NUXT_PUBLIC_SITE_URL = 'not-a-url'
 
     expect(() => validateEnv()).toThrow('NUXT_PUBLIC_SITE_URL must be a valid URL')
+  })
+
+  it('passes without OWNER_BOOTSTRAP_TOKEN and NUXT_PUBLIC_SITE_URL', () => {
+    delete process.env.OWNER_BOOTSTRAP_TOKEN
+    delete process.env.NUXT_PUBLIC_SITE_URL
+
+    expect(() => validateEnv()).not.toThrow()
   })
 
   it('accepts optional integration variables when empty', () => {

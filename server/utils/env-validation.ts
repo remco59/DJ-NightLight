@@ -10,10 +10,10 @@ const envSchema = z.object({
   // Core application
   DATABASE_URL: z.string({ message: 'DATABASE_URL is required' }).min(1, 'DATABASE_URL cannot be empty'),
   NUXT_SESSION_PASSWORD: z.string({ message: 'NUXT_SESSION_PASSWORD is required' }).min(32, 'NUXT_SESSION_PASSWORD must be at least 32 characters'),
-  NUXT_PUBLIC_SITE_URL: z.string({ message: 'NUXT_PUBLIC_SITE_URL is required' }).url('NUXT_PUBLIC_SITE_URL must be a valid URL'),
+  NUXT_PUBLIC_SITE_URL: z.string().url('NUXT_PUBLIC_SITE_URL must be a valid URL').optional(), // falls back to http://localhost:3000
 
-  // Authentication & bootstrap
-  OWNER_BOOTSTRAP_TOKEN: z.string({ message: 'OWNER_BOOTSTRAP_TOKEN is required for initial setup' }).min(1, 'OWNER_BOOTSTRAP_TOKEN cannot be empty'),
+  // Authentication & bootstrap (optional: should be removed after the first owner is created)
+  OWNER_BOOTSTRAP_TOKEN: z.string().optional(),
 
   // Session security
   NUXT_SESSION_COOKIE_SECURE: z.string().optional(),
