@@ -101,7 +101,7 @@ describe('graphic sound cues', () => {
 
   it('follows the restyled logo builds', () => {
     expect(frames(graphic('logo-sting'))).toEqual([['whoosh', 0], ['impact', 14], ['zap', 15]])
-    expect(frames(graphic('gig-announcement'))).toEqual([['punch', 12], ['zap', 19]])
+    expect(frames(graphic('gig-announcement'))).toEqual([['zap', 14], ['punch', 16]])
     expect(frames(graphic('photo-drop'))).toEqual([['punch', 12], ['zap', 14]])
   })
 })

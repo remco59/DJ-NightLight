@@ -79,16 +79,16 @@ function listCount(props: CueContext['props'], key: string, max: number) {
 // start + 14, WordmarkBuild at start + 4 + 10 × step, EmblemBuild at
 // start + 8 + 10 × step.
 const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[]> = {
-  // First headline word slams at 12; the wordmark's bolt (step 1.5) at 19.
+  // The wordmark's bolt (step 1) strikes at 14; the date slams in the rule frame at 16.
   'gig-announcement': () => [
-    { sound: 'punch', frame: 12, volume: 0.8 },
-    { sound: 'zap', frame: 19, volume: 0.7 },
+    { sound: 'zap', frame: 14, volume: 0.7 },
+    { sound: 'punch', frame: 16, volume: 0.8 },
   ],
   'recap-intro': () => [{ sound: 'impact', frame: 4, volume: 0.9 }],
-  // Review stars arrive in the rule frame, followed by the quote.
+  // The arcs crackle at 14, then the quote arrives.
   'review': () => [
-    { sound: 'zap', frame: 16, volume: 0.55 },
-    { sound: 'punch', frame: 18, volume: 0.45 },
+    { sound: 'zap', frame: 14, volume: 0.55 },
+    { sound: 'punch', frame: 16, volume: 0.45 },
   ],
   // The headline's rule frame strikes its bolt.
   'upcoming-gigs': () => [{ sound: 'zap', frame: 12, volume: 0.7 }],
@@ -120,9 +120,10 @@ const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[
     { sound: 'zap', frame: 27, volume: 0.7 },
   ],
   'lightning-banner': () => [{ sound: 'zap', frame: 12 }],
+  // The header wordmark (step 1) strikes its bolt at 14; the date slams into the ring at 16.
   'electric-gig-poster': () => [
+    { sound: 'zap', frame: 14, volume: 0.8 },
     { sound: 'punch', frame: 16, volume: 0.8 },
-    { sound: 'zap', frame: 20, volume: 0.8 },
   ],
   'now-playing': () => [{ sound: 'zap', frame: 12, volume: 0.8 }],
   'bolt-transition': ({ duration }) => {
