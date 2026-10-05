@@ -28,7 +28,8 @@ const groups: NavGroup[] = [
     {label:'Website',to:'/admin/content',icon:'lucide:globe',roles:['owner','content_editor']},
     {label:'Landing pages',to:'/admin/landing-pages',icon:'lucide:panels-top-left',roles:['owner','content_editor']},
     {label:'Media',to:'/admin/media',icon:'lucide:images',roles:['owner','content_editor']},
-    {label:'Post generator',to:'/admin/post-generator',icon:'lucide:sparkles',roles:['owner','content_editor']},
+    {label:'Foto editor',to:'/admin/post-generator',icon:'lucide:image',roles:['owner','content_editor']},
+    {label:'Video editor',to:'/admin/post-generator/video',icon:'lucide:video',roles:['owner','content_editor']},
   ]},
 ]
 
@@ -55,7 +56,11 @@ const visibleFooterItems = computed(() => {
   return footerItems.filter(item=>item.roles.includes(role))
 })
 
-function isActive(to:string){return to==='/admin'?route.path===to:route.path.startsWith(to)}
+function isActive(to:string){
+  if(to==='/admin') return route.path===to
+  if(to==='/admin/post-generator') return route.path===to
+  return route.path.startsWith(to)
+}
 const beheerOpen = ref(footerItems.some(item => isActive(item.to)))
 watch(() => route.path, () => { if (footerItems.some(item => isActive(item.to))) beheerOpen.value = true })
 async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await clear();await navigateTo('/admin/login')}
