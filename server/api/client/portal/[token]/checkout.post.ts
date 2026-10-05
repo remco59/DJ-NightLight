@@ -103,6 +103,7 @@ export default defineEventHandler(async (event) => {
     providerSessionId: session.id, attemptCount: sql`${payments.attemptCount} + 1`,
     checkoutExpiresAt: new Date(session.expires_at * 1000), status: 'pending', failureCode: null, updatedAt: new Date(),
   }).where(eq(payments.id, payment.id))
-  await db.update(invoices).set({ paymentStatus: 'pending', updatedAt: new Date() }).where(and(eq(invoices.id, invoice.id), ne(invoices.paymentStatus, 'paid')))
+  // The invoice only becomes 'pending' via the webhook (checkout.session.completed with an unpaid
+  // bank transfer). Merely opening Checkout must not block the pay button.
   return { url: session.url }
 })
