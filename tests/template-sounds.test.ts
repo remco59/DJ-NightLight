@@ -77,7 +77,7 @@ describe('graphic sound cues', () => {
   it('adds entrance and exit sounds for whip, zoom and glitch', () => {
     const item = graphic('lower-third', { duration: 120, entrance: 'whip', exit: 'whip', exitFrames: 12 })
     const bolt = ['zap', 14]
-    expect(frames(item)).toEqual([['whoosh', 0], bolt, ['whoosh', 108]])
+    expect(frames(item)).toEqual([['whoosh', 0], bolt, ['swoosh', 108]])
     expect(frames({ ...item, entrance: 'glitch', exit: 'fade' })).toEqual([['glitch', 0], bolt])
     expect(frames({ ...item, entrance: 'fade', exit: 'none' })).toEqual([bolt])
     expect(frames({ ...item, entranceFrames: 0, exitFrames: 0 })).toEqual([bolt])
@@ -98,10 +98,10 @@ describe('graphic sound cues', () => {
 
   it('hits every Clip Recap cut after the first shot', () => {
     const media = ['a', 'b', 'c'].map(letter => `${letter}1111111-1111-4111-8111-111111111111`)
-    expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: '', media } }))).toEqual([['punch', 30], ['punch', 60]])
+    expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: '', media } }))).toEqual([['swish', 30], ['punch', 30], ['swish', 60], ['punch', 60]])
     expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: '', media: [] } }))).toEqual([])
     // A title adds its rule frame's bolt strike.
-    expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: 'GISTER', media } }))).toEqual([['zap', 16], ['punch', 30], ['punch', 60]])
+    expect(frames(graphic('clip-recap', { duration: 90, templateProps: { title: 'GISTER', media } }))).toEqual([['zap', 16], ['swish', 30], ['punch', 30], ['swish', 60], ['punch', 60]])
   })
 
   it('drops cues past a shortened item and scales by the item volume', () => {

@@ -20,7 +20,9 @@ export const TEMPLATE_SOUNDS = {
   punch: { label: 'Punch', file: 'sfx/punch.wav', seconds: 0.35, hit: 0 },
   zap: { label: 'Zap', file: 'sfx/zap.wav', seconds: 1.5, hit: 0.48 },
   crackle: { label: 'Geknetter', file: 'sfx/crackle.wav', seconds: 0.8, hit: 0.1 },
-  whoosh: { label: 'Whoosh', file: 'sfx/whoosh.wav', seconds: 0.6, hit: 0 },
+  whoosh: { label: 'Whoosh', file: 'sfx/whoosh.wav', seconds: 0.8, hit: 0 },
+  swish: { label: 'Swish', file: 'sfx/swish.wav', seconds: 0.4, hit: 0.05 },
+  swoosh: { label: 'Swoosh', file: 'sfx/swoosh.wav', seconds: 0.7, hit: 0 },
   glitch: { label: 'Glitch', file: 'sfx/glitch.wav', seconds: 0.45, hit: 0 },
 } as const
 export type TemplateSound = keyof typeof TEMPLATE_SOUNDS
@@ -120,8 +122,11 @@ const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[
   'clip-recap': ({ duration, props }) => {
     const count = listCount(props, 'media', 5)
     const slot = clipRecapSlot(duration, count)
-    // The first shot is covered by the entrance; every later cut gets a hit.
-    const cuts: CueSpec[] = Array.from({ length: Math.max(0, count - 1) }, (_, index) => ({ sound: 'punch', frame: (index + 1) * slot, volume: 0.7 }))
+    // The first shot is covered by the entrance; every later cut gets a whip and a hit.
+    const cuts: CueSpec[] = Array.from({ length: Math.max(0, count - 1) }, (_, index): CueSpec[] => [
+      { sound: 'swish', frame: (index + 1) * slot, volume: 0.5 },
+      { sound: 'punch', frame: (index + 1) * slot, volume: 0.7 },
+    ]).flat()
     // The title's rule frame (start 4) strikes its bolt.
     const title = typeof props.title === 'string' && props.title ? [{ sound: 'zap' as const, frame: 16, volume: 0.6 }] : []
     return [...cuts, ...title]
@@ -154,7 +159,7 @@ const ENTRANCE_SOUNDS: Partial<Record<EntranceAnimation, TemplateSound>> = {
 }
 
 const EXIT_SOUNDS: Partial<Record<ExitAnimation, TemplateSound>> = {
-  whip: 'whoosh',
+  whip: 'swoosh',
   glitch: 'glitch',
 }
 

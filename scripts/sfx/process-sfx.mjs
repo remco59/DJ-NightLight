@@ -30,6 +30,12 @@ const SOURCES = {
   strike: 'electricity-charge-sound-effect.mp3',
   crackle: 'biww-short-electric-561891.mp3',
   shock: 'Electric_shock.mp3',
+  // One clean whoosh.
+  fastWhoosh: 'Fast_woosh.mp3',
+  // Eight separate swishes in one file; the long one at 9.3 s is used.
+  swishes: 'Swish_Swoosh_Cutscene_Sound_Effect.mp3',
+  // Three whips in one file; the first, at 0.18 s, is used.
+  whips: 'Whoosh_Transition_Whip-Swish_Pan_-_Comical_Sound_Effects_HD.mp3',
 }
 
 const files = readdirSync(SOURCE)
@@ -76,11 +82,23 @@ const SOUNDS = {
     seconds: 0.8,
     graph: `[0:a]${STEREO},atrim=0.15:0.95,asetpts=PTS-STARTPTS,afade=t=in:d=0.01,afade=t=out:st=0.55:d=0.25[out]`,
   },
-  // A fast electric swell for whip and zoom entrances.
+  // A whoosh for whip and zoom entrances: a clean pass-by that peaks 0.24 s in.
   whoosh: {
-    inputs: ['shock'],
-    seconds: 0.6,
-    graph: `[0:a]${STEREO},atrim=0.15:1.25,asetpts=PTS-STARTPTS,atempo=1.8,highpass=f=250,atrim=0:0.6,afade=t=in:d=0.05,afade=t=out:st=0.45:d=0.15[out]`,
+    inputs: ['fastWhoosh'],
+    seconds: 0.8,
+    graph: `[0:a]${STEREO},atrim=0.04:0.84,asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=0.5:d=0.3[out]`,
+  },
+  // A tight whip-pan snap for cuts and whip exits; it peaks 0.05 s in.
+  swish: {
+    inputs: ['whips'],
+    seconds: 0.4,
+    graph: `[0:a]${STEREO},atrim=0.15:0.55,asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=0.25:d=0.15[out]`,
+  },
+  // A swoosh with a longer tail for exits: the pass-by, then the air it leaves behind.
+  swoosh: {
+    inputs: ['swishes'],
+    seconds: 0.7,
+    graph: `[0:a]${STEREO},atrim=9.28:9.98,asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=0.5:d=0.2[out]`,
   },
   // Bit-crushed, stuttering crackle for glitch entrances.
   glitch: {

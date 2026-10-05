@@ -8,7 +8,9 @@ stored in this repository.
   impact.wav, punch.wav    Ghosthack "HTH FX Impact 09"
   zap.wav                  "Electric shock" + "Electricity charge sound effect"
   crackle.wav, glitch.wav  "biww short electric" (561891)
-  whoosh.wav               "Electric shock"
+  whoosh.wav               "Fast woosh"
+  swish.wav                "Whoosh Transition Whip-Swish Pan - Comical Sound Effects HD"
+  swoosh.wav               "Swish Swoosh Cutscene Sound Effect"
 
 LICENCE STATUS: the terms of these recordings still have to be confirmed by
 the repository owner before this repository or the app is distributed. Sample
