@@ -8,6 +8,8 @@ import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
+const CHECKOUT_EXPIRY_SECONDS = 60 * 60
+
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token') || ''
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
@@ -61,6 +63,8 @@ export default defineEventHandler(async (event) => {
       price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
     }],
+    // Expire after 1 hour. Rounded up to 5 minutes so a double click yields identical params (idempotency key).
+    expires_at: Math.ceil(Date.now() / 1000 / 300) * 300 + CHECKOUT_EXPIRY_SECONDS,
     client_reference_id: invoice.id,
     customer: customerId,
     metadata,
