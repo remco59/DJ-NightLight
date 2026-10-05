@@ -3,7 +3,7 @@ import { auditLogs, gigReviews } from '../../../../../db/schema'
 import { gigIsFinished } from '../../../../../shared/gig-phase'
 import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
-import { assertPortalRateLimit } from '../../../../utils/portal-rate-limit'
+import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 
 const reviewSchema = z.object({
@@ -15,7 +15,7 @@ const reviewSchema = z.object({
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token') || ''
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-  assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:review`)
+  assertRateLimit(event, 'portal', `${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:review`)
   const access = await resolvePortalAccess(token)
   if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
   if (access.status !== 'booked' || !gigIsFinished(access)) {
