@@ -1,5 +1,60 @@
 export type EmailVariables = Record<string, string | number | null | undefined>
 
+export type EmailAttachment =
+  | { kind: 'file', storageKey: string, filename: string, mimeType: string, byteSize: number }
+  | { kind: 'invoice', invoiceId: string, filename: string }
+
+export type EmailBranding = {
+  siteUrl?: string
+  logoUrl?: string | null
+  heroImageUrl?: string | null
+}
+
+/** Templates that only exist for composing mail by hand and never run automatically. */
+export const MANUAL_ONLY_EMAIL_TEMPLATES: readonly string[] = ['custom_message']
+
+export const MAX_EMAIL_ATTACHMENTS = 5
+export const MAX_EMAIL_ATTACHMENT_BYTES = 10 * 1024 * 1024
+export const MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES = 20 * 1024 * 1024
+export const EMAIL_ATTACHMENT_EXTENSIONS: readonly string[] = [
+  'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic',
+  'doc', 'docx', 'odt', 'rtf', 'txt', 'xls', 'xlsx', 'ods', 'csv',
+  'ppt', 'pptx', 'ics', 'zip', 'mp3', 'wav', 'm4a',
+]
+
+export function isAutomaticEmailTemplate(templateKey: string) {
+  return !MANUAL_ONLY_EMAIL_TEMPLATES.includes(templateKey)
+}
+
+export function clientAllowsAutomaticEmail(disabled: readonly string[] | null | undefined, templateKey: string) {
+  return !(disabled || []).includes(templateKey)
+}
+
+export function sanitizeAttachmentFilename(name: string) {
+  const base = name.split(/[\\/]/).pop() || ''
+  const cleaned = Array.from(base)
+    .filter(char => char.charCodeAt(0) >= 32 && !'"<>|:*?'.includes(char))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned.slice(-180) || 'bijlage'
+}
+
+export function attachmentExtension(filename: string) {
+  const match = /\.([a-z0-9]{1,8})$/i.exec(filename)
+  return match ? match[1]!.toLowerCase() : ''
+}
+
+export function emailScheduleLabel(anchor: string, offsetMinutes: number) {
+  if (anchor === 'event') return 'Direct wanneer het gebeurt'
+  const days = Math.round(Math.abs(offsetMinutes) / 1440)
+  const hours = Math.round(Math.abs(offsetMinutes) / 60)
+  const amount = days >= 1 ? `${days} ${days === 1 ? 'dag' : 'dagen'}` : `${hours} uur`
+  const reference = anchor === 'gig_start' ? 'de start van de gig' : anchor === 'gig_end' ? 'het einde van de gig' : 'de vervaldatum van de factuur'
+  if (offsetMinutes === 0) return `Bij ${reference}`
+  return `${amount} ${offsetMinutes < 0 ? 'voor' : 'na'} ${reference}`
+}
+
 type EmailDetail = {
   label: string
   variable: string
@@ -15,30 +70,32 @@ type EmailPresentation = {
 
 const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
   lead_acknowledgement: {
-    eyebrow: 'Aanvraag ontvangen',
+    eyebrow: 'Aanvraag',
     title: 'Bedankt voor je aanvraag',
     details: [{ label: 'Boeking', variable: 'gigTitle' }],
   },
   booking_accepted: {
-    eyebrow: 'Boeking bevestigd',
-    title: 'Je boeking staat vast',
+    eyebrow: 'Boeking',
+    title: 'Je boeking is bevestigd',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Open klantenportaal',
     details: [
       { label: 'Boeking', variable: 'gigTitle' },
       { label: 'Datum', variable: 'gigDate' },
     ],
   },
   client_portal_invitation: {
-    eyebrow: 'Klantportaal',
-    title: 'Je NightLight-portaal staat klaar',
+    eyebrow: 'Klantenportaal',
+    title: 'Activeer je klantenportaal',
     ctaVariable: 'portalUrl',
-    ctaLabel: 'Open je portaal',
+    ctaLabel: 'Account activeren',
     details: [{ label: 'Boeking', variable: 'gigTitle' }],
   },
   portal_reminder: {
     eyebrow: 'Herinnering',
-    title: 'Je portaal wacht nog op je',
+    title: 'Je klantenportaal wacht nog op je',
     ctaVariable: 'portalUrl',
-    ctaLabel: 'Open je portaal',
+    ctaLabel: 'Open klantenportaal',
     details: [
       { label: 'Boeking', variable: 'gigTitle' },
       { label: 'Datum', variable: 'gigDate' },
@@ -47,10 +104,10 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
   invoice_sent: {
     eyebrow: 'Factuur',
     title: 'Je factuur staat klaar',
-    ctaVariable: 'invoiceUrl',
-    ctaLabel: 'Bekijk factuur',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Open klantenportaal',
     details: [
-      { label: 'Factuur', variable: 'invoiceNumber' },
+      { label: 'Factuurnummer', variable: 'invoiceNumber' },
       { label: 'Bedrag', variable: 'invoiceTotal' },
       { label: 'Vervaldatum', variable: 'invoiceDueDate' },
     ],
@@ -61,7 +118,7 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     ctaVariable: 'invoiceUrl',
     ctaLabel: 'Bekijk factuur',
     details: [
-      { label: 'Factuur', variable: 'invoiceNumber' },
+      { label: 'Factuurnummer', variable: 'invoiceNumber' },
       { label: 'Bedrag', variable: 'invoiceTotal' },
       { label: 'Vervaldatum', variable: 'invoiceDueDate' },
     ],
@@ -72,17 +129,19 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     ctaVariable: 'invoiceUrl',
     ctaLabel: 'Bekijk factuur',
     details: [
-      { label: 'Factuur', variable: 'invoiceNumber' },
+      { label: 'Factuurnummer', variable: 'invoiceNumber' },
       { label: 'Bedrag', variable: 'invoiceTotal' },
       { label: 'Vervaldatum', variable: 'invoiceDueDate' },
     ],
   },
   payment_received: {
-    eyebrow: 'Betaling ontvangen',
-    title: 'Bedankt, je betaling is binnen',
+    eyebrow: 'Betaling',
+    title: 'Je betaling is ontvangen',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Open klantenportaal',
     details: [
-      { label: 'Factuur', variable: 'invoiceNumber' },
-      { label: 'Bedrag', variable: 'invoiceTotal' },
+      { label: 'Factuurnummer', variable: 'invoiceNumber' },
+      { label: 'Ontvangen bedrag', variable: 'invoiceTotal' },
     ],
   },
   pre_gig_reminder: {
@@ -97,6 +156,14 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     eyebrow: 'Bedankt',
     title: 'Bedankt voor een mooie avond',
     details: [{ label: 'Boeking', variable: 'gigTitle' }],
+  },
+  custom_message: {
+    eyebrow: 'NightLight',
+    title: 'Een bericht over {{gigTitle}}',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Datum', variable: 'gigDate' },
+    ],
   },
   review_request: {
     eyebrow: 'Review',
@@ -120,6 +187,17 @@ function safeHttpUrl(value: string | number | null | undefined) {
   if (!value) return ''
   const url = String(value).trim()
   return /^https?:\/\//i.test(url) ? url : ''
+}
+
+function safeAssetUrl(value: string | null | undefined, siteUrl = '') {
+  if (!value) return ''
+  const raw = value.trim()
+  if (/^https?:\/\//i.test(raw)) return raw
+  if (/^\/(?!\/)/.test(raw)) {
+    const base = safeHttpUrl(siteUrl).replace(/\/$/, '')
+    return base ? `${base}${raw}` : raw
+  }
+  return ''
 }
 
 export function normalizeEmailText(text: string) {
@@ -153,57 +231,79 @@ function bodyHtml(text: string, ctaUrl: string) {
 
   return paragraphs.map((paragraph) => {
     const html = escapeHtml(paragraph).replace(/\n/g, '<br>')
-    return `<p style="margin:0 0 18px;color:#d8d3dd;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;">${html}</p>`
+    return `<p style="margin:0 0 18px;color:#cfc8d7;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;">${html}</p>`
   }).join('')
 }
 
 function detailsHtml(presentation: EmailPresentation, variables: EmailVariables) {
   const details = (presentation.details || [])
-    .map(detail => ({
-      label: detail.label,
-      value: variables[detail.variable],
-    }))
+    .map(detail => ({ label: detail.label, value: variables[detail.variable] }))
     .filter(detail => detail.value !== null && detail.value !== undefined && String(detail.value).trim())
 
   if (!details.length) return ''
 
   const rows = details.map((detail, index) => `
     <tr>
-      <td style="padding:${index === 0 ? '0' : '12px'} 0 0;color:#928a9a;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;text-transform:uppercase;letter-spacing:.08em;vertical-align:top;width:110px;">${escapeHtml(detail.label)}</td>
-      <td style="padding:${index === 0 ? '0' : '12px'} 0 0 16px;color:#f7f4fa;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;font-weight:700;vertical-align:top;">${escapeHtml(String(detail.value))}</td>
+      <td style="padding:${index === 0 ? '0' : '16px'} 0 ${index === details.length - 1 ? '0' : '16px'};${index === details.length - 1 ? '' : 'border-bottom:1px solid #302a38;'}">
+        <div style="margin:0 0 4px;color:#91899b;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;">${escapeHtml(detail.label)}</div>
+        <div style="color:#fbf9fc;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.45;font-weight:700;overflow-wrap:anywhere;word-break:normal;">${escapeHtml(String(detail.value))}</div>
+      </td>
     </tr>`).join('')
 
   return `
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px;background:#17141c;border:1px solid #2f2935;border-radius:12px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0;background:#15121a;border:1px solid #393140;border-radius:14px;border-collapse:separate;">
+      <tr><td style="padding:20px 22px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows}</table>
+      </td></tr>
+    </table>`
+}
+
+function ctaHtml(label: string | undefined, url: string) {
+  if (!label || !url) return ''
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 0;">
       <tr>
-        <td style="padding:18px 20px;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-            ${rows}
-          </table>
+        <td align="center" bgcolor="#7c3aed" style="border-radius:13px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);">
+          <a href="${escapeHtml(url)}" style="display:block;padding:16px 22px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.15;font-weight:800;text-align:center;text-decoration:none;border-radius:13px;">${escapeHtml(label)} &nbsp;→</a>
         </td>
       </tr>
     </table>`
 }
 
-export function renderBrandedEmailHtml(templateKey: string, text: string, variables: EmailVariables) {
+function headerHtml(branding: EmailBranding) {
+  const logoUrl = safeAssetUrl(branding.logoUrl || '/brand/logo/wordmark-thumb.webp', branding.siteUrl)
+  const heroUrl = safeAssetUrl(branding.heroImageUrl || '/images/login-background.webp', branding.siteUrl)
+  const logo = logoUrl
+    ? `<img class="email-logo" src="${escapeHtml(logoUrl)}" width="150" alt="NightLight" style="display:block;width:150px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">`
+    : '<span style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:.16em;">NIGHTLIGHT</span>'
+  const hero = heroUrl
+    ? `<img class="email-hero" src="${escapeHtml(heroUrl)}" width="600" height="210" alt="" style="display:block;width:100%;height:210px;object-fit:cover;border:0;outline:none;text-decoration:none;">`
+    : ''
+
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0d0b11;border-radius:18px 18px 0 0;border-collapse:separate;overflow:hidden;">
+      <tr>
+        <td align="left" style="padding:22px 26px 18px;background:#0d0b11;">${logo}</td>
+      </tr>
+      ${hero ? `<tr><td style="padding:0;background:#15101d;overflow:hidden;">${hero}</td></tr>` : ''}
+    </table>`
+}
+
+export function renderBrandedEmailHtml(templateKey: string, text: string, variables: EmailVariables, branding: EmailBranding = {}) {
   const presentation = EMAIL_PRESENTATIONS[templateKey] || {
     eyebrow: 'NightLight',
     title: 'Een bericht van NightLight',
   }
   const ctaUrl = safeHttpUrl(presentation.ctaVariable ? variables[presentation.ctaVariable] : '')
   const title = renderEmailTemplate(presentation.title, variables)
-  const details = detailsHtml(presentation, variables)
   const content = bodyHtml(text, ctaUrl)
-  const cta = ctaUrl && presentation.ctaLabel
-    ? `
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 4px;">
-        <tr>
-          <td style="background:#ffffff;border-radius:10px;">
-            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:13px 20px;color:#0d0b10;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1;font-weight:700;text-decoration:none;">${escapeHtml(presentation.ctaLabel)}</a>
-          </td>
-        </tr>
-      </table>`
-    : ''
+  const cta = ctaHtml(presentation.ctaLabel, ctaUrl)
+  const details = detailsHtml(presentation, variables)
+  const header = headerHtml(branding)
+  const siteUrl = safeHttpUrl(branding.siteUrl)
+  const footerBrand = siteUrl
+    ? `<a href="${escapeHtml(siteUrl)}" style="color:#8f8798;text-decoration:none;">NightLight • ${escapeHtml(siteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, ''))}</a>`
+    : 'NightLight'
 
   return `<!doctype html>
 <html lang="nl">
@@ -213,30 +313,39 @@ export function renderBrandedEmailHtml(templateKey: string, text: string, variab
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
   <title>${escapeHtml(title)}</title>
+  <style>
+    @media screen and (max-width:620px) {
+      .email-shell { padding:16px 10px !important; }
+      .email-content { padding:28px 20px 26px !important; }
+      .email-title { font-size:31px !important; line-height:1.08 !important; }
+      .email-logo { width:132px !important; }
+      .email-hero { height:165px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#09080b;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#09080b;">
+<body style="margin:0;padding:0;background:#08070a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#08070a;">
     <tr>
-      <td align="center" style="padding:34px 14px;">
+      <td class="email-shell" align="center" style="padding:28px 14px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;">
           <tr>
-            <td style="padding:0 4px 18px;color:#f7f4fa;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;">
-              NIGHTLIGHT
+            <td style="padding:0;border:1px solid #2c2632;border-radius:18px;background:#111014;overflow:hidden;">
+              ${header}
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td class="email-content" style="padding:36px 34px 32px;background:#111014;">
+                    <div style="margin:0 0 14px;color:#b77cff;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;">${escapeHtml(presentation.eyebrow)}</div>
+                    <h1 class="email-title" style="margin:0 0 24px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:38px;line-height:1.08;letter-spacing:-.035em;">${escapeHtml(title)}</h1>
+                    ${content}
+                    ${cta}
+                    ${details}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td style="background:#121016;border:1px solid #2b2631;border-radius:18px;padding:34px 32px;">
-              <div style="margin:0 0 12px;color:#cbb7dc;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:800;letter-spacing:.17em;text-transform:uppercase;">${escapeHtml(presentation.eyebrow)}</div>
-              <h1 style="margin:0 0 24px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.15;letter-spacing:-.03em;">${escapeHtml(title)}</h1>
-              ${content}
-              ${details}
-              ${cta}
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:18px 6px 0;color:#746d7b;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;">
-              DJ NightLight
-            </td>
+            <td align="center" style="padding:18px 8px 0;color:#776f80;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;">${footerBrand}</td>
           </tr>
         </table>
       </td>

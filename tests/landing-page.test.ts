@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { landingPageInputSchema } from '../shared/schemas/landing-page'
+import { defaultLandingPageSections, landingPageInputSchema } from '../shared/schemas/landing-page'
 
 const base = {
   slug: 'bruiloften',
@@ -39,5 +39,39 @@ describe('landing page controls', () => {
     expect(page.published).toBe(false)
     expect(page.showInNavigation).toBe(true)
     expect(page.indexable).toBe(false)
+  })
+
+  it('accepts internal media-library paths', () => {
+    const page = landingPageInputSchema.parse({
+      ...base,
+      heroImageUrl: '/api/media/test-asset',
+      seoImageUrl: '/api/media/test-asset?variant=thumb',
+    })
+    expect(page.heroImageUrl).toBe('/api/media/test-asset')
+    expect(page.seoImageUrl).toContain('/api/media/')
+  })
+
+  it('adds complete editable section defaults', () => {
+    const page = landingPageInputSchema.parse(base)
+    expect(page.sections.benefits).toHaveLength(3)
+    expect(page.sections.galleryImages).toHaveLength(4)
+    expect(page.sections.closingTitle).toBe(defaultLandingPageSections('bruiloften').closingTitle)
+  })
+
+  it('accepts customized redesigned section content', () => {
+    const sections = defaultLandingPageSections('studentenfeesten')
+    sections.storyImageUrl = '/api/media/story'
+    sections.galleryImages[0] = { url: '/api/media/gallery-1', alt: 'Volle studentendansvloer' }
+    sections.closingTitle = 'Tot op de dansvloer.'
+
+    const page = landingPageInputSchema.parse({
+      ...base,
+      slug: 'studentenfeesten',
+      sections,
+    })
+
+    expect(page.sections.storyImageUrl).toBe('/api/media/story')
+    expect(page.sections.galleryImages[0]?.alt).toBe('Volle studentendansvloer')
+    expect(page.sections.closingTitle).toBe('Tot op de dansvloer.')
   })
 })

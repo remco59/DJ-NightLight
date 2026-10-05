@@ -5,13 +5,13 @@ import { createStripeClient } from '../../../utils/stripe'
 import { saveStripeSettings, stripeStatus } from '../../../utils/stripe-settings'
 
 const schema = z.object({
-  secretKey: z.string().trim().regex(/^(rk|sk)_(test|live)_[A-Za-z0-9]{10,}$/, 'Paste a Stripe key that starts with rk_test_, rk_live_, sk_test_ or sk_live_'),
+  secretKey: z.string().trim().regex(/^(rk|sk)_(test|live)_[A-Za-z0-9]{10,}$/, 'Plak een Stripe-sleutel die begint met rk_test_, rk_live_, sk_test_ of sk_live_'),
 })
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
   const parsed = schema.safeParse(await readBody(event))
-  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid key' })
+  if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldige sleutel' })
   const { secretKey } = parsed.data
   const stripe = createStripeClient(secretKey)
 
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     await stripe.checkout.sessions.list({ limit: 1 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Stripe rejected this key'
-    throw createError({ statusCode: 422, statusMessage: `Stripe rejected this key: ${message}` })
+    throw createError({ statusCode: 422, statusMessage: `Stripe heeft deze sleutel geweigerd: ${message}` })
   }
 
   let accountId: string | null = null

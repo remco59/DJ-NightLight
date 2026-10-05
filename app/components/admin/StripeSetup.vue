@@ -33,7 +33,7 @@ const step = computed(() => {
   if (!status.value.webhookConfigured) return 2
   return 3
 })
-const steps = ['Get an API key', 'Connect the webhook', 'Verify & go live']
+const steps = ['API-sleutel aanmaken', 'Webhook koppelen', 'Controleren & live gaan']
 
 async function run(name: string, action: () => Promise<void>) {
   busy.value = name
@@ -42,7 +42,7 @@ async function run(name: string, action: () => Promise<void>) {
   try {
     await action()
   } catch (e: unknown) {
-    error.value = apiErrorMessage(e, 'Something went wrong. Please try again.')
+    error.value = apiErrorMessage(e, 'Er ging iets mis. Probeer het opnieuw.')
   } finally {
     busy.value = ''
   }
@@ -53,18 +53,18 @@ const saveKey = () => run('key', async () => {
   data.value = res
   secretKey.value = ''
   editingKey.value = false
-  notice.value = 'Key verified with Stripe and saved encrypted.'
+  notice.value = 'Sleutel gecontroleerd bij Stripe en versleuteld opgeslagen.'
 })
 
 const autoWebhook = () => run('auto', async () => {
   data.value = await $fetch<{ status: Status }>('/api/admin/stripe/webhook', { method: 'POST', body: { mode: 'auto' } })
-  notice.value = 'Webhook endpoint created in Stripe and its signing secret saved.'
+  notice.value = 'Webhook-endpoint aangemaakt in Stripe en het signing secret opgeslagen.'
 })
 
 const manualWebhook = () => run('manual', async () => {
   data.value = await $fetch<{ status: Status }>('/api/admin/stripe/webhook', { method: 'POST', body: { mode: 'manual', webhookSecret: webhookSecret.value } })
   webhookSecret.value = ''
-  notice.value = 'Signing secret saved encrypted.'
+  notice.value = 'Signing secret versleuteld opgeslagen.'
 })
 
 const runTest = () => run('test', async () => {
@@ -73,8 +73,9 @@ const runTest = () => run('test', async () => {
   data.value = { status: res.status }
 })
 
-const disconnect = () => {
-  if (!confirm('Disconnect Stripe? Clients will no longer be able to pay invoices online until it is set up again.')) return
+const confirmAction = useConfirm()
+const disconnect = async () => {
+  if (!(await confirmAction({ title: 'Stripe ontkoppelen?', body: 'Klanten kunnen facturen dan niet meer online betalen totdat je Stripe opnieuw instelt.', confirmLabel: 'Ontkoppelen', tone: 'danger' }))) return
   return run('disconnect', async () => {
     await $fetch('/api/admin/stripe', { method: 'DELETE' })
     checks.value = []
@@ -95,130 +96,168 @@ async function copyUrl() {
 </script>
 
 <template>
-  <section v-if="status" class="card stripe">
+  <section v-if="status" class="stripe-card">
     <div class="head">
-      <div>
-        <h2>Online payments (Stripe)</h2>
-        <p class="lede">Let clients pay finalized invoices by card, iDEAL or bank transfer from their portal. Stripe automatically reconciles bank transfers and NightLight shows the status on the gig.</p>
+      <div class="integration-title">
+        <span class="brand-icon">S</span>
+        <div>
+          <h3>Stripe</h3>
+          <p>Ontvang online betalingen via Stripe. Veilig, snel en betrouwbaar.</p>
+        </div>
       </div>
       <span class="pill" :class="{ on: status.keyConfigured && status.webhookConfigured }">
-        {{ status.keyConfigured && status.webhookConfigured ? (status.livemode ? 'Live' : 'Test mode') : 'Not set up' }}
+        <span class="dot"/>
+        {{ status.keyConfigured && status.webhookConfigured ? (status.livemode ? 'Live' : 'Testmodus') : 'Niet ingesteld' }}
       </span>
     </div>
 
-    <p v-if="status.source === 'environment'" class="hint">Currently using credentials from server environment variables. Saving a key here overrides them.</p>
+    <p v-if="status.source === 'environment'" class="hint source-note">NightLight gebruikt momenteel Stripe-inloggegevens uit de serveromgeving.</p>
 
-    <ol class="steps">
-      <li v-for="(label, i) in steps" :key="label" :class="{ active: step === i + 1, done: step > i + 1 }">
-        <span>{{ step > i + 1 ? '✓' : i + 1 }}</span>{{ label }}
-      </li>
-    </ol>
+    <template v-if="step === 3">
+      <div class="summary-grid">
+        <div>
+          <span>Modus</span>
+          <strong>{{ status.livemode ? 'Live' : 'Test' }}</strong>
+        </div>
+        <div>
+          <span>Account</span>
+          <strong>{{ status.accountName || status.accountId || 'Gekoppeld' }}</strong>
+        </div>
+        <div>
+          <span>Webhook</span>
+          <strong class="good"><span class="mini-dot"/>Actief</strong>
+        </div>
+      </div>
 
-    <div v-if="step === 1" class="panel">
-      <h3>Step 1 — Create a restricted API key</h3>
-      <ol class="how">
-        <li>Open the <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard → Developers → API keys</a>. Start in <strong>test mode</strong> so nothing real is charged.</li>
-        <li>Click <strong>Create restricted key</strong> and name it “DJ NightLight”.</li>
-        <li>Set <strong>Checkout Sessions</strong> and <strong>Customers</strong> to <strong>Write</strong>. NightLight needs Customers permission to create the virtual IBAN used for bank transfers. Also set <strong>Webhook Endpoints</strong> to <strong>Write</strong> if you want the webhook created for you in step 2.</li>
-        <li>In <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">Payment methods</a>, enable <strong>Bank transfer</strong> for your account. EUR invoices use Stripe's EU bank-transfer instructions.</li>
-        <li>Create the key and paste it here. It is verified with Stripe, then stored encrypted and never shown again.</li>
+      <div class="compact-actions">
+        <button class="ghost" :disabled="busy === 'test'" @click="runTest">{{ busy === 'test' ? 'Controleren…' : 'Verbinding controleren' }}</button>
+        <button v-if="status.source === 'settings'" class="ghost" @click="editingKey = true">API-sleutel vervangen</button>
+        <button v-if="status.source === 'settings'" class="ghost danger" :disabled="busy === 'disconnect'" @click="disconnect">Stripe ontkoppelen</button>
+      </div>
+
+      <details class="advanced">
+        <summary>Technische details</summary>
+        <dl class="facts">
+          <div><dt>Sleutel</dt><dd>{{ status.keyPreview }}</dd></div>
+          <div><dt>Modus</dt><dd>{{ status.livemode ? 'Live — echte betalingen' : 'Test — geen echt geld' }}</dd></div>
+          <div v-if="status.accountName || status.accountId"><dt>Account</dt><dd>{{ status.accountName || status.accountId }}</dd></div>
+          <div><dt>Webhook</dt><dd>Signing secret opgeslagen{{ status.webhookEndpointId ? ' (beheerd door NightLight)' : '' }}</dd></div>
+        </dl>
+        <ul v-if="checks.length" class="checks">
+          <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong><Icon :name="c.ok ? 'lucide:circle-check' : 'lucide:circle-x'" aria-hidden="true" /> {{ c.label }}</strong> {{ c.detail }}</li>
+        </ul>
+        <p v-if="!status.livemode" class="hint">Je zit in testmodus. Gebruik een live restricted key wanneer je echte betalingen wilt ontvangen.</p>
+      </details>
+    </template>
+
+    <template v-else>
+      <ol class="steps">
+        <li v-for="(label, i) in steps" :key="label" :class="{ active: step === i + 1, done: step > i + 1 }">
+          <span><Icon v-if="step > i + 1" name="lucide:check" aria-hidden="true" /><template v-else>{{ i + 1 }}</template></span>{{ label }}
+        </li>
       </ol>
-      <label>Restricted key
-        <input v-model="secretKey" type="password" autocomplete="off" spellcheck="false" placeholder="rk_test_…">
-      </label>
-      <div class="row">
-        <button :disabled="!secretKey || busy === 'key'" @click="saveKey">{{ busy === 'key' ? 'Verifying…' : 'Verify & save key' }}</button>
-        <button v-if="editingKey" class="ghost" @click="editingKey = false; secretKey = ''">Cancel</button>
-      </div>
-    </div>
 
-    <div v-else-if="step === 2" class="panel">
-      <h3>Step 2 — Connect the webhook</h3>
-      <p class="lede">Stripe tells NightLight when a payment succeeds or fails. This is what marks invoices as paid.</p>
-      <template v-if="status.webhookPublic">
-        <button :disabled="busy === 'auto'" @click="autoWebhook">{{ busy === 'auto' ? 'Creating…' : 'Create webhook automatically' }}</button>
-        <p class="hint">Registers <code>{{ status.webhookUrl }}</code> in Stripe for the 5 events NightLight needs.</p>
-      </template>
-      <p v-else class="hint warn">Your site URL ({{ status.webhookUrl }}) is not a public HTTPS address, so Stripe can’t reach it. Set <code>NUXT_PUBLIC_SITE_URL</code> for automatic setup, or for local testing forward events with the Stripe CLI and paste the signing secret below.</p>
-      <button class="link" @click="showManual = !showManual">{{ showManual ? 'Hide manual steps' : 'Set it up manually instead' }}</button>
-      <div v-if="showManual || !status.webhookPublic" class="manual">
-        <ol class="how">
-          <li>Stripe Dashboard → <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener">Developers → Webhooks</a> → <strong>Add endpoint</strong>.</li>
-          <li>Endpoint URL: <code>{{ status.webhookUrl }}</code> <button class="link" @click="copyUrl">{{ copied ? 'Copied' : 'Copy' }}</button></li>
-          <li>Select events: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>, <code>checkout.session.async_payment_failed</code>, <code>checkout.session.expired</code>, <code>payment_intent.payment_failed</code>.</li>
-          <li>After creating it, reveal the <strong>Signing secret</strong> (starts with <code>whsec_</code>) and paste it here.</li>
-        </ol>
-        <label>Signing secret
-          <input v-model="webhookSecret" type="password" autocomplete="off" spellcheck="false" placeholder="whsec_…">
+      <div v-if="step === 1" class="panel">
+        <h4>Stap 1 — API-sleutel koppelen</h4>
+        <p class="hint">Gebruik een beperkte Stripe-sleutel. NightLight controleert hem en slaat hem versleuteld op.</p>
+        <details class="advanced">
+          <summary>Installatie-instructies</summary>
+          <ol class="how">
+            <li>Open het <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a> en maak een restricted key voor DJ NightLight.</li>
+            <li>Geef Checkout Sessions, Customers en eventueel Webhook Endpoints de benodigde schrijfrechten.</li>
+            <li>Schakel de gewenste betaalmethoden in, waaronder bank transfer wanneer je overschrijvingen gebruikt.</li>
+          </ol>
+        </details>
+        <label>Beperkte sleutel
+          <input v-model="secretKey" type="password" autocomplete="off" spellcheck="false" placeholder="rk_test_…">
         </label>
-        <button :disabled="!webhookSecret || busy === 'manual'" @click="manualWebhook">{{ busy === 'manual' ? 'Saving…' : 'Save signing secret' }}</button>
+        <div class="row">
+          <button :disabled="!secretKey || busy === 'key'" @click="saveKey">{{ busy === 'key' ? 'Controleren…' : 'Sleutel controleren & opslaan' }}</button>
+          <button v-if="editingKey" class="ghost" @click="editingKey = false; secretKey = ''">Annuleren</button>
+        </div>
       </div>
-    </div>
 
-    <div v-else class="panel">
-      <h3>Step 3 — Verify</h3>
-      <dl class="facts">
-        <div><dt>Key</dt><dd>{{ status.keyPreview }}</dd></div>
-        <div><dt>Mode</dt><dd>{{ status.livemode ? 'Live — real payments' : 'Test — no real money' }}</dd></div>
-        <div v-if="status.accountName || status.accountId"><dt>Account</dt><dd>{{ status.accountName || status.accountId }}</dd></div>
-        <div><dt>Webhook</dt><dd>Signing secret saved{{ status.webhookEndpointId ? ' (managed by NightLight)' : '' }}</dd></div>
-      </dl>
-      <div class="row">
-        <button :disabled="busy === 'test'" @click="runTest">{{ busy === 'test' ? 'Checking…' : 'Run connection check' }}</button>
+      <div v-else class="panel">
+        <h4>Stap 2 — Webhook koppelen</h4>
+        <p class="hint">De webhook houdt betaalstatussen automatisch synchroon met NightLight.</p>
+        <template v-if="status.webhookPublic">
+          <button :disabled="busy === 'auto'" @click="autoWebhook">{{ busy === 'auto' ? 'Aanmaken…' : 'Webhook automatisch aanmaken' }}</button>
+          <p class="hint">NightLight registreert automatisch de benodigde Stripe-events.</p>
+        </template>
+        <p v-else class="hint warn">De ingestelde site-URL is geen publiek HTTPS-adres. Gebruik handmatige configuratie of stel een publieke URL in.</p>
+        <button class="link" @click="showManual = !showManual">{{ showManual ? 'Handmatige stappen verbergen' : 'Handmatig instellen' }}</button>
+        <div v-if="showManual || !status.webhookPublic" class="manual">
+          <p class="hint">Webhook-URL: <code>{{ status.webhookUrl }}</code> <button class="link" @click="copyUrl">{{ copied ? 'Gekopieerd' : 'Kopiëren' }}</button></p>
+          <label>Signing secret
+            <input v-model="webhookSecret" type="password" autocomplete="off" spellcheck="false" placeholder="whsec_…">
+          </label>
+          <button :disabled="!webhookSecret || busy === 'manual'" @click="manualWebhook">{{ busy === 'manual' ? 'Opslaan…' : 'Signing secret opslaan' }}</button>
+        </div>
       </div>
-      <ul v-if="checks.length" class="checks">
-        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'bad'"><strong>{{ c.ok ? '✓' : '✕' }} {{ c.label }}</strong> {{ c.detail }}</li>
-      </ul>
-      <p v-if="!status.livemode" class="hint">You’re in test mode. When ready to take real payments, repeat these steps with a <strong>live</strong> key (<code>rk_live_…</code>) — toggle “Test mode” off in the Stripe Dashboard first.</p>
-    </div>
+    </template>
 
     <p v-if="notice" class="msg ok">{{ notice }}</p>
     <p v-if="error" class="msg bad" role="alert">{{ error }}</p>
-
-    <div v-if="status.keyConfigured && status.source === 'settings'" class="row foot">
-      <button v-if="step === 3" class="ghost" @click="editingKey = true">Replace key</button>
-      <button class="ghost danger" :disabled="busy === 'disconnect'" @click="disconnect">Disconnect Stripe</button>
-    </div>
   </section>
 </template>
 
 <style scoped>
-.card{margin-bottom:1rem;padding:1.2rem;border:1px solid #2b2631;border-radius:1rem;background:#100e14}
-h2,h3{margin:0 0 .4rem}
-h3{font-size:1rem}
-.head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
-.lede,.hint{color:#8c8594;font-size:.85rem;margin:.2rem 0 .8rem}
-.hint.warn{color:#e9c46a}
-.pill{flex:none;padding:.25rem .7rem;border-radius:99px;background:#2b2631;color:#aaa4b1;font-size:.75rem;font-weight:700}
-.pill.on{background:#16382a;color:#7be0a8}
+.stripe-card{margin-bottom:1rem;padding:1.15rem;border:1px solid var(--border);border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
+.head{display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.integration-title{display:flex;gap:.8rem;align-items:center}
+.integration-title h3{margin:0 0 .2rem;font-size:1.05rem}
+.integration-title p{margin:0;color:var(--text-subtle);font-size:.8rem}
+.brand-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:linear-gradient(135deg,#7855ff,#4f2de0);color:#fff;font-size:1.15rem;font-weight:900}
+.pill{display:inline-flex;align-items:center;gap:.4rem;flex:none;padding:.28rem .68rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.7rem;font-weight:750}
+.pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#7d7682}
+.pill.on{background:#153426;color:#72e6a2}
+.pill.on .dot{background:#48df89}
+.source-note{margin-top:.8rem}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-top:1rem}
+.summary-grid>div{display:grid;gap:.25rem;padding:.8rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-input)}
+.summary-grid span{color:var(--text-subtle);font-size:.7rem}
+.summary-grid strong{font-size:.8rem;word-break:break-word}
+.summary-grid strong.good{display:flex;align-items:center;gap:.4rem;color:#72e6a2}
+.mini-dot{width:.4rem;height:.4rem;border-radius:50%;background:#48df89}
+.compact-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem}
 .steps{display:flex;gap:.5rem;list-style:none;margin:1rem 0;padding:0;flex-wrap:wrap}
-.steps li{display:flex;align-items:center;gap:.5rem;padding:.4rem .8rem;border:1px solid #332e39;border-radius:99px;color:#716a78;font-size:.8rem}
-.steps li span{display:grid;place-items:center;width:1.3rem;height:1.3rem;border-radius:50%;background:#2b2631;font-size:.7rem}
-.steps li.active{color:#f6f3fa;border-color:#fff}
+.steps li{display:flex;align-items:center;gap:.45rem;padding:.38rem .7rem;border:1px solid var(--border-strong);border-radius:99px;color:var(--text-subtle);font-size:.74rem}
+.steps li span{display:grid;place-items:center;width:1.2rem;height:1.2rem;border-radius:50%;background:var(--border);font-size:.75rem}
+.steps li.active{color:var(--text);border-color:#7445b1}
 .steps li.done{color:#7be0a8}
-.panel{padding:1rem;border:1px solid #2b2631;border-radius:.8rem;background:#0b0a0d}
-.how{margin:.5rem 0 1rem;padding-left:1.2rem;color:#c9c3d0;font-size:.85rem;line-height:1.6}
+.panel{margin-top:.8rem;padding:1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+h4{margin:0 0 .35rem;font-size:.9rem}
+.hint{color:var(--text-subtle);font-size:.78rem;margin:.2rem 0 .8rem;line-height:1.45}
+.hint.warn{color:#e9c46a}
+.advanced{margin-top:.8rem;border-top:1px solid var(--border);padding-top:.7rem}
+.advanced summary{cursor:pointer;color:#bfb5c8;font-size:.76rem;font-weight:700}
+.how{margin:.6rem 0 1rem;padding-left:1.2rem;color:#bcb4c4;font-size:.78rem;line-height:1.55}
 .how a,.hint a{color:#fff}
-code{padding:.1rem .35rem;border-radius:.35rem;background:#1c1922;font-size:.78rem;word-break:break-all}
-label{display:grid;gap:.35rem;color:#aaa4b1;font-size:.8rem;margin-bottom:.8rem}
-input{width:100%;border:1px solid #332e39;border-radius:.65rem;padding:.7rem;background:#100e14;color:#f6f3fa}
-button{border:0;border-radius:.7rem;padding:.65rem 1rem;background:#fff;color:#09080b;font-weight:800;cursor:pointer}
+code{padding:.1rem .35rem;border-radius:.35rem;background:#1c1922;font-size:.72rem;word-break:break-all}
+label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.78rem;margin:.8rem 0}
+input{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.72rem;background:var(--surface-card);color:var(--text)}
+input:focus{outline:none;border-color:#6741a1;box-shadow:0 0 0 3px rgba(103,65,161,.13)}
+button{border:0;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
-button.ghost{background:transparent;color:#f6f3fa;border:1px solid #332e39}
-button.danger{color:#ff8a8a}
-button.link{background:none;color:#aaa4b1;padding:.2rem 0;text-decoration:underline;font-weight:600;margin-left:.4rem}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border-strong)}
+button.danger{border-color:#552b34;color:#ff9d9d}
+button.link{background:none;color:var(--text-muted);padding:.2rem 0;text-decoration:underline;font-weight:600}
 .row{display:flex;gap:.6rem;flex-wrap:wrap}
-.foot{margin-top:1rem}
 .manual{margin-top:.8rem}
-.facts{display:grid;gap:.4rem;margin:0 0 1rem}
-.facts div{display:flex;gap:1rem;font-size:.85rem}
-.facts dt{width:6rem;color:#8c8594}
+.facts{display:grid;gap:.45rem;margin:.8rem 0 0}
+.facts div{display:flex;gap:1rem;font-size:.78rem}
+.facts dt{width:6rem;color:var(--text-subtle)}
 .facts dd{margin:0}
-.checks{list-style:none;margin:1rem 0 0;padding:0;display:grid;gap:.4rem;font-size:.85rem}
+.checks{list-style:none;margin:.8rem 0 0;padding:0;display:grid;gap:.4rem;font-size:.78rem}
 .checks .ok strong{color:#7be0a8}
 .checks .bad strong{color:#ff8a8a}
-.msg{margin:.8rem 0 0;font-size:.85rem}
+.msg{margin:.8rem 0 0;font-size:.78rem}
 .msg.ok{color:#7be0a8}
 .msg.bad{color:#ff8a8a}
-@media(max-width:650px){.head{flex-direction:column}button{width:100%}.row{flex-direction:column}}
+@media(max-width:700px){
+  .head{align-items:flex-start;flex-direction:column}
+  .summary-grid{grid-template-columns:1fr}
+  .compact-actions,.row{display:grid}
+  button{width:100%}
+}
 </style>

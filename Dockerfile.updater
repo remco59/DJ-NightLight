@@ -1,0 +1,16 @@
+# Self-update sidecar: git + Docker CLI with the Compose plugin, driven by a
+# dependency-free Node script. See docs/DEPLOYMENT.md → "Updates from Settings".
+FROM node:22-alpine
+
+RUN apk add --no-cache git docker-cli docker-cli-compose
+
+WORKDIR /updater
+COPY scripts/updater/ ./
+
+ENV NODE_ENV=production
+ENV PORT=8080
+EXPOSE 8080
+
+# Needs the Docker socket, so it runs as root; it is only reachable on the
+# private backend network and every request must carry UPDATER_TOKEN.
+CMD ["node", "server.mjs"]

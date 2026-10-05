@@ -3,6 +3,7 @@ import { clients, gigs, users, venues } from '../../../../db/schema'
 import { gigStatuses } from '../../../../shared/gig-rules'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner', 'manager', 'dj'])
@@ -56,7 +57,7 @@ export default defineEventHandler(async (event) => {
   const rows = await db
     .select({
       id: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       eventType: gigs.eventType,
       status: gigs.status,
       startsAt: gigs.startsAt,

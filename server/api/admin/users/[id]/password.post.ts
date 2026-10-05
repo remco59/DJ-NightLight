@@ -8,14 +8,14 @@ import { requireStaff } from '../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   const actor = await requireStaff(event, ['owner'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'User id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gebruikers-ID is verplicht' })
   if (id === actor.id) {
-    throw createError({ statusCode: 409, statusMessage: 'Use My account to change your own password' })
+    throw createError({ statusCode: 409, statusMessage: 'Wijzig je eigen wachtwoord via Mijn account' })
   }
 
   const input = await readValidatedBody(event, resetManagedUserPasswordSchema.parse)
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1)
-  if (!existing) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  if (!existing) throw createError({ statusCode: 404, statusMessage: 'Gebruiker niet gevonden' })
 
   const passwordHash = await hashPassword(input.password)
   await db.update(users).set({

@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const input = await readValidatedBody(event, createManagedUserSchema.parse)
 
   const [duplicate] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1)
-  if (duplicate) throw createError({ statusCode: 409, statusMessage: 'An account with this email already exists' })
+  if (duplicate) throw createError({ statusCode: 409, statusMessage: 'Er bestaat al een account met dit e-mailadres' })
 
   const passwordHash = await hashPassword(input.password)
   const [created] = await db.insert(users).values({
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     updatedAt: users.updatedAt,
   })
 
-  if (!created) throw createError({ statusCode: 500, statusMessage: 'Could not create account' })
+  if (!created) throw createError({ statusCode: 500, statusMessage: 'Account aanmaken is niet gelukt' })
 
   await recordAudit({
     userId: actor.id,

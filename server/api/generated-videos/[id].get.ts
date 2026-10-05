@@ -5,7 +5,7 @@ import { getGeneratedStorage } from '../../utils/media-storage'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Generated video id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'ID van de gegenereerde video is verplicht' })
 
   const [job] = await db.select({
     outputKey: videoRenderJobs.outputKey,
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   }).from(videoRenderJobs).where(eq(videoRenderJobs.id, id)).limit(1)
 
   if (!job || job.status !== 'completed' || !job.outputKey) {
-    throw createError({ statusCode: 404, statusMessage: 'Generated video not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Gegenereerde video niet gevonden' })
   }
 
   try {
@@ -25,6 +25,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'content-disposition', `inline; filename="nightlight-${id}.mp4"`)
     return data
   } catch {
-    throw createError({ statusCode: 404, statusMessage: 'Generated video file is missing' })
+    throw createError({ statusCode: 404, statusMessage: 'Bestand van de gegenereerde video ontbreekt' })
   }
 })

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { and, desc, eq, ne, sql } from 'drizzle-orm'
 import type Stripe from 'stripe'
 import { clients, invoices, payments } from '../../../../../db/schema'
@@ -5,7 +6,6 @@ import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { assertPortalRateLimit } from '../../../../utils/portal-rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
-import { stripeIntegrationIdentifier } from '../../../../utils/stripe'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
 export default defineEventHandler(async (event) => {
@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
   assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:checkout`)
   const access = await resolvePortalAccess(token)
-  if (!access) throw createError({ statusCode: 404, statusMessage: 'This portal link is invalid or expired' })
+  if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
 
   const [invoice] = await db.select({
     id: invoices.id, invoiceNumber: invoices.invoiceNumber, totalCents: invoices.totalCents, currency: invoices.currency,
@@ -27,17 +27,17 @@ export default defineEventHandler(async (event) => {
   }).from(invoices).leftJoin(clients, eq(invoices.clientId, clients.id)).where(and(
     eq(invoices.gigId, access.gigId), eq(invoices.status, 'finalized'), ne(invoices.paymentStatus, 'paid'),
   )).orderBy(desc(invoices.finalizedAt)).limit(1)
-  if (!invoice || !invoice.invoiceNumber) throw createError({ statusCode: 404, statusMessage: 'No payable invoice is available' })
-  if (invoice.totalCents <= 0) throw createError({ statusCode: 422, statusMessage: 'This invoice has no outstanding amount' })
+  if (!invoice || !invoice.invoiceNumber) throw createError({ statusCode: 404, statusMessage: 'Er is geen factuur om te betalen' })
+  if (invoice.totalCents <= 0) throw createError({ statusCode: 422, statusMessage: 'Op deze factuur staat geen bedrag meer open' })
 
   const [reserved] = await db.insert(payments).values({
     invoiceId: invoice.id, amountCents: invoice.totalCents, currency: invoice.currency, status: 'pending',
   }).onConflictDoNothing({ target: payments.invoiceId }).returning()
   const payment = reserved || (await db.select().from(payments).where(eq(payments.invoiceId, invoice.id)).limit(1))[0]
-  if (!payment) throw createError({ statusCode: 500, statusMessage: 'Could not reserve payment' })
-  if (payment.status === 'succeeded') throw createError({ statusCode: 409, statusMessage: 'This invoice is already paid' })
+  if (!payment) throw createError({ statusCode: 500, statusMessage: 'Betaling reserveren is niet gelukt' })
+  if (payment.status === 'succeeded') throw createError({ statusCode: 409, statusMessage: 'Deze factuur is al betaald' })
 
-  if (!invoice.clientId) throw createError({ statusCode: 422, statusMessage: 'This invoice has no client' })
+  if (!invoice.clientId) throw createError({ statusCode: 422, statusMessage: 'Deze factuur heeft geen klant' })
   const { stripe, customerId } = await ensureStripeCustomer({
     id: invoice.clientId,
     stripeCustomerId: invoice.clientStripeCustomerId,
@@ -57,7 +57,6 @@ export default defineEventHandler(async (event) => {
   const attempt = payment.attemptCount + 1
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
-    integration_identifier: stripeIntegrationIdentifier(),
     line_items: [{
       price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
@@ -80,8 +79,25 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `nightlight-${payment.id}-${attempt}` })
-  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL' })
+  const createSession = (sessionParams: Stripe.Checkout.SessionCreateParams, suffix = '') =>
+    stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `nightlight-${payment.id}-${attempt}${suffix}-${createHash('sha256').update(JSON.stringify(sessionParams)).digest('hex').slice(0, 12)}` })
+  let session: Stripe.Checkout.Session
+  try {
+    try {
+      session = await createSession(params)
+    } catch (error) {
+      // Bank transfer may not be enabled on the Stripe account; retry with card + iDEAL only.
+      if (!(error instanceof Error) || (error as { type?: string }).type !== 'StripeInvalidRequestError' || !params.payment_method_options) throw error
+      console.error('[checkout] Stripe rejected session with bank transfer, retrying without it:', error.message)
+      const { payment_method_options: _omit, ...rest } = params
+      session = await createSession({ ...rest, payment_method_types: ['card', 'ideal'] }, '-nobt')
+    }
+  } catch (error) {
+    console.error('[checkout] Stripe checkout session failed:', error)
+    const code = (error as { code?: string, type?: string })?.code || (error as { type?: string })?.type || 'unknown'
+    throw createError({ statusCode: 502, statusMessage: `De betaalpagina kon niet worden aangemaakt. Probeer het later opnieuw. (${code})` })
+  }
+  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe gaf geen checkout-URL terug' })
 
   await db.update(payments).set({
     providerSessionId: session.id, attemptCount: sql`${payments.attemptCount} + 1`,

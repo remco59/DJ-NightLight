@@ -11,12 +11,12 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) {
     throw createError({
       statusCode: 422,
-      statusMessage: parsed.error.issues[0]?.message || 'Invalid password change request',
+      statusMessage: parsed.error.issues[0]?.message || 'Ongeldig verzoek om het wachtwoord te wijzigen',
     })
   }
 
   if (!user.passwordHash || !(await verifyPassword(user.passwordHash, parsed.data.currentPassword))) {
-    throw createError({ statusCode: 400, statusMessage: 'Current password is incorrect.' })
+    throw createError({ statusCode: 400, statusMessage: 'Het huidige wachtwoord is onjuist.' })
   }
 
   const passwordHash = await hashPassword(parsed.data.newPassword)
@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
       })
 
     if (!updatedUser) {
-      throw createError({ statusCode: 500, statusMessage: 'Could not update password' })
+      throw createError({ statusCode: 500, statusMessage: 'Wachtwoord bijwerken is niet gelukt' })
     }
 
     await tx.insert(auditLogs).values({

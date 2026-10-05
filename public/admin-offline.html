@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a090d">
+  <title>Offline · NightLight</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: #0a090d; color: #f4f1f8; font: 16px/1.5 system-ui, sans-serif; text-align: center; }
+    main { max-width: 26rem; }
+    h1 { margin: 0 0 .5rem; font-size: 1.4rem; }
+    p { margin: 0 0 1.25rem; color: #b9b2c6; }
+    a, button { display: inline-block; margin: .25rem; padding: .7rem 1.1rem; border: 1px solid #4b3a78; border-radius: .6rem; background: #17141c; color: inherit; font: inherit; text-decoration: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Je bent offline</h1>
+    <p>Deze pagina is niet beschikbaar zonder verbinding. Gigs die je eerder hebt bekeken kun je nog wel openen.</p>
+    <a href="/admin/gigs">Naar gigs</a>
+    <button type="button" onclick="location.reload()">Opnieuw proberen</button>
+  </main>
+</body>
+</html>

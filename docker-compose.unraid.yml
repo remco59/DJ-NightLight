@@ -92,10 +92,20 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       STORAGE_UPLOADS: /app/storage/uploads
       STORAGE_GENERATED: /app/storage/generated
+      STORAGE_LIBRARY: ${MEDIA_LIBRARY_PATH:+/app/storage/library}
       REMOTION_BROWSER_EXECUTABLE: /usr/bin/chromium
+      RENDER_VIDEO_BITRATE: ${RENDER_VIDEO_BITRATE:-10M}
     volumes:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads:ro
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
+      - ${MEDIA_LIBRARY_PATH:-${APP_DATA_ROOT}/library}:/app/storage/library:ro
+      # Intel GPU for VAAPI encoding. A bind mount (not `devices:`) keeps the
+      # worker starting on hosts without /dev/dri; the worker detects whether a
+      # usable GPU is present and offers it in Settings. Docker Desktop (macOS,
+      # Windows) cannot share /dev: set NIGHTLIGHT_DRI_PATH to an empty folder.
+      - ${NIGHTLIGHT_DRI_PATH:-/dev/dri}:/dev/dri
+    device_cgroup_rules:
+      - "c 226:* rmw"
     depends_on:
       db:
         condition: service_healthy
@@ -105,6 +115,39 @@ services:
         condition: service_completed_successfully
     networks:
       - backend
+
+  updater:
+    # Self-update sidecar for Admin → Settings → Software-updates. It pulls the
+    # checkout and rebuilds/restarts the other services through the Docker
+    # socket. NIGHTLIGHT_REPO_PATH must be the absolute host path of this
+    # checkout (it is mounted at the same path so Compose resolves relative
+    # paths identically) and NIGHTLIGHT_ENV_FILE the absolute path of the env
+    # file this stack is started with. See docs/DEPLOYMENT.md.
+    build:
+      context: .
+      dockerfile: Dockerfile.updater
+    restart: unless-stopped
+    environment:
+      UPDATER_TOKEN: ${UPDATER_TOKEN:-}
+      UPDATER_BRANCH: ${UPDATER_BRANCH:-main}
+      UPDATER_GIT_TOKEN: ${UPDATER_GIT_TOKEN:-}
+      UPDATER_REMOTE_URL: ${UPDATER_REMOTE_URL:-}
+      UPDATER_STATE_DIR: /state
+      UPDATER_COMPOSE_ENV_FILE: /run/nightlight/compose.env
+      UPDATER_WEB_HEALTH_URL: http://web:3000/api/health
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:${NIGHTLIGHT_REPO_PATH:-/nightlight-repo-path-not-set}
+      - ${NIGHTLIGHT_ENV_FILE:-/dev/null}:/run/nightlight/compose.env:ro
+      - ${APP_DATA_ROOT}/updater:/state
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend
+      - egress
 
   web:
     build:
@@ -141,12 +184,17 @@ services:
       NUXT_STORAGE_UPLOADS: /app/storage/uploads
       NUXT_STORAGE_GENERATED: /app/storage/generated
       NUXT_STORAGE_BACKUPS: /app/storage/backups
+      # Server media folder, linked in place (never copied). Set MEDIA_LIBRARY_PATH to enable.
+      NUXT_STORAGE_LIBRARY: ${MEDIA_LIBRARY_PATH:+/app/storage/library}
+      NUXT_UPDATER_URL: http://updater:8080
+      NUXT_UPDATER_TOKEN: ${UPDATER_TOKEN:-}
     ports:
       - "127.0.0.1:${APP_PORT:-3080}:3000"
     volumes:
       - ${APP_DATA_ROOT}/uploads:/app/storage/uploads
       - ${APP_DATA_ROOT}/generated:/app/storage/generated
       - ${APP_DATA_ROOT}/backups:/app/storage/backups:ro
+      - ${MEDIA_LIBRARY_PATH:-${APP_DATA_ROOT}/library}:/app/storage/library:ro
     depends_on:
       db:
         condition: service_healthy
@@ -167,6 +215,9 @@ services:
 networks:
   backend:
     internal: true
+  # Outbound access for the updater (git fetch from GitHub). The backend
+  # network is internal-only.
+  egress: {}
   proxy:
     name: ${PROXY_NETWORK:-proxynet}
     external: true

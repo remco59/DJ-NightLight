@@ -13,13 +13,13 @@ function objectId(value: string | { id: string } | null) {
 export default defineEventHandler(async (event) => {
   const signature = getHeader(event, 'stripe-signature')
   const rawBody = await readRawBody(event)
-  if (!signature || rawBody === undefined) throw createError({ statusCode: 400, statusMessage: 'Invalid webhook request' })
+  if (!signature || rawBody === undefined) throw createError({ statusCode: 400, statusMessage: 'Ongeldig webhookverzoek' })
 
   let stripeEvent: Stripe.Event
   try {
     stripeEvent = (await getStripeClient()).webhooks.constructEvent(rawBody, signature, await getStripeWebhookSecret())
   } catch {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid Stripe signature' })
+    throw createError({ statusCode: 400, statusMessage: 'Ongeldige Stripe-handtekening' })
   }
 
   const outcome = checkoutPaymentOutcome(

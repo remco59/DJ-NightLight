@@ -16,7 +16,7 @@ export async function validateGigAssignee(userId: string | null) {
     .limit(1)
 
   if (!dj) {
-    throw createError({ statusCode: 422, statusMessage: 'Assigned user must be an active DJ' })
+    throw createError({ statusCode: 422, statusMessage: 'De toegewezen gebruiker moet een actieve DJ zijn' })
   }
 
   return dj.id

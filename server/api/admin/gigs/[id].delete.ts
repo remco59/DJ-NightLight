@@ -4,19 +4,20 @@ import { gigRemovalMode } from '../../../../shared/gig-rules'
 import { recordAudit } from '../../../utils/audit'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
+import { gigTitleSql } from '../../../utils/gig-title'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
   const id = getRouterParam(event, 'id')
-  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
-  const [gig] = await db.select({ id: gigs.id, status: gigs.status, title: gigs.title }).from(gigs).where(eq(gigs.id, id)).limit(1)
-  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig not found' })
+  const [gig] = await db.select({ id: gigs.id, status: gigs.status, title: gigTitleSql() }).from(gigs).where(eq(gigs.id, id)).limit(1)
+  if (!gig) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   if (gig.status !== 'declined') {
     throw createError({
       statusCode: 409,
-      statusMessage: 'Only declined gigs can be removed',
+      statusMessage: 'Alleen afgewezen gigs kunnen worden verwijderd',
     })
   }
 

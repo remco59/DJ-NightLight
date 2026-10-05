@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 import { clients, gigs, invoiceLineItems, invoices, payments } from '../../db/schema'
 import { db } from './db'
+import { gigTitleSql } from './gig-title'
 
 export async function getInvoiceDetail(id: string) {
   const [invoice] = await db.select({
@@ -28,7 +29,7 @@ export async function getInvoiceDetail(id: string) {
     replacementForInvoiceId: invoices.replacementForInvoiceId,
     createdAt: invoices.createdAt,
     updatedAt: invoices.updatedAt,
-    gigTitle: gigs.title,
+    gigTitle: gigTitleSql(),
     gigStartsAt: gigs.startsAt,
     clientType: clients.type,
     clientFirstName: clients.firstName,

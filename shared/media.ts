@@ -10,7 +10,7 @@ function readUInt24LE(buffer: Uint8Array, offset: number) {
 }
 
 export function inspectImage(buffer: Uint8Array): ImageInfo {
-  if (buffer.length < 24) throw new Error('Image is too small')
+  if (buffer.length < 24) throw new Error('De afbeelding is te klein')
 
   if (
     buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
@@ -19,7 +19,7 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
     const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
     const width = view.getUint32(16)
     const height = view.getUint32(20)
-    if (!width || !height) throw new Error('Invalid PNG dimensions')
+    if (!width || !height) throw new Error('Ongeldige PNG-afmetingen')
     return { mimeType: 'image/png', extension: 'png', width, height }
   }
 
@@ -36,12 +36,12 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
       if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
         const height = (buffer[offset + 3]! << 8) | buffer[offset + 4]!
         const width = (buffer[offset + 5]! << 8) | buffer[offset + 6]!
-        if (!width || !height) throw new Error('Invalid JPEG dimensions')
+        if (!width || !height) throw new Error('Ongeldige JPEG-afmetingen')
         return { mimeType: 'image/jpeg', extension: 'jpg', width, height }
       }
       offset += length
     }
-    throw new Error('JPEG dimensions could not be read')
+    throw new Error('De JPEG-afmetingen konden niet worden gelezen')
   }
 
   const ascii = (start: number, length: number) => String.fromCharCode(...buffer.slice(start, start + length))
@@ -72,10 +72,10 @@ export function inspectImage(buffer: Uint8Array): ImageInfo {
         height: (buffer[28]! | (buffer[29]! << 8)) & 0x3fff,
       }
     }
-    throw new Error('Unsupported WebP encoding')
+    throw new Error('Niet-ondersteunde WebP-codering')
   }
 
-  throw new Error('Only JPEG, PNG and WebP images are supported')
+  throw new Error('Alleen JPEG-, PNG- en WebP-afbeeldingen worden ondersteund')
 }
 
 export function normalizeTags(value: string | string[]) {
@@ -85,4 +85,69 @@ export function normalizeTags(value: string | string[]) {
 
 export function mediaUrl(id: string, variant: 'original' | 'thumb' = 'original') {
   return `/api/media/${id}${variant === 'thumb' ? '?variant=thumb' : ''}`
+}
+
+export type TimedMediaInfo = {
+  kind: 'video' | 'audio'
+  mimeType: 'video/mp4' | 'video/quicktime' | 'video/webm' | 'audio/mpeg' | 'audio/mp4' | 'audio/wav' | 'audio/ogg'
+  extension: 'mp4' | 'mov' | 'webm' | 'mp3' | 'm4a' | 'wav' | 'ogg'
+}
+
+/** Detects the supported video and audio containers from their magic bytes. */
+export function inspectTimedMedia(buffer: Uint8Array): TimedMediaInfo {
+  if (buffer.length < 16) throw new Error('Het mediabestand is te klein')
+  const ascii = (start: number, length: number) => String.fromCharCode(...buffer.slice(start, start + length))
+
+  if (ascii(4, 4) === 'ftyp') {
+    const brand = ascii(8, 4)
+    if (brand === 'qt  ') return { kind: 'video', mimeType: 'video/quicktime', extension: 'mov' }
+    if (brand === 'M4A ' || brand === 'M4B ') return { kind: 'audio', mimeType: 'audio/mp4', extension: 'm4a' }
+    return { kind: 'video', mimeType: 'video/mp4', extension: 'mp4' }
+  }
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) {
+    return { kind: 'video', mimeType: 'video/webm', extension: 'webm' }
+  }
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WAVE') return { kind: 'audio', mimeType: 'audio/wav', extension: 'wav' }
+  if (ascii(0, 4) === 'OggS') return { kind: 'audio', mimeType: 'audio/ogg', extension: 'ogg' }
+  if (ascii(0, 3) === 'ID3' || (buffer[0] === 0xff && (buffer[1]! & 0xe0) === 0xe0)) {
+    return { kind: 'audio', mimeType: 'audio/mpeg', extension: 'mp3' }
+  }
+
+  throw new Error('Alleen MP4-, MOV-, WebM-, MP3-, M4A-, WAV- en OGG-bestanden worden ondersteund')
+}
+
+export function mediaKindFromMime(mimeType: string): 'image' | 'video' | 'audio' {
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  return 'image'
+}
+
+export type MediaAssetMetadata = {
+  /** Normalised 0..1 audio peaks for timeline waveforms. */
+  peaks?: number[]
+  fps?: number
+  hasAudio?: boolean
+  /** Where a `url`-sourced asset was fetched from. */
+  sourceUrl?: string
+}
+
+/**
+ * How an asset entered the library: uploaded by hand, fetched from a URL,
+ * rendered by a NightLight generator, an edit (crop, enhanced export) of
+ * another asset, or linked in place from the server's media folder (`library`).
+ */
+export const MEDIA_SOURCES = ['upload', 'url', 'generated', 'derived', 'library'] as const
+export type MediaSource = typeof MEDIA_SOURCES[number]
+
+export function isMediaSource(value: unknown): value is MediaSource {
+  return typeof value === 'string' && (MEDIA_SOURCES as readonly string[]).includes(value)
+}
+
+/** `JDS_0119.jpg` → `JDS 0119`: a readable default title from a filename. */
+export function humanizeFilename(filename: string) {
+  return filename
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

@@ -8,6 +8,7 @@ import {
 } from '../../shared/calendar'
 import { db } from './db'
 import { googleCalendarFetch } from './google-calendar'
+import { gigTitleSql } from './gig-title'
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message.slice(0, 1500) : String(error).slice(0, 1500)
@@ -15,7 +16,7 @@ function errorText(error: unknown) {
 
 async function googleError(response: Response) {
   const body = (await response.text()).slice(0, 800)
-  return new Error(`Google Calendar request failed (${response.status}): ${body || response.statusText}`)
+  return new Error(`Verzoek aan Google Calendar mislukt (${response.status}): ${body || response.statusText}`)
 }
 
 export async function getCalendarSyncSettings() {
@@ -23,7 +24,7 @@ export async function getCalendarSyncSettings() {
   if (!settings) {
     [settings] = await db.insert(calendarSyncSettings).values({ key: 'default' }).returning()
   }
-  if (!settings) throw new Error('Calendar sync settings could not be loaded')
+  if (!settings) throw new Error('Instellingen voor agendasynchronisatie konden niet worden geladen')
   return settings
 }
 
@@ -48,7 +49,7 @@ async function loadGig(gigId: string) {
   const [row] = await db
     .select({
       id: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       eventType: gigs.eventType,
       status: gigs.status,
       startsAt: gigs.startsAt,
@@ -67,7 +68,7 @@ async function loadGig(gigId: string) {
 }
 
 function eventPayload(gig: NonNullable<Awaited<ReturnType<typeof loadGig>>>, cancelled = false) {
-  if (!gig.startsAt) throw new Error('Booked gig has no start time')
+  if (!gig.startsAt) throw new Error('De geboekte gig heeft geen starttijd')
   const start = new Date(gig.startsAt)
   const end = gig.endsAt ? new Date(gig.endsAt) : new Date(start.getTime() + 60 * 60 * 1000)
   const venue = [gig.venueName, gig.venueAddress, gig.venueCity].filter(Boolean).join(', ')

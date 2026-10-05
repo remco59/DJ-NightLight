@@ -7,7 +7,7 @@ import { requireStaff } from '../../../../../utils/require-staff'
 export default defineEventHandler(async (event) => {
   await requireStaff(event)
   const gigId = getRouterParam(event, 'id')
-  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig id is required' })
+  if (!gigId) throw createError({ statusCode: 400, statusMessage: 'Gig-ID is verplicht' })
 
   const rows = await db.select({
     id: portalLinks.id,

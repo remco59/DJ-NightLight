@@ -1,97 +1,86 @@
 <script setup lang="ts">
-import type { StaffRole } from '~~/shared/auth'
+import AdminNav from '~/components/admin/AdminNav.vue'
+import { worksOffline } from '~~/shared/offline-routes'
 
 const route = useRoute()
-const { user, clear } = useUserSession()
-const mobileOpen = ref(false)
 
-type NavItem = { label:string;to:string;roles:readonly StaffRole[] }
-type NavGroup = { label:string;items:NavItem[] }
-
-const allRoles: readonly StaffRole[] = ['owner','manager','dj','content_editor']
-const groups: NavGroup[] = [
-  { label:'Overview', items:[{label:'Dashboard',to:'/admin',roles:allRoles}] },
-  { label:'Operations', items:[
-    {label:'Gigs',to:'/admin/gigs',roles:['owner','manager','dj']},
-    {label:'Clients',to:'/admin/clients',roles:['owner','manager']},
-    {label:'Venues',to:'/admin/venues',roles:['owner','manager']},
-    {label:'Calendar',to:'/admin/calendar',roles:['owner','manager']},
-    {label:'Email',to:'/admin/email',roles:['owner','manager']},
-    {label:'Client portal',to:'/admin/questionnaire',roles:['owner','manager']},
-  ]},
-  { label:'Content', items:[
-    {label:'Media',to:'/admin/media',roles:['owner','content_editor']},
-    {label:'Website',to:'/admin/content',roles:['owner','content_editor']},
-    {label:'Landing pages',to:'/admin/landing-pages',roles:['owner','content_editor']},
-    {label:'Post generator',to:'/admin/post-generator',roles:['owner','content_editor']},
-  ]},
-  { label:'System', items:[
-    {label:'Production status',to:'/admin/system',roles:['owner']},
-    {label:'Users',to:'/admin/users',roles:['owner']},
-    {label:'Settings',to:'/admin/settings',roles:['owner']},
-    {label:'My account',to:'/admin/account',roles:allRoles},
-  ]},
-]
-
-const visibleGroups = computed(() => {
-  const role = user.value?.role as StaffRole | undefined
-  if (!role) return []
-  return groups
-    .map(group => ({...group,items:group.items.filter(item=>item.roles.includes(role))}))
-    .filter(group=>group.items.length)
+// Installable admin app: the manifest is scoped to /admin, so only the admin layout links it.
+useHead({
+  link: [
+    { rel: 'manifest', href: '/admin.webmanifest' },
+    { rel: 'apple-touch-icon', href: '/pwa/apple-touch-icon.png' },
+  ],
+  meta: [
+    { name: 'theme-color', content: '#0a090d' },
+    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    { name: 'apple-mobile-web-app-title', content: 'NightLight' },
+  ],
 })
 
-function isActive(to:string){return to==='/admin'?route.path===to:route.path.startsWith(to)}
-async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await clear();await navigateTo('/admin/login')}
+// Offline: only gig pages keep working (from the service worker cache); anything else is replaced by an offline notice.
+const online = useOnline()
+const blocked = computed(() => !online.value && !worksOffline(route.path))
+const mobileOpen = ref(false)
+const sidebar = ref<HTMLElement | null>(null)
+const menuButton = ref<HTMLButtonElement | null>(null)
+
+// On a phone the sidebar is an off-canvas drawer: while closed it must not be
+// reachable with Tab, and while open Escape closes it again.
+const isCompact = ref(false)
+let media: MediaQueryList | null = null
+function syncCompact() { isCompact.value = Boolean(media?.matches) }
+onMounted(() => {
+  media = window.matchMedia('(max-width: 820px)')
+  syncCompact()
+  media.addEventListener('change', syncCompact)
+})
+onBeforeUnmount(() => media?.removeEventListener('change', syncCompact))
+const sidebarHidden = computed(() => isCompact.value && !mobileOpen.value)
+
+watch(mobileOpen, async (open) => {
+  if (!isCompact.value) return
+  await nextTick()
+  if (open) sidebar.value?.querySelector<HTMLElement>('a, button')?.focus()
+  else menuButton.value?.focus()
+})
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && mobileOpen.value) mobileOpen.value = false
+}
+
 watch(()=>route.path,()=>{mobileOpen.value=false})
 </script>
 
 <template>
-  <div class="admin-shell">
+  <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }" @keydown="onKeydown">
+    <a class="skip-link" href="#main">Naar de inhoud</a>
     <header class="mobile-header">
-      <NuxtLink to="/admin" class="brand">NightLight</NuxtLink>
-      <button class="menu-button" type="button" :aria-expanded="mobileOpen" aria-label="Menu openen" @click="mobileOpen = !mobileOpen">
-        {{ mobileOpen ? 'Sluiten' : 'Menu' }}
+      <button
+        ref="menuButton"
+        class="menu-button"
+        type="button"
+        :aria-expanded="mobileOpen"
+        :aria-label="mobileOpen ? 'Menu sluiten' : 'Menu openen'"
+        @click="mobileOpen = !mobileOpen"
+      >
+        <Icon :name="mobileOpen ? 'lucide:x' : 'lucide:menu'" aria-hidden="true" />
       </button>
+      <NuxtLink to="/admin" class="brand" aria-label="NightLight">
+        <img class="brand-logo" src="/brand/logo/wordmark-thumb.webp" alt="DJ NightLight">
+      </NuxtLink>
     </header>
 
-    <aside class="sidebar" :class="{ open: mobileOpen }">
-      <div class="sidebar-top">
-        <NuxtLink to="/admin" class="brand">
-          <span class="brand-mark">NL</span>
-          <span>
-            <strong>NightLight</strong>
-            <small>Back office</small>
-          </span>
-        </NuxtLink>
-      </div>
-
-      <nav class="nav" aria-label="Admin navigatie">
-        <section v-for="group in visibleGroups" :key="group.label" class="nav-group">
-          <p>{{ group.label }}</p>
-          <NuxtLink
-            v-for="item in group.items"
-            :key="item.to"
-            :to="item.to"
-            class="nav-link"
-            :class="{ active: isActive(item.to) }"
-          >
-            {{ item.label }}
-          </NuxtLink>
-        </section>
-      </nav>
-
-      <div class="account">
-        <div>
-          <strong>{{ user?.name || 'DJ NightLight' }}</strong>
-          <small>{{ user?.email }}</small>
-        </div>
-        <button type="button" @click="logout">Uitloggen</button>
-      </div>
+    <aside ref="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="sidebarHidden || undefined" :aria-hidden="sidebarHidden || undefined">
+      <AdminNav />
     </aside>
 
-    <main class="admin-main">
-      <slot />
+    <div v-if="!online" class="offline-banner" role="status">
+      <Icon name="lucide:wifi-off" aria-hidden="true" />
+      Offline — je ziet de laatst opgehaalde gigs. Aanmaken en wijzigen kan alleen met verbinding.
+    </div>
+
+    <main id="main" class="admin-main" tabindex="-1" :inert="(isCompact && mobileOpen) || undefined">
+      <AdminOfflineNotice v-if="blocked" />
+      <slot v-else />
     </main>
 
     <button
@@ -108,78 +97,29 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 .admin-shell {
   min-height: 100vh;
   background: #0a090d;
-  color: #f6f3fa;
+  color: var(--text);
 }
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  z-index: 30;
+  z-index: var(--z-drawer);
   width: 17rem;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #26222c;
   background: #0e0c12;
 }
-.sidebar-top { padding: 1.35rem 1.25rem 1rem; }
 .brand {
   display: flex;
   align-items: center;
-  gap: .8rem;
   text-decoration: none;
 }
-.brand-mark {
-  display: grid;
-  width: 2.35rem;
-  height: 2.35rem;
-  place-items: center;
-  border-radius: .7rem;
-  background: #fff;
-  color: #0b0910;
-  font-size: .75rem;
-  font-weight: 900;
-}
-.brand strong, .brand small { display: block; }
-.brand small { margin-top: .1rem; color: #817b8b; font-size: .72rem; }
-.nav {
-  flex: 1;
-  overflow: auto;
-  padding: .4rem .75rem 1rem;
-}
-.nav-group { margin-top: 1rem; }
-.nav-group p {
-  margin: 0 .65rem .35rem;
-  color: #6f6978;
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.nav-link {
-  display: block;
-  margin: .12rem 0;
-  padding: .62rem .7rem;
-  border-radius: .65rem;
-  color: #b8b2c1;
-  text-decoration: none;
-  font-size: .9rem;
-}
-.nav-link:hover { background: #17141c; color: #fff; }
-.nav-link.active { background: #201b29; color: #fff; }
-.account {
-  display: grid;
-  gap: .7rem;
-  padding: 1rem 1.25rem 1.2rem;
-  border-top: 1px solid #26222c;
-}
-.account strong, .account small { display: block; overflow: hidden; text-overflow: ellipsis; }
-.account small { margin-top: .2rem; color: #817b8b; font-size: .72rem; }
-.account button {
-  justify-self: start;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #a9a2b3;
-  cursor: pointer;
+.brand-logo {
+  width: 8.75rem;
+  max-width: 42vw;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 .75rem rgba(137, 79, 255, .18));
 }
 .admin-main {
   min-height: 100vh;
@@ -187,25 +127,67 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 4rem;
 }
 .mobile-header, .backdrop { display: none; }
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  margin-left: 17rem;
+  padding: .55rem 1rem;
+  background: #3a2a05;
+  border-bottom: 1px solid #6b4e0a;
+  color: #ffe7a8;
+  font-size: .85rem;
+}
+.admin-main:focus { outline: none; }
+
+/* The post editor is a viewport-height workspace: the page itself does not
+   scroll, the editor's panels do. */
+.post-editor-route {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.post-editor-route .admin-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 1.25rem clamp(1rem, 2vw, 1.75rem) 1rem;
+}
 
 @media (max-width: 820px) {
   .mobile-header {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: var(--z-sticky);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: .75rem;
     padding: .9rem 1rem;
     border-bottom: 1px solid #26222c;
     background: rgba(14, 12, 18, .94);
     backdrop-filter: blur(14px);
   }
-  .mobile-header .brand { font-weight: 800; }
+  .mobile-header .brand { min-height: 2.75rem; }
   .menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
     border: 1px solid #302b38;
     border-radius: .6rem;
-    padding: .5rem .7rem;
+    padding: 0;
     background: #17141c;
     color: inherit;
   }
@@ -216,13 +198,28 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   }
   .sidebar.open { transform: translateX(0); }
   .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  .offline-banner { margin-left: 0; }
+  /* Touch-sized controls on a phone (the post editor sizes its own). */
+  .admin-shell:not(.post-editor-route) .admin-main :deep(:is(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]))) { min-height: 2.75rem; }
+  .post-editor-route .admin-main { padding-top: 1rem; }
   .backdrop {
     position: fixed;
     inset: 0;
-    z-index: 25;
+    z-index: calc(var(--z-drawer) - 5);
     display: block;
     border: 0;
     background: rgba(0, 0, 0, .58);
+  }
+}
+
+/* Phone post editor: full-screen, with its own header instead of the admin one. */
+@media (max-width: 720px) {
+  .post-editor-route .mobile-header { display: none; }
+  .post-editor-route .admin-main {
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    padding: .5rem .6rem 0;
   }
 }
 </style>

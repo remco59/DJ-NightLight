@@ -11,7 +11,7 @@ export const venueInputSchema = z.object({
     if (!value) return null
     const parsed = z.email().safeParse(value)
     if (!parsed.success) {
-      ctx.addIssue({ code: 'custom', message: 'Invalid email address' })
+      ctx.addIssue({ code: 'custom', message: 'Ongeldig e-mailadres' })
       return z.NEVER
     }
     return parsed.data.toLowerCase()
@@ -21,7 +21,7 @@ export const venueInputSchema = z.object({
     if (!value) return null
     const parsed = z.url().safeParse(value)
     if (!parsed.success) {
-      ctx.addIssue({ code: 'custom', message: 'Invalid website URL' })
+      ctx.addIssue({ code: 'custom', message: 'Ongeldige website-URL' })
       return z.NEVER
     }
     return parsed.data

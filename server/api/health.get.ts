@@ -12,7 +12,7 @@ export default defineEventHandler(async () => {
   } catch (error) {
     throw createError({
       statusCode: 503,
-      statusMessage: 'Service Unavailable',
+      statusMessage: 'Dienst niet beschikbaar',
       data: {
         status: 'unhealthy',
         database: 'disconnected',

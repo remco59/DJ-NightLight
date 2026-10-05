@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const gig = await db.transaction(async (tx) => {
     const [created] = await tx.insert(gigs).values({ ...gigValues, assignedUserId: validAssignee }).returning()
-    if (!created) throw createError({ statusCode: 500, statusMessage: 'Could not create gig' })
+    if (!created) throw createError({ statusCode: 500, statusMessage: 'Gig aanmaken is niet gelukt' })
 
     if (contacts.length) {
       await tx.insert(gigContacts).values(contacts.map(contact => ({ ...contact, gigId: created.id })))

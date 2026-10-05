@@ -8,8 +8,10 @@ ARG NIGHTLIGHT_GID=10001
 ENV REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium
 ENV HOME=/tmp
 
+# intel-media-va-driver gives Debian's FFmpeg VAAPI access to Intel GPUs; the
+# worker detects at runtime whether a usable GPU is actually present.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends chromium ffmpeg ca-certificates fonts-liberation \
+  && apt-get install -y --no-install-recommends chromium ffmpeg ca-certificates fonts-liberation intel-media-va-driver vainfo \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
@@ -19,10 +21,28 @@ ENV NODE_ENV=production
 
 COPY . .
 
+# Remotion's binariesDirectory must hold its whole native compositor runtime,
+# including the bundled libav*.so libraries the `remotion` binary links against.
+# Copy the platform package and swap only ffmpeg/ffprobe for the system,
+# VAAPI-enabled builds. Only x64 has the Intel VAAPI path.
+RUN if [ -d node_modules/@remotion/compositor-linux-x64-gnu ]; then \
+      mkdir -p /opt/nightlight-intel-ffmpeg \
+      && cp -a node_modules/@remotion/compositor-linux-x64-gnu/. /opt/nightlight-intel-ffmpeg/ \
+      && cp docker/ffmpeg-intel/ffmpeg /opt/nightlight-intel-ffmpeg/ffmpeg \
+      && chmod 755 /opt/nightlight-intel-ffmpeg/ffmpeg /opt/nightlight-intel-ffmpeg/remotion \
+      && ln -sf /usr/bin/ffprobe /opt/nightlight-intel-ffmpeg/ffprobe \
+      && if ldd /opt/nightlight-intel-ffmpeg/remotion | grep -q 'not found'; then \
+           ldd /opt/nightlight-intel-ffmpeg/remotion; exit 1; \
+         fi; \
+    fi
+
 RUN groupadd --gid "${NIGHTLIGHT_GID}" nightlight \
   && useradd --uid "${NIGHTLIGHT_UID}" --gid "${NIGHTLIGHT_GID}" --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin nightlight \
   && mkdir -p /app/storage/uploads /app/storage/generated \
-  && chown -R nightlight:nightlight /app/storage
+  && chown -R nightlight:nightlight /app/storage \
+  && chmod 755 /app/docker/render-worker-entrypoint.sh
 
-USER nightlight
+# The entrypoint starts as root only to add the GPU's group, then runs the
+# worker as the unprivileged nightlight user.
+ENTRYPOINT ["/app/docker/render-worker-entrypoint.sh"]
 CMD ["npm", "run", "worker:video"]
