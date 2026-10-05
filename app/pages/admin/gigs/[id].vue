@@ -34,6 +34,7 @@ function activityDate(value:string){return new Intl.DateTimeFormat('nl-NL',{date
 function invoiceDate(value:string){return new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(`${value}T12:00:00`))}
 function money(cents:number,currency:string){return new Intl.NumberFormat('nl-NL',{style:'currency',currency}).format(cents/100)}
 function stripeLabel(invoice:InvoiceSummary){
+  if(invoice.paymentProvider==='manual'&&invoice.paymentStatus==='paid')return 'Handmatig als betaald gemarkeerd'
   if(invoice.paymentStatus==='paid'||invoice.stripeStatus==='succeeded')return 'Betaald via Stripe'
   if(invoice.stripeStatus==='pending'||invoice.paymentStatus==='pending')return 'Stripe-betaling in afwachting'
   if(invoice.stripeStatus==='failed'||invoice.paymentStatus==='failed')return 'Stripe-betaling mislukt'
@@ -264,7 +265,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
       <span>{{invoice.status==='draft'?'Concept':`Uitgegeven ${invoiceDate(invoice.issueDate)} · vervalt ${invoiceDate(invoice.dueDate)}`}}</span>
     </div>
     <div class="invoice-statuses">
-      <AdminStatusChip v-if="invoice.status==='finalized'" kind="payment" :status="invoice.paymentStatus" /><AdminStatusChip v-else kind="invoice" :status="invoice.status" />
+      <AdminStatusChip v-if="invoice.status==='finalized'" kind="payment" :status="invoice.paymentStatus" :provider="invoice.paymentProvider" /><AdminStatusChip v-else kind="invoice" :status="invoice.status" />
       <span class="stripe-state" :data-state="invoice.stripeStatus||invoice.paymentStatus">{{stripeLabel(invoice)}}</span>
     </div>
     <strong class="invoice-total">{{money(invoice.totalCents,invoice.currency)}}</strong>

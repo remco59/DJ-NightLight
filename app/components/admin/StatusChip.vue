@@ -6,6 +6,8 @@ import { gigStatusLabels, invoiceStatusLabels, labelFor, paymentStatusLabels } f
 const props = defineProps<{
   kind: 'gig' | 'invoice' | 'payment'
   status: string
+  /** Payment provider: a 'manual' payment is only marked as paid, not confirmed by Stripe. */
+  provider?: string | null
 }>()
 
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
@@ -17,8 +19,9 @@ const tones: Record<typeof props.kind, Record<string, Tone>> = {
 }
 const labels = { gig: gigStatusLabels, invoice: invoiceStatusLabels, payment: paymentStatusLabels }
 
-const tone = computed<Tone>(() => tones[props.kind][props.status] ?? 'neutral')
-const label = computed(() => labelFor(labels[props.kind], props.status))
+const markedPaid = computed(() => props.kind === 'payment' && props.status === 'paid' && props.provider === 'manual')
+const tone = computed<Tone>(() => markedPaid.value ? 'warning' : tones[props.kind][props.status] ?? 'neutral')
+const label = computed(() => markedPaid.value ? 'Gemarkeerd als betaald' : labelFor(labels[props.kind], props.status))
 </script>
 
 <template>
