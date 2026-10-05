@@ -4,15 +4,15 @@ import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
 import { requireUuidParam } from '../../../utils/route-params'
 
-// Finalized invoices are financial records, so only voided ones (e.g. test invoices) can be removed for good.
+// Finalized invoices are financial records, so only drafts (no number yet) and voided ones (e.g. test invoices) can be removed for good.
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
   const id = requireUuidParam(event, 'id')
 
   const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1)
   if (!invoice) throw createError({ statusCode: 404, statusMessage: 'Factuur niet gevonden' })
-  if (invoice.status !== 'void') {
-    throw createError({ statusCode: 409, statusMessage: 'Alleen vervallen facturen kunnen worden verwijderd' })
+  if (invoice.status === 'finalized') {
+    throw createError({ statusCode: 409, statusMessage: 'Een definitieve factuur moet eerst vervallen voordat je hem kunt verwijderen' })
   }
 
   const [payment] = await db.select().from(payments).where(eq(payments.invoiceId, id)).limit(1)
