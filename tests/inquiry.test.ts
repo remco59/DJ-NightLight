@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { inquiryInputSchema, todayInAmsterdam } from '../shared/schemas/inquiry'
+import { todayInAmsterdam } from '../shared/dates'
+import { inquiryInputSchema } from '../shared/schemas/inquiry'
 import { apiFieldErrors } from '../app/utils/api-error'
 
 const valid = { name: 'Remco', email: 'remco@example.test', eventDate: '', website: '' }

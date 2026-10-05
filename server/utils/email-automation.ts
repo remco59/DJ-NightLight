@@ -22,6 +22,7 @@ import {
   type EmailAttachment,
   type EmailVariables,
 } from '../../shared/email-automation'
+import { todayInAmsterdam } from '../../shared/dates'
 import { db } from './db'
 import { loadEmailBranding } from './email-branding'
 import { sendEmail } from './email-provider'
@@ -43,15 +44,6 @@ function fmt(value: Date | string | null | undefined) {
 function fmtDateOnly(value: string | null | undefined) {
   if (!value) return ''
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeZone: 'Europe/Amsterdam' }).format(new Date(`${value}T12:00:00.000Z`))
-}
-
-function todayInAmsterdam() {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Europe/Amsterdam',
-  }).format(new Date())
 }
 
 /** Gig, client and template variables for a gig, also when the client has no email address. */
