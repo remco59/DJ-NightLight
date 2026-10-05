@@ -1,6 +1,6 @@
 // Sound effects that motion templates play on their hit moments (a bolt
-// strike, a letter slam, a whip entrance). The files are synthesised by
-// scripts/sfx/generate-sfx.ts, so they carry no third-party licence.
+// strike, a letter slam, a whip entrance). The files are cut from real
+// recordings by scripts/sfx/process-sfx.mjs; see public/sfx/LICENSE.txt.
 //
 // Cue frames live in the same frame space as the template animations in
 // remotion/motion-templates.ts: those use fixed frame numbers that do not
@@ -9,12 +9,19 @@
 import type { GraphicItem } from './video-project'
 import type { EntranceAnimation, ExitAnimation, MotionTemplateDefinition, MotionTemplateKey } from './video-templates'
 
+/**
+ * `seconds` is the file length; `hit` is where the moment of impact lies in
+ * the file. A cue's frame is the frame the hit lands on, so a sound that
+ * builds up first (the zap's charge) starts that long before the cue.
+ * Keep both in step with scripts/sfx/process-sfx.mjs.
+ */
 export const TEMPLATE_SOUNDS = {
-  impact: { label: 'Impact', file: 'sfx/impact.wav', seconds: 1.2 },
-  punch: { label: 'Punch', file: 'sfx/punch.wav', seconds: 0.45 },
-  zap: { label: 'Zap', file: 'sfx/zap.wav', seconds: 0.7 },
-  whoosh: { label: 'Whoosh', file: 'sfx/whoosh.wav', seconds: 0.7 },
-  glitch: { label: 'Glitch', file: 'sfx/glitch.wav', seconds: 0.45 },
+  impact: { label: 'Impact', file: 'sfx/impact.wav', seconds: 1.5, hit: 0 },
+  punch: { label: 'Punch', file: 'sfx/punch.wav', seconds: 0.35, hit: 0 },
+  zap: { label: 'Zap', file: 'sfx/zap.wav', seconds: 1.5, hit: 0.48 },
+  crackle: { label: 'Geknetter', file: 'sfx/crackle.wav', seconds: 0.8, hit: 0.1 },
+  whoosh: { label: 'Whoosh', file: 'sfx/whoosh.wav', seconds: 0.6, hit: 0 },
+  glitch: { label: 'Glitch', file: 'sfx/glitch.wav', seconds: 0.45, hit: 0 },
 } as const
 export type TemplateSound = keyof typeof TEMPLATE_SOUNDS
 export const TEMPLATE_SOUND_KEYS = Object.keys(TEMPLATE_SOUNDS) as TemplateSound[]
@@ -84,10 +91,14 @@ const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[
     { sound: 'zap', frame: 14, volume: 0.7 },
     { sound: 'punch', frame: 16, volume: 0.8 },
   ],
-  'recap-intro': () => [{ sound: 'impact', frame: 4, volume: 0.9 }],
+  // The headline slams in at 4, then the arcs start to crackle at 12.
+  'recap-intro': () => [
+    { sound: 'impact', frame: 4, volume: 0.9 },
+    { sound: 'crackle', frame: 12, volume: 0.5 },
+  ],
   // The arcs crackle at 14, then the quote arrives.
   'review': () => [
-    { sound: 'zap', frame: 14, volume: 0.55 },
+    { sound: 'crackle', frame: 14, volume: 0.6 },
     { sound: 'punch', frame: 16, volume: 0.45 },
   ],
   // The headline's rule frame strikes its bolt.
@@ -190,4 +201,20 @@ export function graphicSoundCues(item: Pick<GraphicItem, 'templateKey' | 'templa
 /** Length of a sound in project frames. */
 export function soundFrames(sound: TemplateSound, fps: number) {
   return Math.max(1, Math.ceil(TEMPLATE_SOUNDS[sound].seconds * fps))
+}
+
+/** Frames between the start of a sound and its hit. */
+export function soundHitFrames(sound: TemplateSound, fps: number) {
+  return Math.round(TEMPLATE_SOUNDS[sound].hit * fps)
+}
+
+/**
+ * Where a cue's audio plays on the project timeline: it starts early enough
+ * for its hit to land on `frame`, and is trimmed when that would be before
+ * the start of the project.
+ */
+export function soundPlacement(sound: TemplateSound, frame: number, fps: number) {
+  const start = frame - soundHitFrames(sound, fps)
+  const trim = Math.max(0, -start)
+  return { from: Math.max(0, start), trim, duration: Math.max(1, soundFrames(sound, fps) - trim) }
 }

@@ -8,6 +8,7 @@ import {
   graphicSoundCues,
   hypeTitleLineFrames,
   soundFrames,
+  soundPlacement,
   templateHasSound,
 } from '../shared/template-sounds'
 import { createGraphicItem, createVideoProject, parseVideoProject, type GraphicItem } from '../shared/video-project'
@@ -37,9 +38,25 @@ describe('template sound files', () => {
   })
 
   it('converts sound lengths to project frames', () => {
-    expect(soundFrames('impact', 30)).toBe(36)
-    expect(soundFrames('impact', 60)).toBe(72)
-    expect(soundFrames('punch', 24)).toBe(11)
+    expect(soundFrames('impact', 30)).toBe(45)
+    expect(soundFrames('impact', 60)).toBe(90)
+    expect(soundFrames('punch', 24)).toBe(9)
+  })
+
+  it('starts a sound early enough for its hit to land on the cue frame', () => {
+    // The zap builds for 0.48 s (14 frames) before it discharges.
+    expect(soundPlacement('zap', 40, 30)).toEqual({ from: 26, trim: 0, duration: 45 })
+    expect(soundPlacement('impact', 40, 30)).toEqual({ from: 40, trim: 0, duration: 45 })
+    // Before the start of the project the build-up is trimmed, so the hit stays on its frame.
+    expect(soundPlacement('zap', 10, 30)).toEqual({ from: 0, trim: 4, duration: 41 })
+    expect(soundPlacement('zap', 0, 30).trim).toBe(14)
+  })
+
+  it('keeps every hit inside its sound', () => {
+    for (const key of TEMPLATE_SOUND_KEYS) {
+      expect(TEMPLATE_SOUNDS[key].hit, key).toBeGreaterThanOrEqual(0)
+      expect(TEMPLATE_SOUNDS[key].hit, key).toBeLessThan(TEMPLATE_SOUNDS[key].seconds)
+    }
   })
 })
 

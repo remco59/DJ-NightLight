@@ -1,6 +1,18 @@
 NightLight template sound effects
 
-These files are synthesised from oscillators and seeded noise by
-scripts/sfx/generate-sfx.ts in this repository. They contain no third-party
-recordings or samples and are released under CC0 1.0 (public domain):
-https://creativecommons.org/publicdomain/zero/1.0/
+These files are cut and levelled from the recordings below by
+scripts/sfx/process-sfx.mjs (trimmed, faded, layered, bit-crushed and
+normalised; nothing is resampled musically). The original recordings are not
+stored in this repository.
+
+  impact.wav, punch.wav    Ghosthack "HTH FX Impact 09"
+  zap.wav                  "Electric shock" + "Electricity charge sound effect"
+  crackle.wav, glitch.wav  "biww short electric" (561891)
+  whoosh.wav               "Electric shock"
+
+LICENCE STATUS: the terms of these recordings still have to be confirmed by
+the repository owner before this repository or the app is distributed. Sample
+packs such as Ghosthack's are normally royalty-free for use inside a
+production but may not be redistributed as sound files, and stock-site
+recordings carry their own terms. Until that is confirmed, treat these files
+as "all rights reserved" by their original authors.

@@ -18,7 +18,7 @@ import { isAnimated, itemOpacityAt, itemTransformAt, itemVolumeAt } from '../sha
 import { animationState, animationStyle } from './animation'
 import { MediaFill, cropClipPath } from './media'
 import { MOTION_ACCENTS } from '../shared/video-templates'
-import { graphicSoundCues, soundFrames, TEMPLATE_SOUNDS } from '../shared/template-sounds'
+import { graphicSoundCues, soundPlacement, TEMPLATE_SOUNDS } from '../shared/template-sounds'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
 import { blurSamples, itemBlurStrength, itemMoves, shutterAngle } from '../shared/video-motion-blur'
 
@@ -193,19 +193,21 @@ const AudioItemView: React.FC<{
  * simultaneously mounted audio tags in the Player low.
  */
 function graphicSounds(item: GraphicItem, fps: number) {
-  return graphicSoundCues(item).map((cue, index) =>
-    h(
+  return graphicSoundCues(item).map((cue, index) => {
+    // A cue's frame is where its sound hits; the sound itself may start earlier.
+    const placement = soundPlacement(cue.sound, item.start + cue.frame, fps)
+    return h(
       Sequence,
       {
         key: `${item.id}-sfx-${index}`,
-        from: item.start + cue.frame,
-        durationInFrames: soundFrames(cue.sound, fps),
+        from: placement.from,
+        durationInFrames: placement.duration,
         premountFor: fps,
         name: `sfx ${cue.sound}`,
       },
-      h(Html5Audio, { src: staticFile(TEMPLATE_SOUNDS[cue.sound].file), volume: cue.volume, pauseWhenBuffering: true }),
-    ),
-  )
+      h(Html5Audio, { src: staticFile(TEMPLATE_SOUNDS[cue.sound].file), volume: cue.volume, trimBefore: placement.trim || undefined, pauseWhenBuffering: true }),
+    )
+  })
 }
 
 /** Sound of a video clip whose picture is rendered through the motion-blur wrapper. */
