@@ -83,6 +83,38 @@ const nextStep=computed<NextStep|null>(()=>{
   if(open)return {title:'Wachten op betaling',hint:`Te betalen vóór ${invoiceDate(open.dueDate)}.`,action:'Factuur bekijken',to:`/admin/invoices/${open.id}`}
   return {title:'Alles staat klaar',hint:'Geboekt, gefactureerd en betaald.'}
 })
+type TabKey='overview'|'planning'|'finance'|'portal'|'communication'|'internal'
+const tabs:Array<{key:TabKey;label:string}>=[{key:'overview',label:'Overzicht'},{key:'planning',label:'Planning'},{key:'finance',label:'Financieel'},{key:'portal',label:'Klantportaal'},{key:'communication',label:'Communicatie'},{key:'internal',label:'Intern'}]
+const tab=ref<TabKey>('overview')
+const titleInput=ref<HTMLInputElement|null>(null)
+function moveTab(step:number){const index=tabs.findIndex(item=>item.key===tab.value);const next=tabs[(index+step+tabs.length)%tabs.length]!;tab.value=next.key;nextTick(()=>document.getElementById(`tab-${next.key}`)?.focus())}
+// A required field on a hidden tab cannot be focused by the browser, so switch to its tab first.
+function revealInvalid(event:Event){const key=(event.target as HTMLElement|null)?.closest<HTMLElement>('[data-tab]')?.dataset.tab as TabKey|undefined;if(key&&key!==tab.value)tab.value=key}
+function focusEdit(){tab.value='overview';nextTick(()=>{titleInput.value?.focus();titleInput.value?.scrollIntoView({block:'center',behavior:'smooth'})})}
+async function cancelGig(){
+  if(!(await confirmAction({title:'Deze gig annuleren?',body:'De status wordt Geannuleerd en de gig wordt direct opgeslagen.',confirmLabel:'Gig annuleren',tone:'danger'})))return
+  form.status='cancelled';await save()
+}
+const feeLabel=computed(()=>data.value?.gig.fee?money(Math.round(Number(data.value.gig.fee)*100),data.value.gig.currency):'Nog niet ingevuld')
+function planningMoment(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Amsterdam'}).format(new Date(value)):'Nog niet ingevuld'}
+const planningRows=computed(()=>[{label:'Opbouw',value:planningMoment(data.value?.gig.loadInAt??null)},{label:'Start',value:planningMoment(data.value?.gig.startsAt??null)},{label:'Einde',value:planningMoment(data.value?.gig.endsAt??null)}])
+// Where the gig is in its life: booked, client portal, contract, invoice, review.
+const stages=computed(()=>{
+  const gig=data.value?.gig;if(!gig||(gig.status!=='lead'&&gig.status!=='booked'))return []
+  const portalDone=hasActivePortalLink.value||Boolean(submissionData.value?.submission)
+  const contractDone=submissionData.value?.status==='submitted'
+  const live=(data.value?.invoices||[]).filter(invoice=>invoice.status!=='void')
+  const paid=live.length>0&&live.every(invoice=>invoice.paymentStatus==='paid')
+  const list=[
+    {key:'booked',label:'Gig geboekt',sub:gig.status==='booked'?(gig.startsAt?new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Amsterdam'}).format(new Date(gig.startsAt)):'Geboekt'):'Nog bevestigen',icon:'lucide:check',done:gig.status==='booked'},
+    {key:'portal',label:'Klantportaal',sub:portalDone?'Toegang actief':'Toegang instellen',icon:'lucide:link',done:portalDone},
+    {key:'contract',label:'Contract',sub:contractDone?'Ingediend':'Vragenlijst',icon:'lucide:file-text',done:contractDone},
+    {key:'invoice',label:'Factuur',sub:paid?'Betaald':live.length?'Aangemaakt':'Nog maken',icon:'lucide:credit-card',done:paid},
+    {key:'review',label:'Review',sub:'Na het event',icon:'lucide:star',done:false},
+  ]
+  const current=list.findIndex(stage=>!stage.done)
+  return list.map((stage,index)=>({...stage,state:stage.done?'done':index===current?'current':'todo'}))
+})
 type EmailPlan={templateName:string;recipient:string|null;willSend:boolean;skipReason:string|null;delayMinutes:number;providerConfigured:boolean}
 function emailPlan(template:'booking_accepted'|'client_portal_invitation'){return $fetch<EmailPlan>(`/api/admin/gigs/${id}/email-plan`,{query:{template}})}
 function planTiming(plan:EmailPlan){const minutes=plan.delayMinutes;const when=minutes<=0?'direct':minutes%1440===0?`over ${minutes/1440} dag${minutes===1440?'':'en'}`:minutes%60===0?`over ${minutes/60} uur`:`over ${minutes} minuten`;return `${when}${plan.providerConfigured?'':' (zodra er een e-mailprovider is ingesteld)'}`}
@@ -185,17 +217,41 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </script>
 
 <template><div v-if="data" class="detail" :class="{readonly:!canManageGigs}">
-<NuxtLink to="/admin/gigs" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Gigs</NuxtLink>
-<header class="hero"><div><p class="eyebrow">Gig</p><h1>{{data.gig.displayTitle}}</h1></div><div v-if="canEdit" class="hero-actions"><details ref="actionMenu" class="action-menu"><summary class="secondary icon-button" aria-label="Meer acties" title="Meer acties"><Icon name="lucide:ellipsis" aria-hidden="true" /></summary><div class="action-menu-popover" role="menu"><button type="button" role="menuitem" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren</button><button type="button" role="menuitem" class="menu-danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></div></details></div></header>
+<nav class="crumbs" aria-label="Kruimelpad"><NuxtLink to="/admin/gigs" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Gigs</NuxtLink><Icon name="lucide:chevron-right" class="crumb-sep" aria-hidden="true" /><span class="crumb-current">{{data.gig.displayTitle}}</span></nav>
+<header class="hero"><div><h1>{{data.gig.displayTitle}}</h1><div class="status-row"><AdminStatusChip kind="gig" :status="data.gig.status" /></div></div><div v-if="canEdit" class="hero-actions"><NuxtLink v-if="nextStep?.to" class="primary hero-cta with-icon" :to="nextStep.to"><Icon name="lucide:arrow-right" aria-hidden="true" />{{nextStep.action}}</NuxtLink><button v-else-if="nextStep?.run" type="button" class="primary hero-cta with-icon" :disabled="saving||portalBusy" @click="nextStep.run"><Icon name="lucide:file-text" aria-hidden="true" />{{nextStep.action}}</button><details ref="actionMenu" class="action-menu"><summary class="secondary icon-button" aria-label="Meer acties" title="Meer acties"><Icon name="lucide:ellipsis" aria-hidden="true" /></summary><div class="action-menu-popover" role="menu"><button type="button" role="menuitem" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren</button><button type="button" role="menuitem" class="menu-danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></div></details></div></header>
+
+<ol v-if="stages.length" class="stages" aria-label="Voortgang"><li v-for="stage in stages" :key="stage.key" class="stage" :data-state="stage.state" :aria-current="stage.state==='current'?'step':undefined"><span class="stage-dot"><Icon :name="stage.icon" aria-hidden="true" /></span><strong>{{stage.label}}</strong><small>{{stage.sub}}</small></li></ol>
 
 <section class="gig-facts" aria-label="Samenvatting">
-<dl><div><dt>Wanneer</dt><dd>{{gigWhen}}</dd></div><div><dt>Waar</dt><dd>{{data.gig.venueName||'Nog geen locatie'}}</dd></div><div><dt>Klant</dt><dd>{{clientLabel}}</dd></div><div><dt>Gage</dt><dd>{{data.gig.fee?money(Math.round(Number(data.gig.fee)*100),data.gig.currency):'Nog niet ingevuld'}}</dd></div><div><dt>Status</dt><dd><AdminStatusChip kind="gig" :status="data.gig.status" /></dd></div></dl>
-<div v-if="nextStep&&canEdit" class="next-step"><div><span>Volgende stap</span><strong>{{nextStep.title}}</strong><small v-if="nextStep.hint">{{nextStep.hint}}</small></div><NuxtLink v-if="nextStep.to" class="primary" :to="nextStep.to">{{nextStep.action}}</NuxtLink><button v-else-if="nextStep.run" type="button" class="primary" :disabled="saving||portalBusy" @click="nextStep.run">{{nextStep.action}}</button></div>
+<dl><div><dt><Icon name="lucide:calendar" aria-hidden="true" />Datum & tijd</dt><dd>{{gigWhen}}</dd></div><div><dt><Icon name="lucide:map-pin" aria-hidden="true" />Locatie</dt><dd>{{data.gig.venueName||'Nog geen locatie'}}</dd></div><div><dt><Icon name="lucide:users" aria-hidden="true" />Klant</dt><dd>{{clientLabel}}</dd></div><div><dt><Icon name="lucide:wallet" aria-hidden="true" />Gage</dt><dd>{{data.gig.fee?money(Math.round(Number(data.gig.fee)*100),data.gig.currency):'Nog niet ingevuld'}}</dd></div></dl>
 </section>
 <div v-if="!canManageGigs" class="readonly-note">Deze gig is aan jou toegewezen. Als DJ kun je alleen meekijken; een manager of eigenaar kan de boekingsgegevens wijzigen.</div>
-<form :inert="!canEdit||undefined" @submit.prevent="save">
-<section class="card"><p class="eyebrow">Overzicht</p><div class="grid"><label class="wide">Titel<input v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Gage<input v-model="form.fee" inputmode="decimal"></label><label>Valuta<input v-model="form.currency" maxlength="3"></label><label>Bron<input v-model="form.source"></label></div></section>
 
+<div class="tabs" role="tablist" aria-label="Gig onderdelen" @keydown.right.prevent="moveTab(1)" @keydown.left.prevent="moveTab(-1)"><button v-for="item in tabs" :id="`tab-${item.key}`" :key="item.key" type="button" role="tab" class="tab" :class="{active:tab===item.key}" :aria-selected="tab===item.key" :aria-controls="`panel-${item.key}`" :tabindex="tab===item.key?0:-1" @click="tab=item.key">{{item.label}}</button></div>
+
+<form :inert="!canEdit||undefined" @submit.prevent="save" @invalid.capture="revealInvalid">
+<div v-show="tab==='overview'" id="panel-overview" class="tab-panel" data-tab="overview" role="tabpanel" aria-labelledby="tab-overview">
+<div class="overview-layout">
+<div class="overview-main">
+<section class="card"><p class="eyebrow">Overzicht</p><div class="grid"><label class="wide">Titel<input ref="titleInput" v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Gage<input v-model="form.fee" inputmode="decimal"></label><label>Valuta<input v-model="form.currency" maxlength="3"></label><label>Bron<input v-model="form.source"></label></div></section>
+</div>
+<aside class="overview-aside">
+<section v-if="nextStep&&canEdit" class="next-step"><div><span><Icon name="lucide:zap" aria-hidden="true" />Volgende stap</span><strong>{{nextStep.title}}</strong><small v-if="nextStep.hint">{{nextStep.hint}}</small></div><NuxtLink v-if="nextStep.to" class="primary" :to="nextStep.to">{{nextStep.action}}</NuxtLink><button v-else-if="nextStep.run" type="button" class="primary" :disabled="saving||portalBusy" @click="nextStep.run">{{nextStep.action}}</button></section>
+<section v-if="canEdit" class="card quick-actions"><p class="eyebrow">Snelle acties</p><button type="button" @click="focusEdit"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken<Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button><button type="button" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren<Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button><button v-if="data.gig.status!=='cancelled'" type="button" class="danger" @click="cancelGig"><Icon name="lucide:circle-x" aria-hidden="true" />Annuleren</button><button type="button" class="danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></section>
+</aside>
+</div>
+<div class="summary-grid">
+<section class="card"><div class="section-title"><p class="eyebrow">Planning</p><button type="button" class="text-button with-icon" @click="tab='planning'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><ol class="mini-timeline"><li v-for="row in planningRows" :key="row.label"><strong>{{row.label}}</strong><span>{{row.value}}</span></li></ol></section>
+<section class="card"><div class="section-title"><p class="eyebrow">Financieel</p><button type="button" class="text-button with-icon" @click="tab='finance'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><dl class="kv"><div><dt>Gage</dt><dd>{{feeLabel}}</dd></div><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div><div><dt>Facturen</dt><dd>{{data.invoices.length?`${data.invoices.length} gekoppeld`:'Nog geen facturen voor deze gig.'}}</dd></div></dl></section>
+</div>
+</div>
+
+<div v-show="tab==='planning'" id="panel-planning" class="tab-panel" data-tab="planning" role="tabpanel" aria-labelledby="tab-planning">
+<section class="card"><p class="eyebrow">Planning</p><div class="grid"><label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div><div class="section-title"><h2>Timeline</h2><button type="button" class="text-button" @click="addTimeline"><Icon name="lucide:plus" aria-hidden="true" /> Item toevoegen</button></div><div v-if="!timeline.length" class="subtle">Nog geen items in de timeline.</div><div v-for="(item,index) in timeline" :key="index" class="repeat-row timeline-row"><input v-model="item.time" type="time" aria-label="Tijd"><input v-model="item.title" placeholder="Openingsdans, start DJ…" required><input v-model="item.description" placeholder="Notities"><button type="button" aria-label="Item verwijderen" title="Item verwijderen" @click="timeline.splice(index,1)"><Icon name="lucide:x" aria-hidden="true" /></button></div></section>
+</div>
+
+<div v-show="tab==='finance'" id="panel-finance" class="tab-panel" data-tab="finance" role="tabpanel" aria-labelledby="tab-finance">
+<section class="card"><p class="eyebrow">Financieel</p><dl class="kv"><div><dt>Gage</dt><dd>{{feeLabel}}</dd></div><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div></dl></section>
 <section v-if="canEdit" class="card invoice-card">
   <div class="section-title invoice-heading">
     <div><p class="eyebrow">Financiën</p><h2>Facturen & Stripe</h2><span class="subtle-copy">Facturen horen bij deze gig. Online betalingen via Stripe worden automatisch verwerkt. Een overschrijving of contante betaling registreer je op de factuur.</span></div>
@@ -214,24 +270,34 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
     <strong class="invoice-total">{{money(invoice.totalCents,invoice.currency)}}</strong>
   </NuxtLink>
 </section>
+</div>
 
-<section class="card"><p class="eyebrow">Planning</p><div class="grid"><label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div><div class="section-title"><h2>Timeline</h2><button type="button" class="text-button" @click="addTimeline"><Icon name="lucide:plus" aria-hidden="true" /> Item toevoegen</button></div><div v-if="!timeline.length" class="subtle">Nog geen items in de timeline.</div><div v-for="(item,index) in timeline" :key="index" class="repeat-row timeline-row"><input v-model="item.time" type="time" aria-label="Tijd"><input v-model="item.title" placeholder="Openingsdans, start DJ…" required><input v-model="item.description" placeholder="Notities"><button type="button" aria-label="Item verwijderen" title="Item verwijderen" @click="timeline.splice(index,1)"><Icon name="lucide:x" aria-hidden="true" /></button></div></section>
-
-<section class="card"><div class="section-title"><div><p class="eyebrow">Personen</p><h2>Contactpersonen evenement</h2></div><button type="button" class="text-button" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /> Contact toevoegen</button></div><div v-if="!contacts.length" class="subtle">Nog geen contactpersonen voor dit evenement.</div><div v-for="(contact,index) in contacts" :key="index" class="contact-card"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div></section>
-
-<section class="card"><p class="eyebrow">Zichtbaarheid</p><label class="checkbox"><input v-model="form.publicVisibility" type="checkbox"> Toon deze gig in de publieke agenda</label><div class="grid public-fields"><label>Publieke titel<input v-model="form.publicTitle" :placeholder="publicTitlePlaceholder"></label><label class="wide">Publieke beschrijving<textarea v-model="form.publicDescription" rows="3"/></label></div></section>
-<section class="card"><p class="eyebrow">Intern</p><label>Interne notities<textarea v-model="form.internalNotes" rows="6"/></label></section>
-
+<div v-show="tab==='portal'" id="panel-portal" class="tab-panel" data-tab="portal" role="tabpanel" aria-labelledby="tab-portal">
 <section v-if="canEdit" class="card"><div class="section-title"><div><p class="eyebrow">Klantportaal</p><h2>Beveiligde toegang</h2></div></div><div class="portal-actions"><label>Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" class="secondary" :disabled="portalBusy" @click="createPortalLink(false)">Link aanmaken</button><button type="button" class="primary" :disabled="portalBusy" @click="sendPortalInvitation">{{hasActivePortalLink?'Nieuwe uitnodiging versturen':'Uitnodiging versturen'}}</button></div><div v-if="portalUrl" class="one-time-link"><div><strong>Eenmalig zichtbaar</strong><span>{{portalUrl}}</span></div><button type="button" class="with-icon secondary" @click="copyPortalUrl"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button></div><p v-if="portalMessage" class="portal-message">{{portalMessage}}</p><div v-if="!portalData?.links.length" class="subtle">Er zijn nog geen portaallinks uitgegeven.</div><div v-for="link in portalData?.links||[]" :key="link.id" class="portal-row"><div><strong>{{labelFor(portalLinkStateLabels,link.state)}}</strong><span>Verloopt {{portalDate(link.expiresAt)}} · Laatst gebruikt {{portalDate(link.lastUsedAt)}}</span></div><button v-if="link.state==='active'" type="button" class="remove-small" @click="revokePortalLink(link.id)">Intrekken</button></div></section>
 
 <section v-if="canEdit&&submissionData" class="card"><div class="section-title"><div><p class="eyebrow">Ingevuld portaal</p><h2>Contract & muziekwensen</h2></div><NuxtLink to="/admin/questionnaire" class="text-button">Template bewerken</NuxtLink></div><div class="submission-status"><strong>{{labelFor(submissionStatusLabels,submissionData.status)}}</strong><span>Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{portalDate(submissionData.submission.submittedAt)}}</template></span></div><div v-if="submissionData.submission" class="answer-grid"><div v-for="field in submissionData.fields" :key="field.id"><span>{{field.label}}</span><strong>{{answerValue(submissionData.submission.answers[field.id])}}</strong></div><div><span>Geaccepteerd door</span><strong>{{submissionData.submission.acceptedName||'—'}}</strong></div></div><div v-else class="subtle">De klant heeft de vragenlijst nog niet ingediend.</div><h3>Muziekwensen</h3><div v-if="!submissionData.wishes.length" class="subtle">Geen muziekwensen ingediend.</div><div v-for="wish in submissionData.wishes" :key="wish.id" class="wish-row"><span>{{labelFor(musicWishCategoryLabels,wish.category)}}</span><div><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note">{{wish.note}}</small></div></div></section>
+</div>
+
+<div v-show="tab==='communication'" id="panel-communication" class="tab-panel" role="tabpanel" aria-labelledby="tab-communication" data-tab="communication">
+<section class="card"><div class="section-title"><div><p class="eyebrow">Personen</p><h2>Contactpersonen evenement</h2></div><button v-if="contacts.length" type="button" class="text-button" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /> Contact toevoegen</button></div><div v-if="!contacts.length" class="empty-state"><span class="empty-icon"><Icon name="lucide:users" aria-hidden="true" /></span><strong>Nog geen contactpersonen toegevoegd</strong><p>Voeg contactpersonen toe om sneller te communiceren en alle afspraken op één plek te bewaren.</p><button type="button" class="primary with-icon" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /> Contactpersoon toevoegen</button></div><div v-for="(contact,index) in contacts" :key="index" class="contact-card"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div></section>
+
+<section class="card"><p class="eyebrow">Zichtbaarheid</p><label class="checkbox"><input v-model="form.publicVisibility" type="checkbox"> Toon deze gig in de publieke agenda</label><div class="grid public-fields"><label>Publieke titel<input v-model="form.publicTitle" :placeholder="publicTitlePlaceholder"></label><label class="wide">Publieke beschrijving<textarea v-model="form.publicDescription" rows="3"/></label></div></section>
+</div>
+
+<div v-show="tab==='internal'" id="panel-internal-form" class="tab-panel" data-tab="internal">
+<section class="card"><p class="eyebrow">Intern</p><label>Interne notities<textarea v-model="form.internalNotes" rows="6"/></label></section>
+</div>
 
 <div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span>{{isDirty?'Wijzigingen worden pas bewaard na opslaan.':'Wijzig een veld om de gig bij te werken.'}}</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
+<div v-show="tab==='communication'" class="tab-panel tab-extra" role="tabpanel" aria-labelledby="tab-communication">
 <AdminGigEmails v-if="canEdit" :gig-id="id" :portal-url="portalUrl" />
+</div>
 
+<div v-show="tab==='internal'" id="panel-internal" class="tab-panel tab-extra" role="tabpanel" aria-labelledby="tab-internal">
 <section class="card activity"><p class="eyebrow">Activiteit</p><h2>Recente wijzigingen</h2><div v-if="!data.activity.length" class="subtle">Nog geen activiteit vastgelegd.</div><div v-for="item in data.activity" :key="item.id" class="activity-row"><strong>{{labelFor(activityActionLabels,item.action)}}<small v-if="item.actorName"> · {{item.actorName}}</small></strong><span>{{activityDate(item.createdAt)}}</span></div></section>
+</div>
 </div></template>
 
 <style scoped>
