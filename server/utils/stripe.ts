@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { stripeSettings } from '../../db/schema'
@@ -28,18 +27,12 @@ export async function loadStripeCredentials() {
 
 export async function getStripeClient() {
   const { secretKey } = await loadStripeCredentials()
-  if (!secretKey) throw createError({ statusCode: 503, statusMessage: 'Stripe is not configured' })
+  if (!secretKey) throw createError({ statusCode: 503, statusMessage: 'Stripe is niet ingesteld' })
   return createStripeClient(secretKey)
 }
 
 export async function getStripeWebhookSecret() {
   const { webhookSecret } = await loadStripeCredentials()
-  if (!webhookSecret) throw createError({ statusCode: 503, statusMessage: 'Stripe webhooks are not configured' })
+  if (!webhookSecret) throw createError({ statusCode: 503, statusMessage: 'Stripe-webhooks zijn niet ingesteld' })
   return webhookSecret
-}
-
-export function stripeIntegrationIdentifier() {
-  const letters = 'abcdefghijklmnopqrstuvwxyz'
-  const random = randomBytes(8)
-  return `nightlight_${Array.from(random, byte => letters[byte % letters.length]).join('')}`
 }

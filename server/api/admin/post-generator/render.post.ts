@@ -1,20 +1,57 @@
 import { z } from 'zod'
 import { generatedPosts } from '../../../../db/schema'
 import { inspectImage } from '../../../../shared/media'
-import { POST_PRESETS } from '../../../../shared/post-generator'
+import { DEFAULT_POST_BRAND, normalizePostBrand, POST_PRESETS, POST_TEMPLATE_KEYS } from '../../../../shared/post-generator'
 import { db } from '../../../utils/db'
+import { storeGeneratedImage } from '../../../utils/media-library'
 import { getGeneratedStorage } from '../../../utils/media-storage'
 import { requireStaff } from '../../../utils/require-staff'
 
+const visibilitySchema = z.object({
+  logo: z.boolean(),
+  headline: z.boolean(),
+  subline: z.boolean(),
+  date: z.boolean(),
+  time: z.boolean(),
+  location: z.boolean(),
+  cta: z.boolean(),
+  gigList: z.boolean(),
+})
+
+const gigItemSchema = z.object({
+  enabled: z.boolean(),
+  dateText: z.string().max(40),
+  title: z.string().max(120),
+  locationText: z.string().max(120),
+})
+
 const designSchema = z.object({
   preset: z.enum(['square', 'portrait', 'story']),
-  templateKey: z.enum(['gradient', 'poster', 'minimal']),
-  brandPreset: z.enum(['night', 'mono', 'warm']),
+  templateKey: z.enum(POST_TEMPLATE_KEYS),
+  // Older clients still send the pre-accent presets (night, warm).
+  brandPreset: z.string().transform((value, context) => {
+    const brand = normalizePostBrand(value)
+    if (!brand) context.addIssue({ code: 'custom', message: 'Unknown brand preset' })
+    return brand ?? DEFAULT_POST_BRAND
+  }),
   headline: z.string().max(180),
   subline: z.string().max(260),
   dateText: z.string().max(160),
+  timeText: z.string().max(80).default(''),
   locationText: z.string().max(160),
+  ctaText: z.string().max(180).default(''),
   logoText: z.string().max(80),
+  visibility: visibilitySchema.default({
+    logo: true,
+    headline: true,
+    subline: true,
+    date: true,
+    time: true,
+    location: true,
+    cta: true,
+    gigList: true,
+  }),
+  gigItems: z.array(gigItemSchema).max(6).default([]),
   imageX: z.number().min(-1).max(1),
   imageY: z.number().min(-1).max(1),
   zoom: z.number().min(1).max(3),
@@ -29,21 +66,21 @@ const optionalUuid = z.string().uuid().or(z.literal('')).transform(value => valu
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner', 'manager', 'content_editor'])
   const parts = await readMultipartFormData(event)
-  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Multipart render upload is required' })
+  if (!parts) throw createError({ statusCode: 400, statusMessage: 'Een multipart-upload van de render is verplicht' })
 
   const part = (name: string) => parts.find(item => item.name === name)
   const file = part('file')
-  if (!file?.data?.length) throw createError({ statusCode: 422, statusMessage: 'Rendered PNG is required' })
-  if (file.data.length > 20 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'Rendered PNG exceeds 20 MB' })
+  if (!file?.data?.length) throw createError({ statusCode: 422, statusMessage: 'Een gerenderde PNG is verplicht' })
+  if (file.data.length > 20 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'De gerenderde PNG is groter dan 20 MB' })
 
   const designPart = part('design')?.data?.toString('utf8')
-  if (!designPart) throw createError({ statusCode: 422, statusMessage: 'Design metadata is required' })
+  if (!designPart) throw createError({ statusCode: 422, statusMessage: 'Ontwerpgegevens zijn verplicht' })
 
   let designJson: unknown
   try {
     designJson = JSON.parse(designPart)
   } catch {
-    throw createError({ statusCode: 422, statusMessage: 'Design metadata is invalid JSON' })
+    throw createError({ statusCode: 422, statusMessage: 'De ontwerpgegevens zijn geen geldige JSON' })
   }
   const design = designSchema.parse(designJson)
   const sourceMediaAssetId = optionalUuid.parse(part('sourceMediaAssetId')?.data?.toString('utf8') || '')
@@ -53,13 +90,13 @@ export default defineEventHandler(async (event) => {
   try {
     info = inspectImage(file.data)
   } catch (error) {
-    throw createError({ statusCode: 422, statusMessage: error instanceof Error ? error.message : 'Invalid rendered image' })
+    throw createError({ statusCode: 422, statusMessage: error instanceof Error ? error.message : 'Ongeldige gerenderde afbeelding' })
   }
-  if (info.mimeType !== 'image/png') throw createError({ statusCode: 422, statusMessage: 'Generated posts must be PNG' })
+  if (info.mimeType !== 'image/png') throw createError({ statusCode: 422, statusMessage: 'Gegenereerde posts moeten PNG zijn' })
   if (info.width !== expected.width || info.height !== expected.height) {
     throw createError({
       statusCode: 422,
-      statusMessage: `Rendered image must be ${expected.width}×${expected.height} for ${expected.label}`,
+      statusMessage: `De gerenderde afbeelding moet ${expected.width}×${expected.height} zijn voor ${expected.label}`,
     })
   }
 
@@ -76,9 +113,20 @@ export default defineEventHandler(async (event) => {
       outputKey,
       outputMimeType: info.mimeType,
     }).returning()
-    if (!post) throw new Error('Generated post could not be saved')
+    if (!post) throw new Error('Gegenereerde post opslaan is niet gelukt')
+    const libraryAsset = await storeGeneratedImage({
+      data: file.data,
+      originalFilename: `nightlight-${design.templateKey}-${design.preset}.png`,
+      title: design.headline.trim().slice(0, 200) || `Gegenereerde post ${expected.label}`,
+      variantLabel: `Post ${expected.label}`,
+      parentAssetId: sourceMediaAssetId,
+    }).catch((error) => {
+      // The post itself is saved; a library copy is a convenience.
+      console.error('Generated post could not be added to the media library', error)
+      return null
+    })
     event.node.res.statusCode = 201
-    return { post: { ...post, imageUrl: `/api/generated-posts/${post.id}` } }
+    return { post: { ...post, imageUrl: `/api/generated-posts/${post.id}`, mediaAssetId: libraryAsset?.id || null } }
   } catch (error) {
     await storage.delete(outputKey)
     throw error

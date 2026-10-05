@@ -14,17 +14,17 @@ export default defineEventHandler(async (event) => {
   const configuredToken = config.ownerBootstrapToken
 
   if (!configuredToken) {
-    throw createError({ statusCode: 404, statusMessage: 'Not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Niet gevonden' })
   }
 
   const suppliedToken = event.node.req.headers['x-bootstrap-token']
   if (typeof suppliedToken !== 'string' || suppliedToken !== configuredToken) {
-    throw createError({ statusCode: 403, statusMessage: 'Invalid bootstrap token' })
+    throw createError({ statusCode: 403, statusMessage: 'Ongeldige bootstrap-token' })
   }
 
   const [countRow] = await db.select({ value: count() }).from(users)
   if ((countRow?.value ?? 0) > 0) {
-    throw createError({ statusCode: 409, statusMessage: 'An account already exists' })
+    throw createError({ statusCode: 409, statusMessage: 'Er bestaat al een account' })
   }
 
   const body = await readValidatedBody(event, bootstrapSchema.parse)

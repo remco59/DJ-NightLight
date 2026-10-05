@@ -20,7 +20,7 @@ export function assertPublicRateLimit(key: string) {
   }
 
   if (existing.count >= MAX_ATTEMPTS) {
-    throw createError({ statusCode: 429, statusMessage: 'Too many requests. Please try again later.' })
+    throw createError({ statusCode: 429, statusMessage: 'Te veel verzoeken. Probeer het later opnieuw.' })
   }
 
   existing.count += 1

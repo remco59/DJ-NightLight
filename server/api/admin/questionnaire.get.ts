@@ -17,6 +17,6 @@ export default defineEventHandler(async (event) => {
     .where(eq(questionnaireTemplates.active, true))
     .orderBy(desc(questionnaireTemplateVersions.version))
     .limit(1)
-  if (!current) throw createError({ statusCode: 404, statusMessage: 'No active questionnaire found' })
+  if (!current) throw createError({ statusCode: 404, statusMessage: 'Geen actieve vragenlijst gevonden' })
   return { template: current }
 })

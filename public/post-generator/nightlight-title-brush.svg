@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="170" viewBox="0 0 800 170">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6510bf"/><stop offset=".35" stop-color="#9a25ff"/><stop offset=".72" stop-color="#8a1ee8"/><stop offset="1" stop-color="#551095"/>
+    </linearGradient>
+    <filter id="rough" x="-15%" y="-40%" width="130%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency=".013 .16" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="12"/>
+    </filter>
+    <filter id="glow" x="-30%" y="-70%" width="160%" height="240%">
+      <feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#rough)">
+    <path d="M22 55 C176 29 354 29 535 38 C626 43 715 27 780 43 L758 115 C640 128 509 123 377 131 C246 140 126 134 36 122 Z" fill="url(#g)" opacity=".96" filter="url(#glow)"/>
+    <path d="M70 132 C252 119 432 126 666 111" stroke="#d197ff" stroke-width="5" opacity=".55"/>
+    <path d="M116 35 C287 48 493 31 700 42" stroke="#5f0fa8" stroke-width="7" opacity=".65"/>
+  </g>
+</svg>

@@ -25,7 +25,7 @@ export function assertLoginRateLimit(key: string) {
   if (existing.count >= MAX_ATTEMPTS) {
     throw createError({
       statusCode: 429,
-      statusMessage: 'Too many login attempts. Try again later.',
+      statusMessage: 'Te veel inlogpogingen. Probeer het later opnieuw.',
     })
   }
 

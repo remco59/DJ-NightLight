@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
   const parsed = schema.safeParse(await readBody(event))
   if (!parsed.success) {
-    throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Invalid integration settings' })
+    throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Ongeldige integratie-instellingen' })
   }
 
   const input = parsed.data

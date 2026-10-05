@@ -10,7 +10,7 @@ let cachedToken: { value: string, expiresAt: number } | null = null
 async function credentials() {
   const { credentials: calendar } = await loadCalendarIntegration()
   if (!calendar.clientId || !calendar.clientSecret || !calendar.refreshToken) {
-    throw new Error('Google Calendar credentials are not configured')
+    throw new Error('Inloggegevens voor Google Calendar zijn niet ingesteld')
   }
   return calendar
 }
@@ -38,11 +38,11 @@ async function accessToken(forceRefresh = false) {
 
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 500)
-    throw new Error(`Google OAuth refresh failed (${response.status}): ${detail}`)
+    throw new Error(`Vernieuwen van Google OAuth mislukt (${response.status}): ${detail}`)
   }
 
   const payload = await response.json() as TokenResponse
-  if (!payload.access_token) throw new Error('Google OAuth response did not contain an access token')
+  if (!payload.access_token) throw new Error('Het antwoord van Google OAuth bevatte geen toegangstoken')
   cachedToken = {
     value: payload.access_token,
     expiresAt: Date.now() + Math.max(60, payload.expires_in || 3600) * 1000,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { clientTypeLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
 
@@ -14,7 +15,19 @@ type ClientListItem = {
   gigCount: number
 }
 
-const search = ref('')
+const emptyFilters = { search: '', type: '', hasGigs: '', hasEmail: '' }
+const typeTabs = [{ value: '', label: 'Alle' }, { value: 'person', label: 'Particulieren' }, { value: 'company', label: 'Bedrijven' }]
+const sortOptions = ['name_asc', 'name_desc', 'gigs_desc']
+// Filters and sorting are remembered in a cookie so they survive a reload (and work during SSR).
+const saved = useCookie<{ filters?: Partial<typeof emptyFilters>; sort?: string }>('admin-client-filters', { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', default: () => ({}) })
+const savedFilters = Object.fromEntries(Object.entries(saved.value?.filters ?? {}).filter(([key, value]) => key in emptyFilters && typeof value === 'string'))
+const filters = reactive({ ...emptyFilters, ...savedFilters })
+const sort = ref(sortOptions.includes(saved.value?.sort ?? '') ? saved.value!.sort as string : 'name_asc')
+const showAdvancedFilters = ref(false)
+watch([filters, sort], () => { saved.value = { filters: { ...filters }, sort: sort.value } }, { deep: true })
+const activeAdvancedCount = computed(() => [filters.hasGigs, filters.hasEmail].filter(Boolean).length)
+const hasActiveFilters = computed(() => Object.values(filters).some(Boolean))
+function clearAllFilters() { Object.assign(filters, emptyFilters) }
 const showCreate = ref(false)
 const saving = ref(false)
 const formError = ref('')
@@ -30,11 +43,11 @@ const form = reactive({
 })
 
 const { data, status, refresh } = await useFetch<{ clients: ClientListItem[] }>('/api/admin/clients', {
-  query: computed(() => ({ search: search.value || undefined })),
+  query: computed(() => ({ ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== '')), sort: sort.value })),
 })
 
 function displayName(client: ClientListItem) {
-  return client.companyName || [client.firstName, client.lastName].filter(Boolean).join(' ') || 'Unnamed client'
+  return client.companyName || [client.firstName, client.lastName].filter(Boolean).join(' ') || 'Naamloze klant'
 }
 
 async function createClient() {
@@ -49,69 +62,99 @@ async function createClient() {
     showCreate.value = false
     await navigateTo(`/admin/clients/${result.client.id}`)
   } catch (error: unknown) {
-    formError.value = apiErrorMessage(error, 'Could not create client.')
+    formError.value = apiErrorMessage(error, 'Klant aanmaken is niet gelukt.')
   } finally {
     saving.value = false
   }
 }
 
-useSeoMeta({ title: 'Clients — DJ NightLight', robots: 'noindex, nofollow' })
+useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
 </script>
 
 <template>
   <div class="entity-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Operations</p>
-        <h1>Clients</h1>
-        <p>People and companies that book NightLight.</p>
+        <p class="eyebrow">Relaties</p>
+        <h1>Klanten</h1>
+        <p>Personen en bedrijven die NightLight boeken.</p>
       </div>
-      <button class="primary" type="button" @click="showCreate = !showCreate">
-        {{ showCreate ? 'Close' : 'New client' }}
+      <button class="with-icon primary" type="button" @click="showCreate = !showCreate">
+        <Icon :name="showCreate ? 'lucide:x' : 'lucide:plus'" aria-hidden="true" />
+        {{ showCreate ? 'Sluiten' : 'Nieuwe klant' }}
       </button>
     </header>
 
     <form v-if="showCreate" class="editor-card" @submit.prevent="createClient">
-      <h2>New client</h2>
+      <h2>Nieuwe klant</h2>
       <div class="grid">
         <label>Type
-          <select v-model="form.type"><option value="person">Person</option><option value="company">Company</option></select>
+          <select v-model="form.type"><option value="person">Particulier</option><option value="company">Bedrijf</option></select>
         </label>
-        <label v-if="form.type === 'company'">Company name<input v-model="form.companyName" required></label>
+        <label v-if="form.type === 'company'">Bedrijfsnaam<input v-model="form.companyName" required></label>
         <template v-else>
-          <label>First name<input v-model="form.firstName"></label>
-          <label>Last name<input v-model="form.lastName"></label>
+          <label>Voornaam<input v-model="form.firstName"></label>
+          <label>Achternaam<input v-model="form.lastName"></label>
         </template>
-        <label>Email<input v-model="form.email" type="email"></label>
-        <label>Phone<input v-model="form.phone" type="tel"></label>
-        <label class="wide">Billing address<textarea v-model="form.billingAddress" rows="2" /></label>
-        <label class="wide">Notes<textarea v-model="form.notes" rows="3" /></label>
+        <label>E-mail<input v-model="form.email" type="email"></label>
+        <label>Telefoon<input v-model="form.phone" type="tel"></label>
+        <label class="wide">Factuuradres<textarea v-model="form.billingAddress" rows="2" /></label>
+        <label class="wide">Notities<textarea v-model="form.notes" rows="3" /></label>
       </div>
       <p v-if="formError" class="error">{{ formError }}</p>
-      <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Saving…' : 'Create client' }}</button>
+      <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Opslaan…' : 'Klant aanmaken' }}</button>
     </form>
 
+    <nav class="status-tabs" aria-label="Klanten per type">
+      <button v-for="tab in typeTabs" :key="tab.value" type="button" :aria-pressed="filters.type === tab.value" @click="filters.type = tab.value">{{ tab.label }}</button>
+    </nav>
+
     <AdminFilterBar
-      :has-active-filters="Boolean(search)"
-      :results-label="`${data?.clients.length ?? 0} clients`"
-      @clear-all="search = ''"
+      has-advanced
+      :advanced-open="showAdvancedFilters"
+      :active-advanced-count="activeAdvancedCount"
+      :has-active-filters="hasActiveFilters"
+      :results-label="`${data?.clients.length ?? 0} ${(data?.clients.length ?? 0) === 1 ? 'klant' : 'klanten'}`"
+      @toggle-advanced="showAdvancedFilters = !showAdvancedFilters"
+      @clear-all="clearAllFilters"
     >
       <template #primary>
-        <input v-model="search" type="search" placeholder="Search name, company or email…">
+        <input v-model="filters.search" type="search" aria-label="Zoek klanten" placeholder="Zoek op naam, bedrijf of e-mail…">
+      </template>
+      <template #advanced>
+        <label>Gigs
+          <select v-model="filters.hasGigs"><option value="">Met en zonder gigs</option><option value="true">Met gigs</option><option value="false">Zonder gigs</option></select>
+        </label>
+        <label>E-mail
+          <select v-model="filters.hasEmail"><option value="">Met en zonder e-mail</option><option value="true">Met e-mailadres</option><option value="false">Zonder e-mailadres</option></select>
+        </label>
       </template>
       <template #chips>
-        <AdminFilterChip v-if="search" :label="`Search: ${search}`" @remove="search = ''" />
+        <AdminFilterChip v-if="filters.search" :label="`Zoeken: ${filters.search}`" @remove="filters.search = ''" />
+        <AdminFilterChip v-if="filters.type" :label="`Type: ${labelFor(clientTypeLabels, filters.type)}`" @remove="filters.type = ''" />
+        <AdminFilterChip v-if="filters.hasGigs" :label="filters.hasGigs === 'true' ? 'Met gigs' : 'Zonder gigs'" @remove="filters.hasGigs = ''" />
+        <AdminFilterChip v-if="filters.hasEmail" :label="filters.hasEmail === 'true' ? 'Met e-mailadres' : 'Zonder e-mailadres'" @remove="filters.hasEmail = ''" />
+      </template>
+      <template #toolbar>
+        <label class="sort-control">
+          <span>Sorteren op</span>
+          <select v-model="sort" aria-label="Klanten sorteren">
+            <option value="name_asc">Naam (A–Z)</option>
+            <option value="name_desc">Naam (Z–A)</option>
+            <option value="gigs_desc">Aantal gigs (meeste eerst)</option>
+          </select>
+        </label>
       </template>
     </AdminFilterBar>
 
-    <div v-if="status === 'pending'" class="empty">Loading clients…</div>
-    <div v-else-if="!data?.clients.length" class="empty">No clients found.</div>
+    <div v-if="status === 'pending' && !data" class="empty">Klanten laden…</div>
+    <div v-else-if="!data?.clients.length" class="empty">Geen klanten gevonden{{ hasActiveFilters ? ' met deze filters' : '' }}.</div>
     <div v-else class="list">
       <NuxtLink v-for="client in data.clients" :key="client.id" :to="`/admin/clients/${client.id}`" class="row">
         <div class="avatar">{{ displayName(client).slice(0, 2).toUpperCase() }}</div>
         <div class="copy">
           <strong>{{ displayName(client) }}</strong>
-          <span>{{ client.email || client.phone || (client.type === 'company' ? 'Company' : 'Person') }}</span>
+          <span>{{ client.email || client.phone || (client.type === 'company' ? 'Bedrijf' : 'Particulier') }}</span>
         </div>
         <span class="count">{{ client.gigCount }} {{ client.gigCount === 1 ? 'gig' : 'gigs' }}</span>
       </NuxtLink>
@@ -122,18 +165,24 @@ useSeoMeta({ title: 'Clients — DJ NightLight', robots: 'noindex, nofollow' })
 <style scoped>
 .entity-page { max-width: 1050px; margin-inline: auto; }
 .page-header { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin-bottom:1.5rem; }
-h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.05em; }
-.page-header p:last-child { margin:0; color:#8e8797; }
-.primary { border:0; border-radius:.7rem; padding:.75rem 1rem; background:#fff; color:#09080b; font-weight:800; cursor:pointer; }
-.editor-card { margin-bottom:1.2rem; padding:1.3rem; border:1px solid #2b2631; border-radius:1rem; background:#100e14; }
+h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.04em; }
+.page-header p:last-child { margin:0; color:var(--text-subtle); }
+.primary { border:0; border-radius:.7rem; padding:.75rem 1rem; background:var(--button-primary-bg); color:var(--button-primary-fg); font-weight:800; cursor:pointer; }
+.editor-card { margin-bottom:1.2rem; padding:1.3rem; border:1px solid var(--border); border-radius:1rem; background:var(--surface-card); }
 .editor-card h2 { margin-top:0; }
 .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.9rem; margin-bottom:1rem; }
-label { display:grid; gap:.4rem; color:#aaa4b1; font-size:.82rem; }
-input, select, textarea { width:100%; border:1px solid #332e39; border-radius:.65rem; padding:.75rem; background:#0b0a0d; color:#f6f3fa; }
+label { display:grid; gap:.4rem; color:var(--text-muted); font-size:.82rem; }
+input, select, textarea { width:100%; border:1px solid var(--border-strong); border-radius:.65rem; padding:.75rem; background:var(--surface-input); color:var(--text); }
 .wide { grid-column:1/-1; }
+.status-tabs { display:flex; gap:.35rem; margin-bottom:.85rem; overflow-x:auto; scrollbar-width:none; }
+.status-tabs button { flex:0 0 auto; min-height:2.5rem; border:1px solid var(--border); border-radius:999px; padding:.45rem .95rem; background:transparent; color:#b8b2c1; font:inherit; font-weight:700; font-size:.84rem; cursor:pointer; }
+.status-tabs button:hover { color:#fff; border-color:#3d3646; }
+.status-tabs button[aria-pressed="true"] { border-color:var(--text); background:var(--text); color:#0b0910; }
+.sort-control { display:flex; align-items:center; gap:.55rem; color:var(--text-subtle); font-size:.78rem; }
+.sort-control span { white-space:nowrap; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; }
 .toolbar input { max-width:28rem; }
-.toolbar span { color:#777080; font-size:.82rem; }
+.toolbar span { color:var(--text-subtle); font-size:.82rem; }
 .list { border:1px solid #292530; border-radius:1rem; overflow:hidden; }
 .row { display:grid; grid-template-columns:2.6rem minmax(0,1fr) auto; gap:.9rem; align-items:center; padding:.9rem 1rem; border-bottom:1px solid #242029; text-decoration:none; }
 .row:last-child { border-bottom:0; }

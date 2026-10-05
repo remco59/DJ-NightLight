@@ -26,6 +26,8 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
     || pathname.startsWith('/api/admin/post-generator')
   ) return 'content:manage'
 
+  if (pathname === '/api/admin/calendar/events' && method === 'GET') return 'gigs:read'
+
   if (pathname.startsWith('/api/admin/gigs')) {
     const isSimpleGigRoute = /^\/api\/admin\/gigs(?:\/[^/]+)?$/.test(pathname)
     return method === 'GET' && isSimpleGigRoute ? 'gigs:read' : 'gigs:manage'
@@ -51,6 +53,6 @@ export default defineEventHandler(async (event) => {
   const permission = requiredPermission(pathname, event.method)
 
   if (!permissionAllowed(user.role, permission)) {
-    throw createError({ statusCode: 403, statusMessage: 'Insufficient permissions' })
+    throw createError({ statusCode: 403, statusMessage: 'Onvoldoende rechten' })
   }
 })

@@ -10,10 +10,10 @@ export default defineEventHandler(async (event) => {
   const parsed = siteContentInputSchema.safeParse(body)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
-    const field = issue?.path.length ? issue.path.join('.') : 'website content'
+    const field = issue?.path.length ? issue.path.join('.') : 'website-inhoud'
     throw createError({
       statusCode: 422,
-      statusMessage: issue ? `${field}: ${issue.message}` : 'Website content is invalid',
+      statusMessage: issue ? `${field}: ${issue.message}` : 'De website-inhoud is ongeldig',
     })
   }
 
@@ -27,6 +27,6 @@ export default defineEventHandler(async (event) => {
     })
     .returning()
 
-  if (!content) throw createError({ statusCode: 500, statusMessage: 'Could not save website content' })
+  if (!content) throw createError({ statusCode: 500, statusMessage: 'Website-inhoud opslaan is niet gelukt' })
   return { content }
 })

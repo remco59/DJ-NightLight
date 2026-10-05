@@ -24,10 +24,10 @@ defineProps<{
   padding: 1.2rem;
   border: 1px solid #292530;
   border-radius: 1.1rem;
-  background: #100e14;
+  background: var(--surface-card);
 }
 .stat p { margin: 0; color: #9d97a6; font-size: .82rem; }
 .stat strong { font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.04em; }
-.stat small { color: #777180; }
-.stat.muted strong { color: #6e6876; }
+.stat small { color: var(--text-subtle); }
+.stat.muted strong { color: var(--text-subtle); }
 </style>

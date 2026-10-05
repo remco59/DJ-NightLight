@@ -20,7 +20,7 @@ export async function getPortalForm(gigId: string) {
         .orderBy(desc(questionnaireTemplateVersions.version))
         .limit(1)
 
-  if (!version) throw createError({ statusCode: 503, statusMessage: 'No active questionnaire is configured' })
+  if (!version) throw createError({ statusCode: 503, statusMessage: 'Er is geen actieve vragenlijst ingesteld' })
   const wishes = await db.select().from(musicWishes).where(eq(musicWishes.gigId, gigId)).orderBy(asc(musicWishes.ordering))
   return { version, submission: submission ?? null, wishes }
 }

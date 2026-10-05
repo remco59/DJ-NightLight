@@ -1,0 +1,270 @@
+import { describe, expect, it } from 'vitest'
+import {
+  VIDEO_ASPECTS,
+  collectProjectAssetIds,
+  createGraphicItem,
+  createMediaItem,
+  createVideoProject,
+  graphicBackdrop,
+  parseVideoProject,
+  projectDurationFrames,
+  projectMediaIds,
+  projectThumbnailFrame,
+  trackAccepts,
+  withProjectMedia,
+  withoutProjectMedia,
+} from '../shared/video-project'
+import { isLucideIcon } from '../shared/lucide-icons'
+import { GIG_ROW_COLUMNS, MOTION_TEMPLATES, MOTION_TEMPLATE_KEYS, iconProp, joinListRow, parseGigRow, splitListRow } from '../shared/video-templates'
+import { inspectTimedMedia } from '../shared/media'
+
+const assetId = '11111111-1111-4111-8111-111111111111'
+const otherAssetId = '22222222-2222-4222-8222-222222222222'
+
+describe('video project model', () => {
+  it('creates a vertical project with video, graphics and audio tracks', () => {
+    const project = createVideoProject('9:16')
+    expect(project.width).toBe(1080)
+    expect(project.height).toBe(1920)
+    expect(project.fps).toBe(30)
+    expect(project.tracks.map(track => track.kind)).toEqual(['video', 'graphics', 'audio'])
+    expect(project.tracks[1]!.items[0]).toMatchObject({ type: 'graphic', templateKey: 'gig-announcement', start: 0, duration: 180 })
+    expect(() => parseVideoProject(project)).not.toThrow()
+  })
+
+  it('supports the common social aspect ratios', () => {
+    expect(Object.keys(VIDEO_ASPECTS)).toEqual(['9:16', '4:5', '1:1', '16:9'])
+    expect(createVideoProject('16:9')).toMatchObject({ width: 1920, height: 1080 })
+  })
+
+  it('derives the duration from the timeline unless it is fixed', () => {
+    const project = createVideoProject()
+    expect(projectDurationFrames(project)).toBe(180)
+    project.autoDuration = false
+    project.durationFrames = 450
+    expect(projectDurationFrames(project)).toBe(450)
+    project.tracks.forEach(track => (track.items = []))
+    project.autoDuration = true
+    expect(projectDurationFrames(project)).toBe(30)
+  })
+
+  it('picks thumbnail frames near the start without using frame zero', () => {
+    const short = createVideoProject('9:16', 30)
+    short.autoDuration = false
+    short.durationFrames = 30
+    expect(projectThumbnailFrame(short)).toBe(15)
+
+    const medium = createVideoProject('9:16', 30)
+    medium.autoDuration = false
+    medium.durationFrames = 300
+    expect(projectThumbnailFrame(medium)).toBe(30)
+
+    const long = createVideoProject('9:16', 30)
+    long.autoDuration = false
+    long.durationFrames = 1800
+    expect(projectThumbnailFrame(long)).toBe(60)
+  })
+
+  it('creates media items that respect the source length', () => {
+    const video = createMediaItem({ id: assetId, mimeType: 'video/mp4', durationMs: 4000 }, 12, 30)
+    expect(video).toMatchObject({ type: 'video', start: 12, duration: 120, trimStart: 0, speed: 1 })
+    const audio = createMediaItem({ id: assetId, mimeType: 'audio/mpeg', durationMs: 154_000 }, 0, 30)
+    expect(audio).toMatchObject({ type: 'audio', duration: 4620 })
+    const image = createMediaItem({ id: assetId, mimeType: 'image/jpeg', durationMs: null }, 0, 30)
+    expect(image).toMatchObject({ type: 'image', duration: 90 })
+  })
+
+  it('keeps media on compatible tracks', () => {
+    expect(trackAccepts('video', 'video')).toBe(true)
+    expect(trackAccepts('video', 'audio')).toBe(false)
+    expect(trackAccepts('graphics', 'graphic')).toBe(true)
+    expect(trackAccepts('graphics', 'image')).toBe(true)
+    expect(trackAccepts('audio', 'graphic')).toBe(false)
+
+    const project = createVideoProject()
+    project.tracks[2]!.items.push(createGraphicItem('hype-title', 0, 30))
+    expect(() => parseVideoProject(project)).toThrow(/kan geen graphic-items bevatten/)
+  })
+
+  it('rejects duplicate item ids and unknown templates', () => {
+    const project = createVideoProject()
+    const graphic = project.tracks[1]!.items[0]!
+    project.tracks[1]!.items.push({ ...graphic, start: 400 })
+    expect(() => parseVideoProject(project)).toThrow(/Dubbele item-ID/)
+
+    const unknown = createVideoProject() as unknown as { tracks: Array<{ items: Array<Record<string, unknown>> }> }
+    unknown.tracks[1]!.items[0]!.templateKey = 'not-a-template'
+    expect(() => parseVideoProject(unknown)).toThrow()
+  })
+
+  it('collects every referenced asset, including media inside templates', () => {
+    const project = createVideoProject()
+    project.tracks[0]!.items.push(createMediaItem({ id: assetId, mimeType: 'video/mp4', durationMs: 5000 }, 0, 30))
+    const recap = createGraphicItem('clip-recap', 200, 30)
+    recap.templateProps.media = [assetId, otherAssetId]
+    project.tracks[1]!.items.push(recap)
+    expect(collectProjectAssetIds(project).sort()).toEqual([assetId, otherAssetId])
+  })
+})
+
+describe('project media panel', () => {
+  const thirdAssetId = '33333333-3333-4333-8333-333333333333'
+
+  it('lists added media newest first, then what the timeline uses', () => {
+    const project = createVideoProject()
+    expect(projectMediaIds(project)).toEqual([])
+
+    project.tracks[0]!.items.push(createMediaItem({ id: thirdAssetId, mimeType: 'image/jpeg', durationMs: null }, 0, 30))
+    const added = withProjectMedia(withProjectMedia(project, [assetId]), [otherAssetId, thirdAssetId])
+    expect(added.mediaIds).toEqual([assetId, otherAssetId, thirdAssetId])
+    // Newest added first; the timeline asset is already in the panel, so it is not listed twice.
+    expect(projectMediaIds(added)).toEqual([thirdAssetId, otherAssetId, assetId])
+    // Assets used on the timeline show up even when they were never added explicitly.
+    expect(projectMediaIds(project)).toEqual([thirdAssetId])
+  })
+
+  it('ignores duplicates and returns the same project when nothing changes', () => {
+    const project = withProjectMedia(createVideoProject(), [assetId, assetId])
+    expect(project.mediaIds).toEqual([assetId])
+    expect(withProjectMedia(project, [assetId])).toBe(project)
+    expect(withProjectMedia(project, [])).toBe(project)
+  })
+
+  it('removes media from the panel but keeps what the timeline still uses', () => {
+    const project = createVideoProject()
+    project.tracks[0]!.items.push(createMediaItem({ id: assetId, mimeType: 'image/jpeg', durationMs: null }, 0, 30))
+    const added = withProjectMedia(project, [assetId, otherAssetId])
+    const without = withoutProjectMedia(added, otherAssetId)
+    expect(without.mediaIds).toEqual([assetId])
+    expect(withoutProjectMedia(without, otherAssetId)).toBe(without)
+    expect(projectMediaIds(withoutProjectMedia(without, assetId))).toEqual([assetId])
+  })
+
+  it('survives saving: the schema keeps media ids and rejects bad ones', () => {
+    const project = withProjectMedia(createVideoProject(), [assetId])
+    expect(parseVideoProject(project).mediaIds).toEqual([assetId])
+    expect(parseVideoProject(createVideoProject()).mediaIds).toBeUndefined()
+    expect(() => parseVideoProject({ ...project, mediaIds: ['not-a-uuid'] })).toThrow()
+  })
+})
+
+describe('motion templates', () => {
+  it('ships the NightLight template library', () => {
+    expect(MOTION_TEMPLATE_KEYS).toEqual([
+      'gig-announcement',
+      'recap-intro',
+      'review',
+      'upcoming-gigs',
+      'logo-sting',
+      'lower-third',
+      'hype-title',
+      'photo-drop',
+      'clip-recap',
+      'neon-logo-reveal',
+      'lightning-banner',
+      'electric-gig-poster',
+      'now-playing',
+      'bolt-transition',
+      'neon-outro',
+    ])
+  })
+
+  it('provides defaults for every editable field', () => {
+    for (const template of Object.values(MOTION_TEMPLATES)) {
+      for (const field of template.fields) {
+        expect(template.defaults, `${template.key}.${field.key}`).toHaveProperty(field.key)
+      }
+      const item = createGraphicItem(template.key, 0, 30)
+      const project = createVideoProject()
+      project.tracks[1]!.items = [item]
+      expect(() => parseVideoProject(project)).not.toThrow()
+    }
+  })
+
+  it('defaults every icon field to an icon the templates can draw', () => {
+    for (const template of Object.values(MOTION_TEMPLATES)) {
+      for (const field of template.fields.filter(field => field.kind === 'icon')) {
+        expect(isLucideIcon(template.defaults[field.key]), `${template.key}.${field.key}`).toBe(true)
+      }
+    }
+  })
+
+  it('lets items swap or hide template icons', () => {
+    const item = createGraphicItem('gig-announcement', 0, 30)
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('clock')
+    item.templateProps.timeIcon = 'ticket'
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('ticket')
+    item.templateProps.timeIcon = ''
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBeNull()
+    item.templateProps.timeIcon = 'not-an-icon'
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBeNull()
+    // Projects saved before icons were editable keep the template default.
+    delete item.templateProps.timeIcon
+    expect(iconProp(item.templateKey, item.templateProps, 'timeIcon')).toBe('clock')
+  })
+
+  it('dims the footage behind a template by default and lets items override it', () => {
+    const item = createGraphicItem('electric-gig-poster', 0, 30)
+    expect(graphicBackdrop(item)).toBe(MOTION_TEMPLATES['electric-gig-poster'].defaultBackdrop)
+    expect(graphicBackdrop(createGraphicItem('lower-third', 0, 30))).toBe(0)
+    // Projects saved before the setting existed fall back to the template default.
+    delete item.backdrop
+    const project = createVideoProject()
+    project.tracks[1]!.items = [item]
+    const parsed = parseVideoProject(project).tracks[1]!.items[0]!
+    expect(parsed.type === 'graphic' && graphicBackdrop(parsed)).toBe(0.5)
+    item.backdrop = 0
+    expect(graphicBackdrop(item)).toBe(0)
+    item.backdropStyle = 'blur'
+    expect(() => parseVideoProject(project)).not.toThrow()
+    item.backdropStyle = 'sepia' as never
+    expect(() => parseVideoProject(project)).toThrow()
+    item.backdropStyle = 'gradient'
+    item.backdrop = 1
+    expect(() => parseVideoProject(project)).toThrow()
+  })
+
+  it('parses upcoming gig rows', () => {
+    expect(parseGigRow('06 DEC | Club Nova | Amsterdam')).toEqual({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: '', time: '' })
+    expect(parseGigRow('10 DEC')).toEqual({ date: '10 DEC', title: '', place: '', day: '', time: '' })
+    expect(parseGigRow('06 DEC|Club Nova|Amsterdam|ZA|22:00')).toEqual({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: 'ZA', time: '22:00' })
+  })
+
+  it('edits gig rows column by column', () => {
+    const row = joinListRow({ day: 'ZA', date: '06 DEC', time: '', title: 'Club Nova', place: '' }, GIG_ROW_COLUMNS)
+    expect(row).toBe('06 DEC | Club Nova |  | ZA')
+    expect(parseGigRow(row)).toEqual({ date: '06 DEC', title: 'Club Nova', place: '', day: 'ZA', time: '' })
+    // Rows without day or time keep the old notation.
+    expect(joinListRow({ date: '06 DEC', title: 'Club Nova', place: 'Amsterdam', day: '', time: '' }, GIG_ROW_COLUMNS)).toBe('06 DEC | Club Nova | Amsterdam')
+    // A value keeps the space someone is still typing, and pipes cannot split it.
+    const typing = joinListRow({ date: '06 DEC', title: 'Club ', place: 'A|B' }, GIG_ROW_COLUMNS)
+    expect(splitListRow(typing, GIG_ROW_COLUMNS)).toMatchObject({ title: 'Club ', place: 'A/B' })
+  })
+})
+
+describe('timed media validation', () => {
+  const bytes = (text: string, offset = 0) => {
+    const buffer = new Uint8Array(32)
+    buffer.set(new TextEncoder().encode(text), offset)
+    return buffer
+  }
+
+  it('detects video and audio containers from their signatures', () => {
+    const mp4 = bytes('ftypisom', 4)
+    expect(inspectTimedMedia(mp4)).toMatchObject({ kind: 'video', mimeType: 'video/mp4' })
+    expect(inspectTimedMedia(bytes('ftypqt  ', 4))).toMatchObject({ kind: 'video', mimeType: 'video/quicktime' })
+    expect(inspectTimedMedia(bytes('ftypM4A ', 4))).toMatchObject({ kind: 'audio', mimeType: 'audio/mp4' })
+    expect(inspectTimedMedia(bytes('ID3'))).toMatchObject({ kind: 'audio', mimeType: 'audio/mpeg' })
+    expect(inspectTimedMedia(bytes('OggS'))).toMatchObject({ kind: 'audio', mimeType: 'audio/ogg' })
+    const wav = bytes('RIFF')
+    wav.set(new TextEncoder().encode('WAVE'), 8)
+    expect(inspectTimedMedia(wav)).toMatchObject({ kind: 'audio', mimeType: 'audio/wav' })
+    const webm = new Uint8Array(32)
+    webm.set([0x1a, 0x45, 0xdf, 0xa3])
+    expect(inspectTimedMedia(webm)).toMatchObject({ kind: 'video', mimeType: 'video/webm' })
+  })
+
+  it('rejects files that only claim to be media', () => {
+    expect(() => inspectTimedMedia(new TextEncoder().encode('<html>not really a video file</html>'))).toThrow()
+  })
+})

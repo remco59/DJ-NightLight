@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyPostTemplate,
   coverImageRect,
+  defaultPostDesign,
+  defaultPostGigItems,
+  defaultPostVisibility,
+  normalizePostBrand,
+  postImageDragDelta,
+  POST_BRAND_PRESETS,
   POST_PRESETS,
+  POST_TEMPLATE_KEYS,
+  POST_TEMPLATES,
+  restorePostDesign,
   safeAreaInsets,
 } from '../shared/post-generator'
+import { MOTION_ACCENT_KEYS } from '../shared/video-templates'
 
 describe('post generator', () => {
   it('uses the exact social export dimensions', () => {
@@ -49,5 +60,185 @@ describe('post generator', () => {
     const story = safeAreaInsets('story')
     expect(story.top).toBeGreaterThan(square.top)
     expect(story.bottom).toBeGreaterThan(square.bottom)
+  })
+
+  it('includes the editable NightLight campaign templates', () => {
+    expect(POST_TEMPLATE_KEYS).toContain('gig-announcement')
+    expect(POST_TEMPLATE_KEYS).toContain('recap')
+    expect(POST_TEMPLATE_KEYS).toContain('review')
+    expect(POST_TEMPLATE_KEYS).toContain('upcoming-gigs')
+  })
+
+  it('starts editable fields visible and provides planning rows', () => {
+    expect(defaultPostVisibility()).toMatchObject({
+      logo: true,
+      headline: true,
+      subline: true,
+      date: true,
+      time: true,
+      location: true,
+      cta: true,
+      gigList: true,
+    })
+    const gigs = defaultPostGigItems()
+    expect(gigs).toHaveLength(4)
+    expect(gigs.every(item => item.enabled)).toBe(true)
+  })
+
+  it('maps preview drag distance to normalized image positioning', () => {
+    const delta = postImageDragDelta({
+      deltaX: 50,
+      deltaY: -25,
+      displayWidth: 540,
+      displayHeight: 960,
+      targetWidth: 1080,
+      targetHeight: 1920,
+      renderedWidth: 2160,
+      renderedHeight: 2400,
+    })
+    expect(delta.x).toBeCloseTo(50 * 2 / (1080 * .5))
+    expect(delta.y).toBeCloseTo(-25 * 2 / (480 * .5))
+  })
+
+  it('does not move on an axis without crop overflow', () => {
+    const delta = postImageDragDelta({
+      deltaX: 80,
+      deltaY: 80,
+      displayWidth: 540,
+      displayHeight: 540,
+      targetWidth: 1080,
+      targetHeight: 1080,
+      renderedWidth: 1080,
+      renderedHeight: 1600,
+    })
+    expect(delta.x).toBe(0)
+    expect(delta.y).toBeGreaterThan(0)
+  })
+})
+
+describe('post templates', () => {
+  it('describes every template key exactly once', () => {
+    expect(POST_TEMPLATES.map(template => template.key).sort()).toEqual([...POST_TEMPLATE_KEYS].sort())
+  })
+
+  it('applies a campaign template composition with its sample copy', () => {
+    const next = applyPostTemplate(defaultPostDesign(), 'gig-announcement')
+    expect(next).toMatchObject({
+      templateKey: 'gig-announcement',
+      preset: 'story',
+      headline: 'DIT WEEKEND',
+      timeText: '22:00 – 02:00',
+      textAlign: 'center',
+      textPosition: 'middle',
+    })
+    expect(next.visibility.gigList).toBe(false)
+    expect(next.visibility.time).toBe(true)
+  })
+
+  it('applies the review sample copy and hides unrelated event fields', () => {
+    const next = applyPostTemplate(defaultPostDesign(), 'review')
+    expect(next).toMatchObject({
+      templateKey: 'review',
+      preset: 'story',
+      headline: '★★★★★',
+      subline: '“Dansvloer heeft letterlijk geen moment leeg gestaan.”',
+      locationText: 'Bruiloft · Groningen',
+    })
+    expect(next.visibility.date).toBe(false)
+    expect(next.visibility.time).toBe(false)
+    expect(next.visibility.cta).toBe(false)
+    expect(next.visibility.location).toBe(true)
+  })
+
+  it('keeps copy the user wrote when switching templates', () => {
+    const design = { ...defaultPostDesign(), headline: 'KONINGSNACHT', locationText: 'Leeuwarden' }
+    const next = applyPostTemplate(design, 'recap')
+    expect(next.headline).toBe('KONINGSNACHT')
+    expect(next.locationText).toBe('Leeuwarden')
+    // Untouched sample copy is replaced by the new template's sample.
+    expect(next.subline).toBe('TERUGBLIK')
+    expect(next.visibility.time).toBe(false)
+  })
+
+  it('replaces sample copy from another template', () => {
+    const gig = applyPostTemplate(defaultPostDesign(), 'gig-announcement')
+    const planning = applyPostTemplate(gig, 'upcoming-gigs')
+    expect(planning.headline).toBe('DECEMBER')
+    expect(planning.ctaText).toBe('TOT OP DE DANSVLOER!')
+    expect(planning.dateText).toBe('')
+  })
+
+  it('only swaps the style for flexible templates and never mutates the input', () => {
+    const design = applyPostTemplate(defaultPostDesign(), 'recap')
+    const snapshot = JSON.stringify(design)
+    const next = applyPostTemplate(design, 'minimal')
+    expect(next).toEqual({ ...design, templateKey: 'minimal' })
+    expect(JSON.stringify(design)).toBe(snapshot)
+  })
+
+  it('keeps edited gig rows when returning to the planning template', () => {
+    const design = defaultPostDesign()
+    design.gigItems = [{ enabled: true, dateText: '01 JAN', title: 'Nieuwjaar', locationText: 'Sneek' }]
+    expect(applyPostTemplate(design, 'upcoming-gigs').gigItems).toEqual(design.gigItems)
+  })
+})
+
+describe('brand presets', () => {
+  it('uses the video accents', () => {
+    expect(POST_BRAND_PRESETS).toEqual(MOTION_ACCENT_KEYS)
+    expect(defaultPostDesign().brandPreset).toBe('ultraviolet')
+  })
+
+  it('maps presets saved before the accents to their closest accent', () => {
+    expect(normalizePostBrand('night')).toBe('ultraviolet')
+    expect(normalizePostBrand('warm')).toBe('sunset')
+    expect(normalizePostBrand('mono')).toBe('mono')
+    expect(normalizePostBrand('hot-pink')).toBe('hot-pink')
+    expect(normalizePostBrand('neon')).toBeNull()
+    expect(normalizePostBrand(3)).toBeNull()
+  })
+
+  it('restores a legacy preset as its accent', () => {
+    const restored = restorePostDesign(defaultPostDesign(), { brandPreset: 'warm' })
+    expect(restored.brandPreset).toBe('sunset')
+  })
+})
+
+describe('restoring a stored design', () => {
+  it('loads every valid stored field', () => {
+    const stored = applyPostTemplate(defaultPostDesign(), 'recap')
+    stored.imageX = .4
+    stored.zoom = 2
+    stored.brandPreset = 'sunset'
+    expect(restorePostDesign(defaultPostDesign(), stored)).toEqual({ ...stored, showSafeArea: true })
+  })
+
+  it('keeps the current value for missing or invalid fields', () => {
+    const base = defaultPostDesign()
+    const restored = restorePostDesign(base, {
+      preset: 'banner',
+      templateKey: 'unknown',
+      headline: 42,
+      zoom: 9,
+      imageY: Number.NaN,
+      visibility: { logo: false, headline: 'yes' },
+      gigItems: [null, { title: 'Only a title' }],
+      showSafeArea: false,
+    })
+    expect(restored.preset).toBe(base.preset)
+    expect(restored.templateKey).toBe(base.templateKey)
+    expect(restored.headline).toBe(base.headline)
+    expect(restored.zoom).toBe(3)
+    expect(restored.imageY).toBe(base.imageY)
+    expect(restored.visibility.logo).toBe(false)
+    expect(restored.visibility.headline).toBe(true)
+    expect(restored.gigItems).toEqual([{ enabled: true, dateText: '', title: 'Only a title', locationText: '' }])
+    // Safe-area guides are a view preference, not part of a stored design.
+    expect(restored.showSafeArea).toBe(true)
+  })
+
+  it('ignores non-object metadata', () => {
+    expect(restorePostDesign(defaultPostDesign(), null)).toEqual(defaultPostDesign())
+    expect(restorePostDesign(defaultPostDesign(), 'design')).toEqual(defaultPostDesign())
   })
 })

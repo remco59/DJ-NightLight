@@ -19,7 +19,7 @@ export function assertRequestRateLimit(key: string, limit: number, windowMs: num
   if (current.count >= limit) {
     throw createError({
       statusCode: 429,
-      statusMessage: 'Too many requests. Please try again later.',
+      statusMessage: 'Te veel verzoeken. Probeer het later opnieuw.',
     })
   }
 

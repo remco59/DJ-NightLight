@@ -18,7 +18,7 @@ export function assertPortalRateLimit(key: string) {
     return
   }
   if (existing.count >= MAX_ATTEMPTS) {
-    throw createError({ statusCode: 429, statusMessage: 'Too many portal requests. Please try again later.' })
+    throw createError({ statusCode: 429, statusMessage: 'Te veel verzoeken aan het portaal. Probeer het later opnieuw.' })
   }
   existing.count += 1
 }

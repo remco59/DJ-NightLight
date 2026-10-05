@@ -2,6 +2,7 @@ import { and, eq, gt, isNull } from 'drizzle-orm'
 import { clients, gigs, portalLinks, venues } from '../../db/schema'
 import { db } from './db'
 import { hashPortalToken } from './portal-token'
+import { gigTitleSql } from './gig-title'
 
 export async function resolvePortalAccess(token: string) {
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null
@@ -10,7 +11,7 @@ export async function resolvePortalAccess(token: string) {
     .select({
       linkId: portalLinks.id,
       gigId: gigs.id,
-      title: gigs.title,
+      title: gigTitleSql(),
       eventType: gigs.eventType,
       status: gigs.status,
       startsAt: gigs.startsAt,

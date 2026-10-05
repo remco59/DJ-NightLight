@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm'
+import { desc, like } from 'drizzle-orm'
 import { generatedPosts, mediaAssets } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { requireStaff } from '../../../utils/require-staff'
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
     width: mediaAssets.width,
     height: mediaAssets.height,
     createdAt: mediaAssets.createdAt,
-  }).from(mediaAssets).orderBy(desc(mediaAssets.createdAt)).limit(250)).map(asset => ({
+  }).from(mediaAssets).where(like(mediaAssets.mimeType, 'image/%')).orderBy(desc(mediaAssets.createdAt)).limit(250)).map(asset => ({
     ...asset,
     url: `/api/media/${asset.id}`,
     thumbnailUrl: `/api/media/${asset.id}?variant=thumb`,

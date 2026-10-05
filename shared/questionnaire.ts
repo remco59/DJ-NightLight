@@ -20,7 +20,7 @@ export const questionnaireFieldSchema = z.object({
   options: z.array(z.string().trim().min(1).max(160)).max(50).optional(),
 }).superRefine((field, context) => {
   if ((field.type === 'select' || field.type === 'multi_select') && !field.options?.length) {
-    context.addIssue({ code: 'custom', message: 'Select fields need at least one option', path: ['options'] })
+    context.addIssue({ code: 'custom', message: 'Keuzevelden hebben minstens één optie nodig', path: ['options'] })
   }
 })
 
@@ -29,7 +29,7 @@ export const questionnaireTemplateInputSchema = z.object({
   fields: z.array(questionnaireFieldSchema).max(80).superRefine((fields, context) => {
     const ids = new Set<string>()
     fields.forEach((field, index) => {
-      if (ids.has(field.id)) context.addIssue({ code: 'custom', message: 'Field ids must be unique', path: [index, 'id'] })
+      if (ids.has(field.id)) context.addIssue({ code: 'custom', message: 'Veld-ID’s moeten uniek zijn', path: [index, 'id'] })
       ids.add(field.id)
     })
   }),
@@ -60,10 +60,10 @@ export const musicWishSchema = z.object({
   category: z.enum(musicWishCategories),
   artist: z.string().trim().max(240).optional().default(''),
   title: z.string().trim().max(240).optional().default(''),
-  spotifyUrl: z.string().trim().max(1000).optional().default('').refine(isValidSpotifyUrl, 'Use a valid Spotify track or playlist URL'),
+  spotifyUrl: z.string().trim().max(1000).optional().default('').refine(isValidSpotifyUrl, 'Gebruik een geldige Spotify-URL van een track of playlist'),
   note: z.string().trim().max(2000).optional().default(''),
   ordering: z.number().int().min(0).max(500),
-}).refine(wish => Boolean(wish.artist || wish.title || wish.spotifyUrl || wish.note), 'A music wish cannot be empty')
+}).refine(wish => Boolean(wish.artist || wish.title || wish.spotifyUrl || wish.note), 'Een muziekwens mag niet leeg zijn')
 
 function isEmpty(value: unknown) {
   return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0) || value === false
@@ -74,20 +74,20 @@ export function validateQuestionnaireAnswers(fields: QuestionnaireField[], answe
   for (const field of fields) {
     const value = answers[field.id]
     if (field.required && isEmpty(value)) {
-      errors[field.id] = 'This field is required.'
+      errors[field.id] = 'Dit veld is verplicht.'
       continue
     }
     if (isEmpty(value)) continue
-    if (['short_text', 'long_text', 'email', 'phone', 'date', 'time', 'select', 'url'].includes(field.type) && typeof value !== 'string') errors[field.id] = 'Enter a valid value.'
-    if (typeof value === 'string' && value.length > 10000) errors[field.id] = 'This answer is too long.'
-    if (field.type === 'email' && !z.string().email().safeParse(value).success) errors[field.id] = 'Enter a valid email address.'
-    if (field.type === 'url' && !z.string().url().safeParse(value).success) errors[field.id] = 'Enter a valid URL.'
-    if (field.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) errors[field.id] = 'Enter a valid number.'
-    if (field.type === 'date' && (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value))) errors[field.id] = 'Enter a valid date.'
-    if (field.type === 'time' && (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value))) errors[field.id] = 'Enter a valid time.'
-    if ((field.type === 'checkbox' || field.type === 'acknowledgement') && typeof value !== 'boolean') errors[field.id] = 'Choose yes or no.'
-    if (field.type === 'select' && !field.options?.includes(String(value))) errors[field.id] = 'Choose one of the available options.'
-    if (field.type === 'multi_select' && (!Array.isArray(value) || value.some(item => !field.options?.includes(String(item))))) errors[field.id] = 'Choose only available options.'
+    if (['short_text', 'long_text', 'email', 'phone', 'date', 'time', 'select', 'url'].includes(field.type) && typeof value !== 'string') errors[field.id] = 'Vul een geldige waarde in.'
+    if (typeof value === 'string' && value.length > 10000) errors[field.id] = 'Dit antwoord is te lang.'
+    if (field.type === 'email' && !z.string().email().safeParse(value).success) errors[field.id] = 'Vul een geldig e-mailadres in.'
+    if (field.type === 'url' && !z.string().url().safeParse(value).success) errors[field.id] = 'Vul een geldige URL in.'
+    if (field.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) errors[field.id] = 'Vul een geldig getal in.'
+    if (field.type === 'date' && (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value))) errors[field.id] = 'Vul een geldige datum in.'
+    if (field.type === 'time' && (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value))) errors[field.id] = 'Vul een geldige tijd in.'
+    if ((field.type === 'checkbox' || field.type === 'acknowledgement') && typeof value !== 'boolean') errors[field.id] = 'Kies ja of nee.'
+    if (field.type === 'select' && !field.options?.includes(String(value))) errors[field.id] = 'Kies een van de beschikbare opties.'
+    if (field.type === 'multi_select' && (!Array.isArray(value) || value.some(item => !field.options?.includes(String(item))))) errors[field.id] = 'Kies alleen beschikbare opties.'
   }
   return errors
 }

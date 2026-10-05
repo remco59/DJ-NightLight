@@ -15,12 +15,14 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "security:audit": "npm audit --omit=dev --audit-level=high",
+    "security:audit": "node scripts/security-audit.mjs",
     "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh",
     "test:e2e": "tsx e2e/nightlight-e2e.ts",
     "worker:video": "tsx scripts/video-render-worker.ts"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.136",
+    "@nuxt/icon": "^2.5.1",
     "drizzle-orm": "^0.45.2",
     "nuxt": "^4.0.0",
     "nuxt-auth-utils": "^0.5.30",
@@ -28,10 +30,14 @@
     "stripe": "22.4.0",
     "zod": "^4.0.0",
     "@remotion/bundler": "4.0.526",
+    "@remotion/fonts": "4.0.526",
+    "@remotion/motion-blur": "4.0.526",
+    "@remotion/player": "4.0.526",
     "@remotion/renderer": "4.0.526",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "remotion": "4.0.526"
+    "remotion": "4.0.526",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.0.0",
