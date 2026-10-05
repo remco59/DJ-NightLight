@@ -16,6 +16,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const [payment] = await db.select().from(payments).where(eq(payments.invoiceId, id)).limit(1)
+  if (payment?.provider === 'manual' && payment.paidAt) {
+    throw createError({ statusCode: 409, statusMessage: 'Deze factuur is als betaald gemarkeerd. Maak die markering eerst ongedaan.' })
+  }
   if (payment?.paidAt) {
     throw createError({ statusCode: 409, statusMessage: 'Deze factuur heeft een betaling en kan niet worden verwijderd' })
   }
