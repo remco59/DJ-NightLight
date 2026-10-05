@@ -7,6 +7,7 @@ import {
   emailJobs,
   emailTemplates,
   gigEmailSuppressions,
+  gigReviews,
   gigs,
   invoices,
   outboxEvents,
@@ -24,11 +25,11 @@ import {
 import { db } from './db'
 import { loadEmailBranding } from './email-branding'
 import { sendEmail } from './email-provider'
-import { loadEmailIntegration } from './integration-settings'
 import { gigTitleSql } from './gig-title'
 import { getInvoiceDetail } from './invoice-data'
 import { buildInvoicePdf } from './invoice-pdf'
 import { getMediaStorage } from './media-storage'
+import { createReviewPortalUrl } from './review-link'
 
 function clientName(input: { firstName: string | null, lastName: string | null, companyName: string | null }) {
   return input.companyName || [input.firstName, input.lastName].filter(Boolean).join(' ') || 'daar'
@@ -75,14 +76,13 @@ export async function loadGigEmailDetails(gigId: string) {
     .limit(1)
   if (!row) return null
 
-  const { config: emailConfig } = await loadEmailIntegration()
   return {
     row,
     variables: {
       clientName: clientName(row),
       gigTitle: row.gigTitle,
       gigDate: fmt(row.startsAt),
-      reviewUrl: emailConfig.reviewUrl || '',
+      reviewUrl: '',
     } satisfies EmailVariables,
   }
 }
@@ -267,6 +267,11 @@ async function shouldSkipCurrentState(job: typeof emailJobs.$inferSelect) {
     if (!gig || gig.status !== 'booked') return 'De gig is niet meer geboekt'
   }
 
+  if (job.templateKey === 'review_request' && job.gigId) {
+    const [review] = await db.select({ id: gigReviews.id }).from(gigReviews).where(eq(gigReviews.gigId, job.gigId)).limit(1)
+    if (review) return 'Er is al een review geschreven'
+  }
+
   if (['payment_reminder', 'overdue_reminder', 'invoice_sent', 'payment_received'].includes(job.templateKey) && job.invoiceId) {
     const [invoice] = await db.select({
       status: invoices.status,
@@ -307,6 +312,10 @@ export async function processEmailJob(jobId: string) {
 
   if (!template) return { status: 'missing-template' as const }
   await db.update(emailJobs).set({ status: 'processing', updatedAt: new Date() }).where(eq(emailJobs.id, job.id))
+
+  if (template.key === 'review_request' && job.gigId && (!job.manual || !job.variables.reviewUrl)) {
+    job.variables = { ...job.variables, reviewUrl: await createReviewPortalUrl(job.gigId) }
+  }
 
   const subject = job.subjectOverride ?? renderEmailTemplate(template.subject, job.variables)
   const text = normalizeEmailText(job.bodyOverride ?? renderEmailTemplate(template.body, job.variables))
@@ -421,8 +430,6 @@ export async function materializeScheduledEmailJobs() {
       .where(and(eq(gigs.status, 'booked'), isNull(gigs.deletedAt)))
       .limit(500)
 
-    const { config: emailConfig } = await loadEmailIntegration()
-    const reviewUrl = emailConfig.reviewUrl || ''
     for (const template of gigTemplates) {
       if (template.key === 'portal_reminder') continue
       for (const row of rows) {
@@ -439,7 +446,7 @@ export async function materializeScheduledEmailJobs() {
             clientName: clientName(row),
             gigTitle: row.title,
             gigDate: fmt(row.startsAt),
-            reviewUrl,
+            reviewUrl: '',
           },
           dedupeKey: `scheduled:${template.key}:${row.gigId}:${new Date(anchor).toISOString()}`,
           runAt,

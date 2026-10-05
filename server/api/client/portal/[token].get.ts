@@ -1,5 +1,6 @@
 import { and, desc, eq, ne } from 'drizzle-orm'
-import { invoices, payments, portalLinks } from '../../../../db/schema'
+import { gigReviews, invoices, payments, portalLinks } from '../../../../db/schema'
+import { gigIsFinished } from '../../../../shared/gig-phase'
 import { recordAudit } from '../../../utils/audit'
 import { db, sql } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
@@ -23,7 +24,10 @@ export default defineEventHandler(async (event) => {
     action: 'portal_accessed',
     metadata: { linkId: access.linkId, requestFingerprint: hashPortalToken(ip).slice(0, 16) },
   })
+  const finished = gigIsFinished(access)
   const form = await getPortalForm(access.gigId)
+  const [review] = await db.select({ rating: gigReviews.rating, comment: gigReviews.comment, createdAt: gigReviews.createdAt })
+    .from(gigReviews).where(eq(gigReviews.gigId, access.gigId)).limit(1)
   const [invoice] = await db.select({
     id: invoices.id, invoiceNumber: invoices.invoiceNumber, totalCents: invoices.totalCents, currency: invoices.currency,
     status: invoices.status, paymentStatus: invoices.paymentStatus, dueDate: invoices.dueDate,
@@ -55,15 +59,19 @@ export default defineEventHandler(async (event) => {
       name: access.clientCompanyName || [access.clientFirstName, access.clientLastName].filter(Boolean).join(' ') || null,
     },
     expiresAt: access.expiresAt,
+    finished,
+    review: review || null,
+    reviewOpen: finished && access.status === 'booked',
+    // Once the gig is over, the party details and music wishes are no longer shown.
     questionnaire: {
       version: form.version.version,
-      fields: form.version.fields,
-      answers: form.submission?.answers || {},
+      fields: finished ? [] : form.version.fields,
+      answers: finished ? {} : form.submission?.answers || {},
       status: form.submission?.status || 'not_started',
       acceptedName: form.submission?.acceptedName || null,
       submittedAt: form.submission?.submittedAt || null,
     },
-    wishes: form.wishes.map(wish => ({
+    wishes: finished ? [] : form.wishes.map(wish => ({
       category: wish.category,
       artist: wish.artist,
       title: wish.title,

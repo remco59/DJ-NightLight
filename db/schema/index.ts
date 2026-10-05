@@ -140,6 +140,16 @@ export const portalLinks = pgTable('portal_links', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const gigReviews = pgTable('gig_reviews', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
+  portalLinkId: uuid('portal_link_id').references(() => portalLinks.id, { onDelete: 'set null' }),
+  rating: integer('rating').notNull(),
+  comment: text('comment'),
+  authorName: varchar('author_name', { length: 200 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex('gig_reviews_gig_id_unique').on(table.gigId)])
+
 export const questionnaireTemplates = pgTable('questionnaire_templates', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 200 }).notNull(),

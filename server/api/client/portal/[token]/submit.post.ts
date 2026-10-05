@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { auditLogs, contractSubmissions, musicWishes } from '../../../../../db/schema'
+import { gigIsFinished } from '../../../../../shared/gig-phase'
 import { musicWishSchema, validateQuestionnaireAnswers } from '../../../../../shared/questionnaire'
 import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
@@ -20,6 +21,7 @@ export default defineEventHandler(async (event) => {
   assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:submit`)
   const access = await resolvePortalAccess(token)
   if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
+  if (gigIsFinished(access)) throw createError({ statusCode: 409, statusMessage: 'Deze gig is afgelopen; gegevens en muziekwensen kunnen niet meer worden aangepast' })
   const parsed = submissionSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: parsed.error.issues[0]?.message || 'Controleer je antwoorden en probeer het opnieuw' })
 
