@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { clientTypeLabels, labelFor } from '~~/shared/labels'
 
 definePageMeta({ layout: 'admin' })
 
@@ -14,7 +15,19 @@ type ClientListItem = {
   gigCount: number
 }
 
-const search = ref('')
+const emptyFilters = { search: '', type: '', hasGigs: '', hasEmail: '' }
+const typeTabs = [{ value: '', label: 'Alle' }, { value: 'person', label: 'Particulieren' }, { value: 'company', label: 'Bedrijven' }]
+const sortOptions = ['name_asc', 'name_desc', 'gigs_desc']
+// Filters and sorting are remembered in a cookie so they survive a reload (and work during SSR).
+const saved = useCookie<{ filters?: Partial<typeof emptyFilters>; sort?: string }>('admin-client-filters', { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', default: () => ({}) })
+const savedFilters = Object.fromEntries(Object.entries(saved.value?.filters ?? {}).filter(([key, value]) => key in emptyFilters && typeof value === 'string'))
+const filters = reactive({ ...emptyFilters, ...savedFilters })
+const sort = ref(sortOptions.includes(saved.value?.sort ?? '') ? saved.value!.sort as string : 'name_asc')
+const showAdvancedFilters = ref(false)
+watch([filters, sort], () => { saved.value = { filters: { ...filters }, sort: sort.value } }, { deep: true })
+const activeAdvancedCount = computed(() => [filters.hasGigs, filters.hasEmail].filter(Boolean).length)
+const hasActiveFilters = computed(() => Object.values(filters).some(Boolean))
+function clearAllFilters() { Object.assign(filters, emptyFilters) }
 const showCreate = ref(false)
 const saving = ref(false)
 const formError = ref('')
@@ -30,7 +43,7 @@ const form = reactive({
 })
 
 const { data, status, refresh } = await useFetch<{ clients: ClientListItem[] }>('/api/admin/clients', {
-  query: computed(() => ({ search: search.value || undefined })),
+  query: computed(() => ({ ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== '')), sort: sort.value })),
 })
 
 function displayName(client: ClientListItem) {
@@ -92,21 +105,50 @@ useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
       <button class="primary" type="submit" :disabled="saving">{{ saving ? 'Opslaan…' : 'Klant aanmaken' }}</button>
     </form>
 
+    <nav class="status-tabs" aria-label="Klanten per type">
+      <button v-for="tab in typeTabs" :key="tab.value" type="button" :aria-pressed="filters.type === tab.value" @click="filters.type = tab.value">{{ tab.label }}</button>
+    </nav>
+
     <AdminFilterBar
-      :has-active-filters="Boolean(search)"
-      :results-label="`${data?.clients.length ?? 0} klanten`"
-      @clear-all="search = ''"
+      has-advanced
+      :advanced-open="showAdvancedFilters"
+      :active-advanced-count="activeAdvancedCount"
+      :has-active-filters="hasActiveFilters"
+      :results-label="`${data?.clients.length ?? 0} ${(data?.clients.length ?? 0) === 1 ? 'klant' : 'klanten'}`"
+      @toggle-advanced="showAdvancedFilters = !showAdvancedFilters"
+      @clear-all="clearAllFilters"
     >
       <template #primary>
-        <input v-model="search" type="search" placeholder="Zoek op naam, bedrijf of e-mail…">
+        <input v-model="filters.search" type="search" aria-label="Zoek klanten" placeholder="Zoek op naam, bedrijf of e-mail…">
+      </template>
+      <template #advanced>
+        <label>Gigs
+          <select v-model="filters.hasGigs"><option value="">Met en zonder gigs</option><option value="true">Met gigs</option><option value="false">Zonder gigs</option></select>
+        </label>
+        <label>E-mail
+          <select v-model="filters.hasEmail"><option value="">Met en zonder e-mail</option><option value="true">Met e-mailadres</option><option value="false">Zonder e-mailadres</option></select>
+        </label>
       </template>
       <template #chips>
-        <AdminFilterChip v-if="search" :label="`Zoeken: ${search}`" @remove="search = ''" />
+        <AdminFilterChip v-if="filters.search" :label="`Zoeken: ${filters.search}`" @remove="filters.search = ''" />
+        <AdminFilterChip v-if="filters.type" :label="`Type: ${labelFor(clientTypeLabels, filters.type)}`" @remove="filters.type = ''" />
+        <AdminFilterChip v-if="filters.hasGigs" :label="filters.hasGigs === 'true' ? 'Met gigs' : 'Zonder gigs'" @remove="filters.hasGigs = ''" />
+        <AdminFilterChip v-if="filters.hasEmail" :label="filters.hasEmail === 'true' ? 'Met e-mailadres' : 'Zonder e-mailadres'" @remove="filters.hasEmail = ''" />
+      </template>
+      <template #toolbar>
+        <label class="sort-control">
+          <span>Sorteren op</span>
+          <select v-model="sort" aria-label="Klanten sorteren">
+            <option value="name_asc">Naam (A–Z)</option>
+            <option value="name_desc">Naam (Z–A)</option>
+            <option value="gigs_desc">Aantal gigs (meeste eerst)</option>
+          </select>
+        </label>
       </template>
     </AdminFilterBar>
 
-    <div v-if="status === 'pending'" class="empty">Klanten laden…</div>
-    <div v-else-if="!data?.clients.length" class="empty">Geen klanten gevonden.</div>
+    <div v-if="status === 'pending' && !data" class="empty">Klanten laden…</div>
+    <div v-else-if="!data?.clients.length" class="empty">Geen klanten gevonden{{ hasActiveFilters ? ' met deze filters' : '' }}.</div>
     <div v-else class="list">
       <NuxtLink v-for="client in data.clients" :key="client.id" :to="`/admin/clients/${client.id}`" class="row">
         <div class="avatar">{{ displayName(client).slice(0, 2).toUpperCase() }}</div>
@@ -132,6 +174,12 @@ h1 { margin:.2rem 0; font-size:clamp(2.5rem,6vw,4rem); letter-spacing:-.04em; }
 label { display:grid; gap:.4rem; color:var(--text-muted); font-size:.82rem; }
 input, select, textarea { width:100%; border:1px solid var(--border-strong); border-radius:.65rem; padding:.75rem; background:var(--surface-input); color:var(--text); }
 .wide { grid-column:1/-1; }
+.status-tabs { display:flex; gap:.35rem; margin-bottom:.85rem; overflow-x:auto; scrollbar-width:none; }
+.status-tabs button { flex:0 0 auto; min-height:2.5rem; border:1px solid var(--border); border-radius:999px; padding:.45rem .95rem; background:transparent; color:#b8b2c1; font:inherit; font-weight:700; font-size:.84rem; cursor:pointer; }
+.status-tabs button:hover { color:#fff; border-color:#3d3646; }
+.status-tabs button[aria-pressed="true"] { border-color:var(--text); background:var(--text); color:#0b0910; }
+.sort-control { display:flex; align-items:center; gap:.55rem; color:var(--text-subtle); font-size:.78rem; }
+.sort-control span { white-space:nowrap; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; }
 .toolbar input { max-width:28rem; }
 .toolbar span { color:var(--text-subtle); font-size:.82rem; }
