@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
     title: mediaAssets.title,
     altText: mediaAssets.altText,
     originalFilename: mediaAssets.originalFilename,
+    source: mediaAssets.source,
     width: mediaAssets.width,
     height: mediaAssets.height,
     createdAt: mediaAssets.createdAt,

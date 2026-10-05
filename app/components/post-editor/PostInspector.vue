@@ -48,12 +48,16 @@ const quickTemplates = computed(() => {
     .sort((a, b) => templates.indexOf(a) - templates.indexOf(b))
 })
 
+const hideGenerated = ref(true)
+
 const mediaItems = computed(() => {
-  const source = mediaView.value === 'recent' ? editor.recentAssets.value : editor.assets.value
+  const all = mediaView.value === 'recent' ? editor.recentAssets.value : editor.assets.value
+  // Generated posts already carry overlays; using one as a source would double them up.
+  const source = hideGenerated.value ? all.filter(item => item.source !== 'generated') : all
   const items = source.slice(0, MEDIA_GRID_COUNT)
   // Keep the selected photo visible even when it is further down the library.
   const selected = editor.selectedAsset.value
-  if (mediaView.value === 'library' && selected && !items.some(item => item.id === selected.id)) {
+  if (mediaView.value === 'library' && selected && items.length && !items.some(item => item.id === selected.id)) {
     items.splice(items.length - 1, 1, selected)
   }
   return items
@@ -214,6 +218,11 @@ function onDrop(event: DragEvent) {
               Alles bekijken <Icon name="lucide:arrow-right" aria-hidden="true" />
             </button>
           </div>
+
+          <label class="filter-toggle">
+            <input v-model="hideGenerated" type="checkbox">
+            <span>Gegenereerde media verbergen</span>
+          </label>
 
           <div v-if="mediaItems.length" class="media-grid">
             <button
@@ -669,6 +678,19 @@ function onDrop(event: DragEvent) {
 
 .link-button:hover {
   color: #d4c0ff;
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: #9a93a4;
+  font-size: .74rem;
+  cursor: pointer;
+}
+
+.filter-toggle input {
+  accent-color: #8b5cf6;
 }
 
 .tag {

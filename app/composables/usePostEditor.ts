@@ -25,6 +25,7 @@ export type PostMediaAsset = {
   title: string
   altText: string
   originalFilename: string
+  source: string
   width: number
   height: number
   createdAt: string
@@ -432,7 +433,9 @@ export function createPostEditor(options: {
   watch(design, () => void renderPreview(), { deep: true })
 
   onMounted(() => {
-    if (!sourceAssetId.value && assets.value[0]) sourceAssetId.value = assets.value[0].id
+    // Default to a real photo: a generated post would stack its overlays on the new design.
+    const initial = assets.value.find(asset => asset.source !== 'generated') || assets.value[0]
+    if (!sourceAssetId.value && initial) sourceAssetId.value = initial.id
     else void loadSelectedSource()
     // Picking the initial photo is not an edit.
     resetHistory()
