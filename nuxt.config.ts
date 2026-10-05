@@ -22,6 +22,10 @@ export default defineNuxtConfig({
     // Fonts and brand images are not content-hashed, so a month rather than "immutable".
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=2592000' } },
     '/brand/**': { headers: { 'cache-control': 'public, max-age=2592000' } },
+    // The admin service worker lives at the root but controls only /admin; it
+    // must always be revalidated so updates roll out.
+    '/admin-sw.js': { headers: { 'cache-control': 'no-cache', 'service-worker-allowed': '/admin' } },
+    '/admin.webmanifest': { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=86400' } },
   },
   vite: {
     // The video editor preview imports these lazily; pre-bundle them so the
