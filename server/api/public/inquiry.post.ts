@@ -3,7 +3,7 @@ import { inquiryInputSchema } from '../../../shared/schemas/inquiry'
 import { recordAudit } from '../../utils/audit'
 import { db } from '../../utils/db'
 import { queueGigEmail } from '../../utils/email-automation'
-import { assertPublicRateLimit } from '../../utils/public-rate-limit'
+import { assertRateLimit } from '../../utils/rate-limit'
 
 export default defineEventHandler(async (event) => {
   const forwarded = event.node.req.headers['x-forwarded-for']
@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     || event.node.req.socket.remoteAddress
     || 'unknown'
 
-  assertPublicRateLimit(`inquiry:${ip}`)
+  assertRateLimit(event, 'public', `inquiry:${ip}`)
   const input = await readValidatedBody(event, inquiryInputSchema.parse)
 
   if (input.website) {

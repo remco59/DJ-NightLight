@@ -4,14 +4,14 @@ import type Stripe from 'stripe'
 import { clients, invoices, payments } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
-import { assertPortalRateLimit } from '../../../../utils/portal-rate-limit'
+import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token') || ''
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-  assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:checkout`)
+  assertRateLimit(event, 'portal', `${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:checkout`)
   const access = await resolvePortalAccess(token)
   if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
 

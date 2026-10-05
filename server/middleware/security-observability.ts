@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { assertRequestRateLimit, requestClientKey } from '../utils/request-rate-limit'
+import { assertRateLimit, requestClientKey } from '../utils/rate-limit'
 import { structuredLog } from '../utils/structured-log'
 
 export default defineEventHandler((event) => {
@@ -16,11 +16,7 @@ export default defineEventHandler((event) => {
     || path.startsWith('/api/client/')
     || path.startsWith('/api/auth/')
   ) {
-    assertRequestRateLimit(
-      `baseline:${requestClientKey(event)}:${path.split('/').slice(0, 4).join('/')}`,
-      300,
-      15 * 60 * 1000,
-    )
+    assertRateLimit(event, 'baseline', `${requestClientKey(event)}:${path.split('/').slice(0, 4).join('/')}`)
   }
 
   event.node.res.once('finish', () => {

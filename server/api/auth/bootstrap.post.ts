@@ -2,6 +2,7 @@ import { count } from 'drizzle-orm'
 import { z } from 'zod'
 import { users } from '../../../db/schema'
 import { db } from '../../utils/db'
+import { assertRateLimit, requestClientKey } from '../../utils/rate-limit'
 
 const bootstrapSchema = z.object({
   email: z.email().trim().toLowerCase(),
@@ -16,6 +17,8 @@ export default defineEventHandler(async (event) => {
   if (!configuredToken) {
     throw createError({ statusCode: 404, statusMessage: 'Niet gevonden' })
   }
+
+  assertRateLimit(event, 'bootstrap', requestClientKey(event))
 
   const suppliedToken = event.node.req.headers['x-bootstrap-token']
   if (typeof suppliedToken !== 'string' || suppliedToken !== configuredToken) {

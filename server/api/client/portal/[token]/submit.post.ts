@@ -5,7 +5,7 @@ import { musicWishSchema, validateQuestionnaireAnswers } from '../../../../../sh
 import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { getPortalForm } from '../../../../utils/portal-form'
-import { assertPortalRateLimit } from '../../../../utils/portal-rate-limit'
+import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 import { z } from 'zod'
 
@@ -18,7 +18,7 @@ const submissionSchema = z.object({
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token') || ''
   const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-  assertPortalRateLimit(`${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:submit`)
+  assertRateLimit(event, 'portal', `${hashPortalToken(ip).slice(0, 16)}:${hashPortalToken(token).slice(0, 16)}:submit`)
   const access = await resolvePortalAccess(token)
   if (!access) throw createError({ statusCode: 404, statusMessage: 'Deze portaallink is ongeldig of verlopen' })
   if (gigIsFinished(access)) throw createError({ statusCode: 409, statusMessage: 'Deze gig is afgelopen; gegevens en muziekwensen kunnen niet meer worden aangepast' })

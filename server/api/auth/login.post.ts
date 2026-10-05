@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { users } from '../../../db/schema'
 import { db } from '../../utils/db'
-import { assertLoginRateLimit, clearLoginRateLimit } from '../../utils/login-rate-limit'
+import { assertRateLimit, clearRateLimit } from '../../utils/rate-limit'
 
 const credentialsSchema = z.object({
   email: z.email().trim().toLowerCase(),
@@ -18,7 +18,8 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, credentialsSchema.parse)
   const rateKey = `${ip}:${body.email}`
 
-  assertLoginRateLimit(rateKey)
+  assertRateLimit(event, 'loginIp', ip)
+  assertRateLimit(event, 'login', rateKey)
 
   const [user] = await db
     .select()
@@ -30,7 +31,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Ongeldig e-mailadres of wachtwoord' })
   }
 
-  clearLoginRateLimit(rateKey)
+  clearRateLimit('login', rateKey)
 
   const authEvent = event as unknown as Parameters<typeof setUserSession>[0]
   await setUserSession(authEvent, {

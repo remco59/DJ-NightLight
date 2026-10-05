@@ -51,6 +51,6 @@ V1 exposes only the owner workflow. Future UI can add accounts without replacing
 
 ## Login protection
 
-Login attempts are rate-limited per IP/email pair. This in-process limiter is appropriate for the initial single web instance. If the application is scaled horizontally later, move the limiter to a shared store.
+Login attempts are rate-limited per IP/email pair (5 per 15 minutes) and per IP (20 per 15 minutes). All limits (login, bootstrap, public inquiry, client portal and the per-area baseline) are defined in one place, `server/utils/rate-limit.ts`; exceeding one returns `429` with a `Retry-After` header. This in-process limiter is appropriate for the initial single web instance. If the application is scaled horizontally later, move the limiter to a shared store.
 
 All sensitive API endpoints must call the central `requireStaff` helper (with an allowed-role list when needed); hiding controls in the browser is not authorization.
