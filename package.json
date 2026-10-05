@@ -18,6 +18,7 @@
     "security:audit": "node scripts/security-audit.mjs",
     "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh",
     "test:e2e": "tsx e2e/nightlight-e2e.ts",
+    "test:a11y": "tsx e2e/a11y.ts",
     "worker:video": "tsx scripts/video-render-worker.ts"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@nuxt/eslint": "^1.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -50,6 +52,7 @@
     "happy-dom": "^18.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "playwright-core": "^1.63.0",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0",
