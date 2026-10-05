@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { clientPortalImageInputSchema } from '../shared/client-portal'
-import { httpUrl } from '../shared/schemas/http-url'
+import { httpUrl, isInternalPath } from '../shared/schemas/http-url'
+import { landingPageInputSchema } from '../shared/schemas/landing-page'
 import { siteContentInputSchema } from '../shared/schemas/site-content'
 import { venueInputSchema } from '../shared/schemas/venue'
 import { defaultSiteContent } from '../server/utils/site-content-defaults'
@@ -44,5 +45,28 @@ describe('schemas that end up in href/src only accept http(s) links', () => {
   it('client portal image', () => {
     expect(clientPortalImageInputSchema.safeParse({ imageUrl: 'https://example.nl/a.jpg' }).success).toBe(true)
     expect(clientPortalImageInputSchema.safeParse({ imageUrl: 'javascript:alert(1)' }).success).toBe(false)
+  })
+})
+
+describe('internal paths', () => {
+  it.each(['/boeken', '/diensten/bruiloft?x=1', '/'])('treats %s as internal', (value) => {
+    expect(isInternalPath(value)).toBe(true)
+  })
+
+  it.each(['//evil.example', '/\\evil.example', 'boeken', 'https://example.nl', ''])('does not treat %j as internal', (value) => {
+    expect(isInternalPath(value)).toBe(false)
+  })
+
+  it('landing page links and images no longer accept protocol-relative URLs', () => {
+    const input = {
+      slug: 'bruiloften', navLabel: 'Bruiloften', eyebrow: 'DJ', title: 'Titel', intro: 'Intro', body: 'Body',
+      heroImageUrl: '', ctaLabel: 'Boeken', ctaHref: '/boeken', published: true, showInNavigation: false,
+      indexable: true, seoTitle: 'SEO', seoDescription: 'Beschrijving', seoImageUrl: '', ordering: 10,
+    }
+    expect(landingPageInputSchema.safeParse(input).success).toBe(true)
+    expect(landingPageInputSchema.safeParse({ ...input, ctaHref: '//evil.example/x' }).success).toBe(false)
+    expect(landingPageInputSchema.safeParse({ ...input, ctaHref: '/\\evil.example' }).success).toBe(false)
+    expect(landingPageInputSchema.safeParse({ ...input, heroImageUrl: '//evil.example/a.jpg' }).success).toBe(false)
+    expect(landingPageInputSchema.safeParse({ ...input, ctaHref: 'https://example.nl/boeken' }).success).toBe(true)
   })
 })
