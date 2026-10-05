@@ -131,6 +131,7 @@ export const portalLinks = pgTable('portal_links', {
   id: uuid('id').defaultRandom().primaryKey(),
   gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
   tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+  tokenEncrypted: text('token_encrypted'),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),

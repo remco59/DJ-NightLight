@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm'
 import { portalLinks } from '../../../../../../db/schema'
+import { decryptSecret } from '../../../../../../shared/secret-box'
 import { db } from '../../../../../utils/db'
 import { portalLinkState } from '../../../../../utils/portal-token'
 import { requireStaff } from '../../../../../utils/require-staff'
@@ -17,7 +18,20 @@ export default defineEventHandler(async (event) => {
     lastInvitedAt: portalLinks.lastInvitedAt,
     invitationCount: portalLinks.invitationCount,
     createdAt: portalLinks.createdAt,
+    tokenEncrypted: portalLinks.tokenEncrypted,
   }).from(portalLinks).where(eq(portalLinks.gigId, gigId)).orderBy(desc(portalLinks.createdAt))
 
-  return { links: rows.map(link => ({ ...link, state: portalLinkState(link) })) }
+  const baseUrl = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
+  const password = String(useRuntimeConfig().session.password || '')
+  return {
+    links: rows.map(({ tokenEncrypted, ...link }) => {
+      const state = portalLinkState(link)
+      let url: string | null = null
+      if (state === 'active' && tokenEncrypted) {
+        try { url = `${baseUrl}/client/${decryptSecret(tokenEncrypted, password)}` }
+        catch { url = null }
+      }
+      return { ...link, state, url }
+    }),
+  }
 })
