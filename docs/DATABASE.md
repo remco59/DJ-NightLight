@@ -49,6 +49,16 @@ npm run db:seed
 
 The seed script refuses to run when `NODE_ENV=production`.
 
+## Removing test invoices
+
+Invoices that can no longer be removed in the admin (for example one with a Stripe test-mode payment) can be deleted from the command line, in the environment that has `DATABASE_URL` set:
+
+```bash
+npm run invoice:delete -- NL-2026-0002
+```
+
+The script shows the invoice and its payment and asks for confirmation (`--yes` skips the prompt). It always refuses payments from a live Stripe session (`cs_live_…`); an unrecognisable Stripe payment or a finalized invoice needs `--force`. Take a backup first (`scripts/backup.sh`).
+
 ## Conventions
 
 - Primary IDs are PostgreSQL UUIDs.

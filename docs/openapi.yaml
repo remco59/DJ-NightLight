@@ -6074,6 +6074,30 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/checkout-cancelled:
+    post:
+      operationId: postClientPortalByTokenCheckoutCancelled
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /api/client/portal/{token}/invoice-pdf:
     get:
       operationId: getClientPortalByTokenInvoicePdf
