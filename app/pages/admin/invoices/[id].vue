@@ -47,7 +47,7 @@ const deleteBlocked=computed(()=>!isOwner.value||data.value?.invoice.status==='f
 async function requestRemove(){if(actionMenu.value)actionMenu.value.open=false
 if(!isOwner.value){await confirmAction({title:'Je kunt deze factuur niet verwijderen',body:'Alleen een eigenaar kan facturen verwijderen.',confirmLabel:'Sluiten'});return}
 if(data.value?.invoice.status==='finalized'){await confirmAction({title:'Factuur moet eerst vervallen',body:'Een definitieve factuur kan pas worden verwijderd nadat je hem hebt laten vervallen.',confirmLabel:'Sluiten'});return}
-if(!(await confirmAction({title:'Deze factuur definitief verwijderen?',body:data.value.invoice.invoiceNumber?`${data.value.invoice.invoiceNumber} wordt volledig uit het systeem gehaald. Dit kan niet ongedaan worden gemaakt en het factuurnummer blijft dan ongebruikt.`:'Dit concept wordt volledig uit het systeem gehaald. Dit kan niet ongedaan worden gemaakt.',confirmLabel:'Verwijderen',tone:'danger'})))return
+if(!(await confirmAction({title:'Deze factuur definitief verwijderen?',body:data.value?.invoice.invoiceNumber?`${data.value?.invoice.invoiceNumber} wordt volledig uit het systeem gehaald. Dit kan niet ongedaan worden gemaakt en het factuurnummer blijft dan ongebruikt.`:'Dit concept wordt volledig uit het systeem gehaald. Dit kan niet ongedaan worden gemaakt.',confirmLabel:'Verwijderen',tone:'danger'})))return
 busy.value=true;try{await $fetch(`/api/admin/invoices/${id}`,{method:'DELETE'});await navigateTo('/admin/invoices')}catch(error:unknown){message.value=apiErrorMessage(error,'Factuur verwijderen is niet gelukt.')}finally{busy.value=false}}
 useSeoMeta({title:()=>`${data.value?.invoice.invoiceNumber||'Conceptfactuur'} — DJ NightLight`,robots:'noindex, nofollow'})
 </script>
