@@ -2,7 +2,7 @@ const defaultStorageRoot = process.env.NODE_ENV === 'production' ? '/app/storage
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-19',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   modules: ['@nuxt/eslint', '@nuxt/icon', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css', '~/assets/css/media-hub.css', '~/assets/css/gig-detail.css'],
   icon: {
