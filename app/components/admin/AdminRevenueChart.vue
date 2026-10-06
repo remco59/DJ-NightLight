@@ -59,11 +59,11 @@ function barHeight(cents: number) {
 
 <style scoped>
 .revenue-chart { padding:1rem 1rem .9rem; }
-.bars { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:.5rem; height:200px; margin:0; padding:0; list-style:none; }
+.bars { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); grid-template-rows:minmax(0,1fr); gap:.5rem; height:200px; margin:0; padding:0; list-style:none; }
 .bar-col { display:grid; grid-template-rows:1.1rem minmax(0,1fr) 1.2rem; gap:.3rem; min-width:0; text-align:center; }
 .bar-value { color:#b9b0c6; font-size:.66rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bar-track { display:flex; align-items:flex-end; border-bottom:1px solid var(--border); }
-.bar { display:block; width:100%; border-radius:.35rem .35rem 0 0; background:#4a3578; }
+.bar-track { position:relative; min-height:0; border-bottom:1px solid var(--border); }
+.bar { position:absolute; inset:auto 0 0 0; display:block; border-radius:.35rem .35rem 0 0; background:#4a3578; }
 .bar-col.current .bar { background:linear-gradient(180deg,#b45cff,#7c3aed); }
 .bar-col.future .bar { background:repeating-linear-gradient(135deg,#2e2349 0 5px,#3a2d5c 5px 10px); border:1px dashed #5b4a8a; border-bottom:0; }
 .bar-label { color:#8f879c; font-size:.7rem; font-weight:700; text-transform:capitalize; }
@@ -76,7 +76,10 @@ function barHeight(cents: number) {
 .chart-empty { margin:0; padding:2rem .5rem; color:var(--text-subtle); font-size:.85rem; }
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 @media (max-width: 520px) {
-  .bars { gap:.25rem; height:170px; }
+  .bars { gap:.25rem; height:150px; }
+  .revenue-chart { padding:.85rem .85rem .75rem; }
+  .bar-label { font-size:.62rem; }
   .bar-value { display:none; }
+  .bar-col { grid-template-rows:minmax(0,1fr) 1.2rem; }
 }
 </style>
