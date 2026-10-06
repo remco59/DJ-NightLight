@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RevenueMonth, Urgency } from '~~/shared/dashboard'
+import type { PopoverGig } from '~~/shared/calendar'
 
 definePageMeta({ layout: 'admin' })
 
@@ -60,7 +61,7 @@ type DashboardData = {
     previousMonthCents: number
     trendPercent: number | null
   }
-  calendarGigs: Array<{ id: string, title: string, startsAt: string | Date | null }>
+  calendarGigs: PopoverGig[]
   generatedAt: string
   system: {
     issues: number
