@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, sql } from 'drizzle-orm'
-import { clients, contractSubmissions, emailJobs, gigCalendarSync, gigs, invoices, outboxEvents, payments, venues } from '../../../db/schema'
+import { clients, contractSubmissions, emailJobs, gigCalendarSync, gigs, invoices, outboxEvents, payments, users, venues } from '../../../db/schema'
 import { db } from '../../utils/db'
 import { requireStaff } from '../../utils/require-staff'
 import { gigTitleSql } from '../../utils/gig-title'
@@ -316,8 +316,20 @@ export default defineEventHandler(async (event) => {
   const calendarEnd = monthStartDate(addMonths(thisMonth, 3))
   calendarEnd.setUTCDate(calendarEnd.getUTCDate() + 1)
   const calendarGigs = await db
-    .select({ id: gigs.id, title: gigTitleSql(), startsAt: gigs.startsAt })
+    .select({
+      id: gigs.id,
+      title: gigTitleSql(),
+      status: gigs.status,
+      eventType: gigs.eventType,
+      startsAt: gigs.startsAt,
+      endsAt: gigs.endsAt,
+      venueName: venues.name,
+      venueCity: venues.city,
+      assignedUserName: users.name,
+    })
     .from(gigs)
+    .leftJoin(venues, eq(gigs.venueId, venues.id))
+    .leftJoin(users, eq(gigs.assignedUserId, users.id))
     .where(and(
       eq(gigs.status, 'booked'),
       gte(gigs.startsAt, calendarStart),

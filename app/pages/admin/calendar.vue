@@ -208,8 +208,19 @@ function miniMonthDays(month: Date) {
 function eventsForMiniDay(date: Date) {
   return eventsForDay(date).slice(0, 3)
 }
-function switchToDay(date: Date) {
+const popover = useGigPopover()
+const router = useRouter()
+// One gig opens straight away, several pin the list, an empty day still jumps to the day view.
+function onMiniDayClick(event: Event, date: Date) {
+  const list = eventsForDay(date)
+  popover.close()
+  if (list.length === 1) return void router.push(`/admin/gigs/${list[0]!.id}`)
+  if (list.length > 1) return popover.pin(event, list)
   openDay(date)
+}
+function miniLabel(date: Date) {
+  const list = eventsForDay(date)
+  return list.length ? `${date.getDate()}: ${list.map(item => item.title).join(', ')}` : String(date.getDate())
 }
 
 async function sync(gigId?: string) {
@@ -314,7 +325,7 @@ async function rotateIcs() {
         <div v-for="day in monthDays" :key="dateKey(day)" class="month-cell" :class="{ muted: !sameMonth(day), today: isToday(day) }">
           <button class="day-number" type="button" @click="openDay(day)">{{ day.getDate() }}</button>
           <div class="month-events">
-            <NuxtLink v-for="item in eventsForDay(day).slice(0, 3)" :key="item.id" class="month-event" :data-status="item.status" :to="`/admin/gigs/${item.id}`">
+            <NuxtLink v-for="item in eventsForDay(day).slice(0, 3)" :key="item.id" class="month-event" :data-status="item.status" :to="`/admin/gigs/${item.id}`" data-gig-trigger @mouseenter="popover.show($event, [item])" @mouseleave="popover.scheduleClose()" @focus="popover.show($event, [item])" @blur="popover.scheduleClose()">
               <span class="sr-only">{{ labelFor(gigStatusLabels, item.status) }}:</span>
               <span class="event-time">{{ formatTime(item.startsAt) }}</span>
               <span class="event-title">{{ item.title }}</span>
@@ -338,7 +349,7 @@ async function rotateIcs() {
             <span v-for="hour in timelineHours" :key="hour" :style="{ top: ((hour - 8) * 52) + 'px' }">{{ String(hour % 24).padStart(2, '0') }}:00</span>
           </div>
           <div v-for="day in weekDays" :key="dateKey(day)" class="time-column" :class="{ today: isToday(day) }">
-            <NuxtLink v-for="item in eventsForDay(day)" :key="item.id" class="time-event" :data-status="item.status" :style="eventStyle(item)" :to="`/admin/gigs/${item.id}`">
+            <NuxtLink v-for="item in eventsForDay(day)" :key="item.id" class="time-event" :data-status="item.status" :style="eventStyle(item)" :to="`/admin/gigs/${item.id}`" data-gig-trigger @mouseenter="popover.show($event, [item])" @mouseleave="popover.scheduleClose()" @focus="popover.show($event, [item])" @blur="popover.scheduleClose()">
               <span class="sr-only">{{ labelFor(gigStatusLabels, item.status) }}:</span>
               <span class="event-time">{{ formatTime(item.startsAt) }}</span>
               <strong>{{ item.title }}</strong>
@@ -354,7 +365,7 @@ async function rotateIcs() {
             <span v-for="hour in timelineHours" :key="hour" :style="{ top: ((hour - 8) * 52) + 'px' }">{{ String(hour % 24).padStart(2, '0') }}:00</span>
           </div>
           <div class="time-column day-column">
-            <NuxtLink v-for="item in eventsForDay(cursor)" :key="item.id" class="time-event day-event" :data-status="item.status" :style="eventStyle(item)" :to="`/admin/gigs/${item.id}`">
+            <NuxtLink v-for="item in eventsForDay(cursor)" :key="item.id" class="time-event day-event" :data-status="item.status" :style="eventStyle(item)" :to="`/admin/gigs/${item.id}`" data-gig-trigger @mouseenter="popover.show($event, [item])" @mouseleave="popover.scheduleClose()" @focus="popover.show($event, [item])" @blur="popover.scheduleClose()">
               <span class="sr-only">{{ labelFor(gigStatusLabels, item.status) }}:</span>
               <div class="day-event-main">
                 <span class="event-time">{{ formatTime(item.startsAt) }}<template v-if="item.endsAt"> – {{ formatTime(item.endsAt) }}</template></span>
@@ -372,7 +383,7 @@ async function rotateIcs() {
           <h3>{{ capitalize(new Intl.DateTimeFormat('nl-NL', { month: 'long' }).format(month)) }}</h3>
           <div class="mini-weekdays"><span v-for="day in ['m','d','w','d','v','z','z']" :key="day">{{ day }}</span></div>
           <div class="mini-grid">
-            <button v-for="day in miniMonthDays(month)" :key="dateKey(day)" type="button" class="mini-day" :class="{ muted: day.getMonth() !== month.getMonth(), today: isToday(day), hasEvents: eventsForMiniDay(day).length }" :title="eventsForDay(day).map(item => item.title + ' — ' + formatLocation(item)).join('\n')" @click="switchToDay(day)">
+            <button v-for="day in miniMonthDays(month)" :key="dateKey(day)" type="button" class="mini-day" :class="{ muted: day.getMonth() !== month.getMonth(), today: isToday(day), hasEvents: eventsForMiniDay(day).length }" data-gig-trigger :aria-label="miniLabel(day)" @mouseenter="popover.show($event, eventsForDay(day))" @mouseleave="popover.scheduleClose()" @focus="popover.show($event, eventsForDay(day))" @blur="popover.scheduleClose()" @click="onMiniDayClick($event, day)">
               <span>{{ day.getDate() }}</span>
               <span v-if="eventsForMiniDay(day).length" class="mini-dots">
                 <i v-for="item in eventsForMiniDay(day)" :key="item.id" :data-status="item.status" />
@@ -382,6 +393,8 @@ async function rotateIcs() {
         </section>
       </div>
     </section>
+
+    <AdminGigPopover :gigs="popover.gigs.value" :anchor="popover.anchor.value" @enter="popover.cancelClose()" @leave="popover.scheduleClose()" @close="popover.close()" />
 
     <p v-if="message" class="page-message">{{ message }}</p>
 
