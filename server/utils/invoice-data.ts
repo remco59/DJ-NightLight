@@ -37,6 +37,7 @@ export async function getInvoiceDetail(id: string) {
     clientCompanyName: clients.companyName,
     clientStripeCustomerId: clients.stripeCustomerId,
     clientEmail: clients.email,
+    clientInvoiceEmail: clients.invoiceEmail,
     clientBillingAddress: clients.billingAddress,
   }).from(invoices)
     .innerJoin(gigs, eq(invoices.gigId, gigs.id))

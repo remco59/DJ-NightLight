@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
     clientLastName: clients.lastName,
     clientCompanyName: clients.companyName,
     clientEmail: clients.email,
+    clientInvoiceEmail: clients.invoiceEmail,
   }).from(invoices).leftJoin(clients, eq(invoices.clientId, clients.id)).where(and(
     eq(invoices.gigId, access.gigId), eq(invoices.status, 'finalized'), ne(invoices.paymentStatus, 'paid'),
   )).orderBy(desc(invoices.finalizedAt)).limit(1)
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
     firstName: invoice.clientFirstName,
     lastName: invoice.clientLastName,
     companyName: invoice.clientCompanyName,
-    email: invoice.clientEmail,
+    email: invoice.clientInvoiceEmail || invoice.clientEmail,
   })
   if (payment.providerSessionId && payment.checkoutExpiresAt && payment.checkoutExpiresAt > new Date() && payment.status === 'pending') {
     const existing = await stripe.checkout.sessions.retrieve(payment.providerSessionId)

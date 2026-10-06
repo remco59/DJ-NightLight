@@ -104,6 +104,7 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
       gigId: invoices.gigId,
       gigTitle: gigTitleSql(),
       clientEmail: clients.email,
+      clientInvoiceEmail: clients.invoiceEmail,
       firstName: clients.firstName,
       lastName: clients.lastName,
       companyName: clients.companyName,
@@ -114,10 +115,11 @@ export async function loadInvoiceEmailContext(invoiceId: string) {
     .leftJoin(clients, eq(invoices.clientId, clients.id))
     .where(eq(invoices.id, invoiceId))
     .limit(1)
-  if (!row?.clientEmail) return null
+  const recipient = row?.clientInvoiceEmail || row?.clientEmail
+  if (!row || !recipient) return null
   const portalUrl = row.documentSnapshot?.portalUrl || ''
   return {
-    recipient: row.clientEmail,
+    recipient,
     gigId: row.gigId,
     invoiceNumber: row.invoiceNumber,
     status: row.invoiceStatus,

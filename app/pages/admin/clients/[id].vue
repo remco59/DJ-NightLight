@@ -9,7 +9,7 @@ const id = String(route.params.id)
 
 type Client = {
   id:string; type:'person'|'company'; firstName:string|null; lastName:string|null; companyName:string|null;
-  email:string|null; phone:string|null; billingAddress:string|null; notes:string|null; emailAutomationDisabled:string[]
+  email:string|null; invoiceEmail:string|null; phone:string|null; billingAddress:string|null; notes:string|null; emailAutomationDisabled:string[]
 }
 type EmailTemplate = { key:string; name:string; enabled:boolean; scheduleAnchor:string; offsetMinutes:number }
 type HistoryItem = { id:string; title:string; status:string; startsAt:string|Date|null; fee:string|null; currency:string; venueName:string|null }
@@ -23,6 +23,7 @@ const form = reactive({
   lastName: data.value.client.lastName || '',
   companyName: data.value.client.companyName || '',
   email: data.value.client.email || '',
+  invoiceEmail: data.value.client.invoiceEmail || '',
   phone: data.value.client.phone || '',
   billingAddress: data.value.client.billingAddress || '',
   notes: data.value.client.notes || '',
@@ -68,6 +69,7 @@ useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
         <label v-if="form.type==='company'">Bedrijfsnaam<input v-model="form.companyName"></label>
         <template v-else><label>Voornaam<input v-model="form.firstName"></label><label>Achternaam<input v-model="form.lastName"></label></template>
         <label>E-mail<input v-model="form.email" type="email"></label>
+        <label>Factuur e-mail<input v-model="form.invoiceEmail" type="email" placeholder="Leeg = gewone e-mail"></label>
         <label>Telefoon<input v-model="form.phone"></label>
         <label class="wide">Factuuradres<textarea v-model="form.billingAddress" rows="2"/></label>
         <label class="wide">Notities<textarea v-model="form.notes" rows="4"/></label>

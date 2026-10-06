@@ -470,6 +470,9 @@ paths:
                 email:
                   type: string
                   maxLength: 320
+                invoiceEmail:
+                  type: string
+                  maxLength: 320
                 phone:
                   type: string
                   maxLength: 64
@@ -558,6 +561,9 @@ paths:
                   type: string
                   maxLength: 200
                 email:
+                  type: string
+                  maxLength: 320
+                invoiceEmail:
                   type: string
                   maxLength: 320
                 phone:

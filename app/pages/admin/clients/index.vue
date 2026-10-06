@@ -37,6 +37,7 @@ const form = reactive({
   lastName: '',
   companyName: '',
   email: '',
+  invoiceEmail: '',
   phone: '',
   billingAddress: '',
   notes: '',
@@ -97,6 +98,7 @@ useSeoMeta({ title: 'Klanten — DJ NightLight', robots: 'noindex, nofollow' })
           <label>Achternaam<input v-model="form.lastName"></label>
         </template>
         <label>E-mail<input v-model="form.email" type="email"></label>
+        <label>Factuur e-mail<input v-model="form.invoiceEmail" type="email" placeholder="Leeg = gewone e-mail"></label>
         <label>Telefoon<input v-model="form.phone" type="tel"></label>
         <label class="wide">Factuuradres<textarea v-model="form.billingAddress" rows="2" /></label>
         <label class="wide">Notities<textarea v-model="form.notes" rows="3" /></label>
