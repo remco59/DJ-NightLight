@@ -14,7 +14,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends chromium ffmpeg ca-certificates fonts-liberation intel-media-va-driver vainfo \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json nuxt.config.ts ./
+# nuxt.config.ts is copied first so the postinstall `nuxt prepare` sees devtools: false.
 RUN npm ci --no-audit --no-fund
 
 ENV NODE_ENV=production
