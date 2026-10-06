@@ -30,6 +30,9 @@ const { data, refresh } = await useFetch<GigEmails>(`/api/admin/gigs/${props.gig
 
 const composer = ref<Composer | null>(null)
 const message = ref('')
+// Only the latest e-mail by default; the rest of the history is one click away.
+const showAll = ref(false)
+const shownJobs = computed(() => showAll.value || composer.value?.replacesJobId ? data.value?.jobs || [] : (data.value?.jobs || []).slice(0, 1))
 let composerKey = 0
 
 const templateName = (key: string) => labelFor(emailTemplateLabels, key)
@@ -98,19 +101,17 @@ watch(() => props.portalUrl, (url) => {
 </script>
 
 <template>
-  <section v-if="data" class="card emails">
-    <div class="section-title">
-      <div>
-        <p class="eyebrow">E-mail</p>
-        <h2>E-mails naar de klant</h2>
-        <span class="subtle-copy">
-          <template v-if="!data.client">Geen klant gekoppeld, dus er wordt niets automatisch verstuurd.</template>
-          <template v-else-if="!data.client.email">{{ data.client.name }} heeft geen e-mailadres, dus er wordt niets automatisch verstuurd.</template>
-          <template v-else>{{ automaticForClient.length }} van {{ automaticTemplates.length }} e-mails gaan automatisch naar {{ data.client.name }}. <NuxtLink :to="`/admin/clients/${data.client.id}`">Aanpassen bij de klant</NuxtLink></template>
-        </span>
-      </div>
-      <button v-if="!composer || composer.replacesJobId" type="button" class="secondary with-icon" @click="openComposer()"><Icon name="lucide:mail-plus" aria-hidden="true" />E-mail schrijven</button>
-    </div>
+  <section v-if="data" class="card emails" aria-label="E-mails">
+    <header class="head">
+      <Icon name="lucide:mail" class="lead-icon" aria-hidden="true" />
+      <h2>E-mails</h2>
+      <button v-if="!composer || composer.replacesJobId" type="button" class="ghost with-icon" @click="openComposer()"><Icon name="lucide:mail-plus" aria-hidden="true" />Schrijven</button>
+    </header>
+    <p class="subtle-copy">
+      <template v-if="!data.client">Geen klant gekoppeld, dus er wordt niets automatisch verstuurd.</template>
+      <template v-else-if="!data.client.email">{{ data.client.name }} heeft geen e-mailadres, dus er wordt niets automatisch verstuurd.</template>
+      <template v-else>{{ automaticForClient.length }} van {{ automaticTemplates.length }} e-mails gaan automatisch naar {{ data.client.name }}. <NuxtLink :to="`/admin/clients/${data.client.id}`">Aanpassen bij de klant</NuxtLink></template>
+    </p>
 
     <p v-if="!data.providerConfigured" class="warn">De e-mailprovider is nog niet ingesteld; e-mails kunnen niet worden verstuurd.</p>
 
@@ -136,9 +137,8 @@ watch(() => props.portalUrl, (url) => {
     />
     <p v-if="message" class="message">{{ message }}</p>
 
-    <h3>Geschiedenis</h3>
     <div v-if="!data.jobs.length" class="subtle">Nog geen e-mails voor deze gig.</div>
-    <div v-for="job in data.jobs" :key="job.id" class="job">
+    <div v-for="job in shownJobs" :key="job.id" class="job">
       <div class="job-row">
         <div class="job-main">
           <strong>{{ job.subjectOverride || templateName(job.templateKey) }}</strong>
@@ -170,19 +170,22 @@ watch(() => props.portalUrl, (url) => {
         @cancel="composer = null"
       />
     </div>
+    <button v-if="data.jobs.length > 1" type="button" class="more" :aria-expanded="showAll" @click="showAll = !showAll">{{ showAll ? 'Minder tonen' : `Alle ${data.jobs.length} e-mails tonen` }}<Icon :name="showAll ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" /></button>
   </section>
 </template>
 
 <style scoped>
-.card{margin-bottom:1rem;padding:1.25rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}
-.section-title{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin:0 0 .6rem}
-.section-title h2{margin:.2rem 0}
-.subtle-copy{display:block;margin-top:.2rem;color:var(--text-subtle);font-size:.78rem}
+.card{padding:1rem 1.1rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}
+.head{display:flex;align-items:center;gap:.7rem}
+.head h2{flex:1;margin:0;font-size:1rem}
+.lead-icon{flex:none;width:1.35rem;height:1.35rem;color:#9d5cff}
+.ghost{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;margin-right:-.6rem;padding:.4rem .6rem;border:0;border-radius:.6rem;background:transparent;color:#c9b2ef;font:inherit;font-size:.85rem;cursor:pointer}
+.more{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.75rem;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text-muted);font:inherit;font-size:.85rem;cursor:pointer}
+.subtle-copy{display:block;margin:.1rem 0 .4rem;color:var(--text-subtle);font-size:.78rem}
 .subtle-copy a{color:#b9b2c2}
 .warn{color:#e6c46f;font-size:.8rem}
 .notice{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.6rem;padding:.7rem .8rem;border-radius:.7rem;background:#18141d;color:#cfc8d6;font-size:.82rem}
 .message{margin:.8rem 0 0;color:var(--text-muted);font-size:.82rem}
-h3{margin:1.3rem 0 .3rem;font-size:.95rem}
 .subtle{padding:.6rem 0;color:var(--text-subtle)}
 .job{padding:.75rem 0;border-top:1px solid var(--border)}
 .job-row{display:flex;justify-content:space-between;align-items:start;gap:1rem}
@@ -201,7 +204,7 @@ h3{margin:1.3rem 0 .3rem;font-size:.95rem}
 .secondary{border:0;border-radius:.65rem;padding:.72rem .9rem;background:var(--button-secondary-bg);color:var(--button-secondary-fg);font-weight:800;cursor:pointer}
 .with-icon{display:inline-flex;align-items:center;gap:.4rem}
 @media(max-width:700px){
-  .section-title,.notice{align-items:stretch;flex-direction:column}
+  .notice{align-items:stretch;flex-direction:column}
   .job-row{flex-direction:column}
   .job-side{align-items:start}
 }

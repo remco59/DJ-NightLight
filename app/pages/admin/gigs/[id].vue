@@ -133,8 +133,8 @@ function selectTab(key:TabKey){tab.value=key;editing.value=editing.value&&editSe
 function moveTab(step:number){const index=tabs.findIndex(item=>item.key===tab.value);const next=tabs[(index+step+tabs.length)%tabs.length]!;tab.value=next.key;nextTick(()=>document.getElementById(`tab-${next.key}`)?.focus())}
 
 // Read-only by default: a section only shows its form while it is being edited.
-type Section='basics'|'when'|'where'|'load'|'timeline'|'contacts'|'fee'|'notes'|'public'
-const editSection:Record<Section,TabKey>={basics:'overview',when:'planning',where:'planning',load:'planning',timeline:'planning',contacts:'client',fee:'finance',notes:'more',public:'more'}
+type Section='basics'|'planning'|'contacts'|'fee'|'notes'|'public'
+const editSection:Record<Section,TabKey>={basics:'overview',planning:'planning',contacts:'client',fee:'finance',notes:'more',public:'more'}
 const editing=ref<Section|''>('')
 function edit(section:Section){
   if(!canEdit.value)return
@@ -312,93 +312,92 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 
 <!-- Planning -->
 <div v-show="tab==='planning'" id="panel-planning" class="tab-panel" role="tabpanel" aria-labelledby="tab-planning">
-<section class="card" :data-editing="editing==='when'||undefined">
-  <header class="card-head"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><h2>Datum & tijd</h2><button v-if="canEdit&&editing!=='when'" type="button" class="icon-action" aria-label="Datum en tijd bewerken" @click="edit('when')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
-  <template v-if="editing==='when'"><div class="grid"><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+<div v-if="canEdit&&editing!=='planning'" class="panel-tools"><button type="button" class="text-button" @click="edit('planning')"><Icon name="lucide:pencil" aria-hidden="true" />Planning bewerken</button></div>
+<section class="card" :data-editing="editing==='planning'||undefined">
+  <header class="card-head"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><h2>Datum & tijd</h2></header>
+  <div v-if="editing==='planning'" class="grid"><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div>
   <dl v-else class="split"><div><dt>Start</dt><dd>{{planningMoment(data.gig.startsAt,'Nog niet ingevuld')}}</dd></div><div><dt>Einde</dt><dd>{{planningMoment(data.gig.endsAt,'Nog niet ingevuld')}}</dd></div></dl>
 </section>
 
-<section class="card" :data-editing="editing==='where'||undefined">
-  <header class="card-head"><Icon name="lucide:map-pin" class="lead-icon" aria-hidden="true" /><h2>Locatie</h2><a v-if="data.gig.venueName&&editing!=='where'" class="icon-action" :href="mapsUrl" target="_blank" rel="noopener" aria-label="Route openen in Kaarten"><Icon name="lucide:send" aria-hidden="true" /></a><button v-if="canEdit&&editing!=='where'" type="button" class="icon-action" aria-label="Locatie bewerken" @click="edit('where')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
-  <template v-if="editing==='where'"><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+<section class="card" :data-editing="editing==='planning'||undefined">
+  <header class="card-head"><Icon name="lucide:map-pin" class="lead-icon" aria-hidden="true" /><h2>Locatie</h2><a v-if="data.gig.venueName&&editing!=='planning'" class="icon-action" :href="mapsUrl" target="_blank" rel="noopener" aria-label="Route openen in Kaarten"><Icon name="lucide:send" aria-hidden="true" /></a></header>
+  <label v-if="editing==='planning'">Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label>
   <div v-else-if="data.gig.venueName" class="plain"><strong>{{data.gig.venueName}}</strong><span v-for="line in venueAddressLines" :key="line">{{line}}</span></div>
   <p v-else class="empty">Nog geen locatie gekozen.</p>
 </section>
 
-<section class="card" :data-editing="editing==='load'||undefined">
-  <header class="card-head"><Icon name="lucide:truck" class="lead-icon" aria-hidden="true" /><h2>Opbouw</h2><button v-if="canEdit&&editing!=='load'" type="button" class="icon-action" aria-label="Opbouw bewerken" @click="edit('load')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
-  <template v-if="editing==='load'"><label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+<section class="card" :data-editing="editing==='planning'||undefined">
+  <header class="card-head"><Icon name="lucide:truck" class="lead-icon" aria-hidden="true" /><h2>Opbouw</h2></header>
+  <label v-if="editing==='planning'">Opbouw<input v-model="form.loadInAt" type="datetime-local"></label>
   <p v-else class="plain" :class="{muted:!data.gig.loadInAt}">{{planningMoment(data.gig.loadInAt)}}</p>
 </section>
 
-<section class="card" :data-editing="editing==='timeline'||undefined">
-  <header class="card-head"><Icon name="lucide:list-checks" class="lead-icon" aria-hidden="true" /><h2>Timeline</h2><button v-if="canEdit&&editing!=='timeline'" type="button" class="icon-action" aria-label="Timeline bewerken" @click="edit('timeline')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
-  <template v-if="editing==='timeline'">
+<section class="card" :data-editing="editing==='planning'||undefined">
+  <header class="card-head"><Icon name="lucide:list-checks" class="lead-icon" aria-hidden="true" /><h2>Timeline</h2></header>
+  <template v-if="editing==='planning'">
     <div v-for="(item,index) in timeline" :key="index" class="repeat-row timeline-row"><input v-model="item.time" type="time" aria-label="Tijd"><input v-model="item.title" placeholder="Openingsdans, start DJ…" aria-label="Omschrijving" required><input v-model="item.description" placeholder="Notities" aria-label="Notities"><button type="button" aria-label="Item verwijderen" title="Item verwijderen" @click="timeline.splice(index,1)"><Icon name="lucide:x" aria-hidden="true" /></button></div>
     <button type="button" class="add-button" @click="addTimeline"><Icon name="lucide:plus" aria-hidden="true" />Item toevoegen</button>
-    <div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
   </template>
   <template v-else>
     <ul v-if="data.timeline.length" class="timeline-list"><li v-for="(item,index) in data.timeline" :key="item.id||index"><time>{{item.time?item.time.slice(0,5):'—'}}</time><span><strong>{{item.title}}</strong><small v-if="item.description">{{item.description}}</small></span></li></ul>
     <p v-else class="empty">Nog geen items in de timeline.</p>
-    <button v-if="canEdit" type="button" class="add-button" @click="addTimeline();edit('timeline')"><Icon name="lucide:plus" aria-hidden="true" />Item toevoegen</button>
   </template>
 </section>
+<div v-if="editing==='planning'" class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
 </div>
+
 
 <!-- Klant -->
 <div v-show="tab==='client'" id="panel-client" class="tab-panel" role="tabpanel" aria-labelledby="tab-client">
-<section class="card">
-  <component :is="clientHead" :to="data.gig.clientId&&canManageGigs?`/admin/clients/${data.gig.clientId}`:undefined" class="card-head link-head"><Icon name="lucide:users" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Klant</h2><span>{{clientLabel}}</span></span><Icon v-if="data.gig.clientId&&canManageGigs" name="lucide:chevron-right" class="chev" aria-hidden="true" /></component>
-</section>
-
 <section class="card" :data-editing="editing==='contacts'||undefined">
-  <header class="card-head"><Icon name="lucide:user" class="lead-icon" aria-hidden="true" /><h2>Contactpersonen</h2><button v-if="canEdit&&editing!=='contacts'" type="button" class="icon-action" aria-label="Contactpersoon toevoegen" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /></button></header>
-  <template v-if="editing==='contacts'">
-    <div v-for="(contact,index) in contacts" :key="index" class="contact-edit"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div>
-    <button type="button" class="add-button" @click="contacts.push({name:'',role:'',email:'',phone:'',notes:''})"><Icon name="lucide:plus" aria-hidden="true" />Contactpersoon toevoegen</button>
-    <div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
-  </template>
-  <template v-else>
-    <ul v-if="data.contacts.length" class="contact-list"><li v-for="(contact,index) in data.contacts" :key="contact.id||index"><strong>{{contact.name}}<small v-if="contact.role"> · {{contact.role}}</small></strong><a v-if="contact.email" :href="`mailto:${contact.email}`">{{contact.email}}</a><a v-if="contact.phone" :href="`tel:${contact.phone}`">{{contact.phone}}</a><small v-if="contact.notes">{{contact.notes}}</small></li></ul>
-    <p v-else class="empty">Nog geen contactpersonen toegevoegd.</p>
-    <button v-if="canEdit&&!data.contacts.length" type="button" class="add-button" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" />Contactpersoon toevoegen</button>
-    <button v-else-if="canEdit" type="button" class="text-button" @click="edit('contacts')"><Icon name="lucide:pencil" aria-hidden="true" />Contactpersonen bewerken</button>
-  </template>
+  <component :is="clientHead" :to="data.gig.clientId&&canManageGigs?`/admin/clients/${data.gig.clientId}`:undefined" class="card-head link-head"><Icon name="lucide:users" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Klant</h2><span>{{clientLabel}}</span></span><Icon v-if="data.gig.clientId&&canManageGigs" name="lucide:chevron-right" class="chev" aria-hidden="true" /></component>
+  <div class="subsection">
+    <div class="sub-head"><h3>Contactpersonen</h3><button v-if="canEdit&&editing!=='contacts'" type="button" class="icon-action" :aria-label="data.contacts.length?'Contactpersonen bewerken':'Contactpersoon toevoegen'" @click="data.contacts.length?edit('contacts'):addContact()"><Icon :name="data.contacts.length?'lucide:pencil':'lucide:plus'" aria-hidden="true" /></button></div>
+    <template v-if="editing==='contacts'">
+      <div v-for="(contact,index) in contacts" :key="index" class="contact-edit"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div>
+      <button type="button" class="add-button" @click="contacts.push({name:'',role:'',email:'',phone:'',notes:''})"><Icon name="lucide:plus" aria-hidden="true" />Contactpersoon toevoegen</button>
+      <div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
+    </template>
+    <template v-else>
+      <ul v-if="data.contacts.length" class="contact-list"><li v-for="(contact,index) in data.contacts" :key="contact.id||index"><strong>{{contact.name}}<small v-if="contact.role"> · {{contact.role}}</small></strong><a v-if="contact.email" :href="`mailto:${contact.email}`">{{contact.email}}</a><a v-if="contact.phone" :href="`tel:${contact.phone}`">{{contact.phone}}</a><small v-if="contact.notes">{{contact.notes}}</small></li></ul>
+      <p v-else class="empty">Nog geen contactpersonen toegevoegd.</p>
+    </template>
+  </div>
 </section>
 
 <section v-if="canEdit" class="card portal-card">
   <header class="card-head"><Icon name="lucide:link" class="lead-icon" aria-hidden="true" /><h2>Klantportaal</h2></header>
   <template v-if="shownLink">
-    <p class="portal-state" :data-state="portalSummary.state==='active'?'active':shownLink.state"><i aria-hidden="true"/>{{labelFor(portalLinkStateLabels,shownLink.state)}}</p>
-    <p v-if="shownLink.state==='active'" class="portal-meta">{{portalValidity(shownLink)}}<br>{{portalOpened(shownLink)}}</p>
+    <p class="portal-state" :data-state="shownLink.state"><i aria-hidden="true"/>{{labelFor(portalLinkStateLabels,shownLink.state)}}</p>
+    <p v-if="shownLink.state==='active'" class="portal-meta">{{portalValidity(shownLink)}} · {{portalOpened(shownLink).toLowerCase()}}</p>
     <p v-else class="portal-meta">Verlopen of ingetrokken op {{longDate(shownLink.revokedAt||shownLink.expiresAt)}}</p>
   </template>
   <p v-else class="empty">Er zijn nog geen portaallinks uitgegeven.</p>
-  <div v-if="shownLink?.state==='active'" class="portal-buttons">
-    <button type="button" class="outline with-icon" :disabled="!shownLink.url" @click="openPortal(shownLink.url)"><Icon name="lucide:external-link" aria-hidden="true" />Openen</button>
-    <button type="button" class="outline with-icon" :disabled="!shownLink.url" @click="copyPortalUrl(shownLink.url)"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button>
-    <details ref="portalMenu" class="menu"><summary class="outline icon-only" aria-label="Meer portaalacties" title="Meer portaalacties"><Icon name="lucide:ellipsis-vertical" aria-hidden="true" /></summary><div class="menu-popover" role="menu"><label class="menu-field">Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" role="menuitem" :disabled="portalBusy" @click="createPortalLink(false)"><Icon name="lucide:link" aria-hidden="true" />Nieuwe link aanmaken</button></div></details>
-  </div>
   <button type="button" class="primary wide-button" :disabled="portalBusy" @click="sendPortalInvitation">{{hasActivePortalLink?'Nieuwe uitnodiging versturen':'Uitnodiging versturen'}}</button>
-  <button v-if="shownLink?.state==='active'" type="button" class="revoke" @click="revokePortalLink(shownLink.id)">Link intrekken</button>
+  <div v-if="shownLink?.state==='active'" class="portal-tools">
+    <button type="button" class="ghost with-icon" :disabled="!shownLink.url" @click="openPortal(shownLink.url)"><Icon name="lucide:external-link" aria-hidden="true" />Openen</button>
+    <button type="button" class="ghost with-icon" :disabled="!shownLink.url" @click="copyPortalUrl(shownLink.url)"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button>
+    <details ref="portalMenu" class="menu"><summary class="ghost icon-only" aria-label="Meer portaalacties" title="Meer portaalacties"><Icon name="lucide:ellipsis-vertical" aria-hidden="true" /></summary><div class="menu-popover" role="menu"><label class="menu-field">Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" role="menuitem" :disabled="portalBusy" @click="createPortalLink(false)"><Icon name="lucide:link" aria-hidden="true" />Nieuwe link aanmaken</button></div></details>
+    <button type="button" class="revoke" @click="revokePortalLink(shownLink.id)">Link intrekken</button>
+  </div>
   <p v-if="portalMessage" class="portal-message" role="status">{{portalMessage}}</p>
 </section>
 
 <section v-if="canEdit&&submissionData" class="card">
-  <header class="card-head link-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Contract & muziekwensen</h2></span></header>
+  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>Contract & muziekwensen</h2><NuxtLink to="/admin/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
   <p class="contract-state" :data-state="submissionData.status"><i aria-hidden="true"/>{{contractLabel}}</p>
   <p class="portal-meta">Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>
-  <details v-if="submissionData.submission" class="answers"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
-  <NuxtLink to="/admin/questionnaire" class="chip-link"><Icon name="lucide:copy" aria-hidden="true" />Template bewerken</NuxtLink>
+  <details v-if="submissionData.submission" class="fold"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
+  <details class="fold"><summary>Muziekwensen<span class="count">{{submissionData.wishes.length||'geen'}}</span></summary>
+    <p v-if="!submissionData.wishes.length" class="empty">Geen muziekwensen ingediend.</p>
+    <ul v-else class="wish-list"><li v-for="wish in submissionData.wishes" :key="wish.id"><small>{{labelFor(musicWishCategoryLabels,wish.category)}}</small><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note&&(wish.artist||wish.title)">{{wish.note}}</small></li></ul>
+  </details>
 </section>
 
-<section v-if="canEdit&&submissionData" class="card">
-  <header class="card-head link-head"><Icon name="lucide:music" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Muziekwensen</h2></span></header>
-  <p v-if="!submissionData.wishes.length" class="empty">Geen muziekwensen ingediend.</p>
-  <ul v-else class="wish-list"><li v-for="wish in submissionData.wishes" :key="wish.id"><small>{{labelFor(musicWishCategoryLabels,wish.category)}}</small><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note&&(wish.artist||wish.title)">{{wish.note}}</small></li></ul>
-</section>
+<!-- Communicatie hoort bij de klant -->
+<AdminGigEmails v-if="canEdit" :gig-id="id" :portal-url="portalUrl" />
 </div>
+
 
 <!-- Financieel -->
 <div v-show="tab==='finance'" id="panel-finance" class="tab-panel" role="tabpanel" aria-labelledby="tab-finance">
@@ -466,8 +465,6 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span v-if="isDirty">Wijzigingen worden pas bewaard na opslaan.</span></div><button v-if="isDirty" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
-<!-- Communicatie hoort bij de klant -->
-<section v-show="tab==='client'" v-if="canEdit" class="comms" aria-label="Communicatie"><AdminGigEmails :gig-id="id" :portal-url="portalUrl" /></section>
 </div></template>
 
 <style scoped>
@@ -547,11 +544,10 @@ dt{color:var(--text-muted);font-size:.85rem}
 dd{margin:0}
 .split dd{font-size:1.05rem}
 
-.add-button,.outline,.chip-link{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.75rem;padding:.5rem .9rem;border:1px solid var(--border-strong);border-radius:.7rem;background:transparent;color:var(--text);font:inherit;font-size:.9rem;font-weight:600;text-decoration:none;cursor:pointer}
+.add-button,.outline{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.75rem;padding:.5rem .9rem;border:1px solid var(--border-strong);border-radius:.7rem;background:transparent;color:var(--text);font:inherit;font-size:.9rem;font-weight:600;text-decoration:none;cursor:pointer}
 .add-button{width:100%;margin-top:.5rem;border-color:#4b3a72;background:#1b1428;color:var(--accent-soft)}
 .add-button :deep(svg){width:1rem;height:1rem}
 .text-button{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;padding:0;border:0;background:transparent;color:var(--accent-soft);font:inherit;font-size:.9rem;cursor:pointer}
-.chip-link{margin-top:.8rem;background:#1b1624;font-size:.85rem}
 .with-icon :deep(svg){width:1rem;height:1rem}
 .outline:disabled{opacity:.5;cursor:not-allowed}
 
@@ -594,13 +590,24 @@ input,select,textarea{min-height:2.75rem;width:100%;min-width:0;border:1px solid
 .contract-state{display:inline-flex;padding:.35rem .7rem;border-radius:.6rem;background:#1b1624;color:var(--text)}
 .portal-meta{margin:.2rem 0 .8rem;color:var(--text-muted);font-size:.85rem;line-height:1.45}
 .portal-message{margin:.7rem 0 0;color:var(--text-muted);font-size:.8rem}
-.portal-buttons{display:flex;gap:.5rem;margin-bottom:.2rem}
-.portal-buttons .outline:not(.icon-only){flex:1}
+.portal-tools{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .35rem;margin-top:.5rem}
+.ghost{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.75rem;padding:.4rem .6rem;border:0;border-radius:.6rem;background:transparent;color:var(--text-muted);font:inherit;font-size:.85rem;cursor:pointer}
+.ghost:hover{color:var(--text)}
+.ghost:disabled{opacity:.5;cursor:not-allowed}
+.ghost :deep(svg){width:1rem;height:1rem}
+.panel-tools{display:flex;justify-content:flex-end;margin-bottom:-.25rem}
+.subsection{margin-top:.2rem;padding-top:.7rem;border-top:1px solid var(--border)}
+.sub-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+.sub-head h3{margin:0;color:var(--text-muted);font-size:.85rem;font-weight:600}
+.sub-head .icon-action{margin-block:-.6rem}
+.fold{margin-top:.4rem;border-top:1px solid var(--border)}
+.fold summary{display:flex;align-items:center;justify-content:space-between;min-height:2.75rem;color:var(--text);cursor:pointer}
+.fold .count{color:var(--text-subtle);font-size:.85rem}
+.fold[open]>summary{margin-bottom:.3rem}
 .icon-only{width:2.75rem;padding:0;list-style:none}
+.menu-popover{min-width:14rem}
 .icon-only::-webkit-details-marker{display:none}
-.revoke{display:block;width:100%;min-height:2.75rem;margin-top:.3rem;border:0;background:transparent;color:#ff6b7d;font:inherit;cursor:pointer}
-.answers{margin:.6rem 0 0}
-.answers summary{min-height:2.75rem;display:flex;align-items:center;color:var(--accent-soft);cursor:pointer}
+.revoke{margin-left:auto;min-height:2.75rem;padding:.4rem .6rem;border:0;background:transparent;color:#ff6b7d;font:inherit;font-size:.85rem;cursor:pointer}
 .answer-list{display:grid;gap:.6rem;margin:0}
 .answer-list dd{font-weight:600}
 .wish-list{display:grid;gap:.8rem;margin:0;padding:0;list-style:none}
@@ -649,7 +656,6 @@ input,select,textarea{min-height:2.75rem;width:100%;min-width:0;border:1px solid
 .save-bar{position:sticky;bottom:1rem;z-index:var(--z-raised);display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0 0;padding:.9rem 1.1rem;border:1px solid #35303b;border-radius:1rem;background:rgba(20,17,25,.94);backdrop-filter:blur(14px)}
 .save-bar strong,.save-bar span{display:block}
 .save-bar span{margin-top:.2rem;color:var(--text-subtle);font-size:.75rem}
-.comms{margin-top:.75rem}
 
 @media(max-width:700px){
   .grid,.timeline-row{grid-template-columns:1fr}
