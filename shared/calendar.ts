@@ -18,3 +18,16 @@ export function calendarRetryDelayMs(retryCount: number) {
 export function cancellationSummary(title: string) {
   return title.startsWith('[Cancelled]') ? title : `[Cancelled] ${title}`
 }
+
+/** Gig fields shown in the agenda hover panel (calendar page and dashboard mini calendar). */
+export type PopoverGig = {
+  id: string
+  title: string
+  status: string
+  eventType?: string | null
+  startsAt: string | Date | null
+  endsAt?: string | Date | null
+  venueName?: string | null
+  venueCity?: string | null
+  assignedUserName?: string | null
+}
