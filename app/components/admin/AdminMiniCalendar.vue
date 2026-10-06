@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { addMonths, dayKey, monthGrid, monthKey } from '~~/shared/dashboard'
+import type { PopoverGig } from '~~/shared/calendar'
 
-type CalendarGig = { id: string, title: string, startsAt: string | Date | null }
-
-const props = defineProps<{ gigs: CalendarGig[] }>()
+const props = defineProps<{ gigs: PopoverGig[] }>()
 
 const todayKey = dayKey(new Date())
 const currentMonth = monthKey(new Date())
@@ -15,7 +14,7 @@ const canGoForward = computed(() => month.value < addMonths(currentMonth, 2))
 
 const grid = computed(() => monthGrid(month.value))
 const gigsByDay = computed(() => {
-  const map = new Map<string, CalendarGig[]>()
+  const map = new Map<string, PopoverGig[]>()
   for (const gig of props.gigs) {
     if (!gig.startsAt) continue
     const key = dayKey(new Date(gig.startsAt))
@@ -30,10 +29,15 @@ const monthLabel = computed(() => {
   return new Date(Date.UTC(year, mon - 1, 1)).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 })
 
-function target(date: string) {
-  const list = gigsByDay.value.get(date)
-  if (!list?.length) return null
-  return list.length === 1 ? `/admin/gigs/${list[0]!.id}` : '/admin/calendar'
+const popover = useGigPopover()
+const router = useRouter()
+
+// One gig opens straight away; several pin the compact list so each can be picked.
+function onCellClick(event: Event, date: string) {
+  const list = gigsByDay.value.get(date) ?? []
+  popover.close()
+  if (list.length === 1) return void router.push(`/admin/gigs/${list[0]!.id}`)
+  if (list.length > 1) popover.pin(event, list)
 }
 
 function cellLabel(date: string, day: number) {
@@ -60,17 +64,22 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
     <div class="cal-grid" role="grid" :aria-label="`Gigs in ${monthLabel}`">
       <span v-for="day in weekdays" :key="day" class="cal-weekday" role="columnheader">{{ day }}</span>
       <template v-for="cell in grid" :key="cell.date">
-        <NuxtLink
-          v-if="cell.inMonth && target(cell.date)"
-          :to="target(cell.date)!"
+        <button
+          v-if="cell.inMonth && gigsByDay.get(cell.date)?.length"
+          type="button"
           class="cal-cell has-gig"
           :class="{ today: cell.date === todayKey }"
+          data-gig-trigger
           :aria-label="cellLabel(cell.date, cell.day)"
-          :title="cellLabel(cell.date, cell.day)"
+          @mouseenter="popover.show($event, gigsByDay.get(cell.date)!)"
+          @mouseleave="popover.scheduleClose()"
+          @focus="popover.show($event, gigsByDay.get(cell.date)!)"
+          @blur="popover.scheduleClose()"
+          @click="onCellClick($event, cell.date)"
         >
           {{ cell.day }}
           <span class="cal-dot" aria-hidden="true" />
-        </NuxtLink>
+        </button>
         <span
           v-else
           class="cal-cell"
@@ -79,6 +88,8 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
         >{{ cell.day }}</span>
       </template>
     </div>
+
+    <AdminGigPopover :gigs="popover.gigs.value" :anchor="popover.anchor.value" @enter="popover.cancelClose()" @leave="popover.scheduleClose()" @close="popover.close()" />
 
     <p class="cal-foot">
       {{ monthGigCount ? `${monthGigCount} ${monthGigCount === 1 ? 'gig' : 'gigs'} in deze maand` : 'Geen gigs in deze maand' }}
@@ -95,10 +106,10 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 .cal-nav button :deep(svg) { width:1rem; height:1rem; }
 .cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.2rem; }
 .cal-weekday { padding:.2rem 0; color:#8f879c; font-size:.68rem; font-weight:800; text-align:center; text-transform:uppercase; }
-.cal-cell { position:relative; display:grid; place-items:center; aspect-ratio:1.15; border-radius:.5rem; color:#cfc7da; font-size:.78rem; text-decoration:none; }
+.cal-cell { position:relative; padding:0; border:0; font:inherit; cursor:default; display:grid; place-items:center; aspect-ratio:1.15; border-radius:.5rem; color:#cfc7da; font-size:.78rem; text-decoration:none; }
 .cal-cell.outside { color:#4f4959; }
 .cal-cell.today { border:1px solid #6d4aa8; }
-.cal-cell.has-gig { background:#211439; color:#f1e6ff; font-weight:800; }
+.cal-cell.has-gig { cursor:pointer; background:#211439; color:#f1e6ff; font-weight:800; }
 .cal-cell.has-gig:hover { background:#2b1a4d; }
 .cal-dot { position:absolute; bottom:.28rem; width:.28rem; height:.28rem; border-radius:50%; background:#b45cff; }
 .cal-foot { margin:.7rem 0 0; color:#8f879c; font-size:.74rem; }
