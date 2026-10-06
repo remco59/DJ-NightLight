@@ -1,7 +1,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json nuxt.config.ts ./
+# nuxt.config.ts is copied first so the postinstall `nuxt prepare` sees devtools: false.
 RUN npm ci --no-audit --no-fund
 
 COPY . .

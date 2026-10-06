@@ -66,5 +66,8 @@
   },
   "lint-staged": {
     "*.{js,mjs,ts,vue}": "eslint --fix --max-warnings=0"
+  },
+  "overrides": {
+    "simple-git": "^4.0.2"
   }
 }
