@@ -17,7 +17,7 @@ type VenueOption={id:string;name:string;city:string|null}
 type DjOption={id:string;name:string;email:string}
 type Contact={id?:string;name:string;role:string|null;email:string|null;phone:string|null;notes:string|null}
 type Timeline={id?:string;time:string|null;title:string;description:string|null;ordering?:number}
-type Gig={id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null}
+type Gig={id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null;venueAddress:string|null;venueCity:string|null}
 type Activity={id:string;action:string;metadata:Record<string,unknown>|null;createdAt:string;actorName:string|null;actorEmail:string|null}
 type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
 type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
@@ -27,10 +27,11 @@ type PortalSubmission={status:'not_started'|'draft'|'submitted';submission:{answ
 const {data,refresh}=await useFetch<Detail>(`/api/admin/gigs/${id}`)
 if(!data.value)throw createError({statusCode:404,statusMessage:'Gig niet gevonden'})
 
+const tz='Europe/Amsterdam'
 function localDate(value:string|null){if(!value)return '';const d=new Date(value);const offset=d.getTimezoneOffset();return new Date(d.getTime()-offset*60000).toISOString().slice(0,16)}
 function iso(value:string){return value?new Date(value).toISOString():null}
 function clientName(c:ClientOption){return c.companyName||[c.firstName,c.lastName].filter(Boolean).join(' ')||'Naamloze klant'}
-function activityDate(value:string){return new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value))}
+function activityDate(value:string){return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:tz}).format(new Date(value))}
 function invoiceDate(value:string){return new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium'}).format(new Date(`${value}T12:00:00`))}
 function money(cents:number,currency:string){return new Intl.NumberFormat('nl-NL',{style:'currency',currency}).format(cents/100)}
 function stripeLabel(invoice:InvoiceSummary){
@@ -47,72 +48,121 @@ const form=reactive({title:g.title||'',eventType:g.eventType||'',clientId:g.clie
 const venueName=computed(()=>data.value?.options.venues.find(v=>v.id===form.venueId)?.name)
 const titlePlaceholder=computed(()=>`Optioneel: laat leeg om “${gigDisplayTitle({venueName:venueName.value,eventType:form.eventType})}” te tonen`)
 const publicTitlePlaceholder=computed(()=>`Optioneel: laat leeg om “${gigDisplayTitle({title:form.title,venueName:venueName.value,eventType:form.eventType})}” te tonen`)
-const contacts=ref(data.value.contacts.map(c=>({name:c.name,role:c.role||'',email:c.email||'',phone:c.phone||'',notes:c.notes||''})))
-const timeline=ref(data.value.timeline.map(t=>({time:t.time||'',title:t.title,description:t.description||''})))
+const contactRows=(list:Contact[])=>list.map(c=>({name:c.name,role:c.role||'',email:c.email||'',phone:c.phone||'',notes:c.notes||''}))
+const timelineRows=(list:Timeline[])=>list.map(t=>({time:t.time||'',title:t.title,description:t.description||''}))
+const contacts=ref(contactRows(data.value.contacts))
+const timeline=ref(timelineRows(data.value.timeline))
 const saving=ref(false);const message=ref('')
 const portalMessage=ref('');const portalUrl=ref('');const portalDays=ref(30);const portalBusy=ref(false)
-const actionMenu=ref<HTMLDetailsElement|null>(null)
+const actionMenu=ref<HTMLDetailsElement|null>(null);const portalMenu=ref<HTMLDetailsElement|null>(null)
 const {data:portalData,refresh:refreshPortal}=await useFetch<{links:PortalLink[]}>(`/api/admin/gigs/${id}/portal-links`,{immediate:canManageGigs.value})
 const {data:reviewData}=await useFetch<{review:{rating:number,comment:string|null,authorName:string|null,createdAt:string}|null}>(`/api/admin/gigs/${id}/review`,{immediate:canManageGigs.value})
 const {data:submissionData}=await useFetch<PortalSubmission>(`/api/admin/gigs/${id}/portal-submission`,{immediate:canManageGigs.value})
 
-function addContact(){contacts.value.push({name:'',role:'',email:'',phone:'',notes:''})}
 function addTimeline(){timeline.value.push({time:'',title:'',description:''})}
-function closeActionMenu(){if(actionMenu.value)actionMenu.value.open=false}
+function closeMenus(){if(actionMenu.value)actionMenu.value.open=false;if(portalMenu.value)portalMenu.value.open=false}
 const {isDirty,markSaved}=useUnsavedChanges(()=>({form,contacts:contacts.value,timeline:timeline.value}))
 const confirmAction=useConfirm();const chooseAction=useChoice()
 const clientLabel=computed(()=>data.value?.gig.clientCompanyName||[data.value?.gig.clientFirstName,data.value?.gig.clientLastName].filter(Boolean).join(' ')||'Nog geen klant')
+const dayFormat=(d:Date)=>new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:tz}).format(d).replace(/\./g,'')
+const timeFormat=(d:Date)=>new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d)
+function planningMoment(value:string|null,fallback='Niet gepland'){if(!value)return fallback;const d=new Date(value);return `${dayFormat(d)} · ${timeFormat(d)}`}
 const gigWhen=computed(()=>{
   const gig=data.value?.gig;if(!gig?.startsAt)return 'Nog geen datum'
-  const tz='Europe/Amsterdam';const start=new Date(gig.startsAt)
-  const day=new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'long',year:'numeric',timeZone:tz}).format(start)
-  const time=(d:Date)=>new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d)
-  return gig.endsAt?`${day} · ${time(start)}–${time(new Date(gig.endsAt))}`:`${day} · ${time(start)}`
+  const start=new Date(gig.startsAt)
+  return gig.endsAt?`${dayFormat(start)} · ${timeFormat(start)} – ${timeFormat(new Date(gig.endsAt))}`:`${dayFormat(start)} · ${timeFormat(start)}`
 })
+const clientHead=computed(()=>data.value?.gig.clientId&&canManageGigs.value?resolveComponent('NuxtLink'):'div')
+const venueLine=computed(()=>[data.value?.gig.venueName,data.value?.gig.venueCity].filter(Boolean).join(' · ')||'Nog geen locatie')
+const venueAddressLines=computed(()=>{const a=data.value?.gig.venueAddress;return a?a.split(/,\s*|\n/).filter(Boolean):[]})
+const mapsUrl=computed(()=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([data.value?.gig.venueName,data.value?.gig.venueAddress].filter(Boolean).join(' '))}`)
 const deleteBlocked=computed(()=>!canDeleteGig.value||data.value?.gig.status!=='declined'||Boolean(data.value?.invoices.length))
+const feeLabel=computed(()=>data.value?.gig.fee?money(Math.round(Number(data.value.gig.fee)*100),data.value.gig.currency):'Nog niet ingevuld')
+
+const hasActivePortalLink=computed(()=>Boolean(portalData.value?.links.some(link=>link.state==='active')))
+const activeLink=computed(()=>portalData.value?.links.find(link=>link.state==='active')??null)
+const shownLink=computed(()=>activeLink.value||portalData.value?.links[0]||null)
+function shortDate(value:string){return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',timeZone:tz}).format(new Date(value)).replace(/\./g,'')}
+function longDate(value:string){return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',year:'numeric',timeZone:tz}).format(new Date(value)).replace(/\./g,'')}
+function portalOpened(link:PortalLink){return link.lastUsedAt?`Laatst geopend ${activityDate(link.lastUsedAt)}`:'Nog niet geopend'}
+function portalValidity(link:PortalLink){const days=Math.round((new Date(link.expiresAt).getTime()-new Date(link.createdAt).getTime())/86400000);return `Geldig tot ${longDate(link.expiresAt)} (${days} dagen)`}
+const portalSummary=computed(()=>{
+  const link=shownLink.value
+  if(!link)return {state:'none',text:'Nog geen link'}
+  if(link.state==='active')return {state:'active',text:`Actief · ${link.lastUsedAt?`laatst geopend ${shortDate(link.lastUsedAt)}`:'nog niet geopend'}`}
+  return {state:link.state,text:labelFor(portalLinkStateLabels,link.state)}
+})
+
+const liveInvoices=computed(()=>(data.value?.invoices||[]).filter(invoice=>invoice.status!=='void'))
+const currency=computed(()=>data.value?.gig.currency||'EUR')
+const invoiceTotals=computed(()=>{
+  const sent=liveInvoices.value.filter(invoice=>invoice.status==='finalized')
+  const invoiced=sent.reduce((sum,invoice)=>sum+invoice.totalCents,0)
+  const paid=sent.filter(invoice=>invoice.paymentStatus==='paid').reduce((sum,invoice)=>sum+invoice.totalCents,0)
+  return {invoiced,paid,open:invoiced-paid}
+})
+const paidInvoices=computed(()=>liveInvoices.value.filter(invoice=>invoice.status==='finalized'&&invoice.paymentStatus==='paid'))
+const invoiceSummary=computed(()=>{
+  const count=liveInvoices.value.length
+  return count?`${count} ${count===1?'factuur':'facturen'} · ${money(invoiceTotals.value.open,currency.value)} openstaand`:'Nog geen factuur'
+})
+
 type NextStep={title:string;hint?:string;action?:string;to?:string;run?:()=>void}
 // The one thing that moves this gig forward: book it, invoice it, invite the client, get paid.
 const nextStep=computed<NextStep|null>(()=>{
   const gig=data.value?.gig;if(!gig)return null
   if(gig.status==='declined'||gig.status==='cancelled')return null
   if(gig.status==='lead')return {title:'Boeking bevestigen',hint:gig.startsAt?undefined:'Vul eerst een datum in als die bekend is.',action:'Gig boeken',run:()=>{form.status='booked';save()}}
-  const invoices=(data.value?.invoices||[]).filter(invoice=>invoice.status!=='void')
+  const invoices=liveInvoices.value
   const draft=invoices.find(invoice=>invoice.status==='draft')
   const open=invoices.find(invoice=>invoice.status==='finalized'&&invoice.paymentStatus!=='paid')
-  if(!invoices.length)return {title:'Factuur maken',hint:'Er is nog geen factuur voor deze gig.',action:'Factuur aanmaken',run:createInvoice}
+  if(!invoices.length)return {title:'Factuur maken',hint:'Er zijn nog geen facturen voor deze gig.',action:'Factuur aanmaken',run:createInvoice}
   if(draft)return {title:'Factuur afronden',hint:'De conceptfactuur is nog niet verstuurd.',action:'Factuur openen',to:`/admin/invoices/${draft.id}`}
   if(!hasActivePortalLink.value&&!submissionData.value?.submission)return {title:'Klantportaal versturen',hint:'Laat de klant gegevens en muziekwensen invullen.',action:'Uitnodiging versturen',run:sendPortalInvitation}
   if(open)return {title:'Wachten op betaling',hint:`Te betalen vóór ${invoiceDate(open.dueDate)}.`,action:'Factuur bekijken',to:`/admin/invoices/${open.id}`}
   return {title:'Alles staat klaar',hint:'Geboekt, gefactureerd en betaald.'}
 })
-type TabKey='overview'|'planning'|'finance'|'portal'|'communication'|'internal'
-const tabs:Array<{key:TabKey;label:string}>=[{key:'overview',label:'Overzicht'},{key:'planning',label:'Planning'},{key:'finance',label:'Financieel'},{key:'portal',label:'Klantportaal'},{key:'communication',label:'Communicatie'},{key:'internal',label:'Intern'}]
-const tab=ref<TabKey>('overview')
-const titleInput=ref<HTMLInputElement|null>(null)
+function runNextStep(){const step=nextStep.value;if(step?.to)navigateTo(step.to);else step?.run?.()}
+
+type TabKey='overview'|'planning'|'client'|'finance'|'more'
+const tabs:Array<{key:TabKey;label:string}>=[{key:'overview',label:'Overzicht'},{key:'planning',label:'Planning'},{key:'client',label:'Klant'},{key:'finance',label:'Financieel'},{key:'more',label:'Meer'}]
+const initialTab=tabs.find(item=>item.key===route.query.tab)?.key
+const tab=ref<TabKey>(initialTab||'overview')
+const tabLabel=computed(()=>tabs.find(item=>item.key===tab.value)?.label||'')
+function selectTab(key:TabKey){tab.value=key;editing.value=editing.value&&editSection[editing.value]===key?editing.value:'';if(typeof window!=='undefined')window.scrollTo({top:0})}
 function moveTab(step:number){const index=tabs.findIndex(item=>item.key===tab.value);const next=tabs[(index+step+tabs.length)%tabs.length]!;tab.value=next.key;nextTick(()=>document.getElementById(`tab-${next.key}`)?.focus())}
-// A required field on a hidden tab cannot be focused by the browser, so switch to its tab first.
-function revealInvalid(event:Event){const key=(event.target as HTMLElement|null)?.closest<HTMLElement>('[data-tab]')?.dataset.tab as TabKey|undefined;if(key&&key!==tab.value)tab.value=key}
-function focusEdit(){tab.value='overview';nextTick(()=>{titleInput.value?.focus();titleInput.value?.scrollIntoView({block:'center',behavior:'smooth'})})}
+
+// Read-only by default: a section only shows its form while it is being edited.
+type Section='basics'|'when'|'where'|'load'|'timeline'|'contacts'|'fee'|'notes'|'public'
+const editSection:Record<Section,TabKey>={basics:'overview',when:'planning',where:'planning',load:'planning',timeline:'planning',contacts:'client',fee:'finance',notes:'more',public:'more'}
+const editing=ref<Section|''>('')
+function edit(section:Section){
+  if(!canEdit.value)return
+  closeMenus();editing.value=section;tab.value=editSection[section]
+  nextTick(()=>{const field=document.querySelector<HTMLElement>('[data-editing] input, [data-editing] select, [data-editing] textarea');field?.focus();field?.scrollIntoView({block:'center',behavior:'smooth'})})
+}
+function addContact(){contacts.value.push({name:'',role:'',email:'',phone:'',notes:''});edit('contacts')}
+function resetForm(){
+  const gig=data.value!.gig
+  Object.assign(form,{title:gig.title||'',eventType:gig.eventType||'',clientId:gig.clientId||'',venueId:gig.venueId||'',assignedUserId:gig.assignedUserId||'',status:gig.status,startsAt:localDate(gig.startsAt),endsAt:localDate(gig.endsAt),loadInAt:localDate(gig.loadInAt),fee:gig.fee||'',currency:gig.currency,publicVisibility:gig.publicVisibility,publicTitle:gig.publicTitle||'',publicDescription:gig.publicDescription||'',internalNotes:gig.internalNotes||'',source:gig.source||''})
+  contacts.value=contactRows(data.value!.contacts);timeline.value=timelineRows(data.value!.timeline)
+}
+function cancelEdit(){resetForm();editing.value='';message.value='';markSaved()}
 async function cancelGig(){
+  closeMenus()
   if(!(await confirmAction({title:'Deze gig annuleren?',body:'De status wordt Geannuleerd en de gig wordt direct opgeslagen.',confirmLabel:'Gig annuleren',tone:'danger'})))return
   form.status='cancelled';await save()
 }
-const feeLabel=computed(()=>data.value?.gig.fee?money(Math.round(Number(data.value.gig.fee)*100),data.value.gig.currency):'Nog niet ingevuld')
-function planningMoment(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Amsterdam'}).format(new Date(value)):'Nog niet ingevuld'}
-const planningRows=computed(()=>[{label:'Opbouw',value:planningMoment(data.value?.gig.loadInAt??null)},{label:'Start',value:planningMoment(data.value?.gig.startsAt??null)},{label:'Einde',value:planningMoment(data.value?.gig.endsAt??null)}])
-// Where the gig is in its life: booked, client portal, contract, invoice, review.
+// Where the gig is in its life: booked, contract, invoice, review.
 const stages=computed(()=>{
   const gig=data.value?.gig;if(!gig||(gig.status!=='lead'&&gig.status!=='booked'))return []
-  const portalDone=hasActivePortalLink.value||Boolean(submissionData.value?.submission)
   const contractDone=submissionData.value?.status==='submitted'
-  const live=(data.value?.invoices||[]).filter(invoice=>invoice.status!=='void')
-  const paid=live.length>0&&live.every(invoice=>invoice.paymentStatus==='paid')
+  const paid=liveInvoices.value.length>0&&liveInvoices.value.every(invoice=>invoice.paymentStatus==='paid')
   const list=[
-    {key:'booked',label:'Gig geboekt',sub:gig.status==='booked'?(gig.startsAt?new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Amsterdam'}).format(new Date(gig.startsAt)):'Geboekt'):'Nog bevestigen',icon:'lucide:check',done:gig.status==='booked'},
-    {key:'portal',label:'Klantportaal',sub:portalDone?'Toegang actief':'Toegang instellen',icon:'lucide:link',done:portalDone},
-    {key:'contract',label:'Contract',sub:contractDone?'Ingediend':'Vragenlijst',icon:'lucide:file-text',done:contractDone},
-    {key:'invoice',label:'Factuur',sub:paid?'Betaald':live.length?'Aangemaakt':'Nog maken',icon:'lucide:credit-card',done:paid},
-    {key:'review',label:'Review',sub:'Na het event',icon:'lucide:star',done:false},
+    {key:'booked',label:'Geboekt',icon:'lucide:check',done:gig.status==='booked'},
+    {key:'contract',label:'Contract',icon:'lucide:file-text',done:contractDone},
+    {key:'invoice',label:'Factuur',icon:'lucide:receipt',done:paid},
+    {key:'review',label:'Review',icon:'lucide:star',done:Boolean(reviewData.value?.review)},
   ]
   const current=list.findIndex(stage=>!stage.done)
   return list.map((stage,index)=>({...stage,state:stage.done?'done':index===current?'current':'todo'}))
@@ -139,12 +189,12 @@ async function save(){
       startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),fee:form.fee||null,
       contacts:contacts.value,timeline:timeline.value,
     }})
-    markSaved();await refresh();message.value='Gig opgeslagen.'
+    markSaved();await refresh();editing.value='';message.value='Gig opgeslagen.'
   }catch(error:unknown){message.value=apiErrorMessage(error,'Gig opslaan is niet gelukt.')}
   finally{saving.value=false}
 }
 async function duplicate(){
-  closeActionMenu()
+  closeMenus()
   try{const result=await $fetch<{gig:{id:string}}>(`/api/admin/gigs/${id}/duplicate`,{method:'POST'});await navigateTo(`/admin/gigs/${result.gig.id}`)}
   catch(error:unknown){message.value=apiErrorMessage(error,'Gig dupliceren is niet gelukt.')}
 }
@@ -159,7 +209,7 @@ async function performRemoval(){
   }catch(error:unknown){message.value=apiErrorMessage(error,'Gig verwijderen is niet gelukt.')}
 }
 async function requestRemove(){
-  closeActionMenu()
+  closeMenus()
   if(!canDeleteGig.value){
     await confirmAction({title:'Je kunt deze gig niet verwijderen',body:'Alleen een eigenaar kan gigs verwijderen. Vraag een eigenaar om de gig te verwijderen of je rol aan te passen.',confirmLabel:'Sluiten'})
     return
@@ -169,6 +219,7 @@ async function requestRemove(){
     if(choice==='confirm'){
       form.status='declined'
       message.value='Status aangepast naar Afgewezen. Sla de gig op om verwijderen mogelijk te maken.'
+      edit('basics')
     }
     return
   }
@@ -185,15 +236,15 @@ async function requestRemove(){
   await performRemoval()
 }
 async function createPortalLink(resend=false){
+  closeMenus()
   portalBusy.value=true;portalMessage.value='';portalUrl.value=''
   try{
     const result=await $fetch<{url:string}>(`/api/admin/gigs/${id}/portal-links${resend?'/resend':''}`,{method:'POST',body:{expiresInDays:portalDays.value,revokeExisting:resend}})
-    portalUrl.value=result.url;portalMessage.value=resend?'Er is een nieuwe uitnodiging gemaakt en oudere links zijn ingetrokken.':'Beveiligde link aangemaakt. Je kunt hem hieronder altijd opnieuw kopiëren.'
+    portalUrl.value=result.url;portalMessage.value=resend?'Er is een nieuwe uitnodiging gemaakt en oudere links zijn ingetrokken.':'Beveiligde link aangemaakt. Je kunt hem altijd opnieuw kopiëren.'
     await refreshPortal();await refresh()
   }catch(error:unknown){portalMessage.value=apiErrorMessage(error,'Portaallink aanmaken is niet gelukt.')}
   finally{portalBusy.value=false}
 }
-const hasActivePortalLink=computed(()=>Boolean(portalData.value?.links.some(link=>link.state==='active')))
 async function sendPortalInvitation(){
   let plan:EmailPlan|null=null
   try{plan=await emailPlan('client_portal_invitation')}catch{plan=null}
@@ -208,101 +259,405 @@ async function revokePortalLink(linkId:string){
   try{await $fetch(`/api/admin/gigs/${id}/portal-links/${linkId}`,{method:'DELETE'});portalMessage.value='Portaallink ingetrokken.';portalUrl.value='';await refreshPortal();await refresh()}
   catch(error:unknown){portalMessage.value=apiErrorMessage(error,'Portaallink intrekken is niet gelukt.')}
 }
-async function copyPortalUrl(url=portalUrl.value){
+async function copyPortalUrl(url:string|null|undefined){
   if(!url)return
   await navigator.clipboard.writeText(url);portalMessage.value='Portaallink gekopieerd.'
 }
-function portalDate(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Nooit'}
+function openPortal(url:string|null|undefined){if(url)window.open(url,'_blank','noopener')}
 function answerValue(value:unknown){return Array.isArray(value)?value.join(', '):value===true?'Ja':value===false?'Nee':String(value??'—')}
+const showAllActivity=ref(false)
+const shownActivity=computed(()=>showAllActivity.value?data.value?.activity||[]:(data.value?.activity||[]).slice(0,5))
+const contractLabel=computed(()=>labelFor(submissionStatusLabels,submissionData.value?.status||'not_started'))
 
 useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`,robots:'noindex, nofollow'})
 </script>
 
-<template><div v-if="data" class="detail" :class="{readonly:!canManageGigs}">
-<nav class="crumbs" aria-label="Kruimelpad"><NuxtLink to="/admin/gigs" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Gigs</NuxtLink><Icon name="lucide:chevron-right" class="crumb-sep" aria-hidden="true" /><span class="crumb-current">{{data.gig.displayTitle}}</span></nav>
-<header class="hero"><div><h1>{{data.gig.displayTitle}}</h1><div class="status-row"><AdminStatusChip kind="gig" :status="data.gig.status" /></div></div><div v-if="canEdit" class="hero-actions"><NuxtLink v-if="nextStep?.to" class="primary hero-cta with-icon" :to="nextStep.to"><Icon name="lucide:arrow-right" aria-hidden="true" />{{nextStep.action}}</NuxtLink><button v-else-if="nextStep?.run" type="button" class="primary hero-cta with-icon" :disabled="saving||portalBusy" @click="nextStep.run"><Icon name="lucide:file-text" aria-hidden="true" />{{nextStep.action}}</button><details ref="actionMenu" class="action-menu"><summary class="secondary icon-button" aria-label="Meer acties" title="Meer acties"><Icon name="lucide:ellipsis" aria-hidden="true" /></summary><div class="action-menu-popover" role="menu"><button type="button" role="menuitem" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren</button><button type="button" role="menuitem" class="menu-danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></div></details></div></header>
-
-<ol v-if="stages.length" class="stages" aria-label="Voortgang"><li v-for="stage in stages" :key="stage.key" class="stage" :data-state="stage.state" :aria-current="stage.state==='current'?'step':undefined"><span class="stage-dot"><Icon :name="stage.icon" aria-hidden="true" /></span><strong>{{stage.label}}</strong><small>{{stage.sub}}</small></li></ol>
-
-<section class="gig-facts" aria-label="Samenvatting">
-<dl><div><dt><Icon name="lucide:calendar" aria-hidden="true" />Datum & tijd</dt><dd>{{gigWhen}}</dd></div><div><dt><Icon name="lucide:map-pin" aria-hidden="true" />Locatie</dt><dd>{{data.gig.venueName||'Nog geen locatie'}}</dd></div><div><dt><Icon name="lucide:users" aria-hidden="true" />Klant</dt><dd>{{clientLabel}}</dd></div><div><dt><Icon name="lucide:wallet" aria-hidden="true" />Gage</dt><dd>{{data.gig.fee?money(Math.round(Number(data.gig.fee)*100),data.gig.currency):'Nog niet ingevuld'}}</dd></div></dl>
-</section>
+<template><div v-if="data" class="gigpage" :class="{readonly:!canManageGigs}">
+<header class="top">
+  <div class="top-row">
+    <NuxtLink v-if="tab==='overview'" to="/admin/gigs" class="back"><Icon name="lucide:chevron-left" aria-hidden="true" />Gigs</NuxtLink>
+    <button v-else type="button" class="back" @click="selectTab('overview')"><Icon name="lucide:chevron-left" aria-hidden="true" />{{data.gig.displayTitle}}</button>
+    <details v-if="canEdit" ref="actionMenu" class="menu action-menu"><summary class="icon-button" aria-label="Meer acties" title="Meer acties"><Icon name="lucide:ellipsis" aria-hidden="true" /></summary><div class="menu-popover" role="menu"><button type="button" role="menuitem" @click="edit('basics')"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button><button type="button" role="menuitem" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren</button><button v-if="data.gig.status!=='cancelled'" type="button" role="menuitem" class="menu-danger" @click="cancelGig"><Icon name="lucide:circle-x" aria-hidden="true" />Annuleren</button><button type="button" role="menuitem" class="menu-danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></div></details>
+  </div>
+  <template v-if="tab==='overview'">
+    <div class="title-row"><h1>{{data.gig.displayTitle}}</h1><AdminStatusChip kind="gig" :status="data.gig.status" /></div>
+    <ul class="facts" aria-label="Samenvatting">
+      <li><Icon name="lucide:calendar" aria-hidden="true" /><span>{{gigWhen}}</span></li>
+      <li><Icon name="lucide:map-pin" aria-hidden="true" /><span>{{venueLine}}</span></li>
+      <li><Icon name="lucide:user" aria-hidden="true" /><span>{{clientLabel}}</span></li>
+      <li><Icon name="lucide:circle-euro" aria-hidden="true" /><span>{{feeLabel}}</span></li>
+    </ul>
+    <ol v-if="stages.length" class="stages" aria-label="Voortgang"><li v-for="stage in stages" :key="stage.key" class="stage" :data-state="stage.state" :aria-current="stage.state==='current'?'step':undefined"><span class="stage-dot"><Icon :name="stage.icon" aria-hidden="true" /></span><small>{{stage.label}}</small></li></ol>
+    <button v-if="nextStep&&canEdit" type="button" class="next-step" :disabled="saving||portalBusy" @click="runNextStep"><Icon name="lucide:file-text" class="next-icon" aria-hidden="true" /><span class="next-body"><small>Volgende stap</small><strong>{{nextStep.title}}</strong><em v-if="nextStep.hint">{{nextStep.hint}}</em></span><Icon v-if="nextStep.action" name="lucide:chevron-right" aria-hidden="true" /></button>
+  </template>
+  <h1 v-else>{{tabLabel}}</h1>
+</header>
 <div v-if="!canManageGigs" class="readonly-note">Deze gig is aan jou toegewezen. Als DJ kun je alleen meekijken; een manager of eigenaar kan de boekingsgegevens wijzigen.</div>
 
-<div class="tabs" role="tablist" aria-label="Gig onderdelen" @keydown.right.prevent="moveTab(1)" @keydown.left.prevent="moveTab(-1)"><button v-for="item in tabs" :id="`tab-${item.key}`" :key="item.key" type="button" role="tab" class="tab" :class="{active:tab===item.key}" :aria-selected="tab===item.key" :aria-controls="`panel-${item.key}`" :tabindex="tab===item.key?0:-1" @click="tab=item.key">{{item.label}}</button></div>
+<div class="tabs" role="tablist" aria-label="Gig onderdelen" @keydown.right.prevent="moveTab(1)" @keydown.left.prevent="moveTab(-1)"><button v-for="item in tabs" :id="`tab-${item.key}`" :key="item.key" type="button" role="tab" class="tab" :class="{active:tab===item.key}" :aria-selected="tab===item.key" :aria-controls="`panel-${item.key}`" :tabindex="tab===item.key?0:-1" @click="selectTab(item.key)">{{item.label}}</button></div>
 
-<form :inert="!canEdit||undefined" @submit.prevent="save" @invalid.capture="revealInvalid">
-<div v-show="tab==='overview'" id="panel-overview" class="tab-panel" data-tab="overview" role="tabpanel" aria-labelledby="tab-overview">
-<div class="overview-layout">
-<div class="overview-main">
-<section class="card"><p class="eyebrow">Overzicht</p><div class="grid"><label class="wide">Titel<input ref="titleInput" v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Gage<input v-model="form.fee" inputmode="decimal"></label><label>Valuta<input v-model="form.currency" maxlength="3"></label><label>Bron<input v-model="form.source"></label></div></section>
-</div>
-<aside class="overview-aside">
-<section v-if="nextStep&&canEdit" class="next-step"><div><span><Icon name="lucide:zap" aria-hidden="true" />Volgende stap</span><strong>{{nextStep.title}}</strong><small v-if="nextStep.hint">{{nextStep.hint}}</small></div><NuxtLink v-if="nextStep.to" class="primary" :to="nextStep.to">{{nextStep.action}}</NuxtLink><button v-else-if="nextStep.run" type="button" class="primary" :disabled="saving||portalBusy" @click="nextStep.run">{{nextStep.action}}</button></section>
-<section v-if="canEdit" class="card quick-actions"><p class="eyebrow">Snelle acties</p><button type="button" @click="focusEdit"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken<Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button><button type="button" @click="duplicate"><Icon name="lucide:copy" aria-hidden="true" />Dupliceren<Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button><button v-if="data.gig.status!=='cancelled'" type="button" class="danger" @click="cancelGig"><Icon name="lucide:circle-x" aria-hidden="true" />Annuleren</button><button type="button" class="danger" :aria-disabled="deleteBlocked" @click="requestRemove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></section>
-</aside>
-</div>
-<div class="summary-grid">
-<section v-if="reviewData?.review" class="card"><p class="eyebrow">Review van de klant</p><p><strong>{{'★'.repeat(reviewData.review.rating)}}{{'☆'.repeat(5-reviewData.review.rating)}}</strong> <small>{{reviewData.review.authorName||'Anoniem'}}</small></p><p v-if="reviewData.review.comment">“{{reviewData.review.comment}}”</p></section>
-<section class="card"><div class="section-title"><p class="eyebrow">Planning</p><button type="button" class="text-button with-icon" @click="tab='planning'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><ol class="mini-timeline"><li v-for="row in planningRows" :key="row.label"><strong>{{row.label}}</strong><span>{{row.value}}</span></li></ol></section>
-<section class="card"><div class="section-title"><p class="eyebrow">Financieel</p><button type="button" class="text-button with-icon" @click="tab='finance'"><Icon name="lucide:pencil" aria-hidden="true" />Bewerken</button></div><dl class="kv"><div><dt>Gage</dt><dd>{{feeLabel}}</dd></div><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div><div><dt>Facturen</dt><dd>{{data.invoices.length?`${data.invoices.length} gekoppeld`:'Nog geen facturen voor deze gig.'}}</dd></div></dl></section>
-</div>
+<form :inert="!canEdit||undefined" @submit.prevent="save">
+
+<!-- Overzicht: compact dashboard -->
+<div v-show="tab==='overview'" id="panel-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-overview">
+<section v-if="editing==='basics'" class="card" data-editing><h2 class="card-title">Gig bewerken</h2><div class="grid"><label class="wide">Titel<input v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Bron<input v-model="form.source"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></section>
+
+<ul class="summary-list">
+<li><button type="button" class="row-card" @click="selectTab('planning')"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Planning</strong><span>{{gigWhen}}</span><small>{{data.gig.loadInAt?`Opbouw ${planningMoment(data.gig.loadInAt)}`:'Opbouw nog niet gepland'}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
+<li><button type="button" class="row-card" @click="selectTab('client')"><Icon name="lucide:users" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Klant</strong><span>{{clientLabel}}</span><small>{{contacts.length?`${contacts.length} ${contacts.length===1?'contactpersoon':'contactpersonen'}`:'Geen contactpersoon'}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
+<li v-if="canManageGigs"><button type="button" class="row-card" @click="selectTab('client')"><Icon name="lucide:link" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Klantportaal</strong><span class="portal-state" :data-state="portalSummary.state"><i aria-hidden="true"/>{{portalSummary.text}}</span></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
+<li><button type="button" class="row-card" @click="selectTab('finance')"><Icon name="lucide:wallet" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Financieel</strong><span>{{feeLabel}}</span><small>{{canManageGigs?invoiceSummary:''}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
+</ul>
 </div>
 
-<div v-show="tab==='planning'" id="panel-planning" class="tab-panel" data-tab="planning" role="tabpanel" aria-labelledby="tab-planning">
-<section class="card"><p class="eyebrow">Planning</p><div class="grid"><label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div><div class="section-title"><h2>Timeline</h2><button type="button" class="text-button" @click="addTimeline"><Icon name="lucide:plus" aria-hidden="true" /> Item toevoegen</button></div><div v-if="!timeline.length" class="subtle">Nog geen items in de timeline.</div><div v-for="(item,index) in timeline" :key="index" class="repeat-row timeline-row"><input v-model="item.time" type="time" aria-label="Tijd"><input v-model="item.title" placeholder="Openingsdans, start DJ…" required><input v-model="item.description" placeholder="Notities"><button type="button" aria-label="Item verwijderen" title="Item verwijderen" @click="timeline.splice(index,1)"><Icon name="lucide:x" aria-hidden="true" /></button></div></section>
-</div>
+<!-- Planning -->
+<div v-show="tab==='planning'" id="panel-planning" class="tab-panel" role="tabpanel" aria-labelledby="tab-planning">
+<section class="card" :data-editing="editing==='when'||undefined">
+  <header class="card-head"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><h2>Datum & tijd</h2><button v-if="canEdit&&editing!=='when'" type="button" class="icon-action" aria-label="Datum en tijd bewerken" @click="edit('when')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='when'"><div class="grid"><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <dl v-else class="split"><div><dt>Start</dt><dd>{{planningMoment(data.gig.startsAt,'Nog niet ingevuld')}}</dd></div><div><dt>Einde</dt><dd>{{planningMoment(data.gig.endsAt,'Nog niet ingevuld')}}</dd></div></dl>
+</section>
 
-<div v-show="tab==='finance'" id="panel-finance" class="tab-panel" data-tab="finance" role="tabpanel" aria-labelledby="tab-finance">
-<section class="card"><p class="eyebrow">Financieel</p><dl class="kv"><div><dt>Gage</dt><dd>{{feeLabel}}</dd></div><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div></dl></section>
-<section v-if="canEdit" class="card invoice-card">
-  <div class="section-title invoice-heading">
-    <div><p class="eyebrow">Financiën</p><h2>Facturen & Stripe</h2><span class="subtle-copy">Facturen horen bij deze gig. Online betalingen via Stripe worden automatisch verwerkt. Een overschrijving of contante betaling registreer je op de factuur.</span></div>
-    <button type="button" class="secondary" @click="createInvoice">Factuur aanmaken</button>
-  </div>
-  <div v-if="!data.invoices.length" class="subtle">Nog geen facturen voor deze gig.</div>
-  <NuxtLink v-for="invoice in data.invoices" :key="invoice.id" :to="`/admin/invoices/${invoice.id}`" class="invoice-row">
-    <div class="invoice-main">
-      <strong>{{invoice.invoiceNumber||'Conceptfactuur'}}</strong>
-      <span>{{invoice.status==='draft'?'Concept':`Uitgegeven ${invoiceDate(invoice.issueDate)} · vervalt ${invoiceDate(invoice.dueDate)}`}}</span>
-    </div>
-    <div class="invoice-statuses">
-      <AdminStatusChip v-if="invoice.status==='finalized'" kind="payment" :status="invoice.paymentStatus" :provider="invoice.paymentProvider" /><AdminStatusChip v-else kind="invoice" :status="invoice.status" />
-      <span class="stripe-state" :data-state="invoice.stripeStatus||invoice.paymentStatus">{{stripeLabel(invoice)}}</span>
-    </div>
-    <strong class="invoice-total">{{money(invoice.totalCents,invoice.currency)}}</strong>
-  </NuxtLink>
+<section class="card" :data-editing="editing==='where'||undefined">
+  <header class="card-head"><Icon name="lucide:map-pin" class="lead-icon" aria-hidden="true" /><h2>Locatie</h2><a v-if="data.gig.venueName&&editing!=='where'" class="icon-action" :href="mapsUrl" target="_blank" rel="noopener" aria-label="Route openen in Kaarten"><Icon name="lucide:send" aria-hidden="true" /></a><button v-if="canEdit&&editing!=='where'" type="button" class="icon-action" aria-label="Locatie bewerken" @click="edit('where')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='where'"><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <div v-else-if="data.gig.venueName" class="plain"><strong>{{data.gig.venueName}}</strong><span v-for="line in venueAddressLines" :key="line">{{line}}</span></div>
+  <p v-else class="empty">Nog geen locatie gekozen.</p>
+</section>
+
+<section class="card" :data-editing="editing==='load'||undefined">
+  <header class="card-head"><Icon name="lucide:truck" class="lead-icon" aria-hidden="true" /><h2>Opbouw</h2><button v-if="canEdit&&editing!=='load'" type="button" class="icon-action" aria-label="Opbouw bewerken" @click="edit('load')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='load'"><label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <p v-else class="plain" :class="{muted:!data.gig.loadInAt}">{{planningMoment(data.gig.loadInAt)}}</p>
+</section>
+
+<section class="card" :data-editing="editing==='timeline'||undefined">
+  <header class="card-head"><Icon name="lucide:list-checks" class="lead-icon" aria-hidden="true" /><h2>Timeline</h2><button v-if="canEdit&&editing!=='timeline'" type="button" class="icon-action" aria-label="Timeline bewerken" @click="edit('timeline')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='timeline'">
+    <div v-for="(item,index) in timeline" :key="index" class="repeat-row timeline-row"><input v-model="item.time" type="time" aria-label="Tijd"><input v-model="item.title" placeholder="Openingsdans, start DJ…" aria-label="Omschrijving" required><input v-model="item.description" placeholder="Notities" aria-label="Notities"><button type="button" aria-label="Item verwijderen" title="Item verwijderen" @click="timeline.splice(index,1)"><Icon name="lucide:x" aria-hidden="true" /></button></div>
+    <button type="button" class="add-button" @click="addTimeline"><Icon name="lucide:plus" aria-hidden="true" />Item toevoegen</button>
+    <div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
+  </template>
+  <template v-else>
+    <ul v-if="data.timeline.length" class="timeline-list"><li v-for="(item,index) in data.timeline" :key="item.id||index"><time>{{item.time?item.time.slice(0,5):'—'}}</time><span><strong>{{item.title}}</strong><small v-if="item.description">{{item.description}}</small></span></li></ul>
+    <p v-else class="empty">Nog geen items in de timeline.</p>
+    <button v-if="canEdit" type="button" class="add-button" @click="addTimeline();edit('timeline')"><Icon name="lucide:plus" aria-hidden="true" />Item toevoegen</button>
+  </template>
 </section>
 </div>
 
-<div v-show="tab==='portal'" id="panel-portal" class="tab-panel" data-tab="portal" role="tabpanel" aria-labelledby="tab-portal">
-<section v-if="canEdit" class="card"><div class="section-title"><div><p class="eyebrow">Klantportaal</p><h2>Beveiligde toegang</h2></div></div><div class="portal-actions"><label>Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" class="secondary" :disabled="portalBusy" @click="createPortalLink(false)">Link aanmaken</button><button type="button" class="primary" :disabled="portalBusy" @click="sendPortalInvitation">{{hasActivePortalLink?'Nieuwe uitnodiging versturen':'Uitnodiging versturen'}}</button></div><div v-if="portalUrl" class="one-time-link"><div><strong>Eenmalig zichtbaar</strong><span>{{portalUrl}}</span></div><button type="button" class="with-icon secondary" @click="copyPortalUrl()"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button></div><p v-if="portalMessage" class="portal-message">{{portalMessage}}</p><div v-if="!portalData?.links.length" class="subtle">Er zijn nog geen portaallinks uitgegeven.</div><div v-for="link in portalData?.links||[]" :key="link.id" class="portal-row"><div><strong>{{labelFor(portalLinkStateLabels,link.state)}}</strong><span>Verloopt {{portalDate(link.expiresAt)}} · Laatst gebruikt {{portalDate(link.lastUsedAt)}}</span><span v-if="link.url" class="portal-url">{{link.url}}</span></div><button v-if="link.url" type="button" class="with-icon secondary" @click="copyPortalUrl(link.url)"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button><button v-if="link.state==='active'" type="button" class="remove-small" @click="revokePortalLink(link.id)">Intrekken</button></div></section>
+<!-- Klant -->
+<div v-show="tab==='client'" id="panel-client" class="tab-panel" role="tabpanel" aria-labelledby="tab-client">
+<section class="card">
+  <component :is="clientHead" :to="data.gig.clientId&&canManageGigs?`/admin/clients/${data.gig.clientId}`:undefined" class="card-head link-head"><Icon name="lucide:users" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Klant</h2><span>{{clientLabel}}</span></span><Icon v-if="data.gig.clientId&&canManageGigs" name="lucide:chevron-right" class="chev" aria-hidden="true" /></component>
+</section>
 
-<section v-if="canEdit&&submissionData" class="card"><div class="section-title"><div><p class="eyebrow">Ingevuld portaal</p><h2>Contract & muziekwensen</h2></div><NuxtLink to="/admin/questionnaire" class="text-button">Template bewerken</NuxtLink></div><div class="submission-status"><strong>{{labelFor(submissionStatusLabels,submissionData.status)}}</strong><span>Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{portalDate(submissionData.submission.submittedAt)}}</template></span></div><div v-if="submissionData.submission" class="answer-grid"><div v-for="field in submissionData.fields" :key="field.id"><span>{{field.label}}</span><strong>{{answerValue(submissionData.submission.answers[field.id])}}</strong></div><div><span>Geaccepteerd door</span><strong>{{submissionData.submission.acceptedName||'—'}}</strong></div></div><div v-else class="subtle">De klant heeft de vragenlijst nog niet ingediend.</div><h3>Muziekwensen</h3><div v-if="!submissionData.wishes.length" class="subtle">Geen muziekwensen ingediend.</div><div v-for="wish in submissionData.wishes" :key="wish.id" class="wish-row"><span>{{labelFor(musicWishCategoryLabels,wish.category)}}</span><div><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note">{{wish.note}}</small></div></div></section>
+<section class="card" :data-editing="editing==='contacts'||undefined">
+  <header class="card-head"><Icon name="lucide:user" class="lead-icon" aria-hidden="true" /><h2>Contactpersonen</h2><button v-if="canEdit&&editing!=='contacts'" type="button" class="icon-action" aria-label="Contactpersoon toevoegen" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /></button></header>
+  <template v-if="editing==='contacts'">
+    <div v-for="(contact,index) in contacts" :key="index" class="contact-edit"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div>
+    <button type="button" class="add-button" @click="contacts.push({name:'',role:'',email:'',phone:'',notes:''})"><Icon name="lucide:plus" aria-hidden="true" />Contactpersoon toevoegen</button>
+    <div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div>
+  </template>
+  <template v-else>
+    <ul v-if="data.contacts.length" class="contact-list"><li v-for="(contact,index) in data.contacts" :key="contact.id||index"><strong>{{contact.name}}<small v-if="contact.role"> · {{contact.role}}</small></strong><a v-if="contact.email" :href="`mailto:${contact.email}`">{{contact.email}}</a><a v-if="contact.phone" :href="`tel:${contact.phone}`">{{contact.phone}}</a><small v-if="contact.notes">{{contact.notes}}</small></li></ul>
+    <p v-else class="empty">Nog geen contactpersonen toegevoegd.</p>
+    <button v-if="canEdit&&!data.contacts.length" type="button" class="add-button" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" />Contactpersoon toevoegen</button>
+    <button v-else-if="canEdit" type="button" class="text-button" @click="edit('contacts')"><Icon name="lucide:pencil" aria-hidden="true" />Contactpersonen bewerken</button>
+  </template>
+</section>
+
+<section v-if="canEdit" class="card portal-card">
+  <header class="card-head"><Icon name="lucide:link" class="lead-icon" aria-hidden="true" /><h2>Klantportaal</h2></header>
+  <template v-if="shownLink">
+    <p class="portal-state" :data-state="portalSummary.state==='active'?'active':shownLink.state"><i aria-hidden="true"/>{{labelFor(portalLinkStateLabels,shownLink.state)}}</p>
+    <p v-if="shownLink.state==='active'" class="portal-meta">{{portalValidity(shownLink)}}<br>{{portalOpened(shownLink)}}</p>
+    <p v-else class="portal-meta">Verlopen of ingetrokken op {{longDate(shownLink.revokedAt||shownLink.expiresAt)}}</p>
+  </template>
+  <p v-else class="empty">Er zijn nog geen portaallinks uitgegeven.</p>
+  <div v-if="shownLink?.state==='active'" class="portal-buttons">
+    <button type="button" class="outline with-icon" :disabled="!shownLink.url" @click="openPortal(shownLink.url)"><Icon name="lucide:external-link" aria-hidden="true" />Openen</button>
+    <button type="button" class="outline with-icon" :disabled="!shownLink.url" @click="copyPortalUrl(shownLink.url)"><Icon name="lucide:copy" aria-hidden="true" />Kopiëren</button>
+    <details ref="portalMenu" class="menu"><summary class="outline icon-only" aria-label="Meer portaalacties" title="Meer portaalacties"><Icon name="lucide:ellipsis-vertical" aria-hidden="true" /></summary><div class="menu-popover" role="menu"><label class="menu-field">Geldigheid (dagen)<input v-model.number="portalDays" type="number" min="1" max="365"></label><button type="button" role="menuitem" :disabled="portalBusy" @click="createPortalLink(false)"><Icon name="lucide:link" aria-hidden="true" />Nieuwe link aanmaken</button></div></details>
+  </div>
+  <button type="button" class="primary wide-button" :disabled="portalBusy" @click="sendPortalInvitation">{{hasActivePortalLink?'Nieuwe uitnodiging versturen':'Uitnodiging versturen'}}</button>
+  <button v-if="shownLink?.state==='active'" type="button" class="revoke" @click="revokePortalLink(shownLink.id)">Link intrekken</button>
+  <p v-if="portalMessage" class="portal-message" role="status">{{portalMessage}}</p>
+</section>
+
+<section v-if="canEdit&&submissionData" class="card">
+  <header class="card-head link-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Contract & muziekwensen</h2></span></header>
+  <p class="contract-state" :data-state="submissionData.status"><i aria-hidden="true"/>{{contractLabel}}</p>
+  <p class="portal-meta">Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>
+  <details v-if="submissionData.submission" class="answers"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
+  <NuxtLink to="/admin/questionnaire" class="chip-link"><Icon name="lucide:copy" aria-hidden="true" />Template bewerken</NuxtLink>
+</section>
+
+<section v-if="canEdit&&submissionData" class="card">
+  <header class="card-head link-head"><Icon name="lucide:music" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Muziekwensen</h2></span></header>
+  <p v-if="!submissionData.wishes.length" class="empty">Geen muziekwensen ingediend.</p>
+  <ul v-else class="wish-list"><li v-for="wish in submissionData.wishes" :key="wish.id"><small>{{labelFor(musicWishCategoryLabels,wish.category)}}</small><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note&&(wish.artist||wish.title)">{{wish.note}}</small></li></ul>
+</section>
 </div>
 
-<div v-show="tab==='communication'" id="panel-communication" class="tab-panel" role="tabpanel" aria-labelledby="tab-communication" data-tab="communication">
-<section class="card"><div class="section-title"><div><p class="eyebrow">Personen</p><h2>Contactpersonen evenement</h2></div><button v-if="contacts.length" type="button" class="text-button" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /> Contact toevoegen</button></div><div v-if="!contacts.length" class="empty-state"><span class="empty-icon"><Icon name="lucide:users" aria-hidden="true" /></span><strong>Nog geen contactpersonen toegevoegd</strong><p>Voeg contactpersonen toe om sneller te communiceren en alle afspraken op één plek te bewaren.</p><button type="button" class="primary with-icon" @click="addContact"><Icon name="lucide:plus" aria-hidden="true" /> Contactpersoon toevoegen</button></div><div v-for="(contact,index) in contacts" :key="index" class="contact-card"><div class="grid"><label>Naam<input v-model="contact.name" required></label><label>Rol<input v-model="contact.role" placeholder="Ceremoniemeester, locatie…"></label><label>E-mail<input v-model="contact.email" type="email"></label><label>Telefoon<input v-model="contact.phone"></label><label class="wide">Notities<input v-model="contact.notes"></label></div><button type="button" class="remove-small" @click="contacts.splice(index,1)">Contact verwijderen</button></div></section>
+<!-- Financieel -->
+<div v-show="tab==='finance'" id="panel-finance" class="tab-panel" role="tabpanel" aria-labelledby="tab-finance">
+<section class="card" :data-editing="editing==='fee'||undefined">
+  <header class="card-head"><Icon name="lucide:wallet" class="lead-icon" aria-hidden="true" /><span class="head-text"><h2>Gage</h2><strong class="amount">{{feeLabel}}</strong></span><button v-if="canEdit&&editing!=='fee'" type="button" class="icon-action" aria-label="Gage bewerken" @click="edit('fee')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='fee'"><div class="grid"><label>Gage<input v-model="form.fee" inputmode="decimal"></label><label>Valuta<input v-model="form.currency" maxlength="3"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <dl v-else class="split single"><div><dt>Valuta</dt><dd>{{data.gig.currency}}</dd></div></dl>
+</section>
 
-<section class="card"><p class="eyebrow">Zichtbaarheid</p><label class="checkbox"><input v-model="form.publicVisibility" type="checkbox"> Toon deze gig in de publieke agenda</label><div class="grid public-fields"><label>Publieke titel<input v-model="form.publicTitle" :placeholder="publicTitlePlaceholder"></label><label class="wide">Publieke beschrijving<textarea v-model="form.publicDescription" rows="3"/></label></div></section>
+<template v-if="canManageGigs">
+<section class="card">
+  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>Facturen</h2></header>
+  <p v-if="!data.invoices.length" class="empty">Nog geen facturen voor deze gig.</p>
+  <NuxtLink v-for="invoice in data.invoices" :key="invoice.id" :to="`/admin/invoices/${invoice.id}`" class="invoice-row">
+    <span class="invoice-main"><strong>{{invoice.invoiceNumber||'Conceptfactuur'}}</strong><small>{{invoice.status==='draft'?'Concept':`Uitgegeven ${invoiceDate(invoice.issueDate)} · vervalt ${invoiceDate(invoice.dueDate)}`}}</small><span class="invoice-statuses"><AdminStatusChip v-if="invoice.status==='finalized'" kind="payment" :status="invoice.paymentStatus" :provider="invoice.paymentProvider" /><AdminStatusChip v-else kind="invoice" :status="invoice.status" /><small class="stripe-state" :data-state="invoice.stripeStatus||invoice.paymentStatus">{{stripeLabel(invoice)}}</small></span></span>
+    <strong class="invoice-total">{{money(invoice.totalCents,invoice.currency)}}</strong><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" />
+  </NuxtLink>
+  <button v-if="canEdit" type="button" :class="data.invoices.length?'outline wide-button':'primary wide-button'" @click="createInvoice">Factuur aanmaken</button>
+</section>
+
+<section class="card">
+  <header class="card-head"><Icon name="lucide:credit-card" class="lead-icon" aria-hidden="true" /><h2>Betalingen</h2></header>
+  <p v-if="!paidInvoices.length" class="empty">Nog geen betalingen geregistreerd.</p>
+  <ul v-else class="payment-list"><li v-for="invoice in paidInvoices" :key="invoice.id"><span><strong>{{invoice.invoiceNumber||'Factuur'}}</strong><small>{{stripeLabel(invoice)}}<template v-if="invoice.paidAt"> · {{longDate(invoice.paidAt)}}</template></small></span><strong>{{money(invoice.totalCents,invoice.currency)}}</strong></li></ul>
+</section>
+
+<section class="card">
+  <header class="card-head"><Icon name="lucide:trending-up" class="lead-icon" aria-hidden="true" /><h2>Overzicht</h2></header>
+  <dl class="totals"><div><dt>Totaal gefactureerd</dt><dd>{{money(invoiceTotals.invoiced,currency)}}</dd></div><div><dt>Totaal betaald</dt><dd>{{money(invoiceTotals.paid,currency)}}</dd></div><div class="open"><dt>Openstaand</dt><dd>{{money(invoiceTotals.open,currency)}}</dd></div></dl>
+</section>
+</template>
 </div>
 
-<div v-show="tab==='internal'" id="panel-internal-form" class="tab-panel" data-tab="internal">
-<section class="card"><p class="eyebrow">Intern</p><label>Interne notities<textarea v-model="form.internalNotes" rows="6"/></label></section>
+<!-- Meer: interne notities, zichtbaarheid en activiteit -->
+<div v-show="tab==='more'" id="panel-more" class="tab-panel" role="tabpanel" aria-labelledby="tab-more">
+<section class="card" :data-editing="editing==='notes'||undefined">
+  <header class="card-head"><Icon name="lucide:notebook-pen" class="lead-icon" aria-hidden="true" /><h2>Interne notities</h2></header>
+  <template v-if="editing==='notes'"><label class="sr-label">Interne notities<textarea v-model="form.internalNotes" rows="6"/></label><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <template v-else>
+    <p v-if="data.gig.internalNotes" class="notes-text">{{data.gig.internalNotes}}</p>
+    <p v-else class="empty">Nog geen interne notities.</p>
+    <button v-if="canEdit" type="button" class="add-button" @click="edit('notes')"><Icon :name="data.gig.internalNotes?'lucide:pencil':'lucide:plus'" aria-hidden="true" />{{data.gig.internalNotes?'Notitie bewerken':'Notitie toevoegen'}}</button>
+  </template>
+</section>
+
+<section v-if="reviewData?.review" class="card">
+  <header class="card-head"><Icon name="lucide:star" class="lead-icon" aria-hidden="true" /><h2>Review van de klant</h2></header>
+  <p class="plain"><strong>{{'★'.repeat(reviewData.review.rating)}}{{'☆'.repeat(5-reviewData.review.rating)}}</strong> <small>{{reviewData.review.authorName||'Anoniem'}}</small></p><p v-if="reviewData.review.comment" class="plain">“{{reviewData.review.comment}}”</p>
+</section>
+
+<section class="card" :data-editing="editing==='public'||undefined">
+  <header class="card-head"><Icon name="lucide:globe" class="lead-icon" aria-hidden="true" /><h2>Zichtbaarheid</h2><button v-if="canEdit&&editing!=='public'" type="button" class="icon-action" aria-label="Zichtbaarheid bewerken" @click="edit('public')"><Icon name="lucide:pencil" aria-hidden="true" /></button></header>
+  <template v-if="editing==='public'"><label class="checkbox"><input v-model="form.publicVisibility" type="checkbox"> Toon deze gig in de publieke agenda</label><div class="grid public-fields"><label>Publieke titel<input v-model="form.publicTitle" :placeholder="publicTitlePlaceholder"></label><label class="wide">Publieke beschrijving<textarea v-model="form.publicDescription" rows="3"/></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></template>
+  <p v-else class="plain" :class="{muted:!data.gig.publicVisibility}">{{data.gig.publicVisibility?`Zichtbaar in de publieke agenda${data.gig.publicTitle?` als “${data.gig.publicTitle}”`:''}`:'Niet zichtbaar in de publieke agenda'}}</p>
+</section>
+
+<section class="card activity">
+  <header class="card-head"><Icon name="lucide:clock" class="lead-icon" aria-hidden="true" /><h2>Activiteit</h2></header>
+  <p v-if="!data.activity.length" class="empty">Nog geen activiteit vastgelegd.</p>
+  <ol v-else class="activity-list"><li v-for="item in shownActivity" :key="item.id"><strong>{{labelFor(activityActionLabels,item.action)}}<template v-if="item.actorName"> · {{item.actorName}}</template></strong><small>{{activityDate(item.createdAt)}}</small></li></ol>
+  <button v-if="data.activity.length>5" type="button" class="all-activity" :aria-expanded="showAllActivity" @click="showAllActivity=!showAllActivity"><Icon name="lucide:list" aria-hidden="true" />{{showAllActivity?'Minder activiteit tonen':'Alle activiteit tonen'}}<Icon :name="showAllActivity?'lucide:chevron-up':'lucide:chevron-right'" class="chev" aria-hidden="true" /></button>
+</section>
 </div>
 
-<div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span>{{isDirty?'Wijzigingen worden pas bewaard na opslaan.':'Wijzig een veld om de gig bij te werken.'}}</span></div><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
+<div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span v-if="isDirty">Wijzigingen worden pas bewaard na opslaan.</span></div><button v-if="isDirty" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
-<div v-show="tab==='communication'" class="tab-panel tab-extra" role="tabpanel" aria-labelledby="tab-communication">
-<AdminGigEmails v-if="canEdit" :gig-id="id" :portal-url="portalUrl" />
-</div>
-
-<div v-show="tab==='internal'" id="panel-internal" class="tab-panel tab-extra" role="tabpanel" aria-labelledby="tab-internal">
-<section class="card activity"><p class="eyebrow">Activiteit</p><h2>Recente wijzigingen</h2><div v-if="!data.activity.length" class="subtle">Nog geen activiteit vastgelegd.</div><div v-for="item in data.activity" :key="item.id" class="activity-row"><strong>{{labelFor(activityActionLabels,item.action)}}<small v-if="item.actorName"> · {{item.actorName}}</small></strong><span>{{activityDate(item.createdAt)}}</span></div></section>
-</div>
+<!-- Communicatie hoort bij de klant -->
+<section v-show="tab==='client'" v-if="canEdit" class="comms" aria-label="Communicatie"><AdminGigEmails :gig-id="id" :portal-url="portalUrl" /></section>
 </div></template>
 
 <style scoped>
-.detail{max-width:1000px;margin-inline:auto}.invoice-heading{margin-top:0}.subtle-copy{display:block;margin-top:.2rem;color:var(--text-subtle);font-size:.78rem}.invoice-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:1rem;align-items:center;padding:.85rem 0;border-top:1px solid var(--border);color:inherit;text-decoration:none}.invoice-row:first-of-type{margin-top:.6rem}.invoice-main strong,.invoice-main span{display:block}.invoice-main span{margin-top:.15rem;color:var(--text-subtle);font-size:.75rem}.invoice-statuses{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}.state,.stripe-state{padding:.28rem .5rem;border-radius:999px;background:#211b28;color:#aaa2b2;font-size:.75rem}.state[data-state="paid"],.stripe-state[data-state="succeeded"]{background:#16382a;color:#8fe1ad}.state[data-state="failed"],.stripe-state[data-state="failed"]{background:#351a20;color:#ffadb7}.state[data-state="pending"],.stripe-state[data-state="pending"]{background:#352d16;color:#ead17a}.invoice-total{text-align:right}.readonly-note{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #302a38;border-radius:.8rem;background:#141119;color:#aaa3b4}.readonly form input,.readonly form select,.readonly form textarea,.readonly form button{pointer-events:none;opacity:.78}.back{display:inline-flex;align-items:center;gap:.35rem;min-height:2.75rem;margin-bottom:1.2rem;color:var(--text-subtle);text-decoration:none}.hero{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.3rem,6vw,4.2rem);letter-spacing:-.04em}.gig-facts{display:grid;grid-template-columns:minmax(0,1fr) minmax(16rem,.42fr);gap:1rem;margin-bottom:1rem;padding:1.1rem 1.2rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.gig-facts dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.9rem 1.25rem;margin:0}.gig-facts dt{color:var(--text-subtle);font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.gig-facts dd{margin:.25rem 0 0;color:var(--text);font-weight:700;line-height:1.35}.next-step{display:grid;align-content:space-between;gap:.8rem;padding:.9rem 1rem;border:1px solid #3d2f55;border-radius:.8rem;background:#17121f}.next-step span{color:#c9b2ef;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.next-step strong{display:block;margin-top:.2rem;font-size:1.05rem}.next-step small{display:block;margin-top:.25rem;color:var(--text-muted);line-height:1.4}.next-step .primary{justify-self:start;display:inline-flex;align-items:center;min-height:2.75rem;text-decoration:none}@media(max-width:760px){.gig-facts{grid-template-columns:1fr}.gig-facts dl{grid-template-columns:1fr 1fr}}.hero-actions{display:flex;gap:.5rem}.action-menu{position:relative}.action-menu>summary{list-style:none}.action-menu>summary::-webkit-details-marker{display:none}.icon-button{display:grid;place-items:center;width:2.8rem;height:2.8rem;padding:0}.action-menu-popover{position:absolute;z-index:var(--z-raised);top:calc(100% + .45rem);right:0;min-width:12rem;padding:.35rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-card);box-shadow:0 14px 40px rgba(0,0,0,.35)}.action-menu-popover button{display:flex;align-items:center;gap:.65rem;width:100%;padding:.7rem .75rem;border:0;border-radius:.55rem;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}.action-menu-popover button:hover{background:var(--surface-input)}.action-menu-popover .menu-danger{color:#f0a5ad}.action-menu-popover .menu-danger[aria-disabled="true"]{opacity:.45;cursor:not-allowed}.action-menu-popover .menu-danger[aria-disabled="true"]:hover{background:transparent}.card{margin-bottom:1rem;padding:1.25rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem}.wide{grid-column:1/-1}label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}input,select,textarea{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text)}.section-title{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin:1rem 0 .6rem}.section-title h2,.activity h2{margin:.2rem 0}.text-button,.remove-small{border:0;background:transparent;color:#b9b2c2;cursor:pointer;text-decoration:none}.repeat-row{display:grid;gap:.5rem;margin-top:.5rem}.timeline-row{grid-template-columns:7rem 1fr 1.5fr 2rem}.timeline-row button{border:0;border-radius:.55rem;background:#241a20;color:#eab4bc}.contact-card{margin-top:.7rem;padding:.9rem;border:1px solid #27222d;border-radius:.8rem}.remove-small{margin-top:.7rem;color:#d9959f}.checkbox{display:flex;align-items:center;gap:.6rem}.checkbox input{width:auto}.public-fields{margin-top:.8rem}.subtle{padding:.8rem 0;color:var(--text-subtle)}.portal-actions{display:grid;grid-template-columns:minmax(8rem,1fr) auto auto;gap:.7rem;align-items:end}.one-time-link,.portal-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.8rem;padding:.8rem;border:1px solid #2d2832;border-radius:.75rem;background:var(--surface-input)}.one-time-link div,.portal-row div{min-width:0}.one-time-link strong,.one-time-link span,.portal-row strong,.portal-row span{display:block}.one-time-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:.76rem}.portal-row .portal-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.25rem;color:var(--text-muted)}.portal-row span,.portal-message{color:#827b8a;font-size:.78rem}.submission-status{display:flex;justify-content:space-between;gap:1rem;padding:.75rem;border-radius:.7rem;background:#18141d}.submission-status span{color:#8b8493;font-size:.78rem}.answer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-top:.8rem}.answer-grid div{padding:.7rem;border:1px solid var(--border);border-radius:.65rem}.answer-grid span,.answer-grid strong{display:block}.answer-grid span{color:var(--text-subtle);font-size:.72rem}.answer-grid strong{margin-top:.2rem}.wish-row{display:grid;grid-template-columns:8rem 1fr;gap:.8rem;padding:.75rem 0;border-top:1px solid var(--border)}.wish-row>span{color:#967ca8;font-size:.72rem}.wish-row strong,.wish-row a,.wish-row small{display:block}.wish-row a{color:#b9b2c2;font-size:.75rem}.wish-row small{color:var(--text-subtle)}.save-bar{position:sticky;bottom:1rem;z-index:var(--z-raised);display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0;padding:1rem 1.15rem;border:1px solid #35303b;border-radius:1rem;background:rgba(20,17,25,.94);backdrop-filter:blur(14px)}.save-bar strong,.save-bar span{display:block}.save-bar span{margin-top:.2rem;color:var(--text-subtle);font-size:.75rem}.primary,.secondary,.danger{border:0;border-radius:.65rem;padding:.72rem .9rem;font-weight:800;cursor:pointer}.primary{background:var(--button-primary-bg);color:var(--button-primary-fg)}.secondary{background:var(--button-secondary-bg);color:var(--button-secondary-fg)}.danger{background:var(--button-danger-bg);color:var(--button-danger-fg)}.activity-row{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-top:1px solid #27222d}.activity-row span{color:var(--text-subtle);font-size:.8rem}@media(max-width:700px){.hero{align-items:start;flex-direction:column}.invoice-row{grid-template-columns:1fr}.invoice-total{text-align:left}.grid,.portal-actions,.answer-grid{grid-template-columns:1fr}.wide{grid-column:auto}.hero-actions{width:auto}.hero-actions button{flex:0 0 auto}.timeline-row{grid-template-columns:1fr}.one-time-link,.portal-row,.submission-status{align-items:stretch;flex-direction:column}.wish-row{grid-template-columns:1fr}.save-bar{align-items:stretch;flex-direction:column}.save-bar .primary{width:100%}}
+.gigpage{max-width:46rem;margin-inline:auto;padding-bottom:2rem;--accent:#9d5cff;--accent-soft:#c9b2ef}
+.top{margin-bottom:.9rem}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:2.75rem}
+.back{display:inline-flex;align-items:center;gap:.25rem;min-height:2.75rem;max-width:calc(100% - 3.5rem);padding:0;border:0;background:transparent;color:var(--text-muted);font:inherit;font-size:.9rem;text-decoration:none;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back:hover{color:var(--text)}
+h1{margin:.1rem 0 .15rem;font-size:clamp(1.9rem,7vw,2.6rem);letter-spacing:-.03em;line-height:1.1;overflow-wrap:anywhere}
+.title-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .8rem}
+.facts{display:grid;gap:.55rem;margin:.9rem 0 1rem;padding:0;list-style:none}
+.facts li{display:flex;align-items:center;gap:.7rem;color:var(--text);line-height:1.3}
+.facts li :deep(svg){flex:none;width:1.15rem;height:1.15rem;color:var(--text-muted)}
+.facts li span{min-width:0;overflow-wrap:anywhere}
+
+.stages{display:grid;grid-template-columns:repeat(4,1fr);margin:0 0 1rem;padding:.9rem .5rem .7rem;border:1px solid var(--border);border-radius:1rem;list-style:none;background:var(--surface-card)}
+.stage{position:relative;display:grid;justify-items:center;gap:.35rem;color:var(--text-subtle)}
+.stage:not(:last-child)::after{content:"";position:absolute;top:1.1rem;left:calc(50% + 1.5rem);width:calc(100% - 3rem);height:2px;background:var(--border-strong)}
+.stage[data-state=done]:not(:last-child)::after{background:var(--accent)}
+.stage-dot{display:grid;place-items:center;width:2.2rem;height:2.2rem;border:1.5px solid var(--border-strong);border-radius:50%;background:var(--surface-card);color:var(--text-muted)}
+.stage-dot :deep(svg){width:1rem;height:1rem}
+.stage[data-state=done] .stage-dot{border-color:var(--accent);background:var(--accent);color:#fff}
+.stage[data-state=current] .stage-dot{border-color:var(--accent);color:var(--accent-soft)}
+.stage[data-state=done],.stage[data-state=current]{color:var(--text)}
+.stage small{font-size:.72rem}
+
+.next-step{display:flex;align-items:center;gap:.9rem;width:100%;margin:0 0 1rem;padding:1rem 1.1rem;border:1px solid #5b3a9a;border-radius:1rem;background:linear-gradient(135deg,#4a2a85,#2a1a4d);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.next-step:disabled{opacity:.7;cursor:progress}
+.next-icon{flex:none;width:2rem;height:2rem;color:var(--accent-soft)}
+.next-body{display:grid;gap:.15rem;flex:1;min-width:0}
+.next-body small{color:var(--accent-soft);font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.next-body strong{font-size:1.3rem;line-height:1.2}
+.next-body em{color:var(--text-muted);font-size:.85rem;font-style:normal;line-height:1.35}
+.next-step :deep(svg:last-child){flex:none;color:var(--accent-soft)}
+
+.readonly-note{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #302a38;border-radius:.8rem;background:#141119;color:#aaa3b4}
+.gigpage.readonly form input,.readonly form select,.readonly form textarea{pointer-events:none}
+
+.tabs{display:grid;grid-template-columns:repeat(5,auto);justify-content:space-between;margin:0 0 1rem;border-bottom:1px solid var(--border)}
+.tab{position:relative;min-height:2.75rem;padding:0 .15rem;border:0;background:transparent;color:var(--text-muted);font:inherit;font-size:.85rem;cursor:pointer}
+.tab.active{color:var(--text);font-weight:700}
+.tab.active::after{content:"";position:absolute;inset:auto 0 -1px;height:2px;border-radius:2px;background:var(--accent)}
+
+.tab-panel{display:grid;gap:.75rem}
+.summary-list{display:grid;gap:.75rem;margin:0;padding:0;list-style:none}
+.card,.row-card{border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}
+.card{padding:1rem 1.1rem}
+.card[data-editing]{border-color:#4b3a72}
+.row-card{display:flex;align-items:flex-start;gap:.85rem;width:100%;padding:1rem 1.1rem;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.row-card:hover{border-color:var(--border-strong)}
+.row-body{display:grid;gap:.2rem;flex:1;min-width:0}
+.row-body strong{font-size:1rem}
+.row-body span{color:var(--text)}
+.row-body small{color:var(--text-subtle);font-size:.85rem}
+.lead-icon{flex:none;width:1.35rem;height:1.35rem;margin-top:.1rem;color:var(--accent)}
+.chev{flex:none;align-self:center;width:1.1rem;height:1.1rem;color:var(--text-muted)}
+
+.card-head{display:flex;align-items:center;gap:.7rem;margin:0 0 .7rem}
+.card-head h2{flex:1;margin:0;font-size:1rem}
+.link-head{color:inherit;text-decoration:none}
+.head-text{display:grid;gap:.15rem;flex:1;min-width:0}
+.head-text span{color:var(--text-muted)}
+.amount{font-size:1.45rem}
+.icon-action{display:grid;place-items:center;flex:none;width:2.75rem;height:2.75rem;margin:-.6rem -.6rem -.6rem 0;border:0;border-radius:.65rem;background:transparent;color:var(--text-muted);cursor:pointer}
+.icon-action:hover{color:var(--text)}
+.icon-action :deep(svg){width:1.1rem;height:1.1rem}
+.plain{display:grid;gap:.15rem;margin:0;color:var(--text)}
+.plain span{color:var(--text-muted)}
+.muted,.empty{color:var(--text-subtle)}
+.empty{margin:0 0 .3rem;font-size:.9rem}
+.split{display:grid;margin:0}
+.split>div{display:grid;gap:.2rem;padding:.7rem 0}
+.split>div+div{border-top:1px solid var(--border)}
+.split>div:first-child{padding-top:0}
+.split.single>div{padding-block:.25rem 0;border:0}
+dt{color:var(--text-muted);font-size:.85rem}
+dd{margin:0}
+.split dd{font-size:1.05rem}
+
+.add-button,.outline,.chip-link{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.75rem;padding:.5rem .9rem;border:1px solid var(--border-strong);border-radius:.7rem;background:transparent;color:var(--text);font:inherit;font-size:.9rem;font-weight:600;text-decoration:none;cursor:pointer}
+.add-button{width:100%;margin-top:.5rem;border-color:#4b3a72;background:#1b1428;color:var(--accent-soft)}
+.add-button :deep(svg){width:1rem;height:1rem}
+.text-button{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;padding:0;border:0;background:transparent;color:var(--accent-soft);font:inherit;font-size:.9rem;cursor:pointer}
+.chip-link{margin-top:.8rem;background:#1b1624;font-size:.85rem}
+.with-icon :deep(svg){width:1rem;height:1rem}
+.outline:disabled{opacity:.5;cursor:not-allowed}
+
+.primary,.secondary{min-height:2.75rem;padding:.6rem 1rem;border:0;border-radius:.7rem;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:var(--button-primary-bg);color:var(--button-primary-fg)}
+.secondary{background:var(--button-secondary-bg);color:var(--button-secondary-fg)}
+.primary:disabled{opacity:.6;cursor:progress}
+.wide-button{width:100%;margin-top:.7rem}
+.edit-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:.9rem}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.wide{grid-column:1/-1}
+label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}
+.sr-label{font-size:0}
+.sr-label textarea{font-size:1rem}
+input:focus,select:focus,textarea:focus{border-color:rgba(157,92,255,.72);outline:none;box-shadow:0 0 0 3px rgba(157,92,255,.12)}
+input,select,textarea{min-height:2.75rem;width:100%;min-width:0;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text);font:inherit}
+.checkbox{display:flex;align-items:center;gap:.6rem}
+.checkbox input{width:auto}
+.public-fields{margin-top:.8rem}
+
+.repeat-row{display:grid;gap:.5rem;margin-top:.5rem}
+.timeline-row{grid-template-columns:7rem 1fr 1.5fr 2.75rem}
+.timeline-row button{border:0;border-radius:.55rem;background:#241a20;color:#eab4bc;cursor:pointer}
+.timeline-list{display:grid;gap:.7rem;margin:0;padding:0;list-style:none}
+.timeline-list li{display:grid;grid-template-columns:3.2rem 1fr;gap:.6rem}
+.timeline-list time{color:var(--accent-soft);font-variant-numeric:tabular-nums;font-weight:700}
+.timeline-list strong,.timeline-list small{display:block}
+.timeline-list small,.contact-list small{color:var(--text-subtle)}
+.contact-list{display:grid;gap:.8rem;margin:0;padding:0;list-style:none}
+.contact-list li{display:grid;gap:.15rem}
+.contact-list a{color:var(--accent-soft);text-decoration:none;overflow-wrap:anywhere}
+.contact-edit{margin-bottom:.8rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
+.remove-small{margin-top:.5rem;padding:0;border:0;background:transparent;color:#d9959f;font:inherit;font-size:.85rem;cursor:pointer}
+
+.portal-state,.contract-state{display:flex;align-items:center;gap:.5rem;margin:0 0 .3rem;color:var(--text-muted)}
+.portal-state i,.contract-state i{width:.6rem;height:.6rem;border:2px solid var(--text-subtle);border-radius:50%}
+.portal-state[data-state=active]{color:#7fe3a4}
+.portal-state[data-state=active] i{border-color:#22c55e;background:#22c55e}
+.contract-state{display:inline-flex;padding:.35rem .7rem;border-radius:.6rem;background:#1b1624;color:var(--text)}
+.portal-meta{margin:.2rem 0 .8rem;color:var(--text-muted);font-size:.85rem;line-height:1.45}
+.portal-message{margin:.7rem 0 0;color:var(--text-muted);font-size:.8rem}
+.portal-buttons{display:flex;gap:.5rem;margin-bottom:.2rem}
+.portal-buttons .outline:not(.icon-only){flex:1}
+.icon-only{width:2.75rem;padding:0;list-style:none}
+.icon-only::-webkit-details-marker{display:none}
+.revoke{display:block;width:100%;min-height:2.75rem;margin-top:.3rem;border:0;background:transparent;color:#ff6b7d;font:inherit;cursor:pointer}
+.answers{margin:.6rem 0 0}
+.answers summary{min-height:2.75rem;display:flex;align-items:center;color:var(--accent-soft);cursor:pointer}
+.answer-list{display:grid;gap:.6rem;margin:0}
+.answer-list dd{font-weight:600}
+.wish-list{display:grid;gap:.8rem;margin:0;padding:0;list-style:none}
+.wish-list li{display:grid;gap:.1rem}
+.wish-list small{color:var(--text-subtle)}
+.wish-list a{color:var(--accent-soft);font-size:.85rem}
+
+.menu{position:relative}
+.menu>summary{list-style:none;cursor:pointer}
+.menu>summary::-webkit-details-marker{display:none}
+.icon-button{display:grid;place-items:center;width:2.75rem;height:2.75rem;border:1px solid var(--border-strong);border-radius:.8rem;background:var(--surface-card);color:var(--text)}
+.menu-popover{position:absolute;z-index:var(--z-raised);top:calc(100% + .4rem);right:0;min-width:13rem;padding:.35rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-raised);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.menu-popover button{display:flex;align-items:center;gap:.65rem;width:100%;min-height:2.75rem;padding:.5rem .75rem;border:0;border-radius:.55rem;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.menu-popover button:hover{background:var(--surface-input)}
+.menu-popover .menu-danger{color:#f0a5ad}
+.menu-popover .menu-danger[aria-disabled=true]{opacity:.45;cursor:not-allowed}
+.menu-field{padding:.5rem .75rem}
+
+.invoice-row{display:flex;align-items:center;gap:.8rem;padding:.8rem 0;border-top:1px solid var(--border);color:inherit;text-decoration:none}
+.invoice-main{display:grid;gap:.2rem;flex:1;min-width:0}
+.invoice-main small{color:var(--text-subtle);font-size:.78rem}
+.invoice-statuses{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+.stripe-state[data-state=succeeded],.stripe-state[data-state=paid]{color:#8fe1ad}
+.stripe-state[data-state=failed]{color:#ffadb7}
+.invoice-total{white-space:nowrap}
+.payment-list{display:grid;gap:.7rem;margin:0;padding:0;list-style:none}
+.payment-list li{display:flex;justify-content:space-between;gap:1rem}
+.payment-list span{display:grid;gap:.15rem}
+.payment-list small{color:var(--text-subtle)}
+.totals{display:grid;margin:0}
+.totals>div{display:flex;justify-content:space-between;gap:1rem;padding:.55rem 0}
+.totals>div+div{border-top:1px solid var(--border)}
+.totals dd{font-weight:700;font-variant-numeric:tabular-nums}
+.totals .open dd{color:#ff6b7d}
+
+.notes-text{margin:0 0 .3rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.activity-list{position:relative;display:grid;gap:1rem;margin:0;padding:0;list-style:none}
+.activity-list li{position:relative;display:grid;gap:.1rem;padding-left:1.6rem}
+.activity-list li::before{content:"";position:absolute;left:.15rem;top:.3rem;width:.7rem;height:.7rem;border-radius:50%;background:var(--accent)}
+.activity-list li:not(:last-child)::after{content:"";position:absolute;left:.44rem;top:1.1rem;bottom:-1.15rem;width:2px;background:#3a2c58}
+.activity-list strong{font-size:.95rem}
+.activity-list small{color:var(--text-subtle)}
+.all-activity{display:flex;align-items:center;gap:.6rem;width:100%;min-height:2.75rem;margin-top:.8rem;padding:.5rem 0 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);font:inherit;cursor:pointer}
+.all-activity .chev{margin-left:auto}
+
+.save-bar{position:sticky;bottom:1rem;z-index:var(--z-raised);display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0 0;padding:.9rem 1.1rem;border:1px solid #35303b;border-radius:1rem;background:rgba(20,17,25,.94);backdrop-filter:blur(14px)}
+.save-bar strong,.save-bar span{display:block}
+.save-bar span{margin-top:.2rem;color:var(--text-subtle);font-size:.75rem}
+.comms{margin-top:.75rem}
+
+@media(max-width:700px){
+  .grid,.timeline-row{grid-template-columns:1fr}
+  .wide{grid-column:auto}
+  .save-bar{align-items:stretch;flex-direction:column}
+  .save-bar .primary{width:100%}
+}
+@media(min-width:760px){
+  .summary-list{grid-template-columns:repeat(2,1fr)}
+}
 </style>
