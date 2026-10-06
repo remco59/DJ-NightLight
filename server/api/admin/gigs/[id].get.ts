@@ -39,6 +39,8 @@ export default defineEventHandler(async (event) => {
       clientLastName: clients.lastName,
       clientCompanyName: clients.companyName,
       venueName: venues.name,
+      venueAddress: venues.address,
+      venueCity: venues.city,
     })
     .from(gigs)
     .leftJoin(clients, eq(gigs.clientId, clients.id))
