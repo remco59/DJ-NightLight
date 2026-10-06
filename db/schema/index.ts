@@ -61,6 +61,7 @@ export const clients = pgTable('clients', {
   lastName: varchar('last_name', { length: 120 }),
   companyName: varchar('company_name', { length: 200 }),
   email: varchar('email', { length: 320 }),
+  invoiceEmail: varchar('invoice_email', { length: 320 }),
   phone: varchar('phone', { length: 64 }),
   billingAddress: text('billing_address'),
   notes: text('notes'),

@@ -17,6 +17,8 @@ export const clientInputSchema = z.object({
   lastName: optionalText(120),
   companyName: optionalText(200),
   email: optionalEmail,
+  // Optional address that invoices are sent to instead of the main email.
+  invoiceEmail: optionalEmail,
   phone: optionalText(64),
   billingAddress: optionalText(1000),
   notes: optionalText(5000),

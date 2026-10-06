@@ -27,7 +27,7 @@ export function buildInvoiceSnapshot(detail: InvoiceDetail, settings: BusinessSe
       country: settings.country, email: settings.email, phone: settings.phone, registrationNumber: settings.registrationNumber,
       vatNumber: settings.vatNumber, iban: settings.iban,
     },
-    client: { name: invoiceClientName(detail.invoice), email: detail.invoice.clientEmail || '', billingAddress: detail.invoice.clientBillingAddress || '' },
+    client: { name: invoiceClientName(detail.invoice), email: detail.invoice.clientInvoiceEmail || detail.invoice.clientEmail || '', billingAddress: detail.invoice.clientBillingAddress || '' },
     lines: lineInputs.map(line => ({ ...line, totalCents: calculateLineTotalCents(line) })), totals,
     paymentTerms: detail.invoice.paymentTerms, legalText: detail.invoice.legalText, notes: detail.invoice.notes,
     portalUrl: portalUrl || undefined,
@@ -64,5 +64,5 @@ export function invoiceFinalizeBlockers(detail: InvoiceDetail, settings: Busines
 
 /** Whether finalizing will email the invoice to the client, and if not, why. */
 export async function invoiceEmailPlan(detail: InvoiceDetail) {
-  return clientEmailPlan({ templateKey: INVOICE_SENT_TEMPLATE, gigId: detail.invoice.gigId, recipient: detail.invoice.clientEmail })
+  return clientEmailPlan({ templateKey: INVOICE_SENT_TEMPLATE, gigId: detail.invoice.gigId, recipient: detail.invoice.clientInvoiceEmail || detail.invoice.clientEmail })
 }
