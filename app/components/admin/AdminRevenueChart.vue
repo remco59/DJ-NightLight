@@ -59,7 +59,7 @@ function barHeight(cents: number) {
 
 <style scoped>
 .revenue-chart { padding:1rem 1rem .9rem; }
-.bars { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:.5rem; height:200px; margin:0; padding:0; list-style:none; }
+.bars { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); grid-template-rows:minmax(0,1fr); gap:.5rem; height:200px; margin:0; padding:0; list-style:none; }
 .bar-col { display:grid; grid-template-rows:1.1rem minmax(0,1fr) 1.2rem; gap:.3rem; min-width:0; text-align:center; }
 .bar-value { color:#b9b0c6; font-size:.66rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track { position:relative; min-height:0; border-bottom:1px solid var(--border); }
@@ -80,5 +80,6 @@ function barHeight(cents: number) {
   .revenue-chart { padding:.85rem .85rem .75rem; }
   .bar-label { font-size:.62rem; }
   .bar-value { display:none; }
+  .bar-col { grid-template-rows:minmax(0,1fr) 1.2rem; }
 }
 </style>
