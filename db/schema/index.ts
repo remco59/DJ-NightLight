@@ -328,6 +328,11 @@ export const socialSettings = pgTable('social_settings', {
   appId: varchar('app_id', { length: 100 }),
   appSecretEncrypted: text('app_secret_encrypted'),
   loginConfigId: varchar('login_config_id', { length: 100 }),
+  /** Which login the next connection uses: 'facebook' (through a Page) or 'instagram' (no Page). Null: not chosen, use the environment. */
+  loginType: varchar('login_type', { length: 20 }),
+  /** Instagram Login has its own app id and secret, separate from the Meta app used for Facebook Login. */
+  instagramAppId: varchar('instagram_app_id', { length: 100 }),
+  instagramAppSecretEncrypted: text('instagram_app_secret_encrypted'),
   lastWorkerRunAt: timestamp('last_worker_run_at', { withTimezone: true }),
   lastPublishedAt: timestamp('last_published_at', { withTimezone: true }),
   ...timestamps,
@@ -341,6 +346,8 @@ export const socialAccounts = pgTable('social_accounts', {
   accountType: varchar('account_type', { length: 40 }),
   pageId: varchar('page_id', { length: 100 }),
   pageName: varchar('page_name', { length: 200 }),
+  /** The login the stored token came from; decides the API host and how the token is checked and renewed. */
+  loginType: varchar('login_type', { length: 20 }).default('facebook').notNull(),
   accessTokenEncrypted: text('access_token_encrypted').notNull(),
   tokenIssuedAt: timestamp('token_issued_at', { withTimezone: true }).notNull(),
   tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }).notNull(),

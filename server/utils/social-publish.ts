@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
 import { generatedPosts, socialAccounts, socialPostMedia, socialPosts, socialSettings, videoProjects, videoRenderJobs, type SocialAccount, type SocialPost } from '../../db/schema'
-import { hasFacebookPublishScope, hasPublishScope } from '../../shared/instagram'
+import { hasFacebookPublishScope, hasPublishScope, parseLoginType } from '../../shared/instagram'
 import {
   canPublishPresetAsFeedImage,
   checkCaption,
@@ -265,10 +265,11 @@ async function loadMedia(postId: string): Promise<{ images: GeneratedRow[], vide
 }
 
 function instagramPublishSteps(row: SocialPost, account: SocialAccount, accessToken: string) {
+  const loginType = parseLoginType(account.loginType)
   return {
-    getStatus: (containerId: string) => getContainerStatus({ containerId, accessToken }),
-    publish: (containerId: string) => publishContainer({ instagramId: account.externalId, accessToken, containerId }),
-    getPermalink: (mediaId: string) => getPermalink({ mediaId, accessToken }),
+    getStatus: (containerId: string) => getContainerStatus({ containerId, accessToken, loginType }),
+    publish: (containerId: string) => publishContainer({ instagramId: account.externalId, accessToken, containerId, loginType }),
+    getPermalink: (mediaId: string) => getPermalink({ mediaId, accessToken, loginType }),
     onContainer: async (containerId: string) => {
       await db.update(socialPosts).set({ containerId, updatedAt: new Date() }).where(eq(socialPosts.id, row.id))
     },
@@ -279,11 +280,13 @@ function instagramPublishSteps(row: SocialPost, account: SocialAccount, accessTo
 /** Creates the Instagram container for any kind of post. Nothing is public until `media_publish`. */
 function instagramContainerFactory(row: SocialPost, account: SocialAccount, accessToken: string, media: { images: GeneratedRow[], video: VideoRow | null }, siteUrl: string) {
   const instagramId = account.externalId
+  const loginType = parseLoginType(account.loginType)
   const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
   if (media.video) {
     return () => createVideoContainer({
       instagramId,
       accessToken,
+      loginType,
       videoUrl: publicVideoUrl(siteUrl, media.video!.id),
       mediaType: row.kind === 'reel' ? 'REELS' : 'STORIES',
       caption: row.caption,
@@ -291,16 +294,16 @@ function instagramContainerFactory(row: SocialPost, account: SocialAccount, acce
   }
   if (row.kind === 'carousel') {
     return () => createCarouselContainerFlow({
-      createItem: position => createCarouselItemContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[position]!.id) }),
-      getStatus: containerId => getContainerStatus({ containerId, accessToken }),
-      createCarousel: children => createCarouselContainer({ instagramId, accessToken, children, caption: row.caption }),
+      createItem: position => createCarouselItemContainer({ instagramId, accessToken, loginType, imageUrl: publicMediaUrl(siteUrl, media.images[position]!.id) }),
+      getStatus: containerId => getContainerStatus({ containerId, accessToken, loginType }),
+      createCarousel: children => createCarouselContainer({ instagramId, accessToken, loginType, children, caption: row.caption }),
       sleep,
     }, media.images.length)
   }
   if (row.kind === 'story') {
-    return () => createStoryImageContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id) })
+    return () => createStoryImageContainer({ instagramId, accessToken, loginType, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id) })
   }
-  return () => createImageContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id), caption: row.caption, altText: row.altText })
+  return () => createImageContainer({ instagramId, accessToken, loginType, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id), caption: row.caption, altText: row.altText })
 }
 
 async function publishToInstagram(row: SocialPost, account: SocialAccount, media: { images: GeneratedRow[], video: VideoRow | null }, ctx: ExecuteContext) {

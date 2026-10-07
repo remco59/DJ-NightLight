@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
-import { instagramAccountTypeLabels, type InstagramHealthLevel } from '~~/shared/instagram'
+import { instagramAccountTypeLabels, type InstagramHealthLevel, type InstagramLoginType } from '~~/shared/instagram'
 
 type Source = 'settings' | 'environment' | 'none'
 type CancellationBehavior = 'delete' | 'mark_cancelled' | 'keep'
 
+type LoginTypeSummary = { source: Source, configured: boolean, appIdPreview: string | null, loginConfigId: string }
+
 type InstagramStatus = {
+  loginType: InstagramLoginType
+  loginTypes: Record<InstagramLoginType, LoginTypeSummary>
   source: Source
   configured: boolean
   appIdPreview: string | null
@@ -18,6 +22,7 @@ type InstagramStatus = {
     accountType: string | null
     externalIdPreview: string
     pageName: string | null
+    loginType: InstagramLoginType
     status: 'active' | 'needs_reauth' | 'disabled'
     tokenIssuedAt: string
     tokenExpiresAt: string
@@ -217,8 +222,8 @@ const instagramMessages: Record<string, { text: string, type: 'success' | 'error
   choose: { text: 'Facebook gaf toegang tot meerdere Instagram-accounts. Kies hieronder welk account NightLight moet gebruiken.', type: 'success' },
   denied: { text: 'Je hebt geen toegang gegeven. Er is niets gekoppeld.', type: 'error' },
   state: { text: 'De koppelpoging is verlopen of ongeldig. Probeer het opnieuw.', type: 'error' },
-  missing: { text: 'Stel eerst het app-ID en het app secret van de Meta-app in.', type: 'error' },
-  error: { text: 'Koppelen is niet gelukt. Controleer het app-ID, het app secret, de redirect-URI en of het Instagram-account aan een Facebook-pagina is gekoppeld.', type: 'error' },
+  missing: { text: 'Stel eerst het app-ID en het app secret in voor de gekozen inlogmethode.', type: 'error' },
+  error: { text: 'Koppelen is niet gelukt. Controleer het app-ID, het app secret, de redirect-URI en het account (bij Facebook-login: gekoppeld aan een Facebook-pagina; bij Instagram-login: een Business- of Creator-account).', type: 'error' },
 }
 
 const instagramMessage = ref('')
@@ -276,6 +281,28 @@ function instagramPill() {
   return { on: false, text: 'Opnieuw verbinden' }
 }
 
+const loginTypeOptions: Array<{ value: InstagramLoginType, label: string, hint: string }> = [
+  { value: 'facebook', label: 'Facebook-login', hint: 'Via een Facebook-pagina. Ook posten op de Facebook-pagina is mogelijk.' },
+  { value: 'instagram', label: 'Instagram-login', hint: 'Zonder Facebook-pagina. Alleen Instagram, geen Facebook-pagina.' },
+]
+const loginLabels: Record<InstagramLoginType, string> = { facebook: 'Facebook-login', instagram: 'Instagram-login' }
+
+async function switchLoginType(loginType: InstagramLoginType) {
+  if (loginType === instagram.value?.loginType) return
+  busy.value = 'login-type'
+  metaMessage.value = ''
+  try {
+    await $fetch('/api/admin/integrations', { method: 'PUT', body: { provider: 'instagram_login_type', loginType } })
+    metaEditing.value = false
+    await refresh()
+  } catch (error: unknown) {
+    metaMessage.value = apiErrorMessage(error, 'Inlogmethode wijzigen is niet gelukt.')
+    metaMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
+
 function startMetaApp() {
   metaForm.appId = ''
   metaForm.appSecret = ''
@@ -294,11 +321,11 @@ async function saveMetaApp() {
   }
   busy.value = 'meta'
   try {
-    await $fetch('/api/admin/integrations', { method: 'PUT', body: { provider: 'instagram', ...metaForm } })
+    await $fetch('/api/admin/integrations', { method: 'PUT', body: { provider: 'instagram', loginType: instagram.value?.loginType || 'facebook', ...metaForm } })
     metaEditing.value = false
     metaForm.appSecret = ''
     await refresh()
-    metaMessage.value = 'Meta-app opgeslagen.'
+    metaMessage.value = 'App-gegevens opgeslagen.'
     metaMessageType.value = 'success'
   } catch (error: unknown) {
     metaMessage.value = apiErrorMessage(error, 'Meta-app opslaan is niet gelukt.')
@@ -313,7 +340,7 @@ async function removeMetaApp() {
   busy.value = 'meta-remove'
   metaMessage.value = ''
   try {
-    await $fetch('/api/admin/integrations', { method: 'DELETE', body: { provider: 'instagram' } })
+    await $fetch('/api/admin/integrations', { method: 'DELETE', body: { provider: 'instagram', loginType: instagram.value?.loginType || 'facebook' } })
     await refresh()
     metaMessage.value = 'Opgeslagen Meta-app-gegevens verwijderd.'
     metaMessageType.value = 'success'
@@ -420,7 +447,7 @@ async function disconnectInstagram() {
         <span class="brand-icon instagram small"><Icon name="lucide:at-sign" aria-hidden="true"/></span>
         <div>
           <strong>@{{ instagram.account.username }}</strong>
-          <small>{{ instagramAccountTypeLabels[instagram.account.accountType || ''] || 'Professioneel account' }}<template v-if="instagram.account.pageName"> · Pagina {{ instagram.account.pageName }}</template> · ID {{ instagram.account.externalIdPreview }}</small>
+          <small>{{ instagramAccountTypeLabels[instagram.account.accountType || ''] || 'Professioneel account' }}<template v-if="instagram.account.pageName"> · Pagina {{ instagram.account.pageName }}</template> · {{ loginLabels[instagram.account.loginType] }} · ID {{ instagram.account.externalIdPreview }}</small>
         </div>
       </div>
 
@@ -484,11 +511,21 @@ async function disconnectInstagram() {
         </div>
       </div>
 
+      <fieldset class="login-type" :disabled="busy === 'login-type'">
+        <legend>Inlogmethode</legend>
+        <label v-for="option in loginTypeOptions" :key="option.value" class="choice">
+          <input type="radio" name="instagram-login-type" :value="option.value" :checked="instagram.loginType === option.value" @change="switchLoginType(option.value)">
+          <span><b>{{ option.label }}</b><small>{{ option.hint }}</small></span>
+        </label>
+        <p v-if="instagram.account && instagram.account.loginType !== instagram.loginType" class="hint">Het gekoppelde account gebruikt nog {{ loginLabels[instagram.account.loginType] }}. Het blijft werken tot je opnieuw verbindt; dan wordt de nieuwe inlogmethode gebruikt.</p>
+      </fieldset>
+
       <div class="credential-panel">
         <div class="credential-head">
           <div>
-            <strong>App-gegevens</strong>
+            <strong>App-gegevens ({{ loginLabels[instagram.loginType] }})</strong>
             <p v-if="instagram.configured">App-ID {{ instagram.appIdPreview }} · app secret veilig opgeslagen<template v-if="instagram.loginConfigId"> · configuratie-ID {{ instagram.loginConfigId }}</template></p>
+            <p v-else-if="instagram.loginType === 'instagram'">Voeg het Instagram-app-ID en het Instagram-app secret toe (Instagram-gebruiksscenario → API-instelling met Instagram-login). Dit zijn andere waarden dan het app-ID van de Meta-app.</p>
             <p v-else>Voeg het app-ID en app secret van je Meta-app toe (Instellingen → Algemeen in de Meta-app).</p>
           </div>
           <button v-if="!metaEditing" class="ghost" type="button" @click="startMetaApp">
@@ -496,9 +533,9 @@ async function disconnectInstagram() {
           </button>
         </div>
         <div v-if="metaEditing" class="credentials-grid">
-          <label>App-ID<input v-model="metaForm.appId" inputmode="numeric" autocomplete="off" spellcheck="false"></label>
-          <label>App secret<input v-model="metaForm.appSecret" type="password" autocomplete="off" spellcheck="false"></label>
-          <label class="wide">Configuratie-ID (optioneel)<input v-model="metaForm.loginConfigId" inputmode="numeric" autocomplete="off" spellcheck="false"><small>Alleen nodig als Meta voor je app Facebook Login for Business met een configuratie vraagt.</small></label>
+          <label>{{ instagram.loginType === 'instagram' ? 'Instagram-app-ID' : 'App-ID' }}<input v-model="metaForm.appId" inputmode="numeric" autocomplete="off" spellcheck="false"></label>
+          <label>{{ instagram.loginType === 'instagram' ? 'Instagram-app secret' : 'App secret' }}<input v-model="metaForm.appSecret" type="password" autocomplete="off" spellcheck="false"></label>
+          <label v-if="instagram.loginType === 'facebook'" class="wide">Configuratie-ID (optioneel)<input v-model="metaForm.loginConfigId" inputmode="numeric" autocomplete="off" spellcheck="false"><small>Alleen nodig als Meta voor je app Facebook Login for Business met een configuratie vraagt.</small></label>
           <p class="wide hint">Bestaande geheimen worden nooit opnieuw getoond. Bij een andere app moet het Instagram-account opnieuw worden verbonden.</p>
         </div>
       </div>
@@ -507,7 +544,8 @@ async function disconnectInstagram() {
         <strong>Development mode</strong>
         <p>Werkt zolang je alleen publiceert naar het eigen NightLight-account en je zelf een rol op de Meta-app hebt.</p>
       </div>
-      <p class="hint redirect">Redirect-URI (toevoegen bij Facebook Login → Valid OAuth Redirect URIs): <code>{{ instagram.redirectUri }}</code></p>
+      <p v-if="instagram.loginType === 'instagram'" class="hint redirect">Redirect-URI (toevoegen bij Business login-instellingen → OAuth redirect URIs): <code>{{ instagram.redirectUri }}</code></p>
+      <p v-else class="hint redirect">Redirect-URI (toevoegen bij Facebook Login → Valid OAuth Redirect URIs): <code>{{ instagram.redirectUri }}</code></p>
 
       <div v-if="metaEditing || instagram.source === 'settings'" class="actions">
         <button v-if="metaEditing" type="button" :disabled="busy === 'meta'" @click="saveMetaApp">
@@ -659,6 +697,8 @@ async function disconnectInstagram() {
 .brand-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#16131a;font-weight:900;font-size:1rem}
 .brand-icon.google{color:#fff;background:linear-gradient(135deg,#2d6cdf,#34a853 45%,#fbbc05 70%,#ea4335)}
 .brand-icon.resend{color:#fff;background:#171717}
+.login-type{display:grid;gap:.5rem;border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin:0 0 1rem}
+.login-type legend{font-weight:600;padding:0 .35rem}
 .brand-icon.instagram{color:#fff;background:linear-gradient(135deg,#833ab4,#c13584 50%,#fd1d1d 80%,#fcb045)}
 .brand-icon.meta{color:#fff;background:#0b57d0}
 .brand-icon.small{flex-basis:2.1rem;height:2.1rem;font-size:.9rem}

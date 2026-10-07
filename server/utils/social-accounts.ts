@@ -1,18 +1,22 @@
 import { and, desc, eq, inArray, ne, or } from 'drizzle-orm'
 import { socialAccounts, socialPosts, socialSettings, type SocialAccount } from '../../db/schema'
-import { instagramRedirectUri, shouldCheckConnection } from '../../shared/instagram'
+import { instagramRedirectUri, parseLoginType, shouldCheckConnection, shouldRenewToken, type InstagramLoginType } from '../../shared/instagram'
 import { decryptSecret, encryptSecret } from '../../shared/secret-box'
 import { db } from './db'
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
+  exchangeInstagramCode,
+  exchangeInstagramLongLivedToken,
+  getInstagramProfile,
   inspectToken,
   InstagramApiError,
   type InstagramPage,
   listInstagramPages,
+  refreshInstagramToken,
   selectInstagramPage,
 } from './instagram'
-import { loadInstagramIntegration } from './integration-settings'
+import { loadInstagramCredentials } from './integration-settings'
 import { structuredLog } from './structured-log'
 
 function password() {
@@ -30,10 +34,10 @@ export type ConnectOutcome =
   | { kind: 'connected', account: SocialAccount }
   | { kind: 'choose', userToken: string, pages: InstagramPage[] }
 
-async function appCredentials() {
-  const { credentials } = await loadInstagramIntegration()
+async function appCredentials(loginType: InstagramLoginType = 'facebook') {
+  const credentials = await loadInstagramCredentials(loginType)
   if (!credentials.appId || !credentials.appSecret) {
-    throw new Error('De Meta-app is nog niet ingesteld')
+    throw new Error(loginType === 'instagram' ? 'De Instagram-app is nog niet ingesteld' : 'De Meta-app is nog niet ingesteld')
   }
   return credentials
 }
@@ -54,6 +58,7 @@ async function saveInstagramAccount(input: { page: InstagramPage, userId: string
     accountType: null,
     pageId: page.pageId,
     pageName: page.pageName,
+    loginType: 'facebook' as const,
     accessTokenEncrypted: encryptSecret(page.pageAccessToken, password()),
     tokenIssuedAt: now,
     tokenExpiresAt: inspection.expiresAt ?? new Date(now.getTime() + FALLBACK_ACCESS_DAYS * 86_400_000),
@@ -85,6 +90,51 @@ async function saveInstagramAccount(input: { page: InstagramPage, userId: string
   await retireSocialAccounts(previous.filter(row => row.status !== 'disabled'), { touch: false })
   return account!
 }
+
+/**
+ * Stores an Instagram Login account. There is no Page, so no Facebook account is stored, and a Facebook Page
+ * account left over from a Facebook Login connection is taken out of use together with the previous Instagram account.
+ */
+async function saveInstagramLoginAccount(input: {
+  token: { accessToken: string, expiresInSeconds: number | null }
+  scopes: string[]
+  profile: { instagramId: string, username: string, accountType: string | null }
+  userId: string
+}) {
+  const now = new Date()
+  const { profile } = input
+  const values = {
+    username: profile.username || profile.instagramId,
+    accountType: profile.accountType,
+    pageId: null,
+    pageName: null,
+    loginType: 'instagram' as const,
+    accessTokenEncrypted: encryptSecret(input.token.accessToken, password()),
+    tokenIssuedAt: now,
+    tokenExpiresAt: new Date(now.getTime() + (input.token.expiresInSeconds ?? INSTAGRAM_LOGIN_FALLBACK_SECONDS) * 1000),
+    scopes: input.scopes,
+    status: 'active' as const,
+    lastCheckedAt: now,
+    lastError: null,
+    connectedByUserId: input.userId,
+    updatedAt: now,
+  }
+
+  const [account] = await db.insert(socialAccounts)
+    .values({ provider: 'instagram', externalId: profile.instagramId, ...values })
+    .onConflictDoUpdate({ target: [socialAccounts.provider, socialAccounts.externalId], set: values })
+    .returning()
+
+  const previous = await db.select().from(socialAccounts).where(or(
+    and(eq(socialAccounts.provider, 'instagram'), ne(socialAccounts.id, account!.id)),
+    eq(socialAccounts.provider, 'facebook'),
+  ))
+  await retireSocialAccounts(previous.filter(row => row.status !== 'disabled'), { touch: false })
+  return account!
+}
+
+/** Instagram Login tokens last 60 days; used when Meta does not say. */
+const INSTAGRAM_LOGIN_FALLBACK_SECONDS = 60 * 86_400
 
 /** Keeps the Facebook Page row in step with the Instagram row that shares its token. */
 async function mirrorToFacebookPage(pageId: string | null, set: Partial<typeof socialAccounts.$inferInsert>) {
@@ -125,9 +175,18 @@ export async function disconnectSocialAccounts() {
  * that have an Instagram account. Connects straight away when the choice is clear (one candidate, or
  * the account that is already connected); otherwise the owner has to pick.
  */
-export async function beginInstagramConnection(input: { code: string, userId: string }): Promise<ConnectOutcome> {
-  const credentials = await appCredentials()
+export async function beginInstagramConnection(input: { code: string, userId: string, loginType?: InstagramLoginType }): Promise<ConnectOutcome> {
   const redirectUri = instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || ''))
+  if (input.loginType === 'instagram') {
+    // Instagram Login: one account per login, no Page to pick from.
+    const credentials = await appCredentials('instagram')
+    const short = await exchangeInstagramCode({ ...credentials, redirectUri, code: input.code })
+    const long = await exchangeInstagramLongLivedToken({ appSecret: credentials.appSecret, accessToken: short.accessToken })
+    const profile = await getInstagramProfile(long.accessToken)
+    return { kind: 'connected', account: await saveInstagramLoginAccount({ token: long, scopes: short.permissions, profile, userId: input.userId }) }
+  }
+
+  const credentials = await appCredentials()
   const short = await exchangeCodeForToken({ ...credentials, redirectUri, code: input.code })
   const long = await exchangeForLongLivedToken({ ...credentials, accessToken: short.accessToken })
 
@@ -171,7 +230,8 @@ export async function completeInstagramChoice(input: { userToken: string, instag
 export async function checkInstagramConnection(accountId: string) {
   const [account] = await db.select().from(socialAccounts).where(eq(socialAccounts.id, accountId)).limit(1)
   if (!account) throw new Error('Account niet gevonden')
-  const { credentials } = await loadInstagramIntegration()
+  if (parseLoginType(account.loginType) === 'instagram') return checkInstagramLoginConnection(account)
+  const credentials = await loadInstagramCredentials('facebook')
 
   const checkedAt = new Date()
   try {
@@ -199,20 +259,64 @@ export async function checkInstagramConnection(accountId: string) {
     await mirrorToFacebookPage(account.pageId, { status: 'active', tokenExpiresAt: inspection.expiresAt ?? account.tokenExpiresAt, scopes: inspection.scopes, lastCheckedAt: checkedAt, lastError: null, updatedAt: checkedAt })
     return { ok: true as const }
   } catch (error) {
-    const permanent = error instanceof InstagramApiError && error.permanent
+    return recordCheckFailure(account, error, checkedAt)
+  }
+}
+
+async function recordCheckFailure(account: SocialAccount, error: unknown, checkedAt: Date) {
+  const permanent = error instanceof InstagramApiError && error.permanent
+  await db.update(socialAccounts).set({
+    status: permanent ? 'needs_reauth' : account.status,
+    lastCheckedAt: checkedAt,
+    lastError: errorText(error).slice(0, 500),
+    updatedAt: checkedAt,
+  }).where(eq(socialAccounts.id, account.id))
+  if (permanent) await mirrorToFacebookPage(account.pageId, { status: 'needs_reauth', lastError: errorText(error).slice(0, 500), updatedAt: checkedAt })
+  structuredLog(permanent ? 'error' : 'warn', 'instagram_connection_check_failed', {
+    accountId: account.id,
+    permanent,
+    message: errorText(error),
+  })
+  return { ok: false as const, permanent, message: errorText(error) }
+}
+
+/**
+ * Instagram Login has no `debug_token`: a profile call proves the token still works, and a token that is
+ * close to expiry is renewed here (the worker runs this daily), so the owner never has to reconnect by hand.
+ */
+async function checkInstagramLoginConnection(account: SocialAccount) {
+  const checkedAt = new Date()
+  try {
+    let token = decryptSecret(account.accessTokenEncrypted, password())
+    const profile = await getInstagramProfile(token)
+    const renewal: Partial<typeof socialAccounts.$inferInsert> = {}
+    let renewError: string | null = null
+
+    if (shouldRenewToken({ expiresAt: account.tokenExpiresAt, issuedAt: account.tokenIssuedAt, now: checkedAt.getTime() })) {
+      try {
+        const renewed = await refreshInstagramToken(token)
+        token = renewed.accessToken
+        renewal.accessTokenEncrypted = encryptSecret(renewed.accessToken, password())
+        renewal.tokenIssuedAt = checkedAt
+        renewal.tokenExpiresAt = new Date(checkedAt.getTime() + (renewed.expiresInSeconds ?? INSTAGRAM_LOGIN_FALLBACK_SECONDS) * 1000)
+      } catch (error) {
+        // The token still works today; report the failed renewal and try again at the next check.
+        renewError = `Verlengen van de toegang mislukt: ${errorText(error)}`.slice(0, 500)
+        structuredLog('warn', 'instagram_token_renew_failed', { accountId: account.id, message: errorText(error) })
+      }
+    }
+
     await db.update(socialAccounts).set({
-      status: permanent ? 'needs_reauth' : account.status,
+      ...renewal,
+      username: profile.username || account.username,
+      accountType: profile.accountType ?? account.accountType,
       lastCheckedAt: checkedAt,
-      lastError: errorText(error).slice(0, 500),
+      lastError: renewError,
       updatedAt: checkedAt,
     }).where(eq(socialAccounts.id, account.id))
-    if (permanent) await mirrorToFacebookPage(account.pageId, { status: 'needs_reauth', lastError: errorText(error).slice(0, 500), updatedAt: checkedAt })
-    structuredLog(permanent ? 'error' : 'warn', 'instagram_connection_check_failed', {
-      accountId: account.id,
-      permanent,
-      message: errorText(error),
-    })
-    return { ok: false as const, permanent, message: errorText(error) }
+    return { ok: true as const }
+  } catch (error) {
+    return recordCheckFailure(account, error, checkedAt)
   }
 }
 

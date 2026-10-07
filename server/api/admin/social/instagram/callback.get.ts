@@ -4,6 +4,7 @@ import { recordAudit } from '../../../../utils/audit'
 import { InstagramApiError } from '../../../../utils/instagram'
 import { INSTAGRAM_PENDING_COOKIE, sealPendingToken } from '../../../../utils/instagram-pending'
 import { verifyOAuthState } from '../../../../utils/instagram-state'
+import { loadInstagramIntegration } from '../../../../utils/integration-settings'
 import { requireStaff } from '../../../../utils/require-staff'
 import { beginInstagramConnection } from '../../../../utils/social-accounts'
 import { structuredLog } from '../../../../utils/structured-log'
@@ -38,7 +39,8 @@ export default defineEventHandler(async (event) => {
   if (!valid) return back(event, 'state')
 
   try {
-    const outcome = await beginInstagramConnection({ code, userId: user.id })
+    const { loginType } = await loadInstagramIntegration()
+    const outcome = await beginInstagramConnection({ code, userId: user.id, loginType })
 
     if (outcome.kind === 'choose') {
       // Several Instagram accounts were granted: park the user token briefly while the owner picks one.
@@ -59,7 +61,7 @@ export default defineEventHandler(async (event) => {
       entityType: 'social_account',
       entityId: account.id,
       action: 'instagram.connected',
-      metadata: { username: account.username },
+      metadata: { username: account.username, loginType: account.loginType },
     })
     return back(event, 'connected')
   } catch (cause) {

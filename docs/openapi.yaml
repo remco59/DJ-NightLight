@@ -2738,6 +2738,12 @@ paths:
                     provider:
                       type: string
                       const: instagram
+                    loginType:
+                      default: facebook
+                      type: string
+                      enum:
+                        - facebook
+                        - instagram
                     appId:
                       type: string
                       pattern: ^\d{5,30}$
@@ -2746,6 +2752,7 @@ paths:
                       minLength: 16
                       maxLength: 200
                     loginConfigId:
+                      default: ""
                       anyOf:
                         - type: string
                           pattern: ^\d{5,30}$
@@ -2755,7 +2762,19 @@ paths:
                     - provider
                     - appId
                     - appSecret
-                    - loginConfigId
+                - type: object
+                  properties:
+                    provider:
+                      type: string
+                      const: instagram_login_type
+                    loginType:
+                      type: string
+                      enum:
+                        - facebook
+                        - instagram
+                  required:
+                    - provider
+                    - loginType
       responses:
         "200":
           description: Gelukt
@@ -2789,6 +2808,12 @@ paths:
                   enum:
                     - calendar
                     - email
+                    - instagram
+                loginType:
+                  default: facebook
+                  type: string
+                  enum:
+                    - facebook
                     - instagram
               required:
                 - provider

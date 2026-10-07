@@ -3,6 +3,8 @@ import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSett
 import {
   instagramHealth,
   hasPublishScope,
+  parseLoginType,
+  type InstagramLoginType,
   instagramRedirectUri,
   maskAppId,
   maskExternalId,
@@ -25,7 +27,7 @@ function runtimeEmail() {
 
 function runtimeInstagram() {
   const config = useRuntimeConfig()
-  return config.instagram as { appId?: string, appSecret?: string, loginConfigId?: string }
+  return config.instagram as { appId?: string, appSecret?: string, loginConfigId?: string, loginType?: string, igAppId?: string, igAppSecret?: string }
 }
 
 function password() {
@@ -102,6 +104,42 @@ export async function loadEmailIntegration() {
   }
 }
 
+type SocialSettingsRow = typeof socialSettings.$inferSelect | undefined
+
+/** App credentials for one login type; settings saved in NightLight win over the environment. */
+function instagramCredentialsFor(row: SocialSettingsRow, loginType: InstagramLoginType) {
+  const env = runtimeInstagram()
+  if (loginType === 'instagram') {
+    const saved = Boolean(row?.instagramAppId && row?.instagramAppSecretEncrypted)
+    const fromEnv = Boolean(env.igAppId && env.igAppSecret)
+    const credentials = saved
+      ? { appId: row!.instagramAppId!, appSecret: decryptSecret(row!.instagramAppSecretEncrypted!, password()), configId: '' }
+      : { appId: String(env.igAppId || ''), appSecret: String(env.igAppSecret || ''), configId: '' }
+    const source: IntegrationSource = saved ? 'settings' : fromEnv ? 'environment' : 'none'
+    return { credentials, source }
+  }
+  const saved = Boolean(row?.appId && row?.appSecretEncrypted)
+  const fromEnv = Boolean(env.appId && env.appSecret)
+  const credentials = saved
+    ? { appId: row!.appId!, appSecret: decryptSecret(row!.appSecretEncrypted!, password()), configId: row!.loginConfigId || '' }
+    : { appId: String(env.appId || ''), appSecret: String(env.appSecret || ''), configId: String(env.loginConfigId || '') }
+  const source: IntegrationSource = saved ? 'settings' : fromEnv ? 'environment' : 'none'
+  return { credentials, source }
+}
+
+/** The login type for the next connection: the saved choice, else the environment, else Facebook Login. */
+function activeLoginType(row: SocialSettingsRow) {
+  const env = runtimeInstagram()
+  return parseLoginType(row?.loginType ?? env.loginType)
+}
+
+/** Credentials for a given login type, for code that works on an account (checks, renewal). */
+export async function loadInstagramCredentials(loginType: InstagramLoginType) {
+  const [row] = await db.select().from(socialSettings)
+    .where(eq(socialSettings.key, 'default')).limit(1)
+  return instagramCredentialsFor(row, loginType).credentials
+}
+
 export async function loadInstagramIntegration() {
   const [row] = await db.select().from(socialSettings)
     .where(eq(socialSettings.key, 'default')).limit(1)
@@ -109,30 +147,41 @@ export async function loadInstagramIntegration() {
   const [account] = await db.select().from(socialAccounts)
     .where(and(eq(socialAccounts.provider, 'instagram'), ne(socialAccounts.status, 'disabled')))
     .orderBy(desc(socialAccounts.updatedAt)).limit(1)
-  const env = runtimeInstagram()
-  const savedConfigured = Boolean(row?.appId && row?.appSecretEncrypted)
-  const envConfigured = Boolean(env.appId && env.appSecret)
 
-  const credentials = savedConfigured
-    ? { appId: row!.appId!, appSecret: decryptSecret(row!.appSecretEncrypted!, password()), configId: row!.loginConfigId || '' }
-    : { appId: String(env.appId || ''), appSecret: String(env.appSecret || ''), configId: String(env.loginConfigId || '') }
-
-  const source: IntegrationSource = savedConfigured ? 'settings' : envConfigured ? 'environment' : 'none'
+  const loginType = activeLoginType(row)
+  const facebook = instagramCredentialsFor(row, 'facebook')
+  const instagram = instagramCredentialsFor(row, 'instagram')
+  const active = loginType === 'instagram' ? instagram : facebook
+  const { credentials, source } = active
   const configured = Boolean(credentials.appId && credentials.appSecret)
+
+  // Health follows the account that is connected, which can still use the other login type than the setting.
+  const accountLoginType = account ? parseLoginType(account.loginType) : loginType
+  const accountCredentials = (accountLoginType === 'instagram' ? instagram : facebook).credentials
   const lastRun = row?.lastWorkerRunAt ?? null
   const health = instagramHealth({
-    appConfigured: configured,
+    appConfigured: Boolean(accountCredentials.appId && accountCredentials.appSecret),
     account: account
-      ? { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastError: account.lastError }
+      ? { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastError: account.lastError, loginType: accountLoginType }
       : null,
     workerLastRunAt: lastRun,
+  })
+
+  const summary = (entry: typeof facebook) => ({
+    source: entry.source,
+    configured: Boolean(entry.credentials.appId && entry.credentials.appSecret),
+    appIdPreview: entry.credentials.appId ? maskAppId(entry.credentials.appId) : null,
+    loginConfigId: entry.credentials.configId,
   })
 
   return {
     row,
     account: account ?? null,
+    loginType,
     credentials,
     status: {
+      loginType,
+      loginTypes: { facebook: summary(facebook), instagram: summary(instagram) },
       source,
       configured,
       appIdPreview: credentials.appId ? maskAppId(credentials.appId) : null,
@@ -146,6 +195,7 @@ export async function loadInstagramIntegration() {
             accountType: account.accountType,
             externalIdPreview: maskExternalId(account.externalId),
             pageName: account.pageName,
+            loginType: accountLoginType,
             status: account.status,
             tokenIssuedAt: account.tokenIssuedAt.toISOString(),
             tokenExpiresAt: account.tokenExpiresAt.toISOString(),
