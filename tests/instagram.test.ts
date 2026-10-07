@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
   buildFacebookAuthorizeUrl,
+  hasFacebookPublishScope,
   hasPublishScope,
   instagramHealth,
   instagramRedirectUri,
@@ -39,7 +40,7 @@ describe('Facebook Login setup', () => {
     expect(url.searchParams.get('client_id')).toBe('123456')
     expect(url.searchParams.get('response_type')).toBe('code')
     expect(url.searchParams.get('state')).toBe('abc')
-    expect(url.searchParams.get('scope')).toBe('instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management')
+    expect(url.searchParams.get('scope')).toBe('instagram_basic,instagram_content_publish,pages_manage_posts,pages_show_list,pages_read_engagement,business_management')
     expect(url.searchParams.has('config_id')).toBe(false)
   })
 
@@ -54,6 +55,11 @@ describe('Facebook Login setup', () => {
     expect(hasPublishScope(['instagram_basic', 'instagram_content_publish'])).toBe(true)
     expect(hasPublishScope(['instagram_content_publishing'])).toBe(true)
     expect(hasPublishScope(['instagram_basic'])).toBe(false)
+  })
+
+  it('knows whether the Page may be posted on', () => {
+    expect(hasFacebookPublishScope(['pages_show_list', 'pages_manage_posts'])).toBe(true)
+    expect(hasFacebookPublishScope(['pages_show_list', 'instagram_content_publish'])).toBe(false)
   })
 
   it('masks identifiers', () => {

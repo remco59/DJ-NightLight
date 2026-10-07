@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../../../db/schema'
 import { encryptSecret } from '../../../../shared/secret-box'
 import { db } from '../../../utils/db'
@@ -81,7 +81,7 @@ export default defineEventHandler(async (event) => {
     if (previous.credentials.appId && previous.credentials.appId !== input.appId) {
       await db.update(socialAccounts)
         .set({ status: 'needs_reauth', updatedAt: new Date() })
-        .where(eq(socialAccounts.provider, 'instagram'))
+        .where(inArray(socialAccounts.provider, ['instagram', 'facebook']))
     }
     return { instagram: (await loadInstagramIntegration()).status }
   }

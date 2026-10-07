@@ -1,4 +1,5 @@
 import { recordSocialWorkerRun, checkDueInstagramConnections } from '../utils/social-accounts'
+import { processDueSocialPosts } from '../utils/social-publish'
 
 let running = false
 
@@ -7,7 +8,18 @@ async function tick() {
   running = true
   try {
     await recordSocialWorkerRun()
-    await checkDueInstagramConnections()
+    // Independent steps: a failing connection check must not hold back scheduled posts.
+    for (const step of [checkDueInstagramConnections, () => processDueSocialPosts(5)]) {
+      try {
+        await step()
+      } catch (error) {
+        console.error(JSON.stringify({
+          level: 'error',
+          event: 'social_worker_failed',
+          message: error instanceof Error ? error.message : String(error),
+        }))
+      }
+    }
   } catch (error) {
     console.error(JSON.stringify({
       level: 'error',

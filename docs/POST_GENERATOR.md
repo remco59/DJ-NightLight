@@ -96,4 +96,4 @@ docker logs <render-worker> | grep "Render engine"
 
 The Remotion packages are deliberately pinned to exactly the same version. Review Remotion's current licensing terms before production use or if the team/automation usage changes.
 
-Automatic Instagram publishing and AI copy generation remain out of scope.
+AI copy generation remains out of scope. Publishing and scheduling to Instagram and Facebook are described in `docs/SOCIAL_PUBLISHING.md`.

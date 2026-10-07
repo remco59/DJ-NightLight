@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
+import { socialProviderLabels, type SocialPostItem } from '~~/shared/social'
 
 definePageMeta({ layout: 'admin' })
 useSeoMeta({ title: 'Agenda — DJ NightLight', robots: 'noindex, nofollow' })
@@ -103,6 +104,46 @@ const { data: eventsData, pending: eventsPending } = await useFetch<{ events: Ca
 })
 const events = computed(() => eventsData.value?.events || [])
 
+// Social posts that are going out (or went out) in the visible period, shown next to the gigs.
+const showGigs = ref(true)
+const showSocial = ref(true)
+const { data: socialData } = await useFetch<{ posts: SocialPostItem[] }>('/api/admin/social/posts', {
+  query: eventsQuery,
+  default: () => ({ posts: [] }),
+  // Not allowed (or not set up) means no overlay, never a broken agenda.
+  onResponseError: () => undefined,
+})
+const { data: upcomingData } = await useFetch<{ posts: SocialPostItem[] }>('/api/admin/social/posts', {
+  query: { tab: 'queue', limit: 6 },
+  default: () => ({ posts: [] }),
+  onResponseError: () => undefined,
+})
+const socialPosts = computed(() => (showSocial.value ? socialData.value?.posts ?? [] : []))
+const upcomingSocial = computed(() => (upcomingData.value?.posts ?? []).filter(post => post.status === 'scheduled'))
+const socialAvailable = computed(() => Boolean(socialData.value?.posts.length || upcomingSocial.value.length))
+const visibleGigs = computed(() => (showGigs.value ? events.value : []))
+function socialMoment(post: SocialPostItem) {
+  return post.publishedAt ?? post.scheduledAt
+}
+function socialForDay(date: Date) {
+  const key = dateKey(date)
+  return socialPosts.value.filter((post) => {
+    const at = socialMoment(post)
+    return at && dateKey(new Date(at)) === key
+  })
+}
+function socialStyle(post: SocialPostItem) {
+  const at = socialMoment(post)
+  if (!at) return {}
+  const start = new Date(at)
+  const minutes = Math.max(0, start.getHours() * 60 + start.getMinutes() - 8 * 60)
+  return { top: `${minutes / 60 * 52}px`, height: '42px' }
+}
+function socialLabel(post: SocialPostItem) {
+  return `${socialProviderLabels[post.provider] ?? post.provider}${post.accountName ? ` @${post.accountName}` : ''}`
+}
+const panelFormatter = new Intl.DateTimeFormat('nl-NL', { timeZone: 'Europe/Amsterdam', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
 const {
   data: integrationData,
   refresh: refreshIntegration,
@@ -167,7 +208,7 @@ function sameMonth(date: Date) {
 }
 function eventsForDay(date: Date) {
   const key = dateKey(date)
-  return events.value
+  return visibleGigs.value
     .filter(item => item.startsAt && dateKey(new Date(item.startsAt)) === key)
     .sort((a, b) => new Date(a.startsAt || 0).getTime() - new Date(b.startsAt || 0).getTime())
 }
@@ -299,6 +340,7 @@ async function rotateIcs() {
       </button>
     </header>
 
+    <div class="agenda-layout">
     <section class="calendar-shell">
       <div class="toolbar">
         <div class="navigation">
@@ -310,6 +352,10 @@ async function rotateIcs() {
             <Icon name="lucide:chevron-right" />
           </button>
           <strong class="period">{{ periodLabel }}</strong>
+        </div>
+        <div class="legend" role="group" aria-label="Weergeven in de agenda">
+          <button type="button" :class="{ off: !showGigs }" :aria-pressed="showGigs" @click="showGigs = !showGigs"><i class="dot gig" />Gigs</button>
+          <button type="button" :class="{ off: !showSocial }" :aria-pressed="showSocial" @click="showSocial = !showSocial"><i class="dot social" />Social posts</button>
         </div>
         <div class="view-switcher" aria-label="Agendaweergave">
           <button v-for="option in ([['day','Dag'],['week','Week'],['month','Maand'],['year','Jaar']] as const)" :key="option[0]" type="button" :class="{ active: view === option[0] }" @click="setView(option[0])">
@@ -330,6 +376,11 @@ async function rotateIcs() {
               <span class="event-time">{{ formatTime(item.startsAt) }}</span>
               <span class="event-title">{{ item.title }}</span>
               <span class="event-location"><Icon name="lucide:map-pin" />{{ formatLocation(item) }}</span>
+            </NuxtLink>
+            <NuxtLink v-for="post in socialForDay(day).slice(0, 2)" :key="post.id" class="month-event social" :class="{ failed: post.status === 'failed' }" to="/admin/social">
+              <span class="event-time">{{ formatTime(socialMoment(post)) }}</span>
+              <span class="event-title">{{ post.title }}</span>
+              <span class="event-location"><Icon name="lucide:send" />{{ socialLabel(post) }}</span>
             </NuxtLink>
             <button v-if="eventsForDay(day).length > 3" class="more-events" type="button" @click="openDay(day)">
               +{{ eventsForDay(day).length - 3 }} meer
@@ -355,6 +406,11 @@ async function rotateIcs() {
               <strong>{{ item.title }}</strong>
               <span class="event-location"><Icon name="lucide:map-pin" />{{ formatLocation(item) }}</span>
             </NuxtLink>
+            <NuxtLink v-for="post in socialForDay(day)" :key="post.id" class="time-event social" :class="{ failed: post.status === 'failed' }" :style="socialStyle(post)" to="/admin/social">
+              <span class="event-time">{{ formatTime(socialMoment(post)) }}</span>
+              <strong>{{ post.title }}</strong>
+              <span class="event-location"><Icon name="lucide:send" />{{ socialLabel(post) }}</span>
+            </NuxtLink>
           </div>
         </div>
       </div>
@@ -373,6 +429,11 @@ async function rotateIcs() {
               </div>
               <span class="event-location"><Icon name="lucide:map-pin" />{{ formatLocation(item) }}</span>
               <span v-if="item.eventType" class="event-type">{{ item.eventType }}</span>
+            </NuxtLink>
+            <NuxtLink v-for="post in socialForDay(cursor)" :key="post.id" class="time-event day-event social" :class="{ failed: post.status === 'failed' }" :style="socialStyle(post)" to="/admin/social">
+              <span class="event-time">{{ formatTime(socialMoment(post)) }}</span>
+              <strong>{{ post.title }}</strong>
+              <span class="event-location"><Icon name="lucide:send" />{{ socialLabel(post) }}</span>
             </NuxtLink>
           </div>
         </div>
@@ -393,6 +454,26 @@ async function rotateIcs() {
         </section>
       </div>
     </section>
+
+    <aside v-if="socialAvailable" class="social-panel" aria-labelledby="social-panel-title">
+      <header>
+        <h2 id="social-panel-title">Social planning</h2>
+        <NuxtLink to="/admin/social">Open Social →</NuxtLink>
+      </header>
+      <p v-if="!upcomingSocial.length" class="panel-empty">Geen geplande posts.</p>
+      <ul v-else>
+        <li v-for="post in upcomingSocial" :key="post.id">
+          <img v-if="post.thumbnailUrl" :src="post.thumbnailUrl" alt="" loading="lazy">
+          <div>
+            <strong>{{ post.title }}</strong>
+            <small>{{ socialLabel(post) }}</small>
+            <small>{{ post.scheduledAt ? panelFormatter.format(new Date(post.scheduledAt)) : '' }}</small>
+          </div>
+          <SocialStatusChip :status="post.status" />
+        </li>
+      </ul>
+    </aside>
+    </div>
 
     <AdminGigPopover :gigs="popover.gigs.value" :anchor="popover.anchor.value" @enter="popover.cancelClose()" @leave="popover.scheduleClose()" @close="popover.close()" />
 
@@ -491,6 +572,27 @@ async function rotateIcs() {
 </template>
 
 <style scoped>
+.agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
+@media (min-width: 1200px) { .agenda-layout:has(.social-panel) { grid-template-columns: minmax(0, 1fr) 280px; } }
+.legend { display: flex; gap: .4rem; }
+.legend button { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid #312b38; border-radius: 999px; background: #151219; font-size: .78rem; cursor: pointer; }
+.legend button.off { opacity: .5; }
+.legend .dot { width: .55rem; height: .55rem; border-radius: 50%; background: #8e3de0; }
+.legend .dot.social { background: #c084fc; box-shadow: 0 0 0 2px #3b1a5a; }
+.month-event.social, .time-event.social { border-left-color: #c084fc; border-color: #4b2d6e; background: #1d1228; }
+.month-event.social.failed, .time-event.social.failed { border-left-color: #f0a3b0; }
+.time-event.social { left: 50%; z-index: 3; }
+.social-panel { padding: 1rem; border: 1px solid var(--border); border-radius: 1rem; background: #0f0d12; }
+.social-panel header { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; margin-bottom: .8rem; }
+.social-panel h2 { margin: 0; font-size: 1rem; }
+.social-panel header a { color: #c4b5fd; font-size: .78rem; }
+.social-panel ul { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+.social-panel li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; }
+.social-panel img { width: 2.6rem; height: 2.6rem; border-radius: .45rem; object-fit: cover; background: #08070a; }
+.social-panel li div { display: grid; min-width: 0; }
+.social-panel li strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.social-panel li small { color: #8f8798; font-size: .72rem; }
+.panel-empty { margin: 0; color: #8f8798; font-size: .82rem; }
 .calendar-page { max-width: 1500px; margin: 0 auto; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; }
 .eyebrow { margin: 0 0 .6rem; color: #c9b2df; font-size: .72rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }

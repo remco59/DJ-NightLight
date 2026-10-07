@@ -31,6 +31,7 @@ const groups: NavGroup[] = [
     {label:'Media',to:'/admin/media',icon:'lucide:images',roles:['owner','content_editor']},
     {label:'Foto editor',to:'/admin/post-generator',icon:'lucide:image',roles:['owner','content_editor']},
     {label:'Video editor',to:'/admin/post-generator/video',icon:'lucide:video',roles:['owner','content_editor']},
+    {label:'Social',to:'/admin/social',icon:'lucide:share-2',roles:['owner','content_editor']},
   ]},
 ]
 
