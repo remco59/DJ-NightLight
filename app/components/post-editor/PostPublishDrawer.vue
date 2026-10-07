@@ -9,12 +9,15 @@ import {
   INSTAGRAM_CAPTION_MAX,
   INSTAGRAM_HASHTAG_MAX,
   countHashtags,
+  socialProviderLabels,
 } from '~~/shared/social'
 
 const props = defineProps<{ postId: string | null }>()
 const open = defineModel<boolean>('open', { required: true })
 
-type AccountInfo = { connected: boolean, canPublish: boolean, username: string | null, accountType: string | null, message: string | null }
+type FacebookInfo = { connected: boolean, canPublish: boolean, name: string | null, message: string | null }
+type AccountInfo = { connected: boolean, canPublish: boolean, username: string | null, accountType: string | null, message: string | null, facebook: FacebookInfo }
+type PublishedPost = { status: string, permalink: string | null, lastError: string | null, provider: string }
 
 const editor = usePostEditor()
 const post = computed(() => editor.posts.value.find(item => item.id === props.postId) || null)
@@ -25,17 +28,20 @@ const caption = ref('')
 const altText = ref('')
 const publishing = ref(false)
 const error = ref('')
-const permalink = ref<string | null>(null)
+const toInstagram = ref(true)
+const toFacebook = ref(false)
+const results = ref<Array<{ platform: string, status: string, permalink: string | null, error: string | null }>>([])
 const done = ref(false)
 const closeRef = ref<HTMLButtonElement | null>(null)
 
 const length = computed(() => captionLength(caption.value))
 const hashtags = computed(() => countHashtags(caption.value))
 const captionCheck = computed(() => checkCaption(caption.value))
-const presetBlocked = computed(() => Boolean(post.value) && !canPublishPresetAsFeedImage(post.value!.preset))
-const alreadyPublished = computed(() => post.value?.social?.status === 'published')
+const presetBlocked = computed(() => toInstagram.value && Boolean(post.value) && !canPublishPresetAsFeedImage(post.value!.preset))
+const publishedOn = (provider: string) => Boolean(post.value?.social?.some(badge => badge.provider === provider && badge.status === 'published'))
 const canSubmit = computed(() => Boolean(
-  post.value && account.value?.canPublish && captionCheck.value.ok && !presetBlocked.value
+  post.value && (toInstagram.value || toFacebook.value)
+  && (!toInstagram.value || account.value?.canPublish) && (!toFacebook.value || account.value?.facebook.canPublish) && captionCheck.value.ok && !presetBlocked.value
   && altText.value.length <= INSTAGRAM_ALT_TEXT_MAX && !publishing.value && !done.value,
 ))
 
@@ -43,8 +49,9 @@ async function loadAccount() {
   loadingAccount.value = true
   try {
     account.value = await $fetch<AccountInfo>('/api/admin/social/account')
+    toInstagram.value = account.value.canPublish
   } catch (cause) {
-    account.value = { connected: false, canPublish: false, username: null, accountType: null, message: apiErrorMessage(cause, 'De Instagram-koppeling kon niet worden opgehaald.') }
+    account.value = { facebook: { connected: false, canPublish: false, name: null, message: null }, connected: false, canPublish: false, username: null, accountType: null, message: apiErrorMessage(cause, 'De Instagram-koppeling kon niet worden opgehaald.') }
   } finally {
     loadingAccount.value = false
   }
@@ -55,11 +62,21 @@ async function publish() {
   publishing.value = true
   error.value = ''
   try {
-    const result = await $fetch<{ post: { permalink: string | null } }>('/api/admin/social/posts', {
+    const result = await $fetch<{ posts: PublishedPost[] }>('/api/admin/social/posts', {
       method: 'POST',
-      body: { generatedPostId: post.value.id, caption: caption.value, altText: altText.value || null },
+      body: {
+        generatedPostId: post.value.id,
+        caption: caption.value,
+        altText: altText.value || null,
+        platforms: [toInstagram.value && 'instagram', toFacebook.value && 'facebook'].filter(Boolean),
+      },
     })
-    permalink.value = result.post.permalink
+    results.value = result.posts.map(item => ({
+      platform: item.provider,
+      status: item.status,
+      permalink: item.permalink,
+      error: item.lastError,
+    }))
     done.value = true
   } catch (cause) {
     error.value = apiErrorMessage(cause, 'Publiceren is niet gelukt.')
@@ -80,7 +97,9 @@ watch(open, (value) => {
   caption.value = ''
   altText.value = ''
   error.value = ''
-  permalink.value = null
+  results.value = []
+  toInstagram.value = true
+  toFacebook.value = false
   done.value = false
   void loadAccount()
   void nextTick(() => closeRef.value?.focus())
@@ -94,7 +113,7 @@ watch(open, (value) => {
         <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="post-publish-title">
           <header class="drawer-head">
             <div>
-              <h2 id="post-publish-title">Publiceren op Instagram</h2>
+              <h2 id="post-publish-title">Publiceren op Instagram en Facebook</h2>
               <p>De post wordt direct geplaatst en blijft ook bewaard bij Recente exports.</p>
             </div>
             <button ref="closeRef" type="button" class="icon-button" aria-label="Sluiten" :disabled="publishing" @click="close">
@@ -104,28 +123,43 @@ watch(open, (value) => {
 
           <div v-if="done" class="body done" role="status">
             <Icon name="lucide:circle-check" aria-hidden="true" />
-            <strong>Gepubliceerd op Instagram</strong>
-            <a v-if="permalink" :href="permalink" target="_blank" rel="noopener">Bekijk de post <Icon name="lucide:external-link" aria-hidden="true" /></a>
+            <strong>{{ results.every(item => item.status === 'published') ? 'Gepubliceerd' : 'Deels gepubliceerd' }}</strong>
+            <ul class="results">
+              <li v-for="item in results" :key="item.platform" :class="{ failed: item.status !== 'published' }">
+                <span>{{ socialProviderLabels[item.platform] }}:</span>
+                <a v-if="item.status === 'published' && item.permalink" :href="item.permalink" target="_blank" rel="noopener">Bekijk de post <Icon name="lucide:external-link" aria-hidden="true" /></a>
+                <template v-else-if="item.status === 'published'">gepubliceerd</template>
+                <template v-else>mislukt{{ item.error ? ` (${item.error})` : '' }}. Gebruik Opnieuw bij Recente exports.</template>
+              </li>
+            </ul>
             <button type="button" class="action primary" @click="open = false">Sluiten</button>
           </div>
 
           <form v-else class="body" @submit.prevent="publish">
             <p v-if="loadingAccount" class="note">Koppeling controleren…</p>
             <p v-else-if="account && !account.canPublish" class="notice error" role="alert">{{ account.message }}</p>
-            <p v-else-if="account?.connected" class="chip">
-              <Icon name="lucide:instagram" aria-hidden="true" />
-              <span>@{{ account.username }}</span>
-              <small>Verbonden</small>
-            </p>
 
             <img v-if="post" class="preview" :src="post.imageUrl" alt="Voorbeeld van de post">
 
             <p v-if="presetBlocked" class="notice error" role="alert">
               Dit formaat past niet in de Instagram-feed. Exporteer in 1:1 of 4:5; stories volgen in een latere fase.
             </p>
-            <p v-else-if="alreadyPublished" class="notice" role="status">
-              Deze export is al gepubliceerd. Publiceren plaatst een tweede post.
+            <p v-else-if="(toInstagram && publishedOn('instagram')) || (toFacebook && publishedOn('facebook'))" class="notice" role="status">
+              Deze export staat al op een van de gekozen platforms. Publiceren plaatst daar een tweede post.
             </p>
+
+            <fieldset v-if="account?.connected" class="targets">
+              <legend>Publiceren op</legend>
+              <label class="check" :class="{ disabled: !account.canPublish }">
+                <input v-model="toInstagram" type="checkbox" :disabled="!account.canPublish">
+                <span>Instagram <strong v-if="account.username">@{{ account.username }}</strong></span>
+              </label>
+              <label v-if="account.facebook.connected" class="check" :class="{ disabled: !account.facebook.canPublish }">
+                <input v-model="toFacebook" type="checkbox" :disabled="!account.facebook.canPublish">
+                <span>Facebook-pagina <strong v-if="account.facebook.name">{{ account.facebook.name }}</strong></span>
+              </label>
+            </fieldset>
+            <p v-if="account?.facebook.connected && account.facebook.message" class="note">{{ account.facebook.message }}</p>
 
             <label class="field">
               <span class="label-row">
@@ -224,27 +258,6 @@ watch(open, (value) => {
   overflow: auto;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  width: fit-content;
-  margin: 0;
-  padding: .4rem .75rem;
-  border: 1px solid #2a2530;
-  border-radius: 999px;
-  background: #151119;
-  font-size: .82rem;
-}
-
-.chip small {
-  padding: .1rem .45rem;
-  border-radius: 999px;
-  background: rgba(76, 175, 120, .16);
-  color: #8fd6ad;
-  font-size: .68rem;
-}
-
 .preview {
   width: 6.5rem;
   max-height: 8.5rem;
@@ -310,6 +323,45 @@ textarea:focus-visible {
 
 .notice.error {
   border-color: #6b2a36;
+  color: #f0b7c1;
+}
+
+.targets {
+  display: grid;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.targets legend {
+  margin-bottom: .4rem;
+  font-size: .82rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .82rem;
+  cursor: pointer;
+}
+
+.check.disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.results {
+  display: grid;
+  gap: .4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: .82rem;
+}
+
+.results .failed {
   color: #f0b7c1;
 }
 

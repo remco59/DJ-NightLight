@@ -44,8 +44,8 @@ export type GeneratedPost = {
   design: Record<string, unknown>
   createdAt: string
   imageUrl: string
-  /** Newest Instagram post made from this export, if any. */
-  social?: SocialBadge | null
+  /** Newest social post per platform made from this export. */
+  social?: SocialBadge[]
 }
 
 export type PostGeneratorData = {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePostEditor, type GeneratedPost } from '~/composables/usePostEditor'
-import { socialPostStatusLabels, socialPostStatusTones, type SocialPostStatusKey } from '~~/shared/social'
+import { socialPostStatusLabels, socialPostStatusTones, socialProviderLabels, type SocialBadge } from '~~/shared/social'
 import { POST_TEMPLATE_KEYS, postTemplateInfo, type PostTemplateKey } from '~~/shared/post-generator'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -19,12 +19,16 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
-function socialLabel(post: GeneratedPost) {
-  return post.social ? socialPostStatusLabels[post.social.status as SocialPostStatusKey] ?? post.social.status : ''
+function socialLabel(badge: SocialBadge) {
+  return `${socialProviderLabels[badge.provider] ?? badge.provider}: ${socialPostStatusLabels[badge.status] ?? badge.status}`
 }
 
-function socialTone(post: GeneratedPost) {
-  return post.social ? socialPostStatusTones[post.social.status as SocialPostStatusKey] ?? 'neutral' : 'neutral'
+function socialTone(badge: SocialBadge) {
+  return socialPostStatusTones[badge.status] ?? 'neutral'
+}
+
+function retryable(post: GeneratedPost) {
+  return Boolean(post.social?.some(badge => badge.status === 'failed'))
 }
 
 function publish(post: GeneratedPost) {
@@ -78,10 +82,10 @@ watch(open, (value) => {
               <div class="export-copy">
                 <strong>{{ templateLabel(post.templateKey) }}</strong>
                 <small>{{ post.width }}<IconTimes />{{ post.height }} · {{ formatDate(post.createdAt) }}</small>
-                <span v-if="post.social" class="social-badge" :class="'tone-' + socialTone(post)" :title="post.social.lastError || undefined">
-                  <Icon name="lucide:instagram" aria-hidden="true" />
-                  {{ socialLabel(post) }}
-                  <a v-if="post.social.permalink" :href="post.social.permalink" target="_blank" rel="noopener" aria-label="Bekijk op Instagram">
+                <span v-for="badge in post.social" :key="badge.provider" class="social-badge" :class="'tone-' + socialTone(badge)" :title="badge.lastError || undefined">
+                  <Icon :name="badge.provider === 'facebook' ? 'lucide:facebook' : 'lucide:instagram'" aria-hidden="true" />
+                  {{ socialLabel(badge) }}
+                  <a v-if="badge.permalink" :href="badge.permalink" target="_blank" rel="noopener" :aria-label="'Bekijk op ' + (socialProviderLabels[badge.provider] ?? badge.provider)">
                     <Icon name="lucide:external-link" aria-hidden="true" />
                   </a>
                 </span>
@@ -90,7 +94,7 @@ watch(open, (value) => {
                     <Icon name="lucide:download" aria-hidden="true" />Downloaden
                   </a>
                   <button type="button" class="action" @click="publish(post)">
-                    <Icon name="lucide:send" aria-hidden="true" />{{ post.social?.status === 'failed' ? 'Opnieuw' : 'Publiceren' }}
+                    <Icon name="lucide:send" aria-hidden="true" />{{ retryable(post) ? 'Opnieuw' : 'Publiceren' }}
                   </button>
                   <button type="button" class="action" @click="reuse(post)">
                     <Icon name="lucide:pencil" aria-hidden="true" />Opnieuw bewerken

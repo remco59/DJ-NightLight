@@ -1,8 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { socialAccounts } from '../../../../../db/schema'
 import { recordAudit } from '../../../../utils/audit'
-import { db } from '../../../../utils/db'
 import { loadInstagramIntegration } from '../../../../utils/integration-settings'
+import { disconnectSocialAccounts } from '../../../../utils/social-accounts'
 import { requireStaff } from '../../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
@@ -10,7 +8,7 @@ export default defineEventHandler(async (event) => {
   const { account } = await loadInstagramIntegration()
   if (!account) return { instagram: (await loadInstagramIntegration()).status }
 
-  await db.delete(socialAccounts).where(eq(socialAccounts.id, account.id))
+  await disconnectSocialAccounts()
   await recordAudit({
     userId: user.id,
     entityType: 'social_account',

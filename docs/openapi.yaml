@@ -5183,7 +5183,7 @@ paths:
       operationId: postAdminSocialPosts
       tags:
         - admin/social
-      description: Publishes an exported image to Instagram right away. Scheduling arrives in a later phase.
+      description: Publishes an exported image to Instagram (and optionally the Facebook Page) right away. Scheduling arrives in a later phase.
       security:
         - staffSession: []
       x-roles:
@@ -5205,6 +5205,17 @@ paths:
                   default: ""
                   type: string
                   maxLength: 10000
+                platforms:
+                  default:
+                    - instagram
+                  minItems: 1
+                  maxItems: 2
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - instagram
+                      - facebook
                 altText:
                   anyOf:
                     - type: string

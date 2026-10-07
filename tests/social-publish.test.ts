@@ -13,7 +13,9 @@ import {
   getContainerStatus,
   getPermalink,
   InstagramApiError,
+  getPostPermalink,
   publishContainer,
+  publishPagePhoto,
 } from '../server/utils/instagram'
 import {
   convertToInstagramJpeg,
@@ -141,6 +143,45 @@ describe('Meta publishing calls', () => {
     const auth = vi.fn().mockResolvedValue(json({ error: { message: 'Session expired', code: 190 } }, 400))
     const authError = await publishContainer({ instagramId: 'ig-1', accessToken: 't', containerId: 'c' }, auth).catch(cause => cause as InstagramApiError)
     expect(authError.permanent).toBe(true)
+  })
+})
+
+describe('Facebook Page photo', () => {
+  it('posts the photo with caption and alt text in one call', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(json({ id: 'photo-1', post_id: 'page_post-1' }))
+    const result = await publishPagePhoto({
+      pageId: 'page-1', accessToken: 'tok', imageUrl: 'https://x.test/a.png', caption: 'Hallo', altText: ' Een DJ ',
+    }, fetchImpl)
+
+    expect(result).toEqual({ photoId: 'photo-1', postId: 'page_post-1' })
+    const [url, init] = fetchImpl.mock.calls[0]!
+    expect(String(url)).toMatch(/graph\.facebook\.com\/v[\d.]+\/page-1\/photos$/)
+    const body = new URLSearchParams(String(init.body))
+    expect(body.get('url')).toBe('https://x.test/a.png')
+    expect(body.get('message')).toBe('Hallo')
+    expect(body.get('alt_text_custom')).toBe('Een DJ')
+    expect(body.get('published')).toBe('true')
+  })
+
+  it('leaves out an empty caption and alt text, and falls back to the photo id', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(json({ id: 'photo-1' }))
+    const result = await publishPagePhoto({ pageId: 'p', accessToken: 't', imageUrl: 'u', caption: '', altText: null }, fetchImpl)
+    expect(result.postId).toBe('photo-1')
+    const body = new URLSearchParams(String(fetchImpl.mock.calls[0]![1].body))
+    expect(body.has('message')).toBe(false)
+    expect(body.has('alt_text_custom')).toBe(false)
+  })
+
+  it('surfaces the Meta error when the permission is missing', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(json({ error: { message: '(#200) requires pages_manage_posts permission', code: 200 } }, 403))
+    const error = await publishPagePhoto({ pageId: 'p', accessToken: 't', imageUrl: 'u', caption: '' }, fetchImpl).catch(cause => cause as InstagramApiError)
+    expect(error.message).toContain('pages_manage_posts')
+    expect(error.permanent).toBe(false)
+  })
+
+  it('turns the relative permalink into a full URL', async () => {
+    expect(await getPostPermalink({ postId: 'x', accessToken: 't' }, vi.fn().mockResolvedValue(json({ permalink_url: '/DJ/posts/123' })))).toBe('https://www.facebook.com/DJ/posts/123')
+    expect(await getPostPermalink({ postId: 'x', accessToken: 't' }, vi.fn().mockResolvedValue(json({ permalink_url: 'https://www.facebook.com/a/b' })))).toBe('https://www.facebook.com/a/b')
   })
 })
 

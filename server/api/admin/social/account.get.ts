@@ -1,4 +1,5 @@
-import { instagramHealth } from '../../../../shared/instagram'
+import { hasFacebookPublishScope, instagramHealth } from '../../../../shared/instagram'
+import { loadActiveAccount } from '../../../utils/social-publish'
 import { requireStaff } from '../../../utils/require-staff'
 import { loadInstagramIntegration } from '../../../utils/integration-settings'
 import { isPubliclyReachable } from '../../../utils/social-publish-core'
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const siteUrl = String(useRuntimeConfig().public.siteUrl || '')
 
   if (!account) {
-    return { connected: false, canPublish: false, username: null, accountType: null, message: 'Er is nog geen Instagram-account gekoppeld. Vraag de eigenaar om dat te doen onder Instellingen → Integraties.' }
+    return { facebook: { connected: false, canPublish: false, name: null, message: null }, connected: false, canPublish: false, username: null, accountType: null, message: 'Er is nog geen Instagram-account gekoppeld. Vraag de eigenaar om dat te doen onder Instellingen → Integraties.' }
   }
 
   const health = instagramHealth({
@@ -22,7 +23,15 @@ export default defineEventHandler(async (event) => {
   const blocked = health.level === 'error' || health.level === 'inactive'
   const unreachable = !isPubliclyReachable(siteUrl)
 
+  const page = await loadActiveAccount('facebook')
+  const facebook = !page
+    ? { connected: false, canPublish: false, name: null, message: null }
+    : hasFacebookPublishScope(page.scopes)
+        ? { connected: true, canPublish: true, name: page.username, message: null }
+        : { connected: true, canPublish: false, name: page.username, message: 'Verbind het account opnieuw om ook op de Facebook-pagina te kunnen posten (toestemming pages_manage_posts).' }
+
   return {
+    facebook,
     connected: true,
     canPublish: !blocked && !unreachable,
     username: account.username,
