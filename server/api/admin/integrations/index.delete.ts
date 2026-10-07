@@ -1,12 +1,12 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { calendarSyncSettings, emailProviderSettings } from '../../../../db/schema'
+import { calendarSyncSettings, emailProviderSettings, socialSettings } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { clearGoogleCalendarTokenCache } from '../../../utils/google-calendar'
-import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
+import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
 
-const schema = z.object({ provider: z.enum(['calendar', 'email']) })
+const schema = z.object({ provider: z.enum(['calendar', 'email', 'instagram']) })
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
@@ -22,6 +22,12 @@ export default defineEventHandler(async (event) => {
     }).where(eq(calendarSyncSettings.key, 'default'))
     clearGoogleCalendarTokenCache()
     return { calendar: (await loadCalendarIntegration()).status }
+  }
+
+  if (parsed.data.provider === 'instagram') {
+    await db.update(socialSettings).set({ appId: null, appSecretEncrypted: null, updatedAt: new Date() })
+      .where(eq(socialSettings.key, 'default'))
+    return { instagram: (await loadInstagramIntegration()).status }
   }
 
   await db.delete(emailProviderSettings).where(eq(emailProviderSettings.key, 'default'))

@@ -9,7 +9,7 @@ import {
   stripeWebhookEvents,
 } from '../../../../db/schema'
 import { db } from '../../../utils/db'
-import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
+import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration } from '../../../utils/integration-settings'
 import { loadRenderSettings } from '../../../utils/render-settings'
 import { requireStaff } from '../../../utils/require-staff'
 import { stripeStatus } from '../../../utils/stripe-settings'
@@ -54,9 +54,10 @@ export default defineEventHandler(async (event) => {
     latestBackup(),
   ])
 
-  const [calendar, email, stripe, render] = await Promise.all([
+  const [calendar, email, instagram, stripe, render] = await Promise.all([
     loadCalendarIntegration(),
     loadEmailIntegration(),
+    loadInstagramIntegration(),
     stripeStatus(),
     loadRenderSettings(),
   ])
@@ -81,6 +82,15 @@ export default defineEventHandler(async (event) => {
       calendarSource: calendar.status.source,
       emailConfigured: email.status.configured,
       emailSource: email.status.source,
+      instagram: {
+        configured: instagram.status.configured,
+        source: instagram.status.source,
+        username: instagram.status.account?.username ?? null,
+        level: instagram.status.health.level,
+        title: instagram.status.health.title,
+        detail: instagram.status.health.detail,
+        lastWorkerRunAt: instagram.status.lastWorkerRunAt,
+      },
     },
     renderWorker: {
       online: render.workerOnline,

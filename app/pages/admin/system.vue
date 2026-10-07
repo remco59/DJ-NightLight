@@ -29,6 +29,15 @@ type StatusData = {
     calendarSource: 'settings' | 'environment' | 'none'
     emailConfigured: boolean
     emailSource: 'settings' | 'environment' | 'none'
+    instagram: {
+      configured: boolean
+      source: 'settings' | 'environment' | 'none'
+      username: string | null
+      level: 'ok' | 'warning' | 'error' | 'inactive'
+      title: string
+      detail: string
+      lastWorkerRunAt: string | null
+    }
   }
   renderWorker: {
     online: boolean
@@ -118,6 +127,16 @@ function formatDate(value: string | null | undefined) {
           <small>{{ data?.integrations.emailSource === 'settings' ? 'Instellingen' : data?.integrations.emailSource === 'environment' ? 'Serveromgeving' : 'Geen providerinstellingen' }}</small>
         </div>
         <div>
+          <span>Instagram</span>
+          <strong :class="{ ok: data?.integrations.instagram.level === 'ok', warn: data?.integrations.instagram.level === 'warning', bad: data?.integrations.instagram.level === 'error' }">
+            {{ data?.integrations.instagram.title ?? '—' }}<template v-if="data?.integrations.instagram.username"> · @{{ data.integrations.instagram.username }}</template>
+          </strong>
+          <small>
+            {{ data?.integrations.instagram.detail }}
+            · <NuxtLink to="/admin/settings#integrations">Instagram beheren</NuxtLink>
+          </small>
+        </div>
+        <div>
           <span>Video-renderworker</span>
           <strong :class="{ ok: data?.renderWorker.online }">
             {{ data?.renderWorker.online ? `Online · ${data.renderWorker.activeEngine ? RENDER_ENGINE_LABELS[data.renderWorker.activeEngine] : 'engine niet beschikbaar'}` : 'Offline' }}
@@ -178,6 +197,8 @@ a { color: #c9b2df; }
 .rows > div:first-child { border-top: 0; }
 .rows small { grid-column: 2; }
 .ok { color: #90c9a7; }
+.warn { color: #f2c14e; }
+.bad { color: #ff9d9d; }
 .backup { display: grid; gap: .35rem; }
 @media (max-width: 800px) {
   .header, .summary, .panel-title { display: grid; }

@@ -37,6 +37,7 @@ export const calendarSyncStatus = pgEnum('calendar_sync_status', ['pending', 'sy
 export const calendarCancellationBehavior = pgEnum('calendar_cancellation_behavior', ['delete', 'mark_cancelled', 'keep'])
 export const emailJobStatus = pgEnum('email_job_status', ['pending', 'processing', 'sent', 'failed', 'cancelled', 'suppressed'])
 export const emailDeliveryStatus = pgEnum('email_delivery_status', ['sent', 'failed'])
+export const socialAccountStatus = pgEnum('social_account_status', ['active', 'needs_reauth', 'disabled'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -320,6 +321,34 @@ export const emailProviderSettings = pgTable('email_provider_settings', {
   ...timestamps,
 })
 
+export const socialSettings = pgTable('social_settings', {
+  key: varchar('key', { length: 40 }).primaryKey().default('default'),
+  appId: varchar('app_id', { length: 100 }),
+  appSecretEncrypted: text('app_secret_encrypted'),
+  lastWorkerRunAt: timestamp('last_worker_run_at', { withTimezone: true }),
+  lastPublishedAt: timestamp('last_published_at', { withTimezone: true }),
+  ...timestamps,
+})
+
+export const socialAccounts = pgTable('social_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  provider: varchar('provider', { length: 30 }).default('instagram').notNull(),
+  externalId: varchar('external_id', { length: 100 }).notNull(),
+  username: varchar('username', { length: 150 }).notNull(),
+  accountType: varchar('account_type', { length: 40 }),
+  accessTokenEncrypted: text('access_token_encrypted').notNull(),
+  tokenIssuedAt: timestamp('token_issued_at', { withTimezone: true }).notNull(),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }).notNull(),
+  scopes: jsonb('scopes').$type<string[]>().default([]).notNull(),
+  status: socialAccountStatus('status').default('active').notNull(),
+  lastRefreshAttemptAt: timestamp('last_refresh_attempt_at', { withTimezone: true }),
+  lastRefreshError: text('last_refresh_error'),
+  connectedByUserId: uuid('connected_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [
+  uniqueIndex('social_accounts_provider_external_idx').on(table.provider, table.externalId),
+])
+
 export const emailTemplates = pgTable('email_templates', {
   key: varchar('key', { length: 80 }).primaryKey(),
   name: varchar('name', { length: 160 }).notNull(),
@@ -590,6 +619,8 @@ export type GigEmailSuppression = typeof gigEmailSuppressions.$inferSelect
 export type MediaAsset = typeof mediaAssets.$inferSelect
 export type MediaCollection = typeof mediaCollections.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
+export type SocialAccount = typeof socialAccounts.$inferSelect
+export type SocialSettings = typeof socialSettings.$inferSelect
 export type VideoRenderJob = typeof videoRenderJobs.$inferSelect
 export type VideoProjectRow = typeof videoProjects.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect

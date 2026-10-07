@@ -46,6 +46,8 @@ tags:
     description: Back office (ingelogde medewerkers)
   - name: admin/session
     description: Back office (ingelogde medewerkers)
+  - name: admin/social
+    description: Back office (ingelogde medewerkers)
   - name: admin/stripe
     description: Back office (ingelogde medewerkers)
   - name: admin/system
@@ -2731,6 +2733,22 @@ paths:
                     - provider
                     - from
                     - reviewUrl
+                - type: object
+                  properties:
+                    provider:
+                      type: string
+                      const: instagram
+                    appId:
+                      type: string
+                      pattern: ^\d{5,30}$
+                    appSecret:
+                      type: string
+                      minLength: 16
+                      maxLength: 200
+                  required:
+                    - provider
+                    - appId
+                    - appSecret
       responses:
         "200":
           description: Gelukt
@@ -2764,6 +2782,7 @@ paths:
                   enum:
                     - calendar
                     - email
+                    - instagram
               required:
                 - provider
       responses:
@@ -5009,6 +5028,109 @@ paths:
       security:
         - staffSession: []
       x-roles: any signed-in staff member
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/account:
+    delete:
+      operationId: deleteAdminSocialInstagramAccount
+      tags:
+        - admin/social
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/callback:
+    get:
+      operationId: getAdminSocialInstagramCallback
+      tags:
+        - admin/social
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/connect:
+    get:
+      operationId: getAdminSocialInstagramConnect
+      tags:
+        - admin/social
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/refresh:
+    post:
+      operationId: postAdminSocialInstagramRefresh
+      tags:
+        - admin/social
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
       responses:
         "200":
           description: Gelukt

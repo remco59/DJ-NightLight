@@ -1,10 +1,35 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { instagramAccountTypeLabels, type InstagramHealthLevel } from '~~/shared/instagram'
 
 type Source = 'settings' | 'environment' | 'none'
 type CancellationBehavior = 'delete' | 'mark_cancelled' | 'keep'
 
+type InstagramStatus = {
+  source: Source
+  configured: boolean
+  appIdPreview: string | null
+  appSecretConfigured: boolean
+  redirectUri: string
+  account: {
+    id: string
+    username: string
+    accountType: string | null
+    externalIdPreview: string
+    status: 'active' | 'needs_reauth' | 'disabled'
+    tokenIssuedAt: string
+    tokenExpiresAt: string
+    canPublish: boolean
+    lastRefreshError: string | null
+  } | null
+  lastPublishedAt: string | null
+  lastWorkerRunAt: string | null
+  workerOnline: boolean
+  health: { level: InstagramHealthLevel, title: string, detail: string }
+}
+
 type IntegrationsData = {
+  instagram: InstagramStatus
   calendar: {
     source: Source
     configured: boolean
@@ -184,6 +209,143 @@ async function removeEmailSettings() {
     busy.value = ''
   }
 }
+const instagramMessages: Record<string, { text: string, type: 'success' | 'error' }> = {
+  connected: { text: 'Instagram-account gekoppeld.', type: 'success' },
+  denied: { text: 'Je hebt geen toegang gegeven. Er is niets gekoppeld.', type: 'error' },
+  state: { text: 'De koppelpoging is verlopen of ongeldig. Probeer het opnieuw.', type: 'error' },
+  missing: { text: 'Stel eerst het app-ID en het app secret van de Meta-app in.', type: 'error' },
+  error: { text: 'Koppelen is niet gelukt. Controleer het app-ID, het app secret en de redirect-URI in de Meta-app.', type: 'error' },
+}
+
+const instagramMessage = ref('')
+const instagramMessageType = ref<'success' | 'error' | ''>('')
+const metaForm = reactive({ appId: '', appSecret: '' })
+const metaEditing = ref(false)
+const metaMessage = ref('')
+const metaMessageType = ref<'success' | 'error' | ''>('')
+
+onMounted(() => {
+  const url = new URL(window.location.href)
+  const outcome = url.searchParams.get('instagram')
+  if (!outcome) return
+  const known = instagramMessages[outcome]
+  if (known) {
+    instagramMessage.value = known.text
+    instagramMessageType.value = known.type
+  }
+  url.searchParams.delete('instagram')
+  history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+})
+
+const instagram = computed(() => data.value?.instagram)
+
+function formatDay(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value))
+}
+
+function formatMoment(value: string | null | undefined) {
+  if (!value) return 'Nog niet'
+  return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+}
+
+function relativeTime(value: string | null | undefined) {
+  if (!value) return ''
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000))
+  if (seconds < 60) return `${seconds} sec geleden`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min geleden`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} uur geleden`
+  return `${Math.floor(seconds / 86400)} dagen geleden`
+}
+
+function instagramPill() {
+  const account = instagram.value?.account
+  if (!account) return { on: false, text: instagram.value?.configured ? 'Niet verbonden' : 'Niet ingesteld' }
+  if (account.status === 'active') return { on: true, text: 'Verbonden' }
+  return { on: false, text: 'Opnieuw verbinden' }
+}
+
+function startMetaApp() {
+  metaForm.appId = ''
+  metaForm.appSecret = ''
+  metaEditing.value = true
+  metaMessage.value = ''
+}
+
+async function saveMetaApp() {
+  metaMessage.value = ''
+  metaMessageType.value = ''
+  if (!metaForm.appId || !metaForm.appSecret) {
+    metaMessage.value = 'Vul het app-ID en het app secret samen in.'
+    metaMessageType.value = 'error'
+    return
+  }
+  busy.value = 'meta'
+  try {
+    await $fetch('/api/admin/integrations', { method: 'PUT', body: { provider: 'instagram', ...metaForm } })
+    metaEditing.value = false
+    metaForm.appSecret = ''
+    await refresh()
+    metaMessage.value = 'Meta-app opgeslagen.'
+    metaMessageType.value = 'success'
+  } catch (error: unknown) {
+    metaMessage.value = apiErrorMessage(error, 'Meta-app opslaan is niet gelukt.')
+    metaMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function removeMetaApp() {
+  if (!(await confirmAction({ title: 'Meta-app-gegevens verwijderen?', body: 'Het app-ID en het app secret worden verwijderd. Een gekoppeld Instagram-account blijft staan, maar kan niet meer worden vernieuwd of opnieuw verbonden. Waarden uit de serveromgeving worden gebruikt als die er zijn.', confirmLabel: 'Verwijderen', tone: 'danger' }))) return
+  busy.value = 'meta-remove'
+  metaMessage.value = ''
+  try {
+    await $fetch('/api/admin/integrations', { method: 'DELETE', body: { provider: 'instagram' } })
+    await refresh()
+    metaMessage.value = 'Opgeslagen Meta-app-gegevens verwijderd.'
+    metaMessageType.value = 'success'
+  } catch (error: unknown) {
+    metaMessage.value = apiErrorMessage(error, 'Meta-app-gegevens verwijderen is niet gelukt.')
+    metaMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function refreshInstagramToken() {
+  busy.value = 'instagram-refresh'
+  instagramMessage.value = ''
+  try {
+    await $fetch('/api/admin/social/instagram/refresh', { method: 'POST' })
+    await refresh()
+    instagramMessage.value = 'Token vernieuwd.'
+    instagramMessageType.value = 'success'
+  } catch (error: unknown) {
+    await refresh()
+    instagramMessage.value = apiErrorMessage(error, 'Token vernieuwen is niet gelukt.')
+    instagramMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function disconnectInstagram() {
+  if (!(await confirmAction({ title: 'Instagram ontkoppelen?', body: 'NightLight verliest de toegang tot het account en verwijdert het opgeslagen token. Je kunt het account later opnieuw verbinden.', confirmLabel: 'Ontkoppelen', tone: 'danger' }))) return
+  busy.value = 'instagram-remove'
+  instagramMessage.value = ''
+  try {
+    await $fetch('/api/admin/social/instagram/account', { method: 'DELETE' })
+    await refresh()
+    instagramMessage.value = 'Instagram-account ontkoppeld.'
+    instagramMessageType.value = 'success'
+  } catch (error: unknown) {
+    instagramMessage.value = apiErrorMessage(error, 'Ontkoppelen is niet gelukt.')
+    instagramMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
 </script>
 
 <template>
@@ -196,6 +358,109 @@ async function removeEmailSettings() {
         <p>Koppel externe diensten om je workflow te automatiseren en meer uit NightLight te halen.</p>
       </div>
     </div>
+
+    <article v-if="instagram" id="instagram" class="integration-card">
+      <div class="integration-head">
+        <div class="integration-title">
+          <span class="brand-icon instagram"><Icon name="lucide:instagram" aria-hidden="true"/></span>
+          <div>
+            <h3>Instagram</h3>
+            <p>Publiceer en plan posts rechtstreeks vanuit NightLight.</p>
+          </div>
+        </div>
+        <div class="status-stack">
+          <span class="pill" :class="{ on: instagramPill().on }"><span class="dot"/>{{ instagramPill().text }}</span>
+        </div>
+      </div>
+
+      <div v-if="instagram.account" class="account-row">
+        <span class="brand-icon instagram small"><Icon name="lucide:at-sign" aria-hidden="true"/></span>
+        <div>
+          <strong>@{{ instagram.account.username }}</strong>
+          <small>{{ instagramAccountTypeLabels[instagram.account.accountType || ''] || 'Professioneel account' }} · ID {{ instagram.account.externalIdPreview }}</small>
+        </div>
+      </div>
+
+      <div v-if="instagram.account" class="tiles">
+        <div><small>Token geldig tot</small><strong>{{ formatDay(instagram.account.tokenExpiresAt) }}</strong></div>
+        <div><small>Automatisch vernieuwen</small><strong>Ja · controle dagelijks</strong></div>
+        <div><small>Laatste publicatie</small><strong>{{ formatMoment(instagram.lastPublishedAt) }}</strong></div>
+        <div><small>Laatste worker run</small><strong>{{ instagram.lastWorkerRunAt ? `${formatMoment(instagram.lastWorkerRunAt)} · ${relativeTime(instagram.lastWorkerRunAt)}` : 'Nog niet' }}</strong></div>
+      </div>
+
+      <div class="health" :class="instagram.health.level" role="status">
+        <span class="dot"/>
+        <div>
+          <strong>{{ instagram.health.title }}</strong>
+          <p>{{ instagram.health.detail }}</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a v-if="instagram.configured" class="button-link" href="/api/admin/social/instagram/connect">
+          {{ instagram.account ? 'Opnieuw verbinden' : 'Instagram verbinden' }}
+        </a>
+        <button v-else type="button" disabled>Instagram verbinden</button>
+        <button v-if="instagram.account" class="ghost" type="button" :disabled="busy === 'instagram-refresh' || instagram.account.status !== 'active'" @click="refreshInstagramToken">
+          {{ busy === 'instagram-refresh' ? 'Vernieuwen…' : 'Token nu vernieuwen' }}
+        </button>
+        <button v-if="instagram.account" class="ghost danger" type="button" :disabled="busy === 'instagram-remove'" @click="disconnectInstagram">
+          Ontkoppelen
+        </button>
+      </div>
+      <p v-if="instagramMessage" class="message" :class="instagramMessageType">{{ instagramMessage }}</p>
+    </article>
+
+    <article v-if="instagram" id="meta-app" class="integration-card">
+      <div class="integration-head">
+        <div class="integration-title">
+          <span class="brand-icon meta"><Icon name="lucide:key-round" aria-hidden="true"/></span>
+          <div>
+            <h3>Meta-app</h3>
+            <p>App-gegevens worden versleuteld opgeslagen en zijn alleen voor de owner beheerbaar.</p>
+          </div>
+        </div>
+        <div class="status-stack">
+          <span class="pill" :class="{ on: instagram.configured }"><span class="dot"/>{{ instagram.configured ? 'Ingesteld' : 'Niet ingesteld' }}</span>
+          <small>{{ sourceLabel(instagram.source) }}</small>
+        </div>
+      </div>
+
+      <div class="credential-panel">
+        <div class="credential-head">
+          <div>
+            <strong>App-gegevens</strong>
+            <p v-if="instagram.configured">App-ID {{ instagram.appIdPreview }} · app secret veilig opgeslagen</p>
+            <p v-else>Voeg het Instagram app-ID en app secret van je Meta-app toe.</p>
+          </div>
+          <button v-if="!metaEditing" class="ghost" type="button" @click="startMetaApp">
+            {{ instagram.configured ? 'Wijzigen' : 'Toevoegen' }}
+          </button>
+        </div>
+        <div v-if="metaEditing" class="credentials-grid">
+          <label>App-ID<input v-model="metaForm.appId" inputmode="numeric" autocomplete="off" spellcheck="false"></label>
+          <label>App secret<input v-model="metaForm.appSecret" type="password" autocomplete="off" spellcheck="false"></label>
+          <p class="wide hint">Bestaande geheimen worden nooit opnieuw getoond. Bij een andere app moet het Instagram-account opnieuw worden verbonden.</p>
+        </div>
+      </div>
+
+      <div class="dev-note">
+        <strong>Development mode</strong>
+        <p>Werkt zolang je alleen publiceert naar het eigen NightLight-account dat als app-rol is toegevoegd.</p>
+      </div>
+      <p class="hint redirect">Redirect-URI: <code>{{ instagram.redirectUri }}</code></p>
+
+      <div v-if="metaEditing || instagram.source === 'settings'" class="actions">
+        <button v-if="metaEditing" type="button" :disabled="busy === 'meta'" @click="saveMetaApp">
+          {{ busy === 'meta' ? 'Opslaan…' : 'Opslaan' }}
+        </button>
+        <button v-if="metaEditing" class="ghost" type="button" @click="metaEditing = false">Annuleren</button>
+        <button v-if="instagram.source === 'settings'" class="ghost danger" type="button" :disabled="busy === 'meta-remove'" @click="removeMetaApp">
+          Gegevens verwijderen
+        </button>
+      </div>
+      <p v-if="metaMessage" class="message" :class="metaMessageType">{{ metaMessage }}</p>
+    </article>
 
     <article v-if="data" class="integration-card">
       <div class="integration-head">
@@ -335,6 +600,30 @@ async function removeEmailSettings() {
 .brand-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#16131a;font-weight:900;font-size:1rem}
 .brand-icon.google{color:#fff;background:linear-gradient(135deg,#2d6cdf,#34a853 45%,#fbbc05 70%,#ea4335)}
 .brand-icon.resend{color:#fff;background:#171717}
+.brand-icon.instagram{color:#fff;background:linear-gradient(135deg,#833ab4,#c13584 50%,#fd1d1d 80%,#fcb045)}
+.brand-icon.meta{color:#fff;background:#0b57d0}
+.brand-icon.small{flex-basis:2.1rem;height:2.1rem;font-size:.9rem}
+.account-row{display:flex;gap:.75rem;align-items:center;margin-top:1rem;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+.account-row strong,.account-row small{display:block}
+.account-row small{margin-top:.15rem;color:var(--text-subtle);font-size:.72rem}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:.8rem}
+.tiles>div{padding:.75rem .9rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-input)}
+.tiles small{display:block;color:var(--text-subtle);font-size:.62rem;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+.tiles strong{display:block;margin-top:.3rem;font-size:.82rem}
+.health{display:flex;gap:.7rem;align-items:flex-start;margin-top:.9rem;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+.health p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem;line-height:1.4}
+.health .dot{flex:none;width:.5rem;height:.5rem;margin-top:.35rem;border-radius:50%;background:#7d7682}
+.health.ok{border-color:#1e5a3b;background:#0f2118}
+.health.ok .dot{background:#48df89}
+.health.warning{border-color:#6b5320;background:#211b0d}
+.health.warning .dot{background:#f2c14e}
+.health.error{border-color:#6b2a33;background:#21100f}
+.health.error .dot{background:#ff7d7d}
+.dev-note{margin-top:.9rem;padding:.75rem 1rem;border-left:3px solid #7a3eed;background:#15101e}
+.dev-note p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem}
+.redirect{margin:.7rem 0 0;word-break:break-all}
+.redirect code{color:var(--text-muted)}
+.button-link{display:inline-flex;align-items:center;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;text-decoration:none}
 .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
 .integration-head p{margin:0;color:var(--text-subtle);font-size:.8rem}
 .status-stack{display:grid;justify-items:end;gap:.25rem;flex:none}
@@ -369,9 +658,9 @@ button.danger{border-color:#552b34;color:#ff9d9d}
 @media(max-width:700px){
   .integration-head,.credential-head,.actions{align-items:stretch;flex-direction:column}
   .status-stack{justify-items:start}
-  .form-grid,.email-grid,.credentials-grid{grid-template-columns:1fr}
+  .form-grid,.email-grid,.credentials-grid,.tiles{grid-template-columns:1fr}
   .wide{grid-column:auto}
-  .actions button{width:100%}
+  .actions button,.actions .button-link{width:100%;justify-content:center}
   .text-link{margin-left:0}
 }
 </style>

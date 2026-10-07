@@ -42,6 +42,7 @@ The production application is intended to run on the existing Unraid server. A s
 The full product, architecture and implementation plan is in:
 
 - [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)
+- [docs/SOCIAL_PUBLISHING.md](docs/SOCIAL_PUBLISHING.md) — Instagram connection (phase 1 of [#326](https://github.com/remco59/DJ-NightLight/issues/326))
 
 ## Implementation roadmap
 
