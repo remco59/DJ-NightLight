@@ -42,6 +42,10 @@ export default defineNuxtConfig({
       clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET || '',
       refreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN || '',
     },
+    instagram: {
+      appId: process.env.INSTAGRAM_APP_ID || '',
+      appSecret: process.env.INSTAGRAM_APP_SECRET || '',
+    },
     email: {
       apiKey: process.env.RESEND_API_KEY || '',
       from: process.env.EMAIL_FROM || '',

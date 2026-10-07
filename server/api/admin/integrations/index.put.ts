@@ -1,9 +1,10 @@
 import { z } from 'zod'
-import { calendarSyncSettings, emailProviderSettings } from '../../../../db/schema'
+import { eq } from 'drizzle-orm'
+import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../../../db/schema'
 import { encryptSecret } from '../../../../shared/secret-box'
 import { db } from '../../../utils/db'
 import { clearGoogleCalendarTokenCache } from '../../../utils/google-calendar'
-import { loadCalendarIntegration, loadEmailIntegration } from '../../../utils/integration-settings'
+import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
 
 const schema = z.discriminatedUnion('provider', [
@@ -23,6 +24,11 @@ const schema = z.discriminatedUnion('provider', [
     apiKey: z.string().trim().min(8).max(8000).optional(),
     from: z.string().trim().max(500),
     reviewUrl: z.string().trim().max(2000),
+  }),
+  z.object({
+    provider: z.literal('instagram'),
+    appId: z.string().trim().regex(/^\d{5,30}$/, 'Een Meta app-ID bestaat uit cijfers'),
+    appSecret: z.string().trim().min(16, 'Het app secret is te kort').max(200),
   }),
 ])
 
@@ -56,6 +62,26 @@ export default defineEventHandler(async (event) => {
 
     clearGoogleCalendarTokenCache()
     return { calendar: (await loadCalendarIntegration()).status }
+  }
+
+  if (input.provider === 'instagram') {
+    const previous = await loadInstagramIntegration()
+    const values = {
+      appId: input.appId,
+      appSecretEncrypted: encryptSecret(input.appSecret, encryptionPassword),
+      updatedAt: new Date(),
+    }
+    await db.insert(socialSettings)
+      .values({ key: 'default', ...values })
+      .onConflictDoUpdate({ target: socialSettings.key, set: values })
+
+    // Tokens belong to the app that issued them: a different app means the account must be linked again.
+    if (previous.credentials.appId && previous.credentials.appId !== input.appId) {
+      await db.update(socialAccounts)
+        .set({ status: 'needs_reauth', updatedAt: new Date() })
+        .where(eq(socialAccounts.provider, 'instagram'))
+    }
+    return { instagram: (await loadInstagramIntegration()).status }
   }
 
   const values: Partial<typeof emailProviderSettings.$inferInsert> = {

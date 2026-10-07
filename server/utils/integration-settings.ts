@@ -1,5 +1,13 @@
-import { eq } from 'drizzle-orm'
-import { calendarSyncSettings, emailProviderSettings } from '../../db/schema'
+import { desc, eq } from 'drizzle-orm'
+import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../db/schema'
+import {
+  instagramHealth,
+  instagramRedirectUri,
+  INSTAGRAM_PUBLISH_SCOPE,
+  maskAppId,
+  maskExternalId,
+  WORKER_ONLINE_WINDOW_MS,
+} from '../../shared/instagram'
 import { decryptSecret, maskSecret } from '../../shared/secret-box'
 import { db } from './db'
 
@@ -13,6 +21,11 @@ function runtimeCalendar() {
 function runtimeEmail() {
   const config = useRuntimeConfig()
   return config.email as { apiKey?: string, from?: string, reviewUrl?: string }
+}
+
+function runtimeInstagram() {
+  const config = useRuntimeConfig()
+  return config.instagram as { appId?: string, appSecret?: string }
 }
 
 function password() {
@@ -85,6 +98,62 @@ export async function loadEmailIntegration() {
       apiKeyPreview: apiKey ? maskSecret(apiKey) : null,
       from,
       reviewUrl,
+    },
+  }
+}
+
+export async function loadInstagramIntegration() {
+  const [row] = await db.select().from(socialSettings)
+    .where(eq(socialSettings.key, 'default')).limit(1)
+  const [account] = await db.select().from(socialAccounts)
+    .where(eq(socialAccounts.provider, 'instagram'))
+    .orderBy(desc(socialAccounts.updatedAt)).limit(1)
+  const env = runtimeInstagram()
+  const savedConfigured = Boolean(row?.appId && row?.appSecretEncrypted)
+  const envConfigured = Boolean(env.appId && env.appSecret)
+
+  const credentials = savedConfigured
+    ? { appId: row!.appId!, appSecret: decryptSecret(row!.appSecretEncrypted!, password()) }
+    : { appId: String(env.appId || ''), appSecret: String(env.appSecret || '') }
+
+  const source: IntegrationSource = savedConfigured ? 'settings' : envConfigured ? 'environment' : 'none'
+  const configured = Boolean(credentials.appId && credentials.appSecret)
+  const lastRun = row?.lastWorkerRunAt ?? null
+  const health = instagramHealth({
+    appConfigured: configured,
+    account: account
+      ? { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastRefreshError: account.lastRefreshError }
+      : null,
+    workerLastRunAt: lastRun,
+  })
+
+  return {
+    row,
+    account: account ?? null,
+    credentials,
+    status: {
+      source,
+      configured,
+      appIdPreview: credentials.appId ? maskAppId(credentials.appId) : null,
+      appSecretConfigured: Boolean(credentials.appSecret),
+      redirectUri: instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || '')),
+      account: account
+        ? {
+            id: account.id,
+            username: account.username,
+            accountType: account.accountType,
+            externalIdPreview: maskExternalId(account.externalId),
+            status: account.status,
+            tokenIssuedAt: account.tokenIssuedAt.toISOString(),
+            tokenExpiresAt: account.tokenExpiresAt.toISOString(),
+            canPublish: account.scopes.includes(INSTAGRAM_PUBLISH_SCOPE),
+            lastRefreshError: account.lastRefreshError,
+          }
+        : null,
+      lastPublishedAt: row?.lastPublishedAt?.toISOString() ?? null,
+      lastWorkerRunAt: lastRun?.toISOString() ?? null,
+      workerOnline: Boolean(lastRun && Date.now() - lastRun.getTime() <= WORKER_ONLINE_WINDOW_MS),
+      health,
     },
   }
 }
