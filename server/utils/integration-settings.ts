@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, ne } from 'drizzle-orm'
 import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../db/schema'
 import {
   instagramHealth,
@@ -105,8 +105,9 @@ export async function loadEmailIntegration() {
 export async function loadInstagramIntegration() {
   const [row] = await db.select().from(socialSettings)
     .where(eq(socialSettings.key, 'default')).limit(1)
+  // A disconnected account that still has posts is kept as `disabled` (its token is wiped); it counts as not connected.
   const [account] = await db.select().from(socialAccounts)
-    .where(eq(socialAccounts.provider, 'instagram'))
+    .where(and(eq(socialAccounts.provider, 'instagram'), ne(socialAccounts.status, 'disabled')))
     .orderBy(desc(socialAccounts.updatedAt)).limit(1)
   const env = runtimeInstagram()
   const savedConfigured = Boolean(row?.appId && row?.appSecretEncrypted)
