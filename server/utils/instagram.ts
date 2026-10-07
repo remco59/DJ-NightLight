@@ -195,6 +195,64 @@ export async function createImageContainer(
   return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
 }
 
+export type StoryOrReelType = 'REELS' | 'STORIES'
+
+/** Reel or story from a public MP4 URL. Stories ignore captions; reels are also shown in the feed. */
+export async function createVideoContainer(
+  input: { instagramId: string, accessToken: string, videoUrl: string, mediaType: StoryOrReelType, caption?: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  const params: Record<string, string> = {
+    media_type: input.mediaType,
+    video_url: input.videoUrl,
+    access_token: input.accessToken,
+  }
+  if (input.mediaType === 'REELS') {
+    params.share_to_feed = 'true'
+    if (input.caption) params.caption = input.caption
+  }
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+}
+
+/** Story from a public JPEG URL. */
+export async function createStoryImageContainer(
+  input: { instagramId: string, accessToken: string, imageUrl: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  return requireId(await post(`/${input.instagramId}/media`, {
+    media_type: 'STORIES',
+    image_url: input.imageUrl,
+    access_token: input.accessToken,
+  }, fetchImpl), 'container')
+}
+
+/** One slide of a carousel. It is never published by itself; the carousel container references it. */
+export async function createCarouselItemContainer(
+  input: { instagramId: string, accessToken: string, imageUrl: string, altText?: string | null },
+  fetchImpl: FetchLike = fetch,
+) {
+  const params: Record<string, string> = {
+    is_carousel_item: 'true',
+    image_url: input.imageUrl,
+    access_token: input.accessToken,
+  }
+  if (input.altText?.trim()) params.alt_text = input.altText.trim()
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+}
+
+export async function createCarouselContainer(
+  input: { instagramId: string, accessToken: string, children: readonly string[], caption: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  const params: Record<string, string> = {
+    media_type: 'CAROUSEL',
+    children: input.children.join(','),
+    access_token: input.accessToken,
+  }
+  if (input.caption) params.caption = input.caption
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+}
+
 export type ContainerStatus = 'EXPIRED' | 'ERROR' | 'FINISHED' | 'IN_PROGRESS' | 'PUBLISHED'
 
 const CONTAINER_STATUSES: readonly string[] = ['EXPIRED', 'ERROR', 'FINISHED', 'IN_PROGRESS', 'PUBLISHED']

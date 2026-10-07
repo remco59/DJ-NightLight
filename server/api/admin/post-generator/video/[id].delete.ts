@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { videoRenderJobs } from '../../../../../db/schema'
+import { socialPostMedia, videoRenderJobs } from '../../../../../db/schema'
 import { db } from '../../../../utils/db'
 import { getGeneratedStorage } from '../../../../utils/media-storage'
 import { requireStaff } from '../../../../utils/require-staff'
@@ -14,6 +14,11 @@ export default defineEventHandler(async (event) => {
   if (job.status === 'rendering') {
     throw createError({ statusCode: 409, statusMessage: 'Een render die nog bezig is, kan pas worden verwijderd als hij klaar is' })
   }
+
+  // Social posts keep pointing at their render (restrict), so removing it would break a queued or published post.
+  const [used] = await db.select({ postId: socialPostMedia.postId }).from(socialPostMedia)
+    .where(eq(socialPostMedia.videoRenderJobId, id)).limit(1)
+  if (used) throw createError({ statusCode: 409, statusMessage: 'Deze video is gebruikt voor een social post en kan niet worden verwijderd' })
 
   await db.delete(videoRenderJobs).where(eq(videoRenderJobs.id, id))
   const storage = getGeneratedStorage()

@@ -1,5 +1,5 @@
 import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
-import { generatedPosts, socialAccounts, socialPostMedia, socialPosts, socialSettings, type SocialAccount, type SocialPost } from '../../db/schema'
+import { generatedPosts, socialAccounts, socialPostMedia, socialPosts, socialSettings, videoProjects, videoRenderJobs, type SocialAccount, type SocialPost } from '../../db/schema'
 import { hasFacebookPublishScope, hasPublishScope } from '../../shared/instagram'
 import {
   canPublishPresetAsFeedImage,
@@ -10,12 +10,17 @@ import {
   INSTAGRAM_IMAGE_MAX_BYTES,
   SOCIAL_MAX_ATTEMPTS,
   socialRetryDelayMs,
+  type SocialPostKindKey,
 } from '../../shared/social'
 import { decryptSecret } from '../../shared/secret-box'
 import { recordAudit } from './audit'
 import { db } from './db'
 import {
+  createCarouselContainer,
+  createCarouselItemContainer,
   createImageContainer,
+  createStoryImageContainer,
+  createVideoContainer,
   getContainerStatus,
   getPermalink,
   getPostPermalink,
@@ -25,12 +30,19 @@ import {
 } from './instagram'
 import { getGeneratedStorage } from './media-storage'
 import {
+  CONTAINER_LEAD_MS,
+  ContainerNotReadyError,
   convertToInstagramJpeg,
+  createCarouselContainerFlow,
   instagramJpegKey,
   isPubliclyReachable,
   isRetryablePublishError,
+  mediaProblem,
   publicMediaUrl,
-  runImagePublish,
+  publicVideoUrl,
+  runContainerPublish,
+  VIDEO_POLL_ATTEMPTS,
+  VIDEO_POLL_INTERVAL_MS,
 } from './social-publish-core'
 import { structuredLog } from './structured-log'
 
@@ -51,6 +63,8 @@ export async function ensureInstagramJpeg(post: { id: string, outputKey: string 
 export const STALE_PUBLISHING_MS = 10 * 60_000
 /** Wait this long when Instagram's 24 hour limit is reached, without counting it as a failed attempt. */
 const DAILY_LIMIT_DEFER_MS = 30 * 60_000
+/** Wait before checking again when Meta is still processing the media. Counts as an attempt, so it cannot loop forever. */
+const CONTAINER_NOT_READY_RETRY_MS = 60_000
 
 export class SocialPublishError extends Error {
   constructor(message: string, readonly statusCode = 422) {
@@ -90,21 +104,30 @@ async function recentPostCount(accountId: string, now: Date) {
 
 export type PostMode = 'now' | 'schedule' | 'draft'
 
-export type PublishImageInput = {
-  generatedPostId: string
+export type PublishInput = {
+  /** What to publish. Defaults to a single image. */
+  kind?: SocialPostKindKey
+  /** Exports to publish: one for an image or story, 2 to 10 for a carousel. Empty for a video. */
+  generatedPostIds?: readonly string[]
+  /** Completed render for a reel or a video story. */
+  videoRenderJobId?: string | null
   caption: string
   altText: string | null
   userId: string
   siteUrl: string
-  /** Where to publish. Defaults to Instagram only. */
+  /** Where to publish. Defaults to Instagram only. Facebook only takes single images. */
   platforms?: readonly SocialPlatform[]
   /** `now` publishes right away (default), `schedule` queues it for `scheduledAt`, `draft` only saves it. */
   mode?: PostMode
   scheduledAt?: string | null
 }
 
-type PreparedImage = {
-  generated: typeof generatedPosts.$inferSelect
+type GeneratedRow = typeof generatedPosts.$inferSelect
+type VideoRow = typeof videoRenderJobs.$inferSelect
+
+type PostMedia = { kind: SocialPostKindKey, images: GeneratedRow[], video: VideoRow | null }
+
+type PreparedPost = PostMedia & {
   caption: string
   altText: string | null
   title: string
@@ -119,17 +142,29 @@ function postTitle(generated: { design: unknown }) {
   return String((generated.design as { headline?: unknown }).headline ?? '').trim().slice(0, 200) || 'Social post'
 }
 
-/** Creates the row (with its media link) so a crash or Meta error always leaves a record. */
+async function preparedTitle(media: PostMedia) {
+  if (media.video) {
+    if (media.video.projectId) {
+      const [project] = await db.select({ name: videoProjects.name }).from(videoProjects).where(eq(videoProjects.id, media.video.projectId)).limit(1)
+      if (project?.name) return project.name.slice(0, 200)
+    }
+    return media.kind === 'story' ? 'Video-story' : 'Reel'
+  }
+  const first = postTitle(media.images[0]!)
+  return media.kind === 'carousel' ? `${first} (carrousel)`.slice(0, 200) : first
+}
+
+/** Creates the row (with its media links) so a crash or Meta error always leaves a record. */
 async function insertPost(
   account: SocialAccount,
-  prepared: PreparedImage,
+  prepared: PreparedPost,
   state: { status: 'publishing' | 'scheduled' | 'draft', scheduledAt: Date | null },
 ) {
   const row = await db.transaction(async (tx) => {
     const [created] = await tx.insert(socialPosts).values({
       accountId: account.id,
       title: prepared.title,
-      kind: 'image',
+      kind: prepared.kind,
       caption: prepared.caption,
       altText: prepared.altText,
       status: state.status,
@@ -137,7 +172,10 @@ async function insertPost(
       lastAttemptAt: state.status === 'publishing' ? prepared.now : null,
       createdByUserId: prepared.userId,
     }).returning()
-    await tx.insert(socialPostMedia).values({ postId: created!.id, position: 0, generatedPostId: prepared.generated.id })
+    const links = prepared.video
+      ? [{ postId: created!.id, position: 0, videoRenderJobId: prepared.video.id }]
+      : prepared.images.map((image, position) => ({ postId: created!.id, position, generatedPostId: image.id }))
+    await tx.insert(socialPostMedia).values(links)
     return created!
   })
   await recordAudit({
@@ -145,7 +183,14 @@ async function insertPost(
     entityType: 'social_post',
     entityId: row.id,
     action: state.status === 'publishing' ? 'social_post.publish_started' : state.status === 'scheduled' ? 'social_post.scheduled' : 'social_post.draft_saved',
-    metadata: { kind: 'image', platform: account.provider, generatedPostId: prepared.generated.id, username: account.username, scheduledAt: state.scheduledAt?.toISOString() ?? null },
+    metadata: {
+      kind: prepared.kind,
+      platform: account.provider,
+      generatedPostIds: prepared.images.map(image => image.id),
+      videoRenderJobId: prepared.video?.id ?? null,
+      username: account.username,
+      scheduledAt: state.scheduledAt?.toISOString() ?? null,
+    },
   })
   return row
 }
@@ -184,7 +229,9 @@ async function failPost(row: SocialPost, account: SocialAccount, userId: string 
   const failedAt = new Date()
   const failures = row.retryCount + 1
   const retry = allowRetry && !permanentAuth && failures < SOCIAL_MAX_ATTEMPTS && isRetryablePublishError(error)
-  const nextRetryAt = retry ? new Date(failedAt.getTime() + socialRetryDelayMs(failures)) : null
+  // Media that Meta is still processing is checked again soon; other temporary trouble backs off.
+  const delayMs = error instanceof ContainerNotReadyError ? CONTAINER_NOT_READY_RETRY_MS : socialRetryDelayMs(failures)
+  const nextRetryAt = retry ? new Date(failedAt.getTime() + delayMs) : null
 
   const [failed] = await db.update(socialPosts).set(retry
     ? { status: 'scheduled', retryCount: failures, nextRetryAt, lastError: message, updatedAt: failedAt }
@@ -205,20 +252,63 @@ async function failPost(row: SocialPost, account: SocialAccount, userId: string 
   return { post: { ...failed!, provider: account.provider }, error: new SocialPublishError(message, permanentAuth ? 409 : 502) }
 }
 
-async function publishToInstagram(row: SocialPost, account: SocialAccount, generatedId: string, ctx: ExecuteContext) {
-  const accessToken = decryptSecret(account.accessTokenEncrypted, password())
-  const imageUrl = publicMediaUrl(ctx.siteUrl, generatedId)
-  const outcome = await runImagePublish({
-    createContainer: () => createImageContainer({ instagramId: account.externalId, accessToken, imageUrl, caption: row.caption, altText: row.altText }),
-    getStatus: containerId => getContainerStatus({ containerId, accessToken }),
-    publish: containerId => publishContainer({ instagramId: account.externalId, accessToken, containerId }),
-    getPermalink: mediaId => getPermalink({ mediaId, accessToken }),
-    onContainer: async (containerId) => {
+async function loadMedia(postId: string): Promise<{ images: GeneratedRow[], video: VideoRow | null }> {
+  const rows = await db.select({ generated: generatedPosts, video: videoRenderJobs }).from(socialPostMedia)
+    .leftJoin(generatedPosts, eq(generatedPosts.id, socialPostMedia.generatedPostId))
+    .leftJoin(videoRenderJobs, eq(videoRenderJobs.id, socialPostMedia.videoRenderJobId))
+    .where(eq(socialPostMedia.postId, postId))
+    .orderBy(asc(socialPostMedia.position))
+  return {
+    images: rows.flatMap(row => (row.generated ? [row.generated] : [])),
+    video: rows.find(row => row.video)?.video ?? null,
+  }
+}
+
+function instagramPublishSteps(row: SocialPost, account: SocialAccount, accessToken: string) {
+  return {
+    getStatus: (containerId: string) => getContainerStatus({ containerId, accessToken }),
+    publish: (containerId: string) => publishContainer({ instagramId: account.externalId, accessToken, containerId }),
+    getPermalink: (mediaId: string) => getPermalink({ mediaId, accessToken }),
+    onContainer: async (containerId: string) => {
       await db.update(socialPosts).set({ containerId, updatedAt: new Date() }).where(eq(socialPosts.id, row.id))
     },
-    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
-  }, row.containerId)
-  return outcome
+    sleep: (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)),
+  }
+}
+
+/** Creates the Instagram container for any kind of post. Nothing is public until `media_publish`. */
+function instagramContainerFactory(row: SocialPost, account: SocialAccount, accessToken: string, media: { images: GeneratedRow[], video: VideoRow | null }, siteUrl: string) {
+  const instagramId = account.externalId
+  const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+  if (media.video) {
+    return () => createVideoContainer({
+      instagramId,
+      accessToken,
+      videoUrl: publicVideoUrl(siteUrl, media.video!.id),
+      mediaType: row.kind === 'reel' ? 'REELS' : 'STORIES',
+      caption: row.caption,
+    })
+  }
+  if (row.kind === 'carousel') {
+    return () => createCarouselContainerFlow({
+      createItem: position => createCarouselItemContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[position]!.id) }),
+      getStatus: containerId => getContainerStatus({ containerId, accessToken }),
+      createCarousel: children => createCarouselContainer({ instagramId, accessToken, children, caption: row.caption }),
+      sleep,
+    }, media.images.length)
+  }
+  if (row.kind === 'story') {
+    return () => createStoryImageContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id) })
+  }
+  return () => createImageContainer({ instagramId, accessToken, imageUrl: publicMediaUrl(siteUrl, media.images[0]!.id), caption: row.caption, altText: row.altText })
+}
+
+async function publishToInstagram(row: SocialPost, account: SocialAccount, media: { images: GeneratedRow[], video: VideoRow | null }, ctx: ExecuteContext) {
+  const accessToken = decryptSecret(account.accessTokenEncrypted, password())
+  return runContainerPublish({
+    createContainer: instagramContainerFactory(row, account, accessToken, media, ctx.siteUrl),
+    ...instagramPublishSteps(row, account, accessToken),
+  }, row.containerId, media.video ? { attempts: VIDEO_POLL_ATTEMPTS, intervalMs: VIDEO_POLL_INTERVAL_MS } : {})
 }
 
 async function publishToFacebookPage(row: SocialPost, account: SocialAccount, generatedId: string, ctx: ExecuteContext) {
@@ -241,6 +331,15 @@ type ExecuteContext = {
   recovering?: boolean
 }
 
+/** Instagram needs a JPEG of every image; converting here reports a broken or oversized export as a normal failure. */
+async function ensureJpegsWithinLimit(images: readonly GeneratedRow[]) {
+  for (const image of images) {
+    const jpeg = await ensureInstagramJpeg(image)
+    if (jpeg.length > INSTAGRAM_IMAGE_MAX_BYTES) return 'De afbeelding is groter dan 8 MB, het maximum van Instagram'
+  }
+  return null
+}
+
 /**
  * Publishes a row that is already in `publishing`. Never throws: the outcome is written to the row.
  * Re-running a row is safe: an existing Instagram container is checked (`PUBLISHED` is never published again).
@@ -258,21 +357,22 @@ async function executePost(row: SocialPost, ctx: ExecuteContext): Promise<Outcom
     if (isInstagram ? !hasPublishScope(account.scopes) : !hasFacebookPublishScope(account.scopes)) {
       return await fail('Het account mist de publicatierechten. Verbind het account opnieuw en kies Opnieuw.')
     }
-    if (!isPubliclyReachable(ctx.siteUrl)) return await fail('NUXT_PUBLIC_SITE_URL wijst naar een lokaal adres. Meta moet de afbeelding via internet kunnen ophalen.')
-    if (row.kind !== 'image') return await fail('Dit soort post kan nog niet worden gepubliceerd')
+    if (!isPubliclyReachable(ctx.siteUrl)) return await fail('NUXT_PUBLIC_SITE_URL wijst naar een lokaal adres. Meta moet de media via internet kunnen ophalen.')
+    if (!isInstagram && row.kind !== 'image') return await fail('Op de Facebook-pagina kunnen in NightLight alleen afbeeldingen worden geplaatst.')
 
-    const [media] = await db.select({ generated: generatedPosts }).from(socialPostMedia)
-      .innerJoin(generatedPosts, eq(generatedPosts.id, socialPostMedia.generatedPostId))
-      .where(and(eq(socialPostMedia.postId, row.id), eq(socialPostMedia.position, 0)))
-      .limit(1)
-    if (!media) return await fail('De afbeelding van deze post bestaat niet meer')
-    const generated = media.generated
+    const media = await loadMedia(row.id)
+    const kind = row.kind as SocialPostKindKey
+    if (!media.images.length && !media.video) return await fail('De media van deze post bestaan niet meer')
+    const problem = mediaProblem({ kind, ...media })
+    if (problem) return await fail(problem)
 
     if (isInstagram) {
-      if (!canPublishPresetAsFeedImage(generated.preset)) return await fail('Deze afmeting past niet in de Instagram-feed. Kies 1:1 of 4:5.')
-      if (!row.containerId) {
-        const jpeg = await ensureInstagramJpeg(generated)
-        if (jpeg.length > INSTAGRAM_IMAGE_MAX_BYTES) return await fail('De afbeelding is groter dan 8 MB, het maximum van Instagram')
+      if (kind === 'image' && !canPublishPresetAsFeedImage(media.images[0]!.preset)) {
+        return await fail('Deze afmeting past niet in de Instagram-feed. Kies 1:1 of 4:5.')
+      }
+      if (!row.containerId && media.images.length) {
+        const tooBig = await ensureJpegsWithinLimit(media.images)
+        if (tooBig) return await fail(tooBig)
       }
       // The worker never exceeds the daily limit; the post waits instead of failing. This row counts itself.
       if (ctx.allowRetry && await recentPostCount(account.id, new Date()) > INSTAGRAM_DAILY_POST_LIMIT) {
@@ -285,8 +385,8 @@ async function executePost(row: SocialPost, ctx: ExecuteContext): Promise<Outcom
     }
 
     const result = isInstagram
-      ? await publishToInstagram(row, account, generated.id, ctx)
-      : await publishToFacebookPage(row, account, generated.id, ctx)
+      ? await publishToInstagram(row, account, media, ctx)
+      : await publishToFacebookPage(row, account, media.images[0]!.id, ctx)
     return { post: await finishPost(row, account, ctx.userId, result), error: null }
   } catch (error) {
     return failPost(row, account, ctx.userId, error, ctx.allowRetry)
@@ -309,32 +409,65 @@ function siteUrl() {
   return String(useRuntimeConfig().public.siteUrl || '')
 }
 
+/** Loads and validates the media of a new post. Throws a `SocialPublishError` that is shown to the person. */
+async function loadRequestedMedia(input: PublishInput, kind: SocialPostKindKey): Promise<PostMedia> {
+  const ids = [...new Set(input.generatedPostIds ?? [])]
+  if ((input.generatedPostIds?.length ?? 0) !== ids.length) throw new SocialPublishError('Dezelfde afbeelding kan maar één keer in een post')
+  const videoId = input.videoRenderJobId || null
+  if (ids.length && videoId) throw new SocialPublishError('Kies afbeeldingen of een video, niet allebei')
+
+  let images: GeneratedRow[] = []
+  if (ids.length) {
+    const found = await db.select().from(generatedPosts).where(inArray(generatedPosts.id, ids))
+    if (found.length !== ids.length) throw new SocialPublishError('Gegenereerde post niet gevonden', 404)
+    // Keep the order the person chose: it is the order of the slides.
+    images = ids.map(id => found.find(row => row.id === id)!)
+  }
+
+  let video: VideoRow | null = null
+  if (videoId) {
+    const [job] = await db.select().from(videoRenderJobs).where(eq(videoRenderJobs.id, videoId)).limit(1)
+    if (!job) throw new SocialPublishError('Video niet gevonden', 404)
+    video = job
+  }
+
+  const media: PostMedia = { kind, images, video }
+  const problem = mediaProblem(media)
+  if (problem) throw new SocialPublishError(problem)
+  return media
+}
+
 /**
- * Handles an export for Instagram and/or the Facebook Page.
+ * Handles an image, carousel, story or reel for Instagram and (for single images) the Facebook Page.
  * - `now` (default): publishes right away. Platforms are independent: one can fail while the other is live.
- *   Throws only when nothing was published.
+ *   Throws only when nothing was published. Video is never waited on in the request: Meta needs a
+ *   while to process it, so it goes to the worker (`scheduled` for this moment) and the status follows in Social.
  * - `schedule`: queues one post per platform for `scheduledAt`; the worker publishes them.
  * - `draft`: saves a "Concept" that can be planned or published later.
  */
-export async function publishGeneratedImageNow(input: PublishImageInput): Promise<PostWithProvider[]> {
+export async function publishSocialPost(input: PublishInput): Promise<PostWithProvider[]> {
+  const kind = input.kind ?? 'image'
   const mode = input.mode ?? 'now'
-  const caption = input.caption.trim()
+  // Stories carry no caption on Instagram, and alt text is only supported on a single image.
+  const caption = kind === 'story' ? '' : input.caption.trim()
   const captionCheck = checkCaption(caption)
   if (!captionCheck.ok) throw new SocialPublishError(captionCheck.message)
-  const altText = input.altText?.trim() || null
+  const altText = kind === 'image' ? (input.altText?.trim() || null) : null
   if (altText && altText.length > INSTAGRAM_ALT_TEXT_MAX) {
     throw new SocialPublishError(`De alternatieve tekst mag maximaal ${INSTAGRAM_ALT_TEXT_MAX} tekens hebben`)
   }
   if (mode !== 'draft' && !isPubliclyReachable(input.siteUrl)) {
-    throw new SocialPublishError('NUXT_PUBLIC_SITE_URL wijst naar een lokaal adres. Meta moet de afbeelding via internet kunnen ophalen.', 409)
+    throw new SocialPublishError('NUXT_PUBLIC_SITE_URL wijst naar een lokaal adres. Meta moet de media via internet kunnen ophalen.', 409)
   }
 
   const platforms = input.platforms?.length ? input.platforms : ['instagram'] as const
+  if (kind !== 'image' && platforms.includes('facebook')) {
+    throw new SocialPublishError('Op de Facebook-pagina kunnen in NightLight alleen afbeeldingen worden geplaatst. Kies alleen Instagram.')
+  }
 
-  const [generated] = await db.select().from(generatedPosts).where(eq(generatedPosts.id, input.generatedPostId)).limit(1)
-  if (!generated) throw new SocialPublishError('Gegenereerde post niet gevonden', 404)
-  if (platforms.includes('instagram') && !canPublishPresetAsFeedImage(generated.preset)) {
-    throw new SocialPublishError('Deze afmeting past niet in de Instagram-feed. Kies 1:1 of 4:5; stories volgen in een latere fase.')
+  const media = await loadRequestedMedia(input, kind)
+  if (platforms.includes('instagram') && kind === 'image' && !canPublishPresetAsFeedImage(media.images[0]!.preset)) {
+    throw new SocialPublishError('Deze afmeting past niet in de Instagram-feed. Kies 1:1 of 4:5; voor 9:16 maak je een story.')
   }
 
   let instagram: SocialAccount | null = null
@@ -373,10 +506,13 @@ export async function publishGeneratedImageNow(input: PublishImageInput): Promis
     }
 
     // The same export cannot be published twice at the same moment (double click, two tabs).
+    const sameMedia = media.video
+      ? eq(socialPostMedia.videoRenderJobId, media.video.id)
+      : inArray(socialPostMedia.generatedPostId, media.images.map(image => image.id))
     const [inFlight] = await db.select({ id: socialPosts.id }).from(socialPosts)
       .innerJoin(socialPostMedia, eq(socialPostMedia.postId, socialPosts.id))
       .where(and(
-        eq(socialPostMedia.generatedPostId, generated.id),
+        sameMedia,
         eq(socialPosts.status, 'publishing'),
         gte(socialPosts.lastAttemptAt, new Date(now.getTime() - STALE_PUBLISHING_MS)),
       ))
@@ -384,29 +520,30 @@ export async function publishGeneratedImageNow(input: PublishImageInput): Promis
     if (inFlight) throw new SocialPublishError('Deze post wordt al gepubliceerd', 409)
   }
 
-  if (instagram && mode !== 'draft') {
+  if (instagram && mode !== 'draft' && media.images.length) {
     // Converted now, so a broken export is reported to the person and not first discovered by the worker.
-    const jpeg = await ensureInstagramJpeg(generated)
-    if (jpeg.length > INSTAGRAM_IMAGE_MAX_BYTES) {
-      throw new SocialPublishError('De afbeelding is groter dan 8 MB, het maximum van Instagram')
-    }
+    const tooBig = await ensureJpegsWithinLimit(media.images)
+    if (tooBig) throw new SocialPublishError(tooBig)
   }
 
-  const prepared: PreparedImage = {
-    generated,
+  const prepared: PreparedPost = {
+    ...media,
     caption,
     altText,
-    title: postTitle(generated),
+    title: await preparedTitle(media),
     userId: input.userId,
     now,
   }
   const accounts = [instagram, facebook].filter((a): a is SocialAccount => Boolean(a))
 
-  if (mode !== 'now') {
-    const status = mode === 'schedule' ? 'scheduled' : 'draft'
+  // Video is processed by Meta in the background, so it always goes through the queue, even "now".
+  const viaQueue = mode !== 'now' || Boolean(media.video)
+  if (viaQueue) {
+    const status = mode === 'draft' ? 'draft' : 'scheduled'
+    const moment = mode === 'now' ? now : scheduledAt
     const rows: PostWithProvider[] = []
     for (const account of accounts) {
-      rows.push({ ...await insertPost(account, prepared, { status, scheduledAt }), provider: account.provider })
+      rows.push({ ...await insertPost(account, prepared, { status, scheduledAt: moment }), provider: account.provider })
     }
     return rows
   }
@@ -440,6 +577,49 @@ async function claim(where: ReturnType<typeof and>, limit: number, now: Date) {
 }
 
 /**
+ * Reels and video stories: creates the Instagram container shortly before the planned moment, so Meta
+ * has processed the video when the post is due. Only a container is created here, nothing is public.
+ * The id is stored on the row; the publish step later checks it and publishes once it is `FINISHED`.
+ * A failure is only logged: the real attempt at the planned moment reports it properly (and retries).
+ */
+export async function prepareUpcomingContainers(limit = 3, now = new Date()) {
+  const url = siteUrl()
+  if (!isPubliclyReachable(url)) return 0
+  const hasVideo = sql`exists (select 1 from ${socialPostMedia} where ${socialPostMedia.postId} = ${socialPosts.id} and ${socialPostMedia.videoRenderJobId} is not null)`
+  let prepared = 0
+
+  await db.transaction(async (tx) => {
+    const rows = await tx.select().from(socialPosts)
+      .where(and(
+        eq(socialPosts.status, 'scheduled'),
+        isNull(socialPosts.containerId),
+        lte(socialPosts.scheduledAt, new Date(now.getTime() + CONTAINER_LEAD_MS)),
+        or(isNull(socialPosts.nextRetryAt), lte(socialPosts.nextRetryAt, now)),
+        hasVideo,
+      ))
+      .orderBy(asc(socialPosts.scheduledAt))
+      .limit(limit)
+      .for('update', { skipLocked: true })
+
+    for (const row of rows) {
+      try {
+        const [account] = await tx.select().from(socialAccounts).where(eq(socialAccounts.id, row.accountId)).limit(1)
+        if (!account || account.provider !== 'instagram' || account.status !== 'active' || !hasPublishScope(account.scopes)) continue
+        const media = await loadMedia(row.id)
+        if (!media.video || mediaProblem({ kind: row.kind as SocialPostKindKey, ...media })) continue
+        const accessToken = decryptSecret(account.accessTokenEncrypted, password())
+        const containerId = await instagramContainerFactory(row, account, accessToken, media, url)()
+        await tx.update(socialPosts).set({ containerId, updatedAt: new Date() }).where(eq(socialPosts.id, row.id))
+        prepared += 1
+      } catch (error) {
+        structuredLog('warn', 'social_container_prepare_failed', { postId: row.id, message: errorText(error).slice(0, 300) })
+      }
+    }
+  })
+  return prepared
+}
+
+/**
  * One worker tick: first picks up posts a crashed process left in `publishing`, then publishes
  * everything that is due. Returns how many posts were handled.
  */
@@ -457,6 +637,9 @@ export async function processDueSocialPosts(limit = 5, now = new Date()) {
     await executePost(row, { ...base, recovering: true })
     handled += 1
   }
+
+  // Before the due posts, so a video that is due right now gets a head start on processing.
+  await prepareUpcomingContainers(3, now).catch(error => structuredLog('warn', 'social_container_prepare_failed', { message: errorText(error).slice(0, 300) }))
 
   const due = await claim(
     and(

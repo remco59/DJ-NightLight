@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { usePostEditor } from '~/composables/usePostEditor'
 import { apiErrorMessage } from '~/utils/api-error'
 import {
   amsterdamLocalToIso,
   canPublishPresetAsFeedImage,
+  canPublishPresetAsStory,
+  checkCarouselPresets,
   checkScheduleMoment,
+  checkVideoForKind,
+  formatDuration,
+  socialPostKindLabels,
+  type SocialPublishImage,
+  type SocialPublishVideo,
+  type SocialPostKindKey,
   isoToAmsterdamLocal,
   captionLength,
   checkCaption,
@@ -15,15 +22,39 @@ import {
   socialProviderLabels,
 } from '~~/shared/social'
 
-const props = defineProps<{ postId: string | null }>()
+const props = defineProps<{ images: SocialPublishImage[], video?: SocialPublishVideo | null }>()
 const open = defineModel<boolean>('open', { required: true })
+const emit = defineEmits<{ published: [] }>()
 
 type FacebookInfo = { connected: boolean, canPublish: boolean, name: string | null, message: string | null, tokenExpiresAt?: string | null }
 type AccountInfo = { tokenExpiresAt?: string | null, connected: boolean, canPublish: boolean, username: string | null, accountType: string | null, message: string | null, facebook: FacebookInfo }
 type PublishedPost = { status: string, permalink: string | null, lastError: string | null, provider: string }
 
-const editor = usePostEditor()
-const post = computed(() => editor.posts.value.find(item => item.id === props.postId) || null)
+// A video is a reel (also in the feed) or a story; images are a single post, a story (9:16) or a carousel.
+const videoKind = ref<'reel' | 'story'>('reel')
+const kind = computed<SocialPostKindKey>(() => {
+  if (props.video) return videoKind.value
+  if (props.images.length > 1) return 'carousel'
+  return props.images[0] && canPublishPresetAsStory(props.images[0].preset) ? 'story' : 'image'
+})
+const isImage = computed(() => kind.value === 'image')
+const hasCaption = computed(() => kind.value !== 'story')
+const hasMedia = computed(() => Boolean(props.video) || props.images.length > 0)
+/** What makes this media unsuitable for the chosen kind, or null. */
+const mediaProblem = computed(() => {
+  if (props.video) {
+    const check = checkVideoForKind(videoKind.value, props.video)
+    return check.ok ? null : check.message
+  }
+  if (props.images.length > 1) {
+    const check = checkCarouselPresets(props.images.map(image => image.preset))
+    return check.ok ? null : check.message
+  }
+  const first = props.images[0]
+  if (first && !canPublishPresetAsFeedImage(first.preset) && !canPublishPresetAsStory(first.preset)) return 'Dit formaat past niet op Instagram. Exporteer in 1:1, 4:5 of 9:16.'
+  return null
+})
+const showSlides = computed(() => props.images.slice(0, 10))
 
 const account = ref<AccountInfo | null>(null)
 const loadingAccount = ref(false)
@@ -47,8 +78,7 @@ const whenLabel = computed(() => (scheduledIso.value
 const length = computed(() => captionLength(caption.value))
 const hashtags = computed(() => countHashtags(caption.value))
 const captionCheck = computed(() => checkCaption(caption.value))
-const presetBlocked = computed(() => toInstagram.value && Boolean(post.value) && !canPublishPresetAsFeedImage(post.value!.preset))
-const publishedOn = (provider: string) => Boolean(post.value?.social?.some(badge => badge.provider === provider && badge.status === 'published'))
+const publishedOn = (provider: string) => props.images.some(image => image.social?.some(badge => badge.provider === provider && badge.status === 'published'))
 const scheduledIso = computed(() => (whenLocal.value ? amsterdamLocalToIso(whenLocal.value) : null))
 const scheduleCheck = computed(() => checkScheduleMoment(scheduledIso.value, new Date(), earliestExpiry.value))
 // The post can only go out while the Meta access is valid.
@@ -58,8 +88,8 @@ const earliestExpiry = computed(() => {
   return dates.length ? new Date(Math.min(...dates.map(date => date.getTime()))) : null
 })
 const baseReady = computed(() => Boolean(
-  post.value && (toInstagram.value || toFacebook.value)
-  && (!toInstagram.value || account.value?.canPublish) && (!toFacebook.value || account.value?.facebook.canPublish) && captionCheck.value.ok && !presetBlocked.value
+  hasMedia.value && (toInstagram.value || toFacebook.value) && !mediaProblem.value
+  && (!toInstagram.value || account.value?.canPublish) && (!toFacebook.value || account.value?.facebook.canPublish) && captionCheck.value.ok
   && altText.value.length <= INSTAGRAM_ALT_TEXT_MAX && !publishing.value && !done.value,
 ))
 const canSubmit = computed(() => baseReady.value && (mode.value === 'now' || scheduleCheck.value.ok))
@@ -77,9 +107,9 @@ async function loadAccount() {
   }
 }
 
-async function publish(kind: 'submit' | 'draft' = 'submit') {
-  if (!post.value || (kind === 'draft' ? !canDraft.value : !canSubmit.value)) return
-  const requested = kind === 'draft' ? 'draft' : mode.value
+async function publish(submitKind: 'submit' | 'draft' = 'submit') {
+  if (submitKind === 'draft' ? !canDraft.value : !canSubmit.value) return
+  const requested = submitKind === 'draft' ? 'draft' : mode.value
   savedAs.value = requested
   publishing.value = true
   error.value = ''
@@ -87,9 +117,11 @@ async function publish(kind: 'submit' | 'draft' = 'submit') {
     const result = await $fetch<{ posts: PublishedPost[] }>('/api/admin/social/posts', {
       method: 'POST',
       body: {
-        generatedPostId: post.value.id,
-        caption: caption.value,
-        altText: altText.value || null,
+        kind: kind.value,
+        generatedPostIds: props.video ? [] : props.images.map(image => image.id),
+        videoRenderJobId: props.video?.id ?? null,
+        caption: hasCaption.value ? caption.value : '',
+        altText: isImage.value ? (altText.value || null) : null,
         platforms: [toInstagram.value && 'instagram', toFacebook.value && 'facebook'].filter(Boolean),
         mode: requested,
         scheduledAt: requested === 'now' ? null : scheduledIso.value,
@@ -107,7 +139,7 @@ async function publish(kind: 'submit' | 'draft' = 'submit') {
   } finally {
     publishing.value = false
     // Also after a failure: the export now shows its Mislukt status.
-    await editor.refresh()
+    emit('published')
   }
 }
 
@@ -122,6 +154,11 @@ function close() {
   open.value = false
 }
 
+// Facebook only takes single images in NightLight.
+watch(kind, (value) => {
+  if (value !== 'image') toFacebook.value = false
+})
+
 watch(open, (value) => {
   if (!value) return
   caption.value = ''
@@ -133,6 +170,7 @@ watch(open, (value) => {
   results.value = []
   toInstagram.value = true
   toFacebook.value = false
+  videoKind.value = 'reel'
   done.value = false
   void loadAccount()
   void nextTick(() => closeRef.value?.focus())
@@ -146,8 +184,8 @@ watch(open, (value) => {
         <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="post-publish-title">
           <header class="drawer-head">
             <div>
-              <h2 id="post-publish-title">Publiceren op Instagram en Facebook</h2>
-              <p>Plaats de post nu of plan hem in. De export blijft ook bewaard bij Recente exports.</p>
+              <h2 id="post-publish-title">{{ kind === 'image' ? 'Publiceren op Instagram en Facebook' : `${socialPostKindLabels[kind]} publiceren op Instagram` }}</h2>
+              <p>Plaats de post nu of plan hem in. De export blijft ook bewaard{{ video ? ' bij de renders' : ' bij Recente exports' }}.</p>
             </div>
             <button ref="closeRef" type="button" class="icon-button" aria-label="Sluiten" :disabled="publishing" @click="close">
               <Icon name="lucide:x" aria-hidden="true" />
@@ -158,18 +196,20 @@ watch(open, (value) => {
             <Icon name="lucide:circle-check" aria-hidden="true" />
             <strong v-if="savedAs === 'schedule'">Ingepland</strong>
             <strong v-else-if="savedAs === 'draft'">Opgeslagen als concept</strong>
+            <strong v-else-if="results.every(item => item.status === 'scheduled')">In de wachtrij</strong>
             <strong v-else>{{ results.every(item => item.status === 'published') ? 'Gepubliceerd' : 'Deels gepubliceerd' }}</strong>
             <ul class="results">
               <li v-for="item in results" :key="item.platform" :class="{ failed: item.status === 'failed' }">
                 <span>{{ socialProviderLabels[item.platform] }}:</span>
-                <template v-if="item.status === 'scheduled'">gepland voor {{ whenLabel }}</template>
+                <template v-if="item.status === 'scheduled' && savedAs === 'now'">in de wachtrij, wordt binnen enkele minuten geplaatst. Volg de status bij Social.</template>
+                <template v-else-if="item.status === 'scheduled'">gepland voor {{ whenLabel }}</template>
                 <template v-else-if="item.status === 'draft'">concept bewaard</template>
                 <a v-else-if="item.status === 'published' && item.permalink" :href="item.permalink" target="_blank" rel="noopener">Bekijk de post <Icon name="lucide:external-link" aria-hidden="true" /></a>
                 <template v-else-if="item.status === 'published'">gepubliceerd</template>
                 <template v-else>mislukt{{ item.error ? ` (${item.error})` : '' }}. Gebruik Opnieuw bij Recente exports.</template>
               </li>
             </ul>
-            <NuxtLink v-if="savedAs !== 'now'" class="action" to="/admin/social" @click="open = false">Open Social</NuxtLink>
+            <NuxtLink v-if="savedAs !== 'now' || results.some(item => item.status === 'scheduled')" class="action" to="/admin/social" @click="open = false">Open Social</NuxtLink>
             <button type="button" class="action primary" @click="open = false">Sluiten</button>
           </div>
 
@@ -177,11 +217,27 @@ watch(open, (value) => {
             <p v-if="loadingAccount" class="note">Koppeling controleren…</p>
             <p v-else-if="account && !account.canPublish" class="notice error" role="alert">{{ account.message }}</p>
 
-            <img v-if="post" class="preview" :src="post.imageUrl" alt="Voorbeeld van de post">
+            <div v-if="video" class="preview-video">
+              <video :src="video.videoUrl" controls preload="metadata" muted playsinline aria-label="Voorbeeld van de video" />
+              <small>{{ video.title || 'Video' }} · {{ video.width }}×{{ video.height }} · {{ formatDuration(video.durationSeconds) }}</small>
+            </div>
+            <ol v-else-if="images.length" class="slides" :aria-label="`${images.length} afbeelding${images.length === 1 ? '' : 'en'}`">
+              <li v-for="(image, index) in showSlides" :key="image.id">
+                <img class="preview" :src="image.imageUrl" :alt="images.length > 1 ? `Afbeelding ${index + 1} van ${images.length}` : 'Voorbeeld van de post'">
+                <small v-if="images.length > 1">{{ index + 1 }}</small>
+              </li>
+            </ol>
 
-            <p v-if="presetBlocked" class="notice error" role="alert">
-              Dit formaat past niet in de Instagram-feed. Exporteer in 1:1 of 4:5; stories volgen in een latere fase.
-            </p>
+            <fieldset v-if="video" class="mode" aria-label="Soort post">
+              <label :class="{ active: videoKind === 'reel' }"><input v-model="videoKind" type="radio" value="reel"> Reel</label>
+              <label :class="{ active: videoKind === 'story' }"><input v-model="videoKind" type="radio" value="story"> Story</label>
+            </fieldset>
+            <p v-else class="kind-chip">{{ socialPostKindLabels[kind] }}<template v-if="kind === 'carousel'"> · {{ images.length }} afbeeldingen</template></p>
+            <p v-if="kind === 'story'" class="note">Een story verdwijnt na 24 uur en heeft geen bijschrift.</p>
+            <p v-if="video && kind === 'reel'" class="note">Een reel staat ook in de feed. Meta verwerkt de video eerst, dus de post staat binnen enkele minuten online.</p>
+            <p v-else-if="video" class="note">Meta verwerkt de video eerst, dus de story staat binnen enkele minuten online.</p>
+
+            <p v-if="mediaProblem" class="notice error" role="alert">{{ mediaProblem }}</p>
             <p v-else-if="(toInstagram && publishedOn('instagram')) || (toFacebook && publishedOn('facebook'))" class="notice" role="status">
               Deze export staat al op een van de gekozen platforms. Publiceren plaatst daar een tweede post.
             </p>
@@ -192,9 +248,9 @@ watch(open, (value) => {
                 <input v-model="toInstagram" type="checkbox" :disabled="!account.canPublish">
                 <span>Instagram <strong v-if="account.username">@{{ account.username }}</strong></span>
               </label>
-              <label v-if="account.facebook.connected" class="check" :class="{ disabled: !account.facebook.canPublish }">
-                <input v-model="toFacebook" type="checkbox" :disabled="!account.facebook.canPublish">
-                <span>Facebook-pagina <strong v-if="account.facebook.name">{{ account.facebook.name }}</strong></span>
+              <label v-if="account.facebook.connected" class="check" :class="{ disabled: !account.facebook.canPublish || !isImage }">
+                <input v-model="toFacebook" type="checkbox" :disabled="!account.facebook.canPublish || !isImage">
+                <span>Facebook-pagina <strong v-if="account.facebook.name">{{ account.facebook.name }}</strong><small v-if="!isImage"> (alleen afbeeldingen)</small></span>
               </label>
             </fieldset>
             <p v-if="account?.facebook.connected && account.facebook.message" class="note">{{ account.facebook.message }}</p>
@@ -210,7 +266,7 @@ watch(open, (value) => {
               <small v-else class="hint">NightLight plaatst de post op dit moment. Meta kent geen eigen planning, dus de server moet dan draaien.</small>
             </label>
 
-            <label class="field">
+            <label v-if="hasCaption" class="field">
               <span class="label-row">
                 <span>Bijschrift</span>
                 <small :class="{ over: length > INSTAGRAM_CAPTION_MAX }">{{ length.toLocaleString('nl-NL') }} / {{ INSTAGRAM_CAPTION_MAX.toLocaleString('nl-NL') }}</small>
@@ -223,7 +279,7 @@ watch(open, (value) => {
               <small v-if="!captionCheck.ok" class="hint error">{{ captionCheck.message }}</small>
             </label>
 
-            <label class="field">
+            <label v-if="isImage" class="field">
               <span class="label-row">
                 <span>Alternatieve tekst</span>
                 <small :class="{ over: altText.length > INSTAGRAM_ALT_TEXT_MAX }">{{ altText.length }} / {{ INSTAGRAM_ALT_TEXT_MAX }}</small>
@@ -248,6 +304,50 @@ watch(open, (value) => {
 </template>
 
 <style scoped>
+.preview-video {
+  display: grid;
+  gap: .4rem;
+}
+
+.preview-video video {
+  width: 8rem;
+  max-height: 14rem;
+  border-radius: .5rem;
+  background: #08070a;
+}
+
+.preview-video small,
+.slides small {
+  color: #8f8798;
+  font-size: .72rem;
+}
+
+.slides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slides li {
+  display: grid;
+  justify-items: center;
+  gap: .2rem;
+}
+
+.kind-chip {
+  justify-self: start;
+  margin: 0;
+  padding: .2rem .6rem;
+  border: 1px solid #3a3045;
+  border-radius: 999px;
+  background: #151119;
+  color: #d4ced9;
+  font-size: .75rem;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { usePostEditor, type GeneratedPost } from '~/composables/usePostEditor'
-import { socialPostStatusLabels, socialPostStatusTones, socialProviderLabels, type SocialBadge } from '~~/shared/social'
+import { checkCarouselPresets, INSTAGRAM_CAROUSEL_MAX, INSTAGRAM_CAROUSEL_MIN, canPublishPresetAsFeedImage, socialPostStatusLabels, socialPostStatusTones, socialProviderLabels, type SocialBadge } from '~~/shared/social'
 import { POST_TEMPLATE_KEYS, postTemplateInfo, type PostTemplateKey } from '~~/shared/post-generator'
 
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ publish: [post: GeneratedPost] }>()
+const emit = defineEmits<{ publish: [post: GeneratedPost], publishCarousel: [posts: GeneratedPost[]] }>()
 
 const editor = usePostEditor()
 const { busy } = editor
@@ -35,6 +35,26 @@ function publish(post: GeneratedPost) {
   emit('publish', post)
 }
 
+// Carousel: pick 2 to 10 exports of the same feed size, in the order they are ticked.
+const selectedIds = ref<string[]>([])
+const selectedPosts = computed(() => selectedIds.value.flatMap((id) => {
+  const post = editor.posts.value.find(item => item.id === id)
+  return post ? [post] : []
+}))
+const carouselCheck = computed(() => checkCarouselPresets(selectedPosts.value.map(post => post.preset)))
+
+function toggleSelected(post: GeneratedPost) {
+  selectedIds.value = selectedIds.value.includes(post.id)
+    ? selectedIds.value.filter(id => id !== post.id)
+    : [...selectedIds.value, post.id]
+}
+
+function publishCarousel() {
+  if (!carouselCheck.value.ok) return
+  emit('publishCarousel', selectedPosts.value)
+  selectedIds.value = []
+}
+
 function reuse(post: GeneratedPost) {
   editor.reuseExport(post)
   open.value = false
@@ -51,6 +71,7 @@ async function refresh() {
 
 watch(open, (value) => {
   if (value) void nextTick(() => closeRef.value?.focus())
+  else selectedIds.value = []
 })
 </script>
 
@@ -74,6 +95,18 @@ watch(open, (value) => {
             </div>
           </header>
 
+          <div v-if="selectedIds.length" class="carousel-bar" role="status">
+            <span>
+              {{ selectedIds.length }} geselecteerd voor een carrousel
+              <small v-if="selectedIds.length < INSTAGRAM_CAROUSEL_MIN">Kies minstens {{ INSTAGRAM_CAROUSEL_MIN }} (max. {{ INSTAGRAM_CAROUSEL_MAX }})</small>
+              <small v-else-if="!carouselCheck.ok" class="error">{{ carouselCheck.message }}</small>
+            </span>
+            <button type="button" class="action" @click="selectedIds = []">Wissen</button>
+            <button type="button" class="action primary" :disabled="!carouselCheck.ok" @click="publishCarousel">
+              <Icon name="lucide:gallery-horizontal" aria-hidden="true" />Carrousel publiceren
+            </button>
+          </div>
+
           <ul v-if="editor.posts.value.length" class="export-list">
             <li v-for="post in editor.posts.value" :key="post.id" class="export-item">
               <a class="export-image" :href="post.imageUrl" target="_blank" rel="noopener" :aria-label="`Export ${templateLabel(post.templateKey)} openen in een nieuw tabblad`">
@@ -96,6 +129,10 @@ watch(open, (value) => {
                   <button type="button" class="action" @click="publish(post)">
                     <Icon name="lucide:send" aria-hidden="true" />{{ retryable(post) ? 'Opnieuw' : 'Publiceren' }}
                   </button>
+                  <label v-if="canPublishPresetAsFeedImage(post.preset)" class="action select" :class="{ active: selectedIds.includes(post.id) }">
+                    <input type="checkbox" :checked="selectedIds.includes(post.id)" :disabled="!selectedIds.includes(post.id) && selectedIds.length >= INSTAGRAM_CAROUSEL_MAX" @change="toggleSelected(post)">
+                    <span>{{ selectedIds.includes(post.id) ? `Carrousel ${selectedIds.indexOf(post.id) + 1}` : 'Voor carrousel' }}</span>
+                  </label>
                   <button type="button" class="action" @click="reuse(post)">
                     <Icon name="lucide:pencil" aria-hidden="true" />Opnieuw bewerken
                   </button>
@@ -126,6 +163,48 @@ watch(open, (value) => {
 </template>
 
 <style scoped>
+.carousel-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .7rem 1.2rem;
+  border-bottom: 1px solid #1f1b24;
+  background: #151119;
+  font-size: .8rem;
+}
+
+.carousel-bar span {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: .15rem;
+}
+
+.carousel-bar small {
+  color: #8f8798;
+  font-size: .72rem;
+}
+
+.carousel-bar small.error {
+  color: #f0a3b0;
+}
+
+.action.select input {
+  position: absolute;
+  opacity: 0;
+}
+
+.action.select.active {
+  border-color: #7c5cd6;
+  background: #2a2140;
+}
+
+.action.select:has(input:focus-visible) {
+  outline: 2px solid #a78bfa;
+  outline-offset: 1px;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -294,6 +373,12 @@ watch(open, (value) => {
 
 .action:hover {
   border-color: #4a4153;
+  color: #fff;
+}
+
+.action.primary {
+  border-color: #7c5cd6;
+  background: #7c5cd6;
   color: #fff;
 }
 
