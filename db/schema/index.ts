@@ -38,6 +38,8 @@ export const calendarCancellationBehavior = pgEnum('calendar_cancellation_behavi
 export const emailJobStatus = pgEnum('email_job_status', ['pending', 'processing', 'sent', 'failed', 'cancelled', 'suppressed'])
 export const emailDeliveryStatus = pgEnum('email_delivery_status', ['sent', 'failed'])
 export const socialAccountStatus = pgEnum('social_account_status', ['active', 'needs_reauth', 'disabled'])
+export const socialPostKind = pgEnum('social_post_kind', ['image', 'carousel', 'reel', 'story'])
+export const socialPostStatus = pgEnum('social_post_status', ['draft', 'scheduled', 'publishing', 'published', 'failed', 'cancelled'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -352,6 +354,42 @@ export const socialAccounts = pgTable('social_accounts', {
   uniqueIndex('social_accounts_provider_external_idx').on(table.provider, table.externalId),
 ])
 
+export const socialPosts = pgTable('social_posts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  accountId: uuid('account_id').notNull().references(() => socialAccounts.id, { onDelete: 'restrict' }),
+  title: varchar('title', { length: 200 }).notNull(),
+  kind: socialPostKind('kind').default('image').notNull(),
+  caption: text('caption').default('').notNull(),
+  altText: varchar('alt_text', { length: 1000 }),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  status: socialPostStatus('status').default('draft').notNull(),
+  containerId: varchar('container_id', { length: 100 }),
+  providerPostId: varchar('provider_post_id', { length: 100 }),
+  permalink: text('permalink'),
+  retryCount: integer('retry_count').default(0).notNull(),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  gigId: uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [
+  index('social_posts_status_idx').on(table.status, table.scheduledAt),
+  index('social_posts_account_idx').on(table.accountId),
+])
+
+export const socialPostMedia = pgTable('social_post_media', {
+  postId: uuid('post_id').notNull().references(() => socialPosts.id, { onDelete: 'cascade' }),
+  position: integer('position').default(0).notNull(),
+  generatedPostId: uuid('generated_post_id').references(() => generatedPosts.id, { onDelete: 'restrict' }),
+  videoRenderJobId: uuid('video_render_job_id').references(() => videoRenderJobs.id, { onDelete: 'restrict' }),
+  mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, { onDelete: 'restrict' }),
+}, table => [
+  primaryKey({ columns: [table.postId, table.position] }),
+  index('social_post_media_generated_idx').on(table.generatedPostId),
+])
+
 export const emailTemplates = pgTable('email_templates', {
   key: varchar('key', { length: 80 }).primaryKey(),
   name: varchar('name', { length: 160 }).notNull(),
@@ -624,6 +662,7 @@ export type MediaCollection = typeof mediaCollections.$inferSelect
 export type GeneratedPost = typeof generatedPosts.$inferSelect
 export type SocialAccount = typeof socialAccounts.$inferSelect
 export type SocialSettings = typeof socialSettings.$inferSelect
+export type SocialPost = typeof socialPosts.$inferSelect
 export type VideoRenderJob = typeof videoRenderJobs.$inferSelect
 export type VideoProjectRow = typeof videoProjects.$inferSelect
 export type OutboxEvent = typeof outboxEvents.$inferSelect

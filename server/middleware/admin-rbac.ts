@@ -25,6 +25,8 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
     || pathname.startsWith('/api/admin/landing-pages')
     || pathname.startsWith('/api/admin/media')
     || pathname.startsWith('/api/admin/post-generator')
+    || pathname.startsWith('/api/admin/social/posts')
+    || pathname === '/api/admin/social/account'
   ) return 'content:manage'
 
   if (pathname === '/api/admin/calendar/events' && method === 'GET') return 'gigs:read'

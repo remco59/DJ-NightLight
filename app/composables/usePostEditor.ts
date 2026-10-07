@@ -2,6 +2,7 @@ import type { InjectionKey, Ref } from 'vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import { createMediaThumbnail } from '~/utils/media-upload'
 import { renderPostCanvas, type PostTextBox } from '~/utils/post-renderer'
+import type { SocialBadge } from '~~/shared/social'
 import { MOTION_ACCENT_KEYS, MOTION_ACCENTS } from '~~/shared/video-templates'
 import {
   applyPostTemplate,
@@ -43,6 +44,8 @@ export type GeneratedPost = {
   design: Record<string, unknown>
   createdAt: string
   imageUrl: string
+  /** Newest Instagram post made from this export, if any. */
+  social?: SocialBadge | null
 }
 
 export type PostGeneratorData = {
@@ -383,10 +386,11 @@ export function createPostEditor(options: {
     sourceAssetId.value = id
   }
 
-  async function exportPost() {
+  /** Renders and stores the export. Resolves with the new export, or null when it failed. */
+  async function exportPost(): Promise<{ id: string, imageUrl: string } | null> {
     if (!sourceBitmap || !selectedAsset.value) {
       message.value = 'Kies eerst een foto.'
-      return
+      return null
     }
     busy.value = 'render'
     message.value = ''
@@ -403,8 +407,10 @@ export function createPostEditor(options: {
       lastRenderedUrl.value = result.post.imageUrl
       message.value = 'Post geëxporteerd. De PNG staat bij Recente exports.'
       await refresh()
+      return result.post
     } catch (error) {
       message.value = apiErrorMessage(error, error instanceof Error ? error.message : 'Exporteren mislukt.')
+      return null
     } finally {
       busy.value = ''
     }

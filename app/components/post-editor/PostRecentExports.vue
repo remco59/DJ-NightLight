@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { usePostEditor, type GeneratedPost } from '~/composables/usePostEditor'
+import { socialPostStatusLabels, socialPostStatusTones, type SocialPostStatusKey } from '~~/shared/social'
 import { POST_TEMPLATE_KEYS, postTemplateInfo, type PostTemplateKey } from '~~/shared/post-generator'
 
 const open = defineModel<boolean>('open', { required: true })
+const emit = defineEmits<{ publish: [post: GeneratedPost] }>()
 
 const editor = usePostEditor()
 const { busy } = editor
@@ -15,6 +17,18 @@ function templateLabel(key: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function socialLabel(post: GeneratedPost) {
+  return post.social ? socialPostStatusLabels[post.social.status as SocialPostStatusKey] ?? post.social.status : ''
+}
+
+function socialTone(post: GeneratedPost) {
+  return post.social ? socialPostStatusTones[post.social.status as SocialPostStatusKey] ?? 'neutral' : 'neutral'
+}
+
+function publish(post: GeneratedPost) {
+  emit('publish', post)
 }
 
 function reuse(post: GeneratedPost) {
@@ -64,10 +78,20 @@ watch(open, (value) => {
               <div class="export-copy">
                 <strong>{{ templateLabel(post.templateKey) }}</strong>
                 <small>{{ post.width }}<IconTimes />{{ post.height }} · {{ formatDate(post.createdAt) }}</small>
+                <span v-if="post.social" class="social-badge" :class="'tone-' + socialTone(post)" :title="post.social.lastError || undefined">
+                  <Icon name="lucide:instagram" aria-hidden="true" />
+                  {{ socialLabel(post) }}
+                  <a v-if="post.social.permalink" :href="post.social.permalink" target="_blank" rel="noopener" aria-label="Bekijk op Instagram">
+                    <Icon name="lucide:external-link" aria-hidden="true" />
+                  </a>
+                </span>
                 <div class="export-actions">
                   <a class="action" :href="post.imageUrl" :download="'nightlight-' + post.id + '.png'">
                     <Icon name="lucide:download" aria-hidden="true" />Downloaden
                   </a>
+                  <button type="button" class="action" @click="publish(post)">
+                    <Icon name="lucide:send" aria-hidden="true" />{{ post.social?.status === 'failed' ? 'Opnieuw' : 'Publiceren' }}
+                  </button>
                   <button type="button" class="action" @click="reuse(post)">
                     <Icon name="lucide:pencil" aria-hidden="true" />Opnieuw bewerken
                   </button>
@@ -209,6 +233,38 @@ watch(open, (value) => {
 .export-copy small {
   color: #9a93a4;
   font-size: .72rem;
+}
+
+.social-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  width: fit-content;
+  padding: .12rem .5rem;
+  border-radius: 999px;
+  background: #1c1722;
+  color: #c9c2d3;
+  font-size: .68rem;
+}
+
+.social-badge a {
+  color: inherit;
+  display: inline-grid;
+}
+
+.social-badge.tone-ok {
+  background: rgba(76, 175, 120, .16);
+  color: #8fd6ad;
+}
+
+.social-badge.tone-info {
+  background: rgba(124, 92, 214, .2);
+  color: #c4b5fd;
+}
+
+.social-badge.tone-error {
+  background: rgba(214, 76, 100, .16);
+  color: #f0a3b0;
 }
 
 .export-actions {

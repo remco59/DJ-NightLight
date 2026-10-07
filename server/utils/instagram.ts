@@ -47,6 +47,17 @@ async function get(path: string, params: Record<string, string>, fetchImpl: Fetc
   return payload as Record<string, unknown>
 }
 
+async function post(path: string, params: Record<string, string>, fetchImpl: FetchLike) {
+  const response = await fetchImpl(`${GRAPH}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params),
+  })
+  const payload = await readJson(response)
+  if (!response.ok) throw metaError(response.status, payload)
+  return payload as Record<string, unknown>
+}
+
 export type UserToken = { accessToken: string, expiresInSeconds: number | null }
 
 function userToken(payload: Record<string, unknown>): UserToken {
@@ -149,4 +160,59 @@ export async function inspectToken(
     scopes: Array.isArray(data.scopes) ? data.scopes.map(String) : [],
     errorMessage: error?.message ? String(error.message).slice(0, 500) : null,
   }
+}
+
+function requireId(payload: Record<string, unknown>, what: string) {
+  const id = typeof payload.id === 'string' ? payload.id : ''
+  if (!id) throw new InstagramApiError(`Meta gaf geen ${what} terug`, 200, null, false)
+  return id
+}
+
+/** Step 1 of publishing: Meta fetches the public image URL and returns a container id. */
+export async function createImageContainer(
+  input: { instagramId: string, accessToken: string, imageUrl: string, caption: string, altText?: string | null },
+  fetchImpl: FetchLike = fetch,
+) {
+  const params: Record<string, string> = {
+    image_url: input.imageUrl,
+    caption: input.caption,
+    access_token: input.accessToken,
+  }
+  if (input.altText?.trim()) params.alt_text = input.altText.trim()
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+}
+
+export type ContainerStatus = 'EXPIRED' | 'ERROR' | 'FINISHED' | 'IN_PROGRESS' | 'PUBLISHED'
+
+const CONTAINER_STATUSES: readonly string[] = ['EXPIRED', 'ERROR', 'FINISHED', 'IN_PROGRESS', 'PUBLISHED']
+
+export async function getContainerStatus(
+  input: { containerId: string, accessToken: string },
+  fetchImpl: FetchLike = fetch,
+): Promise<{ status: ContainerStatus, detail: string | null }> {
+  const payload = await get(`/${input.containerId}`, { fields: 'status_code,status', access_token: input.accessToken }, fetchImpl)
+  const code = String(payload.status_code ?? '')
+  if (!CONTAINER_STATUSES.includes(code)) {
+    throw new InstagramApiError('Meta gaf een onbekende containerstatus terug', 200, null, false)
+  }
+  return { status: code as ContainerStatus, detail: typeof payload.status === 'string' ? payload.status.slice(0, 500) : null }
+}
+
+/** Step 2: publish a finished container. Never call this twice for one container. */
+export async function publishContainer(
+  input: { instagramId: string, accessToken: string, containerId: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  return requireId(await post(`/${input.instagramId}/media_publish`, {
+    creation_id: input.containerId,
+    access_token: input.accessToken,
+  }, fetchImpl), 'media-id')
+}
+
+export async function getPermalink(
+  input: { mediaId: string, accessToken: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  const payload = await get(`/${input.mediaId}`, { fields: 'permalink', access_token: input.accessToken }, fetchImpl)
+  return typeof payload.permalink === 'string' ? payload.permalink : null
 }
