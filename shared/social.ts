@@ -58,4 +58,6 @@ export function checkCaption(caption: string): CaptionCheck {
   return { ok: true }
 }
 
-export type SocialBadge = { status: SocialPostStatusKey, permalink: string | null, scheduledAt: string | null, lastError: string | null }
+export type SocialBadge = { provider: string, status: SocialPostStatusKey, permalink: string | null, scheduledAt: string | null, lastError: string | null }
+
+export const socialProviderLabels: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook' }

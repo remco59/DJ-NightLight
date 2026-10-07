@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm'
-import { socialAccounts, socialSettings } from '../../db/schema'
+import { and, eq, inArray } from 'drizzle-orm'
+import { socialAccounts, socialPosts, socialSettings } from '../../db/schema'
 import { instagramRedirectUri, shouldCheckConnection } from '../../shared/instagram'
 import { decryptSecret, encryptSecret } from '../../shared/secret-box'
 import { db } from './db'
@@ -75,7 +75,42 @@ export async function connectInstagramAccount(input: { code: string, userId: str
     .values({ provider: 'instagram', externalId: page.instagramId, ...values })
     .onConflictDoUpdate({ target: [socialAccounts.provider, socialAccounts.externalId], set: values })
     .returning()
+
+  // The same Page token also posts on the Facebook Page, so the Page is stored as a second account.
+  const pageValues = { ...values, username: page.pageName || page.username, accountType: 'PAGE' }
+  await db.insert(socialAccounts)
+    .values({ provider: 'facebook', externalId: page.pageId, ...pageValues })
+    .onConflictDoUpdate({ target: [socialAccounts.provider, socialAccounts.externalId], set: pageValues })
   return account!
+}
+
+/** Keeps the Facebook Page row in step with the Instagram row that shares its token. */
+async function mirrorToFacebookPage(pageId: string | null, set: Partial<typeof socialAccounts.$inferInsert>) {
+  if (!pageId) return
+  await db.update(socialAccounts).set(set)
+    .where(and(eq(socialAccounts.provider, 'facebook'), eq(socialAccounts.externalId, pageId)))
+}
+
+/**
+ * Disconnects the Instagram account and its Facebook Page. Posts keep their history (restrict), so an
+ * account that has posts is kept with its token wiped and set to `disabled`; connecting again reactivates it.
+ */
+export async function disconnectSocialAccounts() {
+  const rows = await db.select().from(socialAccounts)
+    .where(inArray(socialAccounts.provider, ['instagram', 'facebook']))
+  for (const row of rows) {
+    const [used] = await db.select({ id: socialPosts.id }).from(socialPosts).where(eq(socialPosts.accountId, row.id)).limit(1)
+    if (used) {
+      await db.update(socialAccounts).set({
+        status: 'disabled',
+        accessTokenEncrypted: encryptSecret('', password()),
+        scopes: [],
+        updatedAt: new Date(),
+      }).where(eq(socialAccounts.id, row.id))
+    } else {
+      await db.delete(socialAccounts).where(eq(socialAccounts.id, row.id))
+    }
+  }
 }
 
 /**
@@ -99,6 +134,7 @@ export async function checkInstagramConnection(accountId: string) {
         lastError: inspection.errorMessage || 'Meta keurt de toegang niet meer goed',
         updatedAt: checkedAt,
       }).where(eq(socialAccounts.id, account.id))
+      await mirrorToFacebookPage(account.pageId, { status: 'needs_reauth', lastCheckedAt: checkedAt, lastError: inspection.errorMessage || 'Meta keurt de toegang niet meer goed', updatedAt: checkedAt })
       return { ok: false as const, permanent: true, message: inspection.errorMessage || 'Meta keurt de toegang niet meer goed' }
     }
 
@@ -109,6 +145,7 @@ export async function checkInstagramConnection(accountId: string) {
       lastError: null,
       updatedAt: checkedAt,
     }).where(eq(socialAccounts.id, account.id))
+    await mirrorToFacebookPage(account.pageId, { status: 'active', tokenExpiresAt: inspection.expiresAt ?? account.tokenExpiresAt, scopes: inspection.scopes, lastCheckedAt: checkedAt, lastError: null, updatedAt: checkedAt })
     return { ok: true as const }
   } catch (error) {
     const permanent = error instanceof InstagramApiError && error.permanent
@@ -118,6 +155,7 @@ export async function checkInstagramConnection(accountId: string) {
       lastError: errorText(error).slice(0, 500),
       updatedAt: checkedAt,
     }).where(eq(socialAccounts.id, account.id))
+    if (permanent) await mirrorToFacebookPage(account.pageId, { status: 'needs_reauth', lastError: errorText(error).slice(0, 500), updatedAt: checkedAt })
     structuredLog(permanent ? 'error' : 'warn', 'instagram_connection_check_failed', {
       accountId: account.id,
       permanent,

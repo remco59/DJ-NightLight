@@ -10,9 +10,12 @@ export const META_GRAPH_VERSION = 'v23.0'
 
 /** Meta's documentation calls it `instagram_content_publish`; the app dashboard lists `instagram_content_publishing`. Accept both. */
 export const INSTAGRAM_PUBLISH_SCOPES = ['instagram_content_publish', 'instagram_content_publishing'] as const
+/** Needed to post on the Facebook Page; optional for the Instagram connection itself. */
+export const FACEBOOK_PUBLISH_SCOPE = 'pages_manage_posts'
 export const FACEBOOK_LOGIN_SCOPES = [
   'instagram_basic',
   'instagram_content_publish',
+  FACEBOOK_PUBLISH_SCOPE,
   'pages_show_list',
   'pages_read_engagement',
   'business_management',
@@ -56,6 +59,10 @@ export function buildFacebookAuthorizeUrl(input: { appId: string, redirectUri: s
 
 export function hasPublishScope(scopes: readonly string[]) {
   return INSTAGRAM_PUBLISH_SCOPES.some(scope => scopes.includes(scope))
+}
+
+export function hasFacebookPublishScope(scopes: readonly string[]) {
+  return scopes.includes(FACEBOOK_PUBLISH_SCOPE)
 }
 
 type DateLike = Date | string | number | null | undefined

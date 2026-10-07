@@ -99,3 +99,13 @@ Guards: the 9:16 preset is refused (feed images need 4:5 to 1.91:1; stories come
 Audit log: `social_post.publish_started`, `social_post.published`, `social_post.failed`.
 
 Not in this phase: scheduling, automatic retries and recovery of a `publishing` row after a crash (a row older than 10 minutes no longer blocks a new attempt), the Social page, the Agenda overlay, and the mobile editor (use Recente exports on desktop).
+
+## Facebook Page (phase 2b)
+
+The same login also posts on the Facebook Page the Instagram account is linked to. Connecting stores the Page as a second account (`provider = 'facebook'`) with the same Page token, and the daily check keeps both rows in step.
+
+**Setup.** Add the permission `pages_manage_posts` in the Meta app (use case *Manage Pages* → Customize → Permissions and features → Add; also add it to the Facebook Login for Business configuration if you use one). In Development mode no App Review is needed. NightLight now asks for it when connecting, so **connect once more** after adding it. Until then the Facebook option in the drawer is disabled with an explanation.
+
+**Publishing.** In the drawer, tick **Instagram** and/or **Facebook-pagina**. Facebook is one call, `POST /{page-id}/photos` with the public PNG URL, caption (`message`) and alt text (`alt_text_custom`), then the permalink is fetched. There is no container and nothing to wait for. Each platform gets its own post row, status, Meta error text and audit entries, so one can fail while the other is live; **Opnieuw** in Recente exports lets you retry only the platform that failed (untick the other one). The 9:16 refusal and the 100 posts per day limit only apply to Instagram.
+
+**Disconnecting** keeps posts and their history: an account that has posts is set to `disabled` and its token is wiped; connecting again reactivates it.

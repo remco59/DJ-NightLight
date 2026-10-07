@@ -216,3 +216,32 @@ export async function getPermalink(
   const payload = await get(`/${input.mediaId}`, { fields: 'permalink', access_token: input.accessToken }, fetchImpl)
   return typeof payload.permalink === 'string' ? payload.permalink : null
 }
+
+/** Facebook Page photo post. One call, no container: the Page token is the credential. */
+export async function publishPagePhoto(
+  input: { pageId: string, accessToken: string, imageUrl: string, caption: string, altText?: string | null },
+  fetchImpl: FetchLike = fetch,
+) {
+  const params: Record<string, string> = {
+    url: input.imageUrl,
+    published: 'true',
+    access_token: input.accessToken,
+  }
+  if (input.caption) params.message = input.caption
+  if (input.altText?.trim()) params.alt_text_custom = input.altText.trim()
+  const payload = await post(`/${input.pageId}/photos`, params, fetchImpl)
+  const postId = typeof payload.post_id === 'string' ? payload.post_id : ''
+  const photoId = typeof payload.id === 'string' ? payload.id : ''
+  if (!postId && !photoId) throw new InstagramApiError('Meta gaf geen post-id terug', 200, null, false)
+  return { photoId: photoId || null, postId: postId || photoId }
+}
+
+export async function getPostPermalink(
+  input: { postId: string, accessToken: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  const payload = await get(`/${input.postId}`, { fields: 'permalink_url', access_token: input.accessToken }, fetchImpl)
+  const link = typeof payload.permalink_url === 'string' ? payload.permalink_url : null
+  // Meta returns a path for Page posts.
+  return link && link.startsWith('/') ? `https://www.facebook.com${link}` : link
+}
