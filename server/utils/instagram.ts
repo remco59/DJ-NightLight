@@ -123,6 +123,19 @@ export async function listInstagramPages(accessToken: string, fetchImpl: FetchLi
   return found
 }
 
+/**
+ * Which linked Instagram account to use. A reconnect keeps the account that is already connected;
+ * otherwise a single candidate is taken. With several new candidates there is no safe default:
+ * `null` means the owner has to choose.
+ */
+export function selectInstagramPage(pages: readonly InstagramPage[], options: { preferredInstagramId?: string | null } = {}) {
+  const preferred = options.preferredInstagramId
+    ? pages.find(page => page.instagramId === options.preferredInstagramId)
+    : undefined
+  if (preferred) return preferred
+  return pages.length === 1 ? pages[0]! : null
+}
+
 export type TokenInspection = {
   isValid: boolean
   appId: string

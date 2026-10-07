@@ -5138,6 +5138,27 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/candidates:
+    get:
+      operationId: getAdminSocialInstagramCandidates
+      tags:
+        - admin/social
+      description: The Instagram accounts waiting for the owner's choice after a Facebook login that granted several.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/admin/social/instagram/check:
     post:
       operationId: postAdminSocialInstagramCheck
@@ -5158,6 +5179,40 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/social/instagram/choose:
+    post:
+      operationId: postAdminSocialInstagramChoose
+      tags:
+        - admin/social
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instagramId:
+                  type: string
+                  pattern: ^\d{5,30}$
+              required:
+                - instagramId
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/admin/social/instagram/connect:
     get:
       operationId: getAdminSocialInstagramConnect

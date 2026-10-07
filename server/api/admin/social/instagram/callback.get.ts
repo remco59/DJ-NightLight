@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { INSTAGRAM_STATE_COOKIE } from '../../../../../shared/instagram'
+import { INSTAGRAM_STATE_COOKIE, OAUTH_STATE_MAX_AGE_MS } from '../../../../../shared/instagram'
 import { recordAudit } from '../../../../utils/audit'
 import { InstagramApiError } from '../../../../utils/instagram'
+import { INSTAGRAM_PENDING_COOKIE, sealPendingToken } from '../../../../utils/instagram-pending'
 import { verifyOAuthState } from '../../../../utils/instagram-state'
 import { requireStaff } from '../../../../utils/require-staff'
-import { connectInstagramAccount } from '../../../../utils/social-accounts'
+import { beginInstagramConnection } from '../../../../utils/social-accounts'
 import { structuredLog } from '../../../../utils/structured-log'
 
 const querySchema = z.object({
@@ -31,16 +32,28 @@ export default defineEventHandler(async (event) => {
   if (error) return back(event, 'denied', parsed.data.error_description)
   if (!code || !state) return back(event, 'error')
 
-  const valid = verifyOAuthState({
-    state,
-    cookieNonce,
-    userId: user.id,
-    password: String(useRuntimeConfig().session.password || ''),
-  })
+  const config = useRuntimeConfig()
+  const password = String(config.session.password || '')
+  const valid = verifyOAuthState({ state, cookieNonce, userId: user.id, password })
   if (!valid) return back(event, 'state')
 
   try {
-    const account = await connectInstagramAccount({ code, userId: user.id })
+    const outcome = await beginInstagramConnection({ code, userId: user.id })
+
+    if (outcome.kind === 'choose') {
+      // Several Instagram accounts were granted: park the user token briefly while the owner picks one.
+      const sessionCookie = config.session.cookie
+      setCookie(event, INSTAGRAM_PENDING_COOKIE, sealPendingToken({ userToken: outcome.userToken, userId: user.id, password }), {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: typeof sessionCookie === 'object' ? Boolean(sessionCookie.secure) : false,
+        path: '/api/admin/social/instagram',
+        maxAge: Math.floor(OAUTH_STATE_MAX_AGE_MS / 1000),
+      })
+      return back(event, 'choose')
+    }
+
+    const account = outcome.account
     await recordAudit({
       userId: user.id,
       entityType: 'social_account',

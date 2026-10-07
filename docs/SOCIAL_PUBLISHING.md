@@ -37,7 +37,7 @@ Only the owner can configure the app, connect, check or disconnect.
 ## How the connection is stored
 
 1. The code from Facebook is exchanged for a user token, then for a long-lived user token.
-2. NightLight lists the Pages the user manages and picks the first one with a linked Instagram account.
+2. NightLight lists the Facebook Pages with a linked Instagram account that Facebook granted access to. One candidate is connected straight away, and so is the account that is already connected (a reconnect never asks again). When Facebook granted several new accounts, the settings page shows a list and the owner picks one. The user token waits meanwhile in a short-lived (10 minutes), encrypted, `HttpOnly` cookie and is never stored in the database. NightLight connects one Instagram account at a time; choosing another replaces the current one.
 3. The **Page access token** of that Page is stored encrypted (`social_accounts.access_token_encrypted`) and never shown again. Page tokens derived from a long-lived user token do not expire on their own.
 4. Meta's token inspection (`debug_token`) gives the granted permissions and the moment access stops working. Meta limits how long user data stays accessible (about 90 days), so that date is shown as "Toegang geldig tot".
 
@@ -73,6 +73,7 @@ Connecting, checking and disconnecting write to the audit log (`instagram.connec
 
 When connecting fails, the settings page shows Meta's own message after "Meta meldt". The same text is in the server log as `instagram_connect_failed`.
 
+- **Several accounts in the Facebook dialog**: tick only the account NightLight should use. If you tick more, NightLight asks which one to connect.
 - **"Geen Instagram-account gevonden"**: the Instagram account is not linked to a Facebook Page, or you did not give NightLight access to that Page in the Facebook dialog.
 - **Redirect URI / "URL blocked"**: the redirect URI in the Facebook Login settings does not match the one NightLight shows.
 - **"Invalid scope" or a permission error**: the permissions were not added to the use case, or (with Facebook Login for Business) the configuration does not include them. Add a configuration ID.
