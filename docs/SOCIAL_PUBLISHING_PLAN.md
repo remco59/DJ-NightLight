@@ -145,6 +145,7 @@ Checked whether existing open-source projects can be copied from:
 | [Mixpost](https://github.com/inovector/mixpost) (Lite) | MIT | PHP/Laravel, so not portable to Nuxt; MIT allows reading it for flow ideas (container polling, token refresh, error mapping). Instagram/Facebook availability in Lite vs Pro not verified. |
 | [Postiz](https://github.com/gitroomhq/postiz-app) | AGPL-3.0 | Do not copy. Same copyleft problem as BrightBean. |
 | [BrightBean Studio](https://github.com/brightbeanxyz/brightbean-studio) | AGPL-3.0 | Python/Django. Do not copy. |
+| [OpenPost](https://github.com/getopenpost/openpost) | AGPL-3.0-only | TypeScript (about 38%) and Go (about 32%) monorepo with SvelteKit/Expo frontends; 16 platforms including Instagram. Do not copy: AGPL applies to the whole repo and the TypeScript is not Nuxt/Vue. Which part handles Meta publishing was not verified. |
 | [graph-ig](https://github.com/wldeh/graph-ig) | MIT | TypeScript, but self-described as under development and not stable. Not worth a dependency. |
 
 Conclusion: nothing is worth copying. The surface is about five HTTP calls (authorize, token exchange, token refresh, create container, publish, plus status polling), and Meta's own [content publishing docs](https://developers.facebook.com/docs/instagram-platform/content-publishing) are the real reference. Writing it ourselves with `fetch`, in the style of `google-calendar.ts`, avoids a dependency and any licence entanglement. Mixpost can be consulted for edge cases while building.
