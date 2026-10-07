@@ -27,12 +27,13 @@ export default defineEventHandler(async (event) => {
   const facebook = !page
     ? { connected: false, canPublish: false, name: null, message: null }
     : hasFacebookPublishScope(page.scopes)
-        ? { connected: true, canPublish: true, name: page.username, message: null }
-        : { connected: true, canPublish: false, name: page.username, message: 'Verbind het account opnieuw om ook op de Facebook-pagina te kunnen posten (toestemming pages_manage_posts).' }
+        ? { connected: true, canPublish: true, name: page.username, message: null, tokenExpiresAt: page.tokenExpiresAt.toISOString() }
+        : { connected: true, canPublish: false, name: page.username, tokenExpiresAt: page.tokenExpiresAt.toISOString(), message: 'Verbind het account opnieuw om ook op de Facebook-pagina te kunnen posten (toestemming pages_manage_posts).' }
 
   return {
     facebook,
     connected: true,
+    tokenExpiresAt: account.tokenExpiresAt.toISOString(),
     canPublish: !blocked && !unreachable,
     username: account.username,
     accountType: account.accountType,

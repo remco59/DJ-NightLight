@@ -2,7 +2,10 @@
 import { usePostEditor } from '~/composables/usePostEditor'
 import { apiErrorMessage } from '~/utils/api-error'
 import {
+  amsterdamLocalToIso,
   canPublishPresetAsFeedImage,
+  checkScheduleMoment,
+  isoToAmsterdamLocal,
   captionLength,
   checkCaption,
   INSTAGRAM_ALT_TEXT_MAX,
@@ -15,8 +18,8 @@ import {
 const props = defineProps<{ postId: string | null }>()
 const open = defineModel<boolean>('open', { required: true })
 
-type FacebookInfo = { connected: boolean, canPublish: boolean, name: string | null, message: string | null }
-type AccountInfo = { connected: boolean, canPublish: boolean, username: string | null, accountType: string | null, message: string | null, facebook: FacebookInfo }
+type FacebookInfo = { connected: boolean, canPublish: boolean, name: string | null, message: string | null, tokenExpiresAt?: string | null }
+type AccountInfo = { tokenExpiresAt?: string | null, connected: boolean, canPublish: boolean, username: string | null, accountType: string | null, message: string | null, facebook: FacebookInfo }
 type PublishedPost = { status: string, permalink: string | null, lastError: string | null, provider: string }
 
 const editor = usePostEditor()
@@ -32,18 +35,35 @@ const toInstagram = ref(true)
 const toFacebook = ref(false)
 const results = ref<Array<{ platform: string, status: string, permalink: string | null, error: string | null }>>([])
 const done = ref(false)
+type Mode = 'now' | 'schedule'
+const mode = ref<Mode>('now')
+const whenLocal = ref('')
+const savedAs = ref<'now' | 'schedule' | 'draft'>('now')
 const closeRef = ref<HTMLButtonElement | null>(null)
 
+const whenLabel = computed(() => (scheduledIso.value
+  ? new Intl.DateTimeFormat('nl-NL', { timeZone: 'Europe/Amsterdam', dateStyle: 'long', timeStyle: 'short' }).format(new Date(scheduledIso.value))
+  : ''))
 const length = computed(() => captionLength(caption.value))
 const hashtags = computed(() => countHashtags(caption.value))
 const captionCheck = computed(() => checkCaption(caption.value))
 const presetBlocked = computed(() => toInstagram.value && Boolean(post.value) && !canPublishPresetAsFeedImage(post.value!.preset))
 const publishedOn = (provider: string) => Boolean(post.value?.social?.some(badge => badge.provider === provider && badge.status === 'published'))
-const canSubmit = computed(() => Boolean(
+const scheduledIso = computed(() => (whenLocal.value ? amsterdamLocalToIso(whenLocal.value) : null))
+const scheduleCheck = computed(() => checkScheduleMoment(scheduledIso.value, new Date(), earliestExpiry.value))
+// The post can only go out while the Meta access is valid.
+const earliestExpiry = computed(() => {
+  const dates = [toInstagram.value && account.value?.tokenExpiresAt, toFacebook.value && account.value?.facebook.tokenExpiresAt]
+    .filter((value): value is string => typeof value === 'string').map(value => new Date(value))
+  return dates.length ? new Date(Math.min(...dates.map(date => date.getTime()))) : null
+})
+const baseReady = computed(() => Boolean(
   post.value && (toInstagram.value || toFacebook.value)
   && (!toInstagram.value || account.value?.canPublish) && (!toFacebook.value || account.value?.facebook.canPublish) && captionCheck.value.ok && !presetBlocked.value
   && altText.value.length <= INSTAGRAM_ALT_TEXT_MAX && !publishing.value && !done.value,
 ))
+const canSubmit = computed(() => baseReady.value && (mode.value === 'now' || scheduleCheck.value.ok))
+const canDraft = computed(() => baseReady.value)
 
 async function loadAccount() {
   loadingAccount.value = true
@@ -57,8 +77,10 @@ async function loadAccount() {
   }
 }
 
-async function publish() {
-  if (!canSubmit.value || !post.value) return
+async function publish(kind: 'submit' | 'draft' = 'submit') {
+  if (!post.value || (kind === 'draft' ? !canDraft.value : !canSubmit.value)) return
+  const requested = kind === 'draft' ? 'draft' : mode.value
+  savedAs.value = requested
   publishing.value = true
   error.value = ''
   try {
@@ -69,6 +91,8 @@ async function publish() {
         caption: caption.value,
         altText: altText.value || null,
         platforms: [toInstagram.value && 'instagram', toFacebook.value && 'facebook'].filter(Boolean),
+        mode: requested,
+        scheduledAt: requested === 'now' ? null : scheduledIso.value,
       },
     })
     results.value = result.posts.map(item => ({
@@ -87,6 +111,12 @@ async function publish() {
   }
 }
 
+/** Tomorrow 18:00 in Amsterdam, a sensible default for a planned post. */
+function defaultWhen() {
+  const tomorrow = isoToAmsterdamLocal(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString())
+  return `${tomorrow.slice(0, 10)}T18:00`
+}
+
 function close() {
   if (publishing.value) return
   open.value = false
@@ -96,6 +126,9 @@ watch(open, (value) => {
   if (!value) return
   caption.value = ''
   altText.value = ''
+  mode.value = 'now'
+  whenLocal.value = defaultWhen()
+  savedAs.value = 'now'
   error.value = ''
   results.value = []
   toInstagram.value = true
@@ -114,7 +147,7 @@ watch(open, (value) => {
           <header class="drawer-head">
             <div>
               <h2 id="post-publish-title">Publiceren op Instagram en Facebook</h2>
-              <p>De post wordt direct geplaatst en blijft ook bewaard bij Recente exports.</p>
+              <p>Plaats de post nu of plan hem in. De export blijft ook bewaard bij Recente exports.</p>
             </div>
             <button ref="closeRef" type="button" class="icon-button" aria-label="Sluiten" :disabled="publishing" @click="close">
               <Icon name="lucide:x" aria-hidden="true" />
@@ -123,19 +156,24 @@ watch(open, (value) => {
 
           <div v-if="done" class="body done" role="status">
             <Icon name="lucide:circle-check" aria-hidden="true" />
-            <strong>{{ results.every(item => item.status === 'published') ? 'Gepubliceerd' : 'Deels gepubliceerd' }}</strong>
+            <strong v-if="savedAs === 'schedule'">Ingepland</strong>
+            <strong v-else-if="savedAs === 'draft'">Opgeslagen als concept</strong>
+            <strong v-else>{{ results.every(item => item.status === 'published') ? 'Gepubliceerd' : 'Deels gepubliceerd' }}</strong>
             <ul class="results">
-              <li v-for="item in results" :key="item.platform" :class="{ failed: item.status !== 'published' }">
+              <li v-for="item in results" :key="item.platform" :class="{ failed: item.status === 'failed' }">
                 <span>{{ socialProviderLabels[item.platform] }}:</span>
-                <a v-if="item.status === 'published' && item.permalink" :href="item.permalink" target="_blank" rel="noopener">Bekijk de post <Icon name="lucide:external-link" aria-hidden="true" /></a>
+                <template v-if="item.status === 'scheduled'">gepland voor {{ whenLabel }}</template>
+                <template v-else-if="item.status === 'draft'">concept bewaard</template>
+                <a v-else-if="item.status === 'published' && item.permalink" :href="item.permalink" target="_blank" rel="noopener">Bekijk de post <Icon name="lucide:external-link" aria-hidden="true" /></a>
                 <template v-else-if="item.status === 'published'">gepubliceerd</template>
                 <template v-else>mislukt{{ item.error ? ` (${item.error})` : '' }}. Gebruik Opnieuw bij Recente exports.</template>
               </li>
             </ul>
+            <NuxtLink v-if="savedAs !== 'now'" class="action" to="/admin/social" @click="open = false">Open Social</NuxtLink>
             <button type="button" class="action primary" @click="open = false">Sluiten</button>
           </div>
 
-          <form v-else class="body" @submit.prevent="publish">
+          <form v-else class="body" @submit.prevent="publish('submit')">
             <p v-if="loadingAccount" class="note">Koppeling controleren…</p>
             <p v-else-if="account && !account.canPublish" class="notice error" role="alert">{{ account.message }}</p>
 
@@ -160,6 +198,17 @@ watch(open, (value) => {
               </label>
             </fieldset>
             <p v-if="account?.facebook.connected && account.facebook.message" class="note">{{ account.facebook.message }}</p>
+
+            <fieldset class="mode" aria-label="Wanneer publiceren">
+              <label :class="{ active: mode === 'now' }"><input v-model="mode" type="radio" value="now"> Nu publiceren</label>
+              <label :class="{ active: mode === 'schedule' }"><input v-model="mode" type="radio" value="schedule"> Inplannen</label>
+            </fieldset>
+            <label v-if="mode === 'schedule'" class="field">
+              <span class="label-row"><span>Datum en tijd</span><small>Europe/Amsterdam</small></span>
+              <input v-model="whenLocal" type="datetime-local" class="when" :aria-invalid="!scheduleCheck.ok">
+              <small v-if="!scheduleCheck.ok" class="hint error">{{ scheduleCheck.message }}</small>
+              <small v-else class="hint">NightLight plaatst de post op dit moment. Meta kent geen eigen planning, dus de server moet dan draaien.</small>
+            </label>
 
             <label class="field">
               <span class="label-row">
@@ -186,8 +235,9 @@ watch(open, (value) => {
 
             <footer class="foot">
               <button type="button" class="action" :disabled="publishing" @click="close">Annuleren</button>
+              <button type="button" class="action" :disabled="!canDraft" @click="publish('draft')">Opslaan als concept</button>
               <button type="submit" class="action primary" :disabled="!canSubmit">
-                {{ publishing ? 'Publiceren…' : 'Publiceren' }}
+                {{ publishing ? 'Bezig…' : mode === 'schedule' ? 'Inplannen' : 'Publiceren' }}
               </button>
             </footer>
           </form>
@@ -300,7 +350,52 @@ textarea {
   resize: vertical;
 }
 
-textarea:focus-visible {
+.mode {
+  display: flex;
+  gap: .4rem;
+  margin: 0;
+  padding: .25rem;
+  border: 1px solid #2a2530;
+  border-radius: .7rem;
+  background: #151119;
+}
+
+.mode label {
+  flex: 1;
+  padding: .45rem .6rem;
+  border-radius: .5rem;
+  font-size: .82rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.mode label.active {
+  background: #7c5cd6;
+  color: #fff;
+}
+
+.mode input {
+  position: absolute;
+  opacity: 0;
+}
+
+.mode label:has(input:focus-visible) {
+  outline: 2px solid #a78bfa;
+  outline-offset: 1px;
+}
+
+.when {
+  padding: .55rem .7rem;
+  border: 1px solid #2a2530;
+  border-radius: .6rem;
+  background: #151119;
+  color: inherit;
+  font: inherit;
+  color-scheme: dark;
+}
+
+textarea:focus-visible,
+.when:focus-visible {
   outline: 2px solid #a78bfa;
   outline-offset: 1px;
 }
