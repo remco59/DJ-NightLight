@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { buildInstagramAuthorizeUrl, instagramRedirectUri, INSTAGRAM_STATE_COOKIE, OAUTH_STATE_MAX_AGE_MS } from '../../../../../shared/instagram'
+import { buildFacebookAuthorizeUrl, instagramRedirectUri, INSTAGRAM_STATE_COOKIE, OAUTH_STATE_MAX_AGE_MS } from '../../../../../shared/instagram'
 import { signOAuthState } from '../../../../utils/instagram-state'
 import { loadInstagramIntegration } from '../../../../utils/integration-settings'
 import { requireStaff } from '../../../../utils/require-staff'
@@ -23,8 +23,9 @@ export default defineEventHandler(async (event) => {
   })
 
   const state = signOAuthState({ nonce, userId: user.id, password: String(config.session.password || '') })
-  return sendRedirect(event, buildInstagramAuthorizeUrl({
+  return sendRedirect(event, buildFacebookAuthorizeUrl({
     appId: credentials.appId,
+    configId: credentials.configId,
     redirectUri: instagramRedirectUri(String(config.public.siteUrl || '')),
     state,
   }), 302)

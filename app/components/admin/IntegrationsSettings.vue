@@ -10,17 +10,20 @@ type InstagramStatus = {
   configured: boolean
   appIdPreview: string | null
   appSecretConfigured: boolean
+  loginConfigId: string
   redirectUri: string
   account: {
     id: string
     username: string
     accountType: string | null
     externalIdPreview: string
+    pageName: string | null
     status: 'active' | 'needs_reauth' | 'disabled'
     tokenIssuedAt: string
     tokenExpiresAt: string
     canPublish: boolean
-    lastRefreshError: string | null
+    lastCheckedAt: string | null
+    lastError: string | null
   } | null
   lastPublishedAt: string | null
   lastWorkerRunAt: string | null
@@ -214,12 +217,12 @@ const instagramMessages: Record<string, { text: string, type: 'success' | 'error
   denied: { text: 'Je hebt geen toegang gegeven. Er is niets gekoppeld.', type: 'error' },
   state: { text: 'De koppelpoging is verlopen of ongeldig. Probeer het opnieuw.', type: 'error' },
   missing: { text: 'Stel eerst het app-ID en het app secret van de Meta-app in.', type: 'error' },
-  error: { text: 'Koppelen is niet gelukt. Controleer het app-ID, het app secret en de redirect-URI in de Meta-app.', type: 'error' },
+  error: { text: 'Koppelen is niet gelukt. Controleer het app-ID, het app secret, de redirect-URI en of het Instagram-account aan een Facebook-pagina is gekoppeld.', type: 'error' },
 }
 
 const instagramMessage = ref('')
 const instagramMessageType = ref<'success' | 'error' | ''>('')
-const metaForm = reactive({ appId: '', appSecret: '' })
+const metaForm = reactive({ appId: '', appSecret: '', loginConfigId: '' })
 const metaEditing = ref(false)
 const metaMessage = ref('')
 const metaMessageType = ref<'success' | 'error' | ''>('')
@@ -229,11 +232,13 @@ onMounted(() => {
   const outcome = url.searchParams.get('instagram')
   if (!outcome) return
   const known = instagramMessages[outcome]
+  const detail = url.searchParams.get('detail')
   if (known) {
-    instagramMessage.value = known.text
+    instagramMessage.value = detail && known.type === 'error' ? `${known.text} Meta meldt: ${detail}` : known.text
     instagramMessageType.value = known.type
   }
   url.searchParams.delete('instagram')
+  url.searchParams.delete('detail')
   history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
 })
 
@@ -268,6 +273,7 @@ function instagramPill() {
 function startMetaApp() {
   metaForm.appId = ''
   metaForm.appSecret = ''
+  metaForm.loginConfigId = instagram.value?.loginConfigId || ''
   metaEditing.value = true
   metaMessage.value = ''
 }
@@ -313,17 +319,17 @@ async function removeMetaApp() {
   }
 }
 
-async function refreshInstagramToken() {
-  busy.value = 'instagram-refresh'
+async function checkInstagramConnection() {
+  busy.value = 'instagram-check'
   instagramMessage.value = ''
   try {
-    await $fetch('/api/admin/social/instagram/refresh', { method: 'POST' })
+    await $fetch('/api/admin/social/instagram/check', { method: 'POST' })
     await refresh()
-    instagramMessage.value = 'Token vernieuwd.'
+    instagramMessage.value = 'Verbinding gecontroleerd.'
     instagramMessageType.value = 'success'
   } catch (error: unknown) {
     await refresh()
-    instagramMessage.value = apiErrorMessage(error, 'Token vernieuwen is niet gelukt.')
+    instagramMessage.value = apiErrorMessage(error, 'Verbinding controleren is niet gelukt.')
     instagramMessageType.value = 'error'
   } finally {
     busy.value = ''
@@ -377,13 +383,13 @@ async function disconnectInstagram() {
         <span class="brand-icon instagram small"><Icon name="lucide:at-sign" aria-hidden="true"/></span>
         <div>
           <strong>@{{ instagram.account.username }}</strong>
-          <small>{{ instagramAccountTypeLabels[instagram.account.accountType || ''] || 'Professioneel account' }} · ID {{ instagram.account.externalIdPreview }}</small>
+          <small>{{ instagramAccountTypeLabels[instagram.account.accountType || ''] || 'Professioneel account' }}<template v-if="instagram.account.pageName"> · Pagina {{ instagram.account.pageName }}</template> · ID {{ instagram.account.externalIdPreview }}</small>
         </div>
       </div>
 
       <div v-if="instagram.account" class="tiles">
-        <div><small>Token geldig tot</small><strong>{{ formatDay(instagram.account.tokenExpiresAt) }}</strong></div>
-        <div><small>Automatisch vernieuwen</small><strong>Ja · controle dagelijks</strong></div>
+        <div><small>Toegang geldig tot</small><strong>{{ formatDay(instagram.account.tokenExpiresAt) }}</strong></div>
+        <div><small>Automatisch controleren</small><strong>Ja · dagelijks</strong></div>
         <div><small>Laatste publicatie</small><strong>{{ formatMoment(instagram.lastPublishedAt) }}</strong></div>
         <div><small>Laatste worker run</small><strong>{{ instagram.lastWorkerRunAt ? `${formatMoment(instagram.lastWorkerRunAt)} · ${relativeTime(instagram.lastWorkerRunAt)}` : 'Nog niet' }}</strong></div>
       </div>
@@ -401,8 +407,8 @@ async function disconnectInstagram() {
           {{ instagram.account ? 'Opnieuw verbinden' : 'Instagram verbinden' }}
         </a>
         <button v-else type="button" disabled>Instagram verbinden</button>
-        <button v-if="instagram.account" class="ghost" type="button" :disabled="busy === 'instagram-refresh' || instagram.account.status !== 'active'" @click="refreshInstagramToken">
-          {{ busy === 'instagram-refresh' ? 'Vernieuwen…' : 'Token nu vernieuwen' }}
+        <button v-if="instagram.account" class="ghost" type="button" :disabled="busy === 'instagram-check' || instagram.account.status !== 'active'" @click="checkInstagramConnection">
+          {{ busy === 'instagram-check' ? 'Controleren…' : 'Verbinding controleren' }}
         </button>
         <button v-if="instagram.account" class="ghost danger" type="button" :disabled="busy === 'instagram-remove'" @click="disconnectInstagram">
           Ontkoppelen
@@ -430,8 +436,8 @@ async function disconnectInstagram() {
         <div class="credential-head">
           <div>
             <strong>App-gegevens</strong>
-            <p v-if="instagram.configured">App-ID {{ instagram.appIdPreview }} · app secret veilig opgeslagen</p>
-            <p v-else>Voeg het Instagram app-ID en app secret van je Meta-app toe.</p>
+            <p v-if="instagram.configured">App-ID {{ instagram.appIdPreview }} · app secret veilig opgeslagen<template v-if="instagram.loginConfigId"> · configuratie-ID {{ instagram.loginConfigId }}</template></p>
+            <p v-else>Voeg het app-ID en app secret van je Meta-app toe (Instellingen → Algemeen in de Meta-app).</p>
           </div>
           <button v-if="!metaEditing" class="ghost" type="button" @click="startMetaApp">
             {{ instagram.configured ? 'Wijzigen' : 'Toevoegen' }}
@@ -440,15 +446,16 @@ async function disconnectInstagram() {
         <div v-if="metaEditing" class="credentials-grid">
           <label>App-ID<input v-model="metaForm.appId" inputmode="numeric" autocomplete="off" spellcheck="false"></label>
           <label>App secret<input v-model="metaForm.appSecret" type="password" autocomplete="off" spellcheck="false"></label>
+          <label class="wide">Configuratie-ID (optioneel)<input v-model="metaForm.loginConfigId" inputmode="numeric" autocomplete="off" spellcheck="false"><small>Alleen nodig als Meta voor je app Facebook Login for Business met een configuratie vraagt.</small></label>
           <p class="wide hint">Bestaande geheimen worden nooit opnieuw getoond. Bij een andere app moet het Instagram-account opnieuw worden verbonden.</p>
         </div>
       </div>
 
       <div class="dev-note">
         <strong>Development mode</strong>
-        <p>Werkt zolang je alleen publiceert naar het eigen NightLight-account dat als app-rol is toegevoegd.</p>
+        <p>Werkt zolang je alleen publiceert naar het eigen NightLight-account en je zelf een rol op de Meta-app hebt.</p>
       </div>
-      <p class="hint redirect">Redirect-URI: <code>{{ instagram.redirectUri }}</code></p>
+      <p class="hint redirect">Redirect-URI (toevoegen bij Facebook Login → Valid OAuth Redirect URIs): <code>{{ instagram.redirectUri }}</code></p>
 
       <div v-if="metaEditing || instagram.source === 'settings'" class="actions">
         <button v-if="metaEditing" type="button" :disabled="busy === 'meta'" @click="saveMetaApp">

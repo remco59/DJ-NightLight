@@ -1,11 +1,8 @@
-// Thin client for the Instagram API with Instagram Login. Pure functions with an
-// injectable fetch so the response handling can be unit tested without Nuxt.
+// Thin client for the Instagram API with Facebook Login (Graph API). Pure functions
+// with an injectable fetch so response handling can be unit tested without Nuxt.
+import { META_GRAPH_VERSION } from '../../shared/instagram'
 
-/** Meta versions the Graph API; change it here only. */
-export const INSTAGRAM_GRAPH_VERSION = 'v23.0'
-
-const GRAPH_HOST = 'https://graph.instagram.com'
-const OAUTH_TOKEN_URL = 'https://api.instagram.com/oauth/access_token'
+const GRAPH = `https://graph.facebook.com/${META_GRAPH_VERSION}`
 
 type FetchLike = typeof fetch
 
@@ -24,17 +21,12 @@ export class InstagramApiError extends Error {
   }
 }
 
-type MetaErrorPayload = {
-  error?: { message?: string, code?: number, type?: string }
-  error_message?: string
-  error_type?: string
-  code?: number
-}
+type MetaErrorPayload = { error?: { message?: string, code?: number, type?: string } }
 
 function metaError(status: number, payload: unknown) {
   const body = (payload && typeof payload === 'object' ? payload : {}) as MetaErrorPayload
-  const message = body.error?.message || body.error_message || `Instagram antwoordde met status ${status}`
-  const code = body.error?.code ?? body.code ?? null
+  const message = body.error?.message || `Meta antwoordde met status ${status}`
+  const code = body.error?.code ?? null
   const permanent = status === 401 || (code !== null && PERMANENT_AUTH_CODES.has(code))
   return new InstagramApiError(message.slice(0, 500), status, code, permanent)
 }
@@ -48,88 +40,113 @@ async function readJson(response: Response) {
   }
 }
 
-async function request(url: string, init: RequestInit | undefined, fetchImpl: FetchLike) {
-  const response = await fetchImpl(url, init)
+async function get(path: string, params: Record<string, string>, fetchImpl: FetchLike) {
+  const response = await fetchImpl(`${GRAPH}${path}?${new URLSearchParams(params)}`)
   const payload = await readJson(response)
   if (!response.ok) throw metaError(response.status, payload)
   return payload as Record<string, unknown>
 }
 
-function permissionList(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean)
-  if (typeof value === 'string') return value.split(',').map(item => item.trim()).filter(Boolean)
-  return []
-}
+export type UserToken = { accessToken: string, expiresInSeconds: number | null }
 
-export type ShortLivedToken = { accessToken: string, userId: string, permissions: string[] }
+function userToken(payload: Record<string, unknown>): UserToken {
+  const accessToken = typeof payload.access_token === 'string' ? payload.access_token : ''
+  if (!accessToken) throw new InstagramApiError('Meta gaf geen toegangstoken terug', 200, null, false)
+  const expires = Number(payload.expires_in)
+  return { accessToken, expiresInSeconds: Number.isFinite(expires) && expires > 0 ? expires : null }
+}
 
 export async function exchangeCodeForToken(
   input: { appId: string, appSecret: string, redirectUri: string, code: string },
   fetchImpl: FetchLike = fetch,
-): Promise<ShortLivedToken> {
-  const payload = await request(OAUTH_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: input.appId,
-      client_secret: input.appSecret,
-      grant_type: 'authorization_code',
-      redirect_uri: input.redirectUri,
-      code: input.code,
-    }),
-  }, fetchImpl)
-
-  // Meta has returned both a flat object and { data: [ … ] }.
-  const first = Array.isArray(payload.data) ? (payload.data[0] as Record<string, unknown> | undefined) ?? {} : payload
-  const accessToken = typeof first.access_token === 'string' ? first.access_token : ''
-  if (!accessToken) throw new InstagramApiError('Instagram gaf geen toegangstoken terug', 200, null, false)
-  return {
-    accessToken,
-    userId: String(first.user_id ?? ''),
-    permissions: permissionList(first.permissions),
-  }
-}
-
-export type LongLivedToken = { accessToken: string, expiresInSeconds: number }
-
-function longLived(payload: Record<string, unknown>): LongLivedToken {
-  const accessToken = typeof payload.access_token === 'string' ? payload.access_token : ''
-  const expiresInSeconds = Number(payload.expires_in)
-  if (!accessToken || !Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
-    throw new InstagramApiError('Instagram gaf geen geldig langlopend token terug', 200, null, false)
-  }
-  return { accessToken, expiresInSeconds }
+) {
+  return userToken(await get('/oauth/access_token', {
+    client_id: input.appId,
+    client_secret: input.appSecret,
+    redirect_uri: input.redirectUri,
+    code: input.code,
+  }, fetchImpl))
 }
 
 export async function exchangeForLongLivedToken(
-  input: { appSecret: string, accessToken: string },
+  input: { appId: string, appSecret: string, accessToken: string },
   fetchImpl: FetchLike = fetch,
 ) {
-  const params = new URLSearchParams({
-    grant_type: 'ig_exchange_token',
+  return userToken(await get('/oauth/access_token', {
+    grant_type: 'fb_exchange_token',
+    client_id: input.appId,
     client_secret: input.appSecret,
-    access_token: input.accessToken,
-  })
-  return longLived(await request(`${GRAPH_HOST}/access_token?${params}`, undefined, fetchImpl))
+    fb_exchange_token: input.accessToken,
+  }, fetchImpl))
 }
 
-export async function refreshLongLivedToken(accessToken: string, fetchImpl: FetchLike = fetch) {
-  const params = new URLSearchParams({ grant_type: 'ig_refresh_token', access_token: accessToken })
-  return longLived(await request(`${GRAPH_HOST}/refresh_access_token?${params}`, undefined, fetchImpl))
+export type InstagramPage = {
+  pageId: string
+  pageName: string
+  pageAccessToken: string
+  instagramId: string
+  username: string
 }
 
-export type InstagramProfile = { externalId: string, username: string, accountType: string | null }
+/** Facebook Pages the user manages that have an Instagram professional account linked. */
+export async function listInstagramPages(accessToken: string, fetchImpl: FetchLike = fetch): Promise<InstagramPage[]> {
+  const payload = await get('/me/accounts', {
+    fields: 'id,name,access_token,instagram_business_account{id,username}',
+    limit: '100',
+    access_token: accessToken,
+  }, fetchImpl)
 
-export async function fetchInstagramProfile(accessToken: string, fetchImpl: FetchLike = fetch): Promise<InstagramProfile> {
-  const params = new URLSearchParams({ fields: 'user_id,username,account_type', access_token: accessToken })
-  const payload = await request(`${GRAPH_HOST}/${INSTAGRAM_GRAPH_VERSION}/me?${params}`, undefined, fetchImpl)
-  // `user_id` is the professional account id that the publishing endpoints use; `id` is app-scoped.
-  const externalId = String(payload.user_id ?? payload.id ?? '')
-  const username = typeof payload.username === 'string' ? payload.username : ''
-  if (!externalId || !username) throw new InstagramApiError('Instagram gaf geen accountgegevens terug', 200, null, false)
+  const pages = Array.isArray(payload.data) ? payload.data as Array<Record<string, unknown>> : []
+  const found: InstagramPage[] = []
+  for (const page of pages) {
+    const instagram = page.instagram_business_account as Record<string, unknown> | undefined
+    if (!instagram?.id || typeof page.access_token !== 'string') continue
+    found.push({
+      pageId: String(page.id),
+      pageName: String(page.name ?? ''),
+      pageAccessToken: page.access_token,
+      instagramId: String(instagram.id),
+      username: typeof instagram.username === 'string' ? instagram.username : '',
+    })
+  }
+  return found
+}
+
+export type TokenInspection = {
+  isValid: boolean
+  appId: string
+  /** Earliest moment the access stops working; null when Meta reports no expiry. */
+  expiresAt: Date | null
+  scopes: string[]
+  errorMessage: string | null
+}
+
+function unixDate(value: unknown) {
+  const seconds = Number(value)
+  return Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000) : null
+}
+
+/** Asks Meta what a token is worth: validity, owning app, permissions and expiry. */
+export async function inspectToken(
+  input: { appId: string, appSecret: string, token: string },
+  fetchImpl: FetchLike = fetch,
+): Promise<TokenInspection> {
+  const payload = await get('/debug_token', {
+    input_token: input.token,
+    access_token: `${input.appId}|${input.appSecret}`,
+  }, fetchImpl)
+  const data = (payload.data ?? {}) as Record<string, unknown>
+
+  // A Page token has no expiry of its own, but Meta also limits how long user data stays accessible.
+  const candidates = [unixDate(data.expires_at), unixDate(data.data_access_expires_at)].filter((date): date is Date => date !== null)
+  const expiresAt = candidates.length ? new Date(Math.min(...candidates.map(date => date.getTime()))) : null
+  const error = data.error as { message?: string } | undefined
+
   return {
-    externalId,
-    username,
-    accountType: typeof payload.account_type === 'string' ? payload.account_type : null,
+    isValid: data.is_valid === true,
+    appId: String(data.app_id ?? ''),
+    expiresAt,
+    scopes: Array.isArray(data.scopes) ? data.scopes.map(String) : [],
+    errorMessage: error?.message ? String(error.message).slice(0, 500) : null,
   }
 }

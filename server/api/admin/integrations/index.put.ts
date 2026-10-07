@@ -29,6 +29,7 @@ const schema = z.discriminatedUnion('provider', [
     provider: z.literal('instagram'),
     appId: z.string().trim().regex(/^\d{5,30}$/, 'Een Meta app-ID bestaat uit cijfers'),
     appSecret: z.string().trim().min(16, 'Het app secret is te kort').max(200),
+    loginConfigId: z.string().trim().regex(/^\d{5,30}$/, 'Een configuratie-ID bestaat uit cijfers').or(z.literal('')),
   }),
 ])
 
@@ -69,6 +70,7 @@ export default defineEventHandler(async (event) => {
     const values = {
       appId: input.appId,
       appSecretEncrypted: encryptSecret(input.appSecret, encryptionPassword),
+      loginConfigId: input.loginConfigId || null,
       updatedAt: new Date(),
     }
     await db.insert(socialSettings)

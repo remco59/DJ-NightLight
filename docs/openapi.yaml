@@ -2745,10 +2745,17 @@ paths:
                       type: string
                       minLength: 16
                       maxLength: 200
+                    loginConfigId:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{5,30}$
+                        - type: string
+                          const: ""
                   required:
                     - provider
                     - appId
                     - appSecret
+                    - loginConfigId
       responses:
         "200":
           description: Gelukt
@@ -5089,6 +5096,12 @@ paths:
           schema:
             type: string
             maxLength: 200
+        - name: error_description
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 500
       responses:
         "200":
           description: Gelukt
@@ -5102,9 +5115,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /api/admin/social/instagram/connect:
-    get:
-      operationId: getAdminSocialInstagramConnect
+  /api/admin/social/instagram/check:
+    post:
+      operationId: postAdminSocialInstagramCheck
       tags:
         - admin/social
       security:
@@ -5122,9 +5135,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /api/admin/social/instagram/refresh:
-    post:
-      operationId: postAdminSocialInstagramRefresh
+  /api/admin/social/instagram/connect:
+    get:
+      operationId: getAdminSocialInstagramConnect
       tags:
         - admin/social
       security:

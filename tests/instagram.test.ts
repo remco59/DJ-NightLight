@@ -2,41 +2,55 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  buildInstagramAuthorizeUrl,
+  buildFacebookAuthorizeUrl,
+  hasPublishScope,
   instagramHealth,
   instagramRedirectUri,
-  INSTAGRAM_PUBLISH_SCOPE,
   maskAppId,
   maskExternalId,
-  shouldRefreshToken,
+  shouldCheckConnection,
   tokenDaysLeft,
 } from '../shared/instagram'
 import { signOAuthState, verifyOAuthState } from '../server/utils/instagram-state'
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
-  fetchInstagramProfile,
+  inspectToken,
   InstagramApiError,
-  refreshLongLivedToken,
+  listInstagramPages,
 } from '../server/utils/instagram'
 
 const DAY = 24 * 60 * 60 * 1000
 const now = Date.UTC(2026, 9, 7, 12, 0, 0)
 const password = 'x'.repeat(40)
 
-describe('Instagram OAuth setup', () => {
+describe('Facebook Login setup', () => {
   it('builds the redirect URI without a double slash', () => {
     expect(instagramRedirectUri('https://nightlight.example/')).toBe('https://nightlight.example/api/admin/social/instagram/callback')
     expect(instagramRedirectUri('http://localhost:3000')).toBe('http://localhost:3000/api/admin/social/instagram/callback')
   })
 
-  it('asks for the basic and publish scopes', () => {
-    const url = new URL(buildInstagramAuthorizeUrl({ appId: '123456', redirectUri: 'https://x.test/cb', state: 'abc' }))
-    expect(url.origin + url.pathname).toBe('https://www.instagram.com/oauth/authorize')
+  it('asks for the Instagram and Page permissions when no configuration is set', () => {
+    const url = new URL(buildFacebookAuthorizeUrl({ appId: '123456', redirectUri: 'https://x.test/cb', state: 'abc' }))
+    expect(url.origin + url.pathname).toMatch(/^https:\/\/www\.facebook\.com\/v\d+\.\d+\/dialog\/oauth$/)
     expect(url.searchParams.get('client_id')).toBe('123456')
     expect(url.searchParams.get('response_type')).toBe('code')
-    expect(url.searchParams.get('scope')).toBe('instagram_business_basic,instagram_business_content_publish')
     expect(url.searchParams.get('state')).toBe('abc')
+    expect(url.searchParams.get('scope')).toBe('instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management')
+    expect(url.searchParams.has('config_id')).toBe(false)
+  })
+
+  it('uses the Facebook Login for Business configuration instead of scopes when one is set', () => {
+    const url = new URL(buildFacebookAuthorizeUrl({ appId: '123456', redirectUri: 'https://x.test/cb', state: 'abc', configId: '987654321' }))
+    expect(url.searchParams.get('config_id')).toBe('987654321')
+    expect(url.searchParams.get('override_default_response_type')).toBe('true')
+    expect(url.searchParams.has('scope')).toBe(false)
+  })
+
+  it('accepts either spelling of the publish permission', () => {
+    expect(hasPublishScope(['instagram_basic', 'instagram_content_publish'])).toBe(true)
+    expect(hasPublishScope(['instagram_content_publishing'])).toBe(true)
+    expect(hasPublishScope(['instagram_basic'])).toBe(false)
   })
 
   it('masks identifiers', () => {
@@ -75,32 +89,16 @@ describe('OAuth state', () => {
   })
 })
 
-describe('token refresh rules', () => {
-  const base = {
-    status: 'active',
-    tokenIssuedAt: new Date(now - 50 * DAY),
-    tokenExpiresAt: new Date(now + 10 * DAY),
-    lastRefreshAttemptAt: null,
-    now,
-  }
-
-  it('refreshes a token that expires within 14 days', () => {
-    expect(shouldRefreshToken(base)).toBe(true)
+describe('connection checks', () => {
+  it('checks an active account at most once a day', () => {
+    expect(shouldCheckConnection({ status: 'active', lastCheckedAt: null, now })).toBe(true)
+    expect(shouldCheckConnection({ status: 'active', lastCheckedAt: new Date(now - 3_600_000), now })).toBe(false)
+    expect(shouldCheckConnection({ status: 'active', lastCheckedAt: new Date(now - 25 * 3_600_000), now })).toBe(true)
   })
 
-  it('leaves a token with plenty of time alone', () => {
-    expect(shouldRefreshToken({ ...base, tokenExpiresAt: new Date(now + 40 * DAY) })).toBe(false)
-  })
-
-  it('never refreshes a token younger than 24 hours, an expired token or an inactive account', () => {
-    expect(shouldRefreshToken({ ...base, tokenIssuedAt: new Date(now - 3_600_000) })).toBe(false)
-    expect(shouldRefreshToken({ ...base, tokenExpiresAt: new Date(now - 1000) })).toBe(false)
-    expect(shouldRefreshToken({ ...base, status: 'needs_reauth' })).toBe(false)
-  })
-
-  it('waits twelve hours between attempts', () => {
-    expect(shouldRefreshToken({ ...base, lastRefreshAttemptAt: new Date(now - 3_600_000) })).toBe(false)
-    expect(shouldRefreshToken({ ...base, lastRefreshAttemptAt: new Date(now - 13 * 3_600_000) })).toBe(true)
+  it('does not check accounts that already need attention', () => {
+    expect(shouldCheckConnection({ status: 'needs_reauth', lastCheckedAt: null, now })).toBe(false)
+    expect(shouldCheckConnection({ status: 'disabled', lastCheckedAt: null, now })).toBe(false)
   })
 
   it('counts whole days left', () => {
@@ -113,12 +111,12 @@ describe('Instagram health', () => {
   const account = {
     status: 'active',
     tokenExpiresAt: new Date(now + 40 * DAY),
-    scopes: ['instagram_business_basic', INSTAGRAM_PUBLISH_SCOPE],
-    lastRefreshError: null,
+    scopes: ['instagram_basic', 'instagram_content_publish'],
+    lastError: null,
   }
   const base = { appConfigured: true, account, workerLastRunAt: new Date(now - 10_000), now }
 
-  it('reports ok when token, scope and worker are fine', () => {
+  it('reports ok when access, permission and worker are fine', () => {
     expect(instagramHealth(base)).toMatchObject({ level: 'ok', title: 'Instagram-koppeling werkt' })
   })
 
@@ -127,15 +125,15 @@ describe('Instagram health', () => {
     expect(instagramHealth({ ...base, account: null }).level).toBe('inactive')
   })
 
-  it('is an error when reauth is needed, the token expired or the publish scope is missing', () => {
+  it('is an error when reauth is needed, access expired or the publish permission is missing', () => {
     expect(instagramHealth({ ...base, account: { ...account, status: 'needs_reauth' } }).level).toBe('error')
     expect(instagramHealth({ ...base, account: { ...account, tokenExpiresAt: new Date(now - 1) } }).level).toBe('error')
-    expect(instagramHealth({ ...base, account: { ...account, scopes: ['instagram_business_basic'] } }).title).toBe('Publicatierechten ontbreken')
+    expect(instagramHealth({ ...base, account: { ...account, scopes: ['instagram_basic'] } }).title).toBe('Publicatierechten ontbreken')
   })
 
-  it('warns about an expiring token, a failed refresh and an offline worker', () => {
-    expect(instagramHealth({ ...base, account: { ...account, tokenExpiresAt: new Date(now + 3 * DAY) } }).title).toBe('Token verloopt binnenkort')
-    expect(instagramHealth({ ...base, account: { ...account, lastRefreshError: 'boom' } }).title).toBe('Vernieuwen van het token mislukt')
+  it('warns about expiring access, a failed check and an offline worker', () => {
+    expect(instagramHealth({ ...base, account: { ...account, tokenExpiresAt: new Date(now + 3 * DAY) } }).title).toBe('Toegang verloopt binnenkort')
+    expect(instagramHealth({ ...base, account: { ...account, lastError: 'boom' } }).title).toBe('Controle van de verbinding mislukt')
     expect(instagramHealth({ ...base, workerLastRunAt: new Date(now - 10 * 60_000) }).title).toBe('Worker niet actief')
     expect(instagramHealth({ ...base, workerLastRunAt: null }).level).toBe('warning')
   })
@@ -145,47 +143,87 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-describe('Instagram API client', () => {
-  it('exchanges a code and accepts both response shapes', async () => {
-    const flat = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'short', user_id: 17841, permissions: 'a,b' }))
-    expect(await exchangeCodeForToken({ appId: '1', appSecret: 's', redirectUri: 'https://x/cb', code: 'c' }, flat))
-      .toEqual({ accessToken: 'short', userId: '17841', permissions: ['a', 'b'] })
-    const [url, init] = flat.mock.calls[0]!
-    expect(url).toBe('https://api.instagram.com/oauth/access_token')
-    expect((init.body as URLSearchParams).get('grant_type')).toBe('authorization_code')
+describe('Facebook Graph client', () => {
+  it('exchanges a code and then a long-lived user token', async () => {
+    const code = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'short', token_type: 'bearer', expires_in: 3600 }))
+    expect(await exchangeCodeForToken({ appId: '1', appSecret: 's', redirectUri: 'https://x/cb', code: 'c' }, code))
+      .toEqual({ accessToken: 'short', expiresInSeconds: 3600 })
+    const codeUrl = new URL(String(code.mock.calls[0]![0]))
+    expect(codeUrl.pathname).toMatch(/\/oauth\/access_token$/)
+    expect(codeUrl.searchParams.get('code')).toBe('c')
+    expect(codeUrl.searchParams.get('redirect_uri')).toBe('https://x/cb')
 
-    const wrapped = vi.fn().mockResolvedValue(jsonResponse({ data: [{ access_token: 'short', user_id: 9, permissions: ['a'] }] }))
-    expect((await exchangeCodeForToken({ appId: '1', appSecret: 's', redirectUri: 'r', code: 'c' }, wrapped)).permissions).toEqual(['a'])
+    const long = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'long', expires_in: 5184000 }))
+    expect(await exchangeForLongLivedToken({ appId: '1', appSecret: 's', accessToken: 'short' }, long))
+      .toEqual({ accessToken: 'long', expiresInSeconds: 5184000 })
+    const longUrl = new URL(String(long.mock.calls[0]![0]))
+    expect(longUrl.searchParams.get('grant_type')).toBe('fb_exchange_token')
+    expect(longUrl.searchParams.get('fb_exchange_token')).toBe('short')
   })
 
-  it('exchanges and refreshes long-lived tokens', async () => {
-    const ok = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'long', expires_in: 5184000 }))
-    expect(await exchangeForLongLivedToken({ appSecret: 's', accessToken: 'short' }, ok)).toEqual({ accessToken: 'long', expiresInSeconds: 5184000 })
-    expect(String(ok.mock.calls[0]![0])).toContain('grant_type=ig_exchange_token')
-
-    const refreshed = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'long2', expires_in: 5184000 }))
-    await refreshLongLivedToken('long', refreshed)
-    expect(String(refreshed.mock.calls[0]![0])).toContain('refresh_access_token?grant_type=ig_refresh_token')
+  it('accepts a token response without an expiry', async () => {
+    const none = vi.fn().mockResolvedValue(jsonResponse({ access_token: 'tok' }))
+    expect(await exchangeCodeForToken({ appId: '1', appSecret: 's', redirectUri: 'r', code: 'c' }, none))
+      .toEqual({ accessToken: 'tok', expiresInSeconds: null })
   })
 
-  it('reads the professional account id and username', async () => {
-    const profile = vi.fn().mockResolvedValue(jsonResponse({ id: 'app-scoped', user_id: '17841400', username: 'djnightlight', account_type: 'BUSINESS' }))
-    expect(await fetchInstagramProfile('t', profile)).toEqual({ externalId: '17841400', username: 'djnightlight', accountType: 'BUSINESS' })
+  it('lists only Pages that have an Instagram account', async () => {
+    const pages = vi.fn().mockResolvedValue(jsonResponse({
+      data: [
+        { id: 'p1', name: 'Zonder Instagram', access_token: 'pt1' },
+        { id: 'p2', name: 'DJ NightLight', access_token: 'pt2', instagram_business_account: { id: '17841400', username: 'djnightlight' } },
+      ],
+    }))
+    expect(await listInstagramPages('user-token', pages)).toEqual([
+      { pageId: 'p2', pageName: 'DJ NightLight', pageAccessToken: 'pt2', instagramId: '17841400', username: 'djnightlight' },
+    ])
+    expect(new URL(String(pages.mock.calls[0]![0])).searchParams.get('fields')).toContain('instagram_business_account')
+  })
+
+  it('returns an empty list when no Page has an Instagram account', async () => {
+    const empty = vi.fn().mockResolvedValue(jsonResponse({ data: [] }))
+    expect(await listInstagramPages('t', empty)).toEqual([])
+  })
+
+  it('inspects a token: owning app, scopes and the earliest expiry', async () => {
+    const soon = Math.floor((now + 30 * DAY) / 1000)
+    const later = Math.floor((now + 90 * DAY) / 1000)
+    const inspect = vi.fn().mockResolvedValue(jsonResponse({
+      data: { is_valid: true, app_id: '1234', expires_at: 0, data_access_expires_at: soon, scopes: ['instagram_basic', 'instagram_content_publish'] },
+    }))
+    const result = await inspectToken({ appId: '1234', appSecret: 'secret', token: 'page-token' }, inspect)
+    expect(result).toMatchObject({ isValid: true, appId: '1234', scopes: ['instagram_basic', 'instagram_content_publish'] })
+    expect(result.expiresAt?.getTime()).toBe(soon * 1000)
+    const url = new URL(String(inspect.mock.calls[0]![0]))
+    expect(url.searchParams.get('input_token')).toBe('page-token')
+    expect(url.searchParams.get('access_token')).toBe('1234|secret')
+
+    const both = vi.fn().mockResolvedValue(jsonResponse({ data: { is_valid: true, app_id: '1', expires_at: later, data_access_expires_at: soon } }))
+    expect((await inspectToken({ appId: '1', appSecret: 's', token: 't' }, both)).expiresAt?.getTime()).toBe(soon * 1000)
+
+    const never = vi.fn().mockResolvedValue(jsonResponse({ data: { is_valid: true, app_id: '1', expires_at: 0, data_access_expires_at: 0 } }))
+    expect((await inspectToken({ appId: '1', appSecret: 's', token: 't' }, never)).expiresAt).toBeNull()
+  })
+
+  it('reports an invalid token with Meta’s reason', async () => {
+    const invalid = vi.fn().mockResolvedValue(jsonResponse({ data: { is_valid: false, error: { message: 'Session has expired' } } }))
+    expect(await inspectToken({ appId: '1', appSecret: 's', token: 't' }, invalid))
+      .toMatchObject({ isValid: false, errorMessage: 'Session has expired' })
   })
 
   it('marks rejected tokens as permanent errors and never leaks the token', async () => {
     const rejected = vi.fn().mockResolvedValue(jsonResponse({ error: { message: 'Error validating access token', code: 190 } }, 400))
-    const error = await refreshLongLivedToken('secret-token', rejected).catch(e => e)
+    const error = await listInstagramPages('secret-token', rejected).catch(e => e)
     expect(error).toBeInstanceOf(InstagramApiError)
     expect(error).toMatchObject({ permanent: true, code: 190 })
     expect(error.message).not.toContain('secret-token')
 
     const transient = vi.fn().mockResolvedValue(jsonResponse({ error: { message: 'Service unavailable', code: 2 } }, 503))
-    expect(await refreshLongLivedToken('t', transient).catch(e => e)).toMatchObject({ permanent: false })
+    expect(await listInstagramPages('t', transient).catch(e => e)).toMatchObject({ permanent: false })
   })
 
   it('fails clearly on an empty token response', async () => {
     const empty = vi.fn().mockResolvedValue(jsonResponse({}))
-    await expect(exchangeForLongLivedToken({ appSecret: 's', accessToken: 'x' }, empty)).rejects.toThrow('geldig langlopend token')
+    await expect(exchangeForLongLivedToken({ appId: '1', appSecret: 's', accessToken: 'x' }, empty)).rejects.toThrow('geen toegangstoken')
   })
 })
