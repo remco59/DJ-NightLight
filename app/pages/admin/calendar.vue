@@ -573,15 +573,17 @@ async function rotateIcs() {
 
 <style scoped>
 .agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
-@media (min-width: 1200px) { .agenda-layout:has(.social-panel) { grid-template-columns: minmax(0, 1fr) 280px; } }
+@media (min-width: 1600px) { .agenda-layout:has(.social-panel) { grid-template-columns: minmax(0, 1fr) 280px; } }
 .legend { display: flex; gap: .4rem; }
-.legend button { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid #312b38; border-radius: 999px; background: #151219; font-size: .78rem; cursor: pointer; }
+.toolbar { flex-wrap: wrap; }
+.legend button { white-space: nowrap; display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid #312b38; border-radius: 999px; background: #151219; font-size: .78rem; cursor: pointer; }
 .legend button.off { opacity: .5; }
 .legend .dot { width: .55rem; height: .55rem; border-radius: 50%; background: #8e3de0; }
 .legend .dot.social { background: #c084fc; box-shadow: 0 0 0 2px #3b1a5a; }
 .month-event.social, .time-event.social { border-left-color: #c084fc; border-color: #4b2d6e; background: #1d1228; }
 .month-event.social.failed, .time-event.social.failed { border-left-color: #f0a3b0; }
-.time-event.social { left: 50%; z-index: 3; }
+.time-event.social { left: 45%; z-index: 3; }
+.week-grid .time-event.social .event-location { display: none; }
 .social-panel { padding: 1rem; border: 1px solid var(--border); border-radius: 1rem; background: #0f0d12; }
 .social-panel header { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; margin-bottom: .8rem; }
 .social-panel h2 { margin: 0; font-size: 1rem; }

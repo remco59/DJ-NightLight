@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { generatedPosts, socialAccounts, socialPostMedia, socialPosts } from '../../db/schema'
 import {
   checkCaption,
@@ -68,8 +68,9 @@ export async function listSocialPosts(query: { tab?: SocialTab, start?: Date, en
     conditions.push(
       inArray(socialPosts.status, ['scheduled', 'publishing', 'published', 'failed']),
       isNotNull(moment),
-      gte(moment as SQL<Date>, query.start),
-      lt(moment as SQL<Date>, query.end),
+      // Raw SQL expressions get no column encoder, so dates go in as ISO strings.
+      sql`${moment} >= ${query.start.toISOString()}::timestamptz`,
+      sql`${moment} < ${query.end.toISOString()}::timestamptz`,
     )
   }
 
