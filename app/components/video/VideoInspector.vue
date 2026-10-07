@@ -54,9 +54,11 @@ import {
   gigTemplateKind,
   gigTemplateProps,
   upcomingPublicGigs,
+  type TemplateGig,
 } from '~~/shared/template-gigs'
 import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
 import { MOTION_BLUR_QUALITIES, MOTION_BLUR_QUALITY_KEYS, itemMoves, projectMotionBlur, type MotionBlurQuality, type ProjectMotionBlur } from '~~/shared/video-motion-blur'
+import GigPickerDialog from '~/components/video/GigPickerDialog.vue'
 import KeyframeButton from '~/components/video/KeyframeButton.vue'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
@@ -307,10 +309,30 @@ function fillNextGigs() {
   })
 }
 
-function addGigRow(field: TemplateField, select: HTMLSelectElement) {
-  const gig = state.gigs.find(entry => entry.id === select.value)
-  select.value = ''
-  if (gig) addListRow(field, gigListRow(gig).slice(0, field.maxLength || 160))
+const gigPickerField = ref<TemplateField | null>(null)
+
+function pickGig(field: TemplateField, gig: TemplateGig) {
+  addListRow(field, gigListRow(gig).slice(0, field.maxLength || 160))
+  if (listValue(field).length >= (field.maxItems || 6)) gigPickerField.value = null
+}
+
+// Reordering list rows: arrow buttons and drag and drop share one move.
+const dragIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+// Only the grip starts a drag, so text in the inputs stays selectable.
+const dragArmed = ref<number | null>(null)
+
+function moveListRow(field: TemplateField, from: number, to: number) {
+  const rows = [...listValue(field)]
+  if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return
+  const [row] = rows.splice(from, 1)
+  rows.splice(to, 0, row!)
+  setField(field, rows)
+}
+
+function dropListRow(field: TemplateField, to: number) {
+  if (dragIndex.value !== null) moveListRow(field, dragIndex.value, to)
+  dragIndex.value = dragOverIndex.value = dragArmed.value = null
 }
 
 function listValue(field: TemplateField) {
@@ -512,23 +534,40 @@ const assetTitle = computed(() => {
           </label>
           <div v-else-if="field.kind === 'list' && field.columns" class="stack column-list">
             <span>{{ field.label }}</span>
-            <div v-for="(row, index) in listValue(field)" :key="index" class="column-row">
+            <div
+              v-for="(row, index) in listValue(field)"
+              :key="index"
+              class="column-row"
+              :class="{ dragging: dragIndex === index, 'drag-over': dragOverIndex === index && dragIndex !== index }"
+              :draggable="dragArmed === index"
+              @dragstart="dragIndex = index"
+              @dragover.prevent="dragOverIndex = index"
+              @drop.prevent="dropListRow(field, index)"
+              @dragend="dragIndex = dragOverIndex = dragArmed = null"
+            >
+              <div class="row-tools">
+                <span class="grip" title="Sleep om te verplaatsen" aria-hidden="true" @mousedown="dragArmed = index" @mouseup="dragArmed = null"><Icon name="lucide:grip-vertical" /></span>
+                <span class="row-number">{{ index + 1 }}</span>
+                <button type="button" class="ghost icon" title="Omhoog" aria-label="Omhoog" :disabled="index === 0" @click="moveListRow(field, index, index - 1)"><Icon name="lucide:chevron-up" aria-hidden="true" /></button>
+                <button type="button" class="ghost icon" title="Omlaag" aria-label="Omlaag" :disabled="index === listValue(field).length - 1" @click="moveListRow(field, index, index + 1)"><Icon name="lucide:chevron-down" aria-hidden="true" /></button>
+                <button type="button" class="ghost icon remove-row" title="Verwijderen" aria-label="Verwijderen" @click="removeListRow(field, index)"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+              </div>
               <label v-for="column in field.columns" :key="column.key" :class="{ wide: column.wide }">
                 <span>{{ column.label }}</span>
                 <input type="text" :maxlength="column.maxLength" :placeholder="column.placeholder" :value="splitListRow(row, field.columns)[column.key]" @input="setListColumn(field, index, column.key, ($event.target as HTMLInputElement).value)">
               </label>
-              <button type="button" class="ghost remove-row" @click="removeListRow(field, index)"><Icon name="lucide:x" aria-hidden="true" /> Verwijderen</button>
             </div>
             <button v-if="listValue(field).length < (field.maxItems || 6)" type="button" class="ghost" @click="addListRow(field)"><Icon name="lucide:plus" aria-hidden="true" />Regel toevoegen</button>
             <template v-if="gigKind === 'list'">
-              <select
-                v-if="state.gigs.length && listValue(field).length < (field.maxItems || 6)"
-                aria-label="Een gig uit de agenda toevoegen"
-                @change="addGigRow(field, $event.target as HTMLSelectElement)"
-              >
-                <option value="">Gig uit de agenda toevoegen…</option>
-                <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
-              </select>
+              <button v-if="state.gigs.length" type="button" class="ghost" :disabled="listValue(field).length >= (field.maxItems || 6)" @click="gigPickerField = field"><Icon name="lucide:calendar-plus" aria-hidden="true" />Gig uit de agenda toevoegen…</button>
+              <GigPickerDialog
+                v-if="gigPickerField?.key === field.key"
+                :upcoming="state.gigs"
+                :max="field.maxItems || 6"
+                :taken="listValue(field).length"
+                @pick="pickGig(field, $event)"
+                @close="gigPickerField = null"
+              />
               <button type="button" class="ghost" :disabled="!publicGigs.length" @click="fillNextGigs"><Icon name="lucide:calendar-sync" aria-hidden="true" />Vullen met de volgende publieke gigs</button>
               <p v-if="!publicGigs.length" class="note">Geen aankomende publieke gigs in de agenda.</p>
             </template>
@@ -923,10 +962,44 @@ output {
   grid-column: 1 / -1;
 }
 
+.row-tools {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  grid-column: 1 / -1;
+}
+
+.row-tools .grip {
+  display: inline-flex;
+  color: var(--ve-muted);
+  cursor: grab;
+}
+
+.row-tools .row-number {
+  flex: 1;
+  color: var(--ve-muted);
+  font-size: .72rem;
+}
+
+.ghost.icon {
+  padding: .25rem;
+}
+
+.ghost.icon:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.column-row.dragging {
+  opacity: .45;
+}
+
+.column-row.drag-over {
+  border-color: var(--ve-accent, #8b5cf6);
+}
+
 .column-row .remove-row {
   color: var(--ve-muted);
-  grid-column: 1 / -1;
-  justify-self: end;
 }
 
 .media-list-row {

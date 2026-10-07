@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNull, not, or } from 'drizzle-orm'
 import { gigs, mediaAssets, venues, videoProjects, videoRenderJobs } from '../../db/schema'
 import { permissionAllowed, type StaffRole } from '../../shared/auth'
 import { publicGigTitle } from '../../shared/gig-title'
@@ -14,13 +14,15 @@ export const VIDEO_EDITOR_ROLES = ['owner', 'content_editor'] as const
  * templates. Editors without access to the gig admin only get the gigs that
  * are already public on the agenda.
  */
-export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<TemplateGig[]> {
+/** `past` lists gigs that already happened, most recent first, for the gig picker's search. */
+export async function listTemplateGigs(role: StaffRole, limit = 50, past = false): Promise<TemplateGig[]> {
   const now = new Date()
   const canReadGigs = permissionAllowed(role, 'gigs:read')
+  const upcoming = or(gte(gigs.endsAt, now), and(isNull(gigs.endsAt), gte(gigs.startsAt, now)))
   const conditions = [
     eq(gigs.status, 'booked'),
     isNull(gigs.deletedAt),
-    or(gte(gigs.endsAt, now), and(isNull(gigs.endsAt), gte(gigs.startsAt, now))),
+    past ? not(upcoming) : upcoming,
   ]
   if (!canReadGigs) conditions.push(eq(gigs.publicVisibility, true))
   const rows = await db
@@ -37,7 +39,7 @@ export async function listTemplateGigs(role: StaffRole, limit = 50): Promise<Tem
     .from(gigs)
     .leftJoin(venues, eq(gigs.venueId, venues.id))
     .where(and(...conditions))
-    .orderBy(asc(gigs.startsAt))
+    .orderBy(past ? desc(gigs.startsAt) : asc(gigs.startsAt))
     .limit(limit)
   return rows.flatMap(row => row.startsAt
     ? [{
