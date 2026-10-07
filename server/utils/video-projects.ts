@@ -18,7 +18,7 @@ export const VIDEO_EDITOR_ROLES = ['owner', 'content_editor'] as const
 export async function listTemplateGigs(role: StaffRole, limit = 50, past = false): Promise<TemplateGig[]> {
   const now = new Date()
   const canReadGigs = permissionAllowed(role, 'gigs:read')
-  const upcoming = or(gte(gigs.endsAt, now), and(isNull(gigs.endsAt), gte(gigs.startsAt, now)))
+  const upcoming = or(gte(gigs.endsAt, now), and(isNull(gigs.endsAt), gte(gigs.startsAt, now)))!
   const conditions = [
     eq(gigs.status, 'booked'),
     isNull(gigs.deletedAt),
