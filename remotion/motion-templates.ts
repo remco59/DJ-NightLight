@@ -713,9 +713,22 @@ const RecapIntro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
 }
 
 
+// Stars are drawn as SVG: the star glyph is missing from Archivo and from the
+// render container's system fonts, so text stars exported as empty boxes.
+const STAR_PATH = 'M12 2.5l2.95 6.1 6.7.9-4.9 4.65 1.2 6.65L12 17.6l-5.95 3.2 1.2-6.65-4.9-4.65 6.7-.9z'
+
+/** `★★☆` style text (or a bare number) → filled flags, max 5. */
+function parseStars(rating: string): boolean[] {
+  const filled = [...rating].filter(char => char === '★' || char === '⭐').length
+  const empty = [...rating].filter(char => char === '☆').length
+  if (filled + empty > 0) return [...Array(Math.min(5, filled + empty))].map((_, index) => index < filled)
+  const number = Number.parseInt(rating, 10)
+  return Number.isFinite(number) && number > 0 ? [...Array(5)].map((_, index) => index < Math.min(5, number)) : []
+}
+
 const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
   const colors = colorsFor(item)
-  const rating = textProp(item.templateProps, 'rating')
+  const stars = parseStars(textProp(item.templateProps, 'rating') ?? '')
   const quote = textProp(item.templateProps, 'quote')
   const source = textProp(item.templateProps, 'source')
   const safe = safeInsets(width, height)
@@ -751,22 +764,31 @@ const ReviewQuote: React.FC<TemplateRenderProps> = ({ item, frame, width, height
           transform: TILT,
         },
       },
-      rating
+      stars.length
         ? h(
             'div',
             {
               style: {
-                ...body,
+                display: 'flex',
+                gap: 14,
                 color: colors.soft,
-                fontSize: 44,
-                fontWeight: 900,
-                letterSpacing: 12,
-                textShadow: glow(colors, 26),
+                filter: `drop-shadow(0 0 14px ${colors.glow})`,
                 opacity: reveal(frame, 4, 10),
-                whiteSpace: 'nowrap',
               },
             },
-            rating,
+            stars.map((filled, index) =>
+              h(
+                'svg',
+                { key: index, width: 48, height: 48, viewBox: '0 0 24 24', style: { display: 'block' } },
+                h('path', {
+                  d: STAR_PATH,
+                  fill: filled ? 'currentColor' : 'none',
+                  stroke: 'currentColor',
+                  strokeWidth: 1.6,
+                  strokeLinejoin: 'round',
+                }),
+              ),
+            ),
           )
         : null,
       h(NeonRule, { colors, width: ratingWidth, progress: reveal(frame, 8, 14), style: { marginTop: 14 } }),
