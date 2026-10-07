@@ -5179,11 +5179,54 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
   /api/admin/social/posts:
+    get:
+      operationId: getAdminSocialPosts
+      tags:
+        - admin/social
+      description: Social posts for the Social page (by tab) or the Agenda (by period), plus counts and stat cards.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tab
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: postAdminSocialPosts
       tags:
         - admin/social
-      description: Publishes an exported image to Instagram (and optionally the Facebook Page) right away. Scheduling arrives in a later phase.
+      description: Publishes an exported image to Instagram (and optionally the Facebook Page) right away, schedules it, or saves a concept.
       security:
         - staffSession: []
       x-roles:
@@ -5221,6 +5264,19 @@ paths:
                     - type: string
                       maxLength: 2000
                     - type: "null"
+                mode:
+                  default: now
+                  type: string
+                  enum:
+                    - now
+                    - schedule
+                    - draft
+                scheduledAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
               required:
                 - generatedPostId
       responses:
@@ -5236,6 +5292,130 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /api/admin/social/posts/{id}:
+    patch:
+      operationId: patchAdminSocialPostsById
+      tags:
+        - admin/social
+      description: "Edits a concept or planned post, plans a concept (`action: schedule`) or turns a planned post back into a concept."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caption:
+                  type: string
+                  maxLength: 10000
+                altText:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                scheduledAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                action:
+                  type: string
+                  enum:
+                    - schedule
+                    - draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/social/posts/{id}/cancel:
+    post:
+      operationId: postAdminSocialPostsByIdCancel
+      tags:
+        - admin/social
+      description: Cancels a concept, planned or failed post. The export itself is kept.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/social/posts/{id}/retry:
+    post:
+      operationId: postAdminSocialPostsByIdRetry
+      tags:
+        - admin/social
+      description: Queues a failed post again. The worker publishes it within a minute.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/admin/stripe:
     get:
       operationId: getAdminStripe

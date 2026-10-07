@@ -98,7 +98,7 @@ Guards: the 9:16 preset is refused (feed images need 4:5 to 1.91:1; stories come
 
 Audit log: `social_post.publish_started`, `social_post.published`, `social_post.failed`.
 
-Not in this phase: scheduling, automatic retries and recovery of a `publishing` row after a crash (a row older than 10 minutes no longer blocks a new attempt), the Social page, the Agenda overlay, and the mobile editor (use Recente exports on desktop).
+Scheduling, the queue, automatic retries and crash recovery came in phase 3 (below). Still not available: the mobile editor (use Recente exports on desktop).
 
 ## Facebook Page (phase 2b)
 
@@ -109,3 +109,53 @@ The same login also posts on the Facebook Page the Instagram account is linked t
 **Publishing.** In the drawer, tick **Instagram** and/or **Facebook-pagina**. Facebook is one call, `POST /{page-id}/photos` with the public PNG URL, caption (`message`) and alt text (`alt_text_custom`), then the permalink is fetched. There is no container and nothing to wait for. Each platform gets its own post row, status, Meta error text and audit entries, so one can fail while the other is live; **Opnieuw** in Recente exports lets you retry only the platform that failed (untick the other one). The 9:16 refusal and the 100 posts per day limit only apply to Instagram.
 
 **Disconnecting** keeps posts and their history: an account that has posts is set to `disabled` and its token is wiped; connecting again reactivates it.
+
+## Scheduling and the queue (phase 3)
+
+Meta has no native scheduling for Instagram, so NightLight holds the post and publishes it at the right time. The publish drawer has **Nu publiceren / Inplannen**, a date and time in Europe/Amsterdam (stored as UTC), and **Opslaan als concept**. Each platform gets its own row, so Instagram can succeed while Facebook is retried.
+
+### Statuses
+
+| Status | Meaning |
+| --- | --- |
+| Concept (`draft`) | Saved, not planned. Can be planned, edited or cancelled. |
+| Gepland (`scheduled`) | Waiting for its moment, or for the next retry. |
+| Wordt gepubliceerd (`publishing`) | The worker (or a "nu" publish) is talking to Meta. |
+| Gepubliceerd (`published`) | Live, with a link. |
+| Mislukt (`failed`) | Not published. Meta's own text is shown; use **Opnieuw**. |
+| Geannuleerd (`cancelled`) | Will not be published. The export is kept. |
+
+Planning refuses a moment in the past, more than a year ahead, or after the date the Meta access ends (connect again first).
+
+### The worker
+
+`server/plugins/social-worker.ts` ticks every 60 seconds and calls `processDueSocialPosts`:
+
+1. **Recover.** Rows left in `publishing` for more than 10 minutes (a crashed process) are picked up. An Instagram row with a container id is checked at Meta instead of published blindly: a container that is already `PUBLISHED` is marked as published and never posted again. Without a container nothing was created, so it is simply run again. A Facebook row has no container to look up, so it is set to `failed` with a message to check the Page first (a double post is public).
+2. **Publish what is due.** `scheduled` rows whose `scheduled_at` and `next_retry_at` have passed are claimed with `FOR UPDATE SKIP LOCKED`, moved to `publishing` and run.
+
+The container id is stored before publishing. An old container that Meta reports as `ERROR` or `EXPIRED` is replaced once; a fresh container that fails is a real error.
+
+### Retries
+
+Only **temporary** problems are retried: Meta 5xx and rate-limit codes, network errors and media that Meta has not finished processing. The post goes back to `scheduled` with a growing delay (2, 4, 8, 16 minutes), up to 5 attempts, then `failed`. Revoked access, rejected media and our own checks (inactive account, missing permissions) are never retried: they go straight to `failed` and revoked access also sets the account to `needs_reauth`. A post "nu publiceren" is not retried automatically, the error is shown right away.
+
+Instagram's 24 hour limit never fails a scheduled post: it waits 30 minutes and tries again without using an attempt.
+
+**Opnieuw** on a failed post queues it again (attempts reset) and the worker publishes it within a minute. It needs an active connection.
+
+### Social page
+
+Admin → **Social** (owner and content editor). Tabs **Planning & wachtrij**, **Geschiedenis**, **Mislukt** (with a count badge), stat cards (Gepland, Deze week gepubliceerd, Mislukt, connected account), a table with thumbnail, account, moment, status and actions (Opnieuw, Aanpassen/Inplannen, Annuleren, Bekijk). Concepts and planned posts can be edited; a post the worker already picked up cannot (`409`).
+
+### Agenda
+
+Agenda shows social posts as a purple event type next to the gigs, with legend toggles **Gigs** and **Social posts**, and a **Social planning** panel with the next planned posts and **Open Social →**.
+
+### API
+
+- `POST /api/admin/social/posts` with `mode: 'now' | 'schedule' | 'draft'` and `scheduledAt`.
+- `GET /api/admin/social/posts?tab=queue|history|failed` or `?start=&end=` (Agenda), plus counts and stats.
+- `PATCH /api/admin/social/posts/:id`, `POST /api/admin/social/posts/:id/cancel`, `POST /api/admin/social/posts/:id/retry`.
+
+All need `content:manage`. Audit log: `social_post.scheduled`, `social_post.draft_saved`, `social_post.updated`, `social_post.cancelled`, `social_post.retry_scheduled`, `social_post.retry_requested`, next to the phase 2 entries.
