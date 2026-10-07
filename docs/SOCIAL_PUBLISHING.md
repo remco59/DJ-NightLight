@@ -108,7 +108,7 @@ The same login also posts on the Facebook Page the Instagram account is linked t
 
 **Publishing.** In the drawer, tick **Instagram** and/or **Facebook-pagina**. Facebook is one call, `POST /{page-id}/photos` with the public PNG URL, caption (`message`) and alt text (`alt_text_custom`), then the permalink is fetched. There is no container and nothing to wait for. Each platform gets its own post row, status, Meta error text and audit entries, so one can fail while the other is live; **Opnieuw** in Recente exports lets you retry only the platform that failed (untick the other one). The 9:16 refusal and the 100 posts per day limit only apply to Instagram.
 
-**Disconnecting** keeps posts and their history: an account that has posts is set to `disabled` and its token is wiped; connecting again reactivates it.
+**Disconnecting** keeps posts and their history: an account that has posts is set to `disabled` and its token is wiped; connecting again reactivates it. The settings card shows a disabled account as not connected.
 
 ## Scheduling and the queue (phase 3)
 
