@@ -2,7 +2,8 @@
 import { gigDateLabel, gigListRow, type TemplateGig } from '~~/shared/template-gigs'
 import { parseGigRow } from '~~/shared/video-templates'
 
-const props = defineProps<{ upcoming: TemplateGig[], max: number, taken: number }>()
+// `single` picks one gig to link a template to; otherwise gigs are added as rows up to `max`.
+const props = defineProps<{ upcoming: TemplateGig[], max?: number, taken?: number, single?: boolean, selectedId?: string }>()
 const emit = defineEmits<{ pick: [gig: TemplateGig], close: [] }>()
 
 const query = ref('')
@@ -36,7 +37,7 @@ const upcomingShown = computed(() => searching.value
   ? props.upcoming.filter(gig => haystack(gig).includes(needle.value))
   : props.upcoming.slice(0, 4))
 const pastShown = computed(() => past.value.filter(gig => haystack(gig).includes(needle.value)))
-const full = computed(() => props.taken >= props.max)
+const full = computed(() => !props.single && (props.taken ?? 0) >= (props.max ?? Infinity))
 
 function rowParts(gig: TemplateGig) {
   const { day, date, time } = parseGigRow(gigListRow(gig))
@@ -61,7 +62,7 @@ onMounted(() => searchInput.value?.focus())
       <p v-if="full" class="note">Maximaal aantal regels bereikt. Verwijder eerst een regel.</p>
       <div class="results">
         <p class="group">{{ searching ? 'Aankomend' : 'Eerstvolgende gigs' }}</p>
-        <button v-for="gig in upcomingShown" :key="gig.id" type="button" class="gig" :disabled="full" @click="emit('pick', gig)">
+        <button v-for="gig in upcomingShown" :key="gig.id" type="button" class="gig" :class="{ selected: gig.id === selectedId }" :disabled="full" @click="emit('pick', gig)">
           <span class="when"><b>{{ rowParts(gig).day }}</b> {{ rowParts(gig).date }}</span>
           <span class="what">{{ gig.title }}<small>{{ [gig.venueName, gig.venueCity].filter(Boolean).join(', ') }}</small></span>
           <span class="time">{{ rowParts(gig).time }}</span>
@@ -71,7 +72,7 @@ onMounted(() => searchInput.value?.focus())
         <template v-if="searching">
           <p class="group">Eerdere gigs</p>
           <p v-if="pastLoading" class="empty">Laden…</p>
-          <button v-for="gig in pastShown" :key="gig.id" type="button" class="gig past" :disabled="full" @click="emit('pick', gig)">
+          <button v-for="gig in pastShown" :key="gig.id" type="button" class="gig past" :class="{ selected: gig.id === selectedId }" :disabled="full" @click="emit('pick', gig)">
             <span class="when"><b>{{ rowParts(gig).day }}</b> {{ rowParts(gig).date }}</span>
             <span class="what">{{ gig.title }}<small>{{ [gig.venueName, gig.venueCity].filter(Boolean).join(', ') }}</small></span>
             <span class="time">{{ rowParts(gig).time }}</span>
@@ -169,6 +170,7 @@ h3 { margin: 0; font-size: 1rem; }
 
 .gig:hover:not(:disabled) { border-color: var(--ve-accent, #8b5cf6); }
 .gig:disabled { opacity: .45; cursor: not-allowed; }
+.gig.selected { border-color: var(--ve-accent, #8b5cf6); }
 .gig.past { opacity: .8; }
 .when { font-size: .8rem; }
 .when b { color: var(--ve-muted); font-weight: 600; margin-right: .2rem; }

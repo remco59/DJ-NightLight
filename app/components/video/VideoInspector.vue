@@ -280,8 +280,6 @@ function setField(field: TemplateField, value: string | string[]) {
 const cropSideLabels = { top: 'Boven', right: 'Rechts', bottom: 'Onder', left: 'Links' } as const
 const gigKind = computed(() => item.value?.type === 'graphic' ? gigTemplateKind(item.value.templateKey) : null)
 const linkedGigId = computed(() => item.value?.type === 'graphic' ? item.value.gigId || '' : '')
-/** A linked gig leaves the picker once it has passed; keep showing that it is linked. */
-const linkedGigMissing = computed(() => Boolean(linkedGigId.value) && !state.gigs.some(gig => gig.id === linkedGigId.value))
 /** Only public gigs are filled in automatically; private ones can still be picked by hand. */
 const publicGigs = computed(() => upcomingPublicGigs(state.gigs))
 const gigNote = computed(() => {
@@ -289,8 +287,7 @@ const gigNote = computed(() => {
   return state.gigs.length ? 'Kies een gig om datum, tijd en locatie in te vullen.' : 'Geen aankomende geboekte gigs in de agenda.'
 })
 
-function selectGig(gigId: string) {
-  const gig = state.gigs.find(entry => entry.id === gigId)
+function selectGig(gig: TemplateGig | null) {
   patch((target) => {
     if (target.type !== 'graphic') return
     if (!gig) {
@@ -310,6 +307,13 @@ function fillNextGigs() {
 }
 
 const gigPickerField = ref<TemplateField | null>(null)
+// Single-gig templates have no list field; this stand-in marks their picker as open.
+const singleGigField = { key: '__gig', label: 'Gig', kind: 'text' } as TemplateField
+const linkedGigLabel = computed(() => {
+  if (!linkedGigId.value) return 'Gig uit de agenda kiezen…'
+  const gig = state.gigs.find(entry => entry.id === linkedGigId.value)
+  return gig ? gigPickerLabel(gig) : 'Gekoppelde gig (niet meer aankomend)'
+})
 
 function pickGig(field: TemplateField, gig: TemplateGig) {
   addListRow(field, gigListRow(gig).slice(0, field.maxLength || 160))
@@ -507,13 +511,22 @@ const assetTitle = computed(() => {
       <component :is="sectionTag" v-if="item.type === 'graphic' && template" class="block" :open="props.mobile || undefined">
         <component :is="headingTag">Inhoud</component>
         <template v-if="gigKind === 'single'">
-          <label class="stack"><span>Gig</span>
-            <select :value="linkedGigId" @change="selectGig(($event.target as HTMLSelectElement).value)">
-              <option value="">Handmatig invullen</option>
-              <option v-if="linkedGigMissing" :value="linkedGigId">Gekoppelde gig (niet meer aankomend)</option>
-              <option v-for="gig in state.gigs" :key="gig.id" :value="gig.id">{{ gigPickerLabel(gig) }}</option>
-            </select>
-          </label>
+          <div class="stack"><span>Gig</span>
+            <div class="gig-link">
+              <button type="button" class="ghost grow" @click="gigPickerField = singleGigField">
+                <Icon name="lucide:calendar-search" aria-hidden="true" />{{ linkedGigLabel }}
+              </button>
+              <button v-if="linkedGigId" type="button" class="ghost icon" title="Handmatig invullen" aria-label="Handmatig invullen" @click="selectGig(null)"><Icon name="lucide:unlink" aria-hidden="true" /></button>
+            </div>
+            <GigPickerDialog
+              v-if="gigPickerField === singleGigField"
+              single
+              :selected-id="linkedGigId"
+              :upcoming="state.gigs"
+              @pick="selectGig($event); gigPickerField = null"
+              @close="gigPickerField = null"
+            />
+          </div>
           <p class="note">{{ gigNote }}</p>
         </template>
         <template v-for="field in template.fields" :key="field.key">
@@ -979,6 +992,20 @@ output {
   flex: 1;
   color: var(--ve-muted);
   font-size: .72rem;
+}
+
+.gig-link {
+  display: flex;
+  gap: .3rem;
+}
+
+.gig-link .grow {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ghost.icon {
