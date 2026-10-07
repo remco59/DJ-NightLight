@@ -2,8 +2,8 @@ import { desc, eq } from 'drizzle-orm'
 import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../db/schema'
 import {
   instagramHealth,
+  hasPublishScope,
   instagramRedirectUri,
-  INSTAGRAM_PUBLISH_SCOPE,
   maskAppId,
   maskExternalId,
   WORKER_ONLINE_WINDOW_MS,
@@ -25,7 +25,7 @@ function runtimeEmail() {
 
 function runtimeInstagram() {
   const config = useRuntimeConfig()
-  return config.instagram as { appId?: string, appSecret?: string }
+  return config.instagram as { appId?: string, appSecret?: string, loginConfigId?: string }
 }
 
 function password() {
@@ -113,8 +113,8 @@ export async function loadInstagramIntegration() {
   const envConfigured = Boolean(env.appId && env.appSecret)
 
   const credentials = savedConfigured
-    ? { appId: row!.appId!, appSecret: decryptSecret(row!.appSecretEncrypted!, password()) }
-    : { appId: String(env.appId || ''), appSecret: String(env.appSecret || '') }
+    ? { appId: row!.appId!, appSecret: decryptSecret(row!.appSecretEncrypted!, password()), configId: row!.loginConfigId || '' }
+    : { appId: String(env.appId || ''), appSecret: String(env.appSecret || ''), configId: String(env.loginConfigId || '') }
 
   const source: IntegrationSource = savedConfigured ? 'settings' : envConfigured ? 'environment' : 'none'
   const configured = Boolean(credentials.appId && credentials.appSecret)
@@ -122,7 +122,7 @@ export async function loadInstagramIntegration() {
   const health = instagramHealth({
     appConfigured: configured,
     account: account
-      ? { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastRefreshError: account.lastRefreshError }
+      ? { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastError: account.lastError }
       : null,
     workerLastRunAt: lastRun,
   })
@@ -136,6 +136,7 @@ export async function loadInstagramIntegration() {
       configured,
       appIdPreview: credentials.appId ? maskAppId(credentials.appId) : null,
       appSecretConfigured: Boolean(credentials.appSecret),
+      loginConfigId: credentials.configId,
       redirectUri: instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || '')),
       account: account
         ? {
@@ -143,11 +144,13 @@ export async function loadInstagramIntegration() {
             username: account.username,
             accountType: account.accountType,
             externalIdPreview: maskExternalId(account.externalId),
+            pageName: account.pageName,
             status: account.status,
             tokenIssuedAt: account.tokenIssuedAt.toISOString(),
             tokenExpiresAt: account.tokenExpiresAt.toISOString(),
-            canPublish: account.scopes.includes(INSTAGRAM_PUBLISH_SCOPE),
-            lastRefreshError: account.lastRefreshError,
+            canPublish: hasPublishScope(account.scopes),
+            lastCheckedAt: account.lastCheckedAt?.toISOString() ?? null,
+            lastError: account.lastError,
           }
         : null,
       lastPublishedAt: row?.lastPublishedAt?.toISOString() ?? null,

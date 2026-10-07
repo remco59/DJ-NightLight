@@ -1,43 +1,53 @@
 # Instagram connection
 
-Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, token lifecycle and health checks. Nothing is published yet.
+Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Nothing is published yet.
+
+NightLight uses the **Instagram API with Facebook Login**. New Meta apps created from the "Manage messaging & content on Instagram" use case only offer this variant ("API setup with Facebook login"). The Instagram account is found through the Facebook Page it is linked to.
 
 ## What you need
 
-- An Instagram **Business or Creator** account.
-- A Meta app with the **Instagram** product, using **Instagram API with Instagram Login** (no Facebook Page needed).
-- The owner added to the Meta app as admin, developer or tester.
+- An Instagram **Business or Creator** account, **linked to a Facebook Page** (Instagram → Settings → Account → Linked accounts / Page).
+- A Facebook account that manages that Page and has a role (admin, developer or tester) on the Meta app.
+- A Meta app with the use case **Manage messaging & content on Instagram**.
 
-In Development mode no App Review is required, as long as NightLight only publishes to accounts that have a role on the app.
+In Development mode no App Review is required, as long as NightLight only publishes to accounts of people who have a role on the app.
 
 ## Set up the Meta app
 
-1. Create the app at developers.facebook.com and add the Instagram product.
-2. Add the Instagram account as a tester (or use the owner account that is already admin).
-3. Under the Instagram login settings add the redirect URI shown in NightLight (Instellingen → Integraties → Meta-app), for example `https://<domain>/api/admin/social/instagram/callback`. It must match exactly, including `https` and no trailing slash.
-4. Copy the Instagram app ID and app secret.
-5. Fill in the privacy policy URL that Meta asks for in the app settings.
+1. Create the app at developers.facebook.com and add the use case **Manage messaging & content on Instagram** (only that one).
+2. Open the use case → Customize → **API setup with Facebook login** → **Add required content permissions** (`instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `business_management`). Skip the messaging permissions.
+3. Add the OAuth redirect URI shown in NightLight (Instellingen → Integraties → Meta-app), for example `https://<domain>/api/admin/social/instagram/callback`, to **Valid OAuth Redirect URIs** in the Facebook Login settings. It must match exactly, including `https` and no trailing slash.
+4. If Meta asks you to set up **Facebook Login for Business**, create a *configuration* that includes the permissions above (token type: user access token) and note its **configuration ID**.
+5. Copy the **App ID** and **App secret** from App settings → Algemeen (Basic).
 
 ## Configure NightLight
 
-Either enter the app ID and secret in Instellingen → Integraties → Meta-app (stored encrypted with the session password, like the other integrations), or set them on the server:
+Either enter the app ID, app secret and (optionally) configuration ID in Instellingen → Integraties → Meta-app (stored encrypted with the session password, like the other integrations), or set them on the server:
 
 - `INSTAGRAM_APP_ID`
 - `INSTAGRAM_APP_SECRET`
+- `INSTAGRAM_LOGIN_CONFIG_ID` (only with Facebook Login for Business)
 
-Settings saved in NightLight win over the environment. Then press **Instagram verbinden**, approve the permissions at Instagram and you are sent back to the settings page.
+Settings saved in NightLight win over the environment. Then press **Instagram verbinden**, log in with Facebook, choose the Page and Instagram account, approve the permissions, and you are sent back to the settings page.
 
-Requested permissions: `instagram_business_basic` and `instagram_business_content_publish`. If the user deselects the publish permission, the health message says so and the account has to be connected again.
+Without a configuration ID NightLight asks for the permissions directly (`scope`). With one, the permissions come from the configuration.
 
-Only the owner can configure the app, connect, refresh or disconnect.
+Only the owner can configure the app, connect, check or disconnect.
 
-## Token lifecycle
+## How the connection is stored
 
-- The code from Instagram is exchanged for a short-lived token, which is exchanged for a **long-lived token** (about 60 days). Tokens are stored encrypted (`social_accounts.access_token_encrypted`) and never shown again.
-- The social worker (`server/plugins/social-worker.ts`) ticks every minute. It refreshes a token when it expires within 14 days, is at least 24 hours old (a Meta requirement) and was not tried in the last 12 hours.
-- A token that Instagram rejects, or that has expired, sets the account to `needs_reauth`. Connect the account again.
-- A different app ID than before also sets `needs_reauth`, because tokens belong to the app that issued them.
-- **Token nu vernieuwen** refreshes immediately.
+1. The code from Facebook is exchanged for a user token, then for a long-lived user token.
+2. NightLight lists the Pages the user manages and picks the first one with a linked Instagram account.
+3. The **Page access token** of that Page is stored encrypted (`social_accounts.access_token_encrypted`) and never shown again. Page tokens derived from a long-lived user token do not expire on their own.
+4. Meta's token inspection (`debug_token`) gives the granted permissions and the moment access stops working. Meta limits how long user data stays accessible (about 90 days), so that date is shown as "Toegang geldig tot".
+
+NightLight cannot extend this access by itself: **connect again before the date shown** (the warning appears 7 days before). Reconnecting is one click.
+
+## Daily check
+
+The social worker (`server/plugins/social-worker.ts`) ticks every minute and, once a day per account, asks Meta whether the stored access still works. It updates the expiry and permissions, and sets the account to `needs_reauth` when Meta rejects it. **Verbinding controleren** runs the same check immediately.
+
+A different app ID than before also sets `needs_reauth`, because tokens belong to the app that issued them.
 
 ## Health
 
@@ -45,14 +55,14 @@ The Instagram card and Systeemstatus show one of:
 
 | State | Meaning |
 | --- | --- |
-| Instagram-koppeling werkt | Token valid, publish permission present, worker active |
-| Token verloopt binnenkort | Fewer than 7 days left |
-| Vernieuwen van het token mislukt | The last refresh failed; it is retried |
+| Instagram-koppeling werkt | Access valid, publish permission present, worker active |
+| Toegang verloopt binnenkort | Fewer than 7 days left; connect again |
+| Controle van de verbinding mislukt | The last check failed; it is retried |
 | Worker niet actief | The worker has not reported in the last 3 minutes |
-| Opnieuw verbinden nodig | Token expired or revoked |
+| Opnieuw verbinden nodig | Access expired or revoked |
 | Publicatierechten ontbreken | The publish permission was not granted |
 
-Connecting, refreshing and disconnecting write to the audit log (`instagram.connected`, `instagram.token_refreshed`, `instagram.token_refresh_failed`, `instagram.disconnected`).
+Connecting, checking and disconnecting write to the audit log (`instagram.connected`, `instagram.connection_checked`, `instagram.connection_check_failed`, `instagram.disconnected`).
 
 ## Security notes
 
@@ -61,6 +71,10 @@ Connecting, refreshing and disconnecting write to the audit log (`instagram.conn
 
 ## Troubleshooting
 
-- **"Koppelen is niet gelukt"**: check the app ID, the app secret and that the redirect URI in the Meta app matches the one NightLight shows.
-- **Account cannot be connected**: it must be a Business or Creator account and have a role on the app while the app is in Development mode.
+When connecting fails, the settings page shows Meta's own message after "Meta meldt". The same text is in the server log as `instagram_connect_failed`.
+
+- **"Geen Instagram-account gevonden"**: the Instagram account is not linked to a Facebook Page, or you did not give NightLight access to that Page in the Facebook dialog.
+- **Redirect URI / "URL blocked"**: the redirect URI in the Facebook Login settings does not match the one NightLight shows.
+- **"Invalid scope" or a permission error**: the permissions were not added to the use case, or (with Facebook Login for Business) the configuration does not include them. Add a configuration ID.
+- **Account cannot log in**: while the app is in Development mode the Facebook user needs a role on the app.
 - **Worker niet actief** right after a deploy usually clears within a minute.

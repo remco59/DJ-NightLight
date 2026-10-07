@@ -1,20 +1,30 @@
 // Browser-safe: the admin UI imports this file, so it must not import Node modules.
 // The OAuth state signing (node:crypto) lives in server/utils/instagram-state.ts.
+//
+// NightLight talks to Instagram through the "Instagram API with Facebook Login":
+// the owner logs in with Facebook, and the Instagram professional account linked to
+// a Facebook Page is found through that Page.
 
-export const INSTAGRAM_PUBLISH_SCOPE = 'instagram_business_content_publish'
-export const INSTAGRAM_SCOPES = ['instagram_business_basic', INSTAGRAM_PUBLISH_SCOPE] as const
+/** Meta versions the Graph API; change it here only. */
+export const META_GRAPH_VERSION = 'v23.0'
+
+/** Meta's documentation calls it `instagram_content_publish`; the app dashboard lists `instagram_content_publishing`. Accept both. */
+export const INSTAGRAM_PUBLISH_SCOPES = ['instagram_content_publish', 'instagram_content_publishing'] as const
+export const FACEBOOK_LOGIN_SCOPES = [
+  'instagram_basic',
+  'instagram_content_publish',
+  'pages_show_list',
+  'pages_read_engagement',
+  'business_management',
+] as const
 export const INSTAGRAM_CALLBACK_PATH = '/api/admin/social/instagram/callback'
 export const INSTAGRAM_STATE_COOKIE = 'nl_instagram_state'
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const HOUR_MS = 60 * 60 * 1000
 
-/** Meta only allows a long-lived token to be refreshed once it is at least 24 hours old. */
-export const MIN_TOKEN_AGE_MS = DAY_MS
-/** Start refreshing this long before the token expires (the daily check leaves room for retries). */
-export const TOKEN_REFRESH_WINDOW_MS = 14 * DAY_MS
-export const TOKEN_REFRESH_RETRY_MS = 12 * HOUR_MS
-/** Warn in the UI when fewer days than this are left on the token. */
+/** The worker verifies the stored access with Meta at most this often. */
+export const CONNECTION_CHECK_INTERVAL_MS = DAY_MS
+/** Warn in the UI when fewer days than this are left on the access. */
 export const TOKEN_WARNING_DAYS = 7
 export const OAUTH_STATE_MAX_AGE_MS = 10 * 60_000
 /** The worker ticks every minute; offline after three missed ticks. */
@@ -24,15 +34,28 @@ export function instagramRedirectUri(siteUrl: string) {
   return `${siteUrl.replace(/\/+$/, '')}${INSTAGRAM_CALLBACK_PATH}`
 }
 
-export function buildInstagramAuthorizeUrl(input: { appId: string, redirectUri: string, state: string }) {
+/**
+ * Facebook Login dialog. With a Facebook Login for Business configuration the permissions
+ * come from the configuration (`config_id`); without one the classic `scope` list is sent.
+ */
+export function buildFacebookAuthorizeUrl(input: { appId: string, redirectUri: string, state: string, configId?: string | null }) {
   const params = new URLSearchParams({
     client_id: input.appId,
     redirect_uri: input.redirectUri,
     response_type: 'code',
-    scope: INSTAGRAM_SCOPES.join(','),
     state: input.state,
   })
-  return `https://www.instagram.com/oauth/authorize?${params.toString()}`
+  if (input.configId) {
+    params.set('config_id', input.configId)
+    params.set('override_default_response_type', 'true')
+  } else {
+    params.set('scope', FACEBOOK_LOGIN_SCOPES.join(','))
+  }
+  return `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth?${params.toString()}`
+}
+
+export function hasPublishScope(scopes: readonly string[]) {
+  return INSTAGRAM_PUBLISH_SCOPES.some(scope => scopes.includes(scope))
 }
 
 type DateLike = Date | string | number | null | undefined
@@ -49,22 +72,11 @@ export function tokenDaysLeft(expiresAt: DateLike, now = Date.now()) {
   return Math.floor((expires - now) / DAY_MS)
 }
 
-export function shouldRefreshToken(input: {
-  status: string
-  tokenIssuedAt: DateLike
-  tokenExpiresAt: DateLike
-  lastRefreshAttemptAt: DateLike
-  now?: number
-}) {
+export function shouldCheckConnection(input: { status: string, lastCheckedAt: DateLike, now?: number }) {
+  if (input.status !== 'active') return false
   const now = input.now ?? Date.now()
-  const issued = ms(input.tokenIssuedAt)
-  const expires = ms(input.tokenExpiresAt)
-  const lastAttempt = ms(input.lastRefreshAttemptAt)
-  if (input.status !== 'active' || issued === null || expires === null) return false
-  if (expires <= now) return false
-  if (expires - now > TOKEN_REFRESH_WINDOW_MS) return false
-  if (now - issued < MIN_TOKEN_AGE_MS) return false
-  return lastAttempt === null || now - lastAttempt >= TOKEN_REFRESH_RETRY_MS
+  const last = ms(input.lastCheckedAt)
+  return last === null || now - last >= CONNECTION_CHECK_INTERVAL_MS
 }
 
 export function isTokenExpired(expiresAt: DateLike, now = Date.now()) {
@@ -80,7 +92,7 @@ export function instagramHealth(input: {
     status: string
     tokenExpiresAt: DateLike
     scopes: readonly string[]
-    lastRefreshError: string | null
+    lastError: string | null
   } | null
   workerLastRunAt: DateLike
   now?: number
@@ -100,22 +112,22 @@ export function instagramHealth(input: {
   if (account.status === 'disabled') {
     return { level: 'inactive', title: 'Koppeling uitgeschakeld', detail: 'Dit account wordt niet gebruikt voor publicaties.' }
   }
-  if (!account.scopes.includes(INSTAGRAM_PUBLISH_SCOPE)) {
+  if (!hasPublishScope(account.scopes)) {
     return { level: 'error', title: 'Publicatierechten ontbreken', detail: 'Verbind het account opnieuw en geef toestemming om content te publiceren.' }
   }
 
   const daysLeft = tokenDaysLeft(account.tokenExpiresAt, now)
   if (daysLeft !== null && daysLeft < TOKEN_WARNING_DAYS) {
-    return { level: 'warning', title: 'Token verloopt binnenkort', detail: `Nog ${Math.max(0, daysLeft)} dag(en) geldig. Vernieuwen gebeurt automatisch; lukt dat niet, verbind dan opnieuw.` }
+    return { level: 'warning', title: 'Toegang verloopt binnenkort', detail: `Nog ${Math.max(0, daysLeft)} dag(en) geldig. Verbind het account opnieuw om de toegang te verlengen.` }
   }
-  if (account.lastRefreshError) {
-    return { level: 'warning', title: 'Vernieuwen van het token mislukt', detail: account.lastRefreshError }
+  if (account.lastError) {
+    return { level: 'warning', title: 'Controle van de verbinding mislukt', detail: account.lastError }
   }
   const lastRun = ms(input.workerLastRunAt)
   if (lastRun === null || now - lastRun > WORKER_ONLINE_WINDOW_MS) {
     return { level: 'warning', title: 'Worker niet actief', detail: 'De achtergrondtaak voor Instagram heeft zich niet recent gemeld.' }
   }
-  return { level: 'ok', title: 'Instagram-koppeling werkt', detail: 'Token geldig, publicatierechten aanwezig en worker actief.' }
+  return { level: 'ok', title: 'Instagram-koppeling werkt', detail: 'Toegang geldig, publicatierechten aanwezig en worker actief.' }
 }
 
 export function maskExternalId(value: string) {

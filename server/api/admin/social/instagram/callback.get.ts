@@ -11,10 +11,12 @@ const querySchema = z.object({
   code: z.string().min(1).max(2000).optional(),
   state: z.string().min(1).max(500).optional(),
   error: z.string().max(200).optional(),
+  error_description: z.string().max(500).optional(),
 })
 
-function back(event: Parameters<typeof sendRedirect>[0], outcome: string) {
-  return sendRedirect(event, `/admin/settings?instagram=${outcome}#integrations`, 302)
+function back(event: Parameters<typeof sendRedirect>[0], outcome: string, detail?: string) {
+  const extra = detail ? `&detail=${encodeURIComponent(detail.slice(0, 300))}` : ''
+  return sendRedirect(event, `/admin/settings?instagram=${outcome}${extra}#integrations`, 302)
 }
 
 export default defineEventHandler(async (event) => {
@@ -26,7 +28,7 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) return back(event, 'error')
   const { code, state, error } = parsed.data
 
-  if (error) return back(event, 'denied')
+  if (error) return back(event, 'denied', parsed.data.error_description)
   if (!code || !state) return back(event, 'error')
 
   const valid = verifyOAuthState({
@@ -48,10 +50,12 @@ export default defineEventHandler(async (event) => {
     })
     return back(event, 'connected')
   } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause)
     structuredLog('error', 'instagram_connect_failed', {
-      message: cause instanceof Error ? cause.message : String(cause),
+      message,
       code: cause instanceof InstagramApiError ? cause.code : null,
     })
-    return back(event, 'error')
+    // Meta's error text holds no secrets and is what the owner needs to fix the app setup.
+    return back(event, 'error', message)
   }
 })

@@ -1,4 +1,4 @@
-import { recordSocialWorkerRun, refreshDueInstagramTokens } from '../utils/social-accounts'
+import { recordSocialWorkerRun, checkDueInstagramConnections } from '../utils/social-accounts'
 
 let running = false
 
@@ -7,7 +7,7 @@ async function tick() {
   running = true
   try {
     await recordSocialWorkerRun()
-    await refreshDueInstagramTokens()
+    await checkDueInstagramConnections()
   } catch (error) {
     console.error(JSON.stringify({
       level: 'error',

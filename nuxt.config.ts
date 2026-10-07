@@ -45,6 +45,7 @@ export default defineNuxtConfig({
     instagram: {
       appId: process.env.INSTAGRAM_APP_ID || '',
       appSecret: process.env.INSTAGRAM_APP_SECRET || '',
+      loginConfigId: process.env.INSTAGRAM_LOGIN_CONFIG_ID || '',
     },
     email: {
       apiKey: process.env.RESEND_API_KEY || '',

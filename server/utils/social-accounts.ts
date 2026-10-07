@@ -1,14 +1,14 @@
 import { and, eq } from 'drizzle-orm'
 import { socialAccounts, socialSettings } from '../../db/schema'
-import { instagramRedirectUri, isTokenExpired, shouldRefreshToken } from '../../shared/instagram'
+import { instagramRedirectUri, shouldCheckConnection } from '../../shared/instagram'
 import { decryptSecret, encryptSecret } from '../../shared/secret-box'
 import { db } from './db'
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
-  fetchInstagramProfile,
+  inspectToken,
   InstagramApiError,
-  refreshLongLivedToken,
+  listInstagramPages,
 } from './instagram'
 import { loadInstagramIntegration } from './integration-settings'
 import { structuredLog } from './structured-log'
@@ -21,7 +21,13 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** Completes the OAuth round trip: code → short-lived token → long-lived token → account row. */
+/** Used when Meta reports no expiry at all; the daily check corrects it from the real answer. */
+const FALLBACK_ACCESS_DAYS = 60
+
+/**
+ * Completes the Facebook Login round trip: code → user token → long-lived user token → the Facebook
+ * Page that has an Instagram account → that Page's access token (stored encrypted) → account row.
+ */
 export async function connectInstagramAccount(input: { code: string, userId: string }) {
   const { credentials } = await loadInstagramIntegration()
   if (!credentials.appId || !credentials.appSecret) {
@@ -30,61 +36,89 @@ export async function connectInstagramAccount(input: { code: string, userId: str
 
   const redirectUri = instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || ''))
   const short = await exchangeCodeForToken({ ...credentials, redirectUri, code: input.code })
-  const long = await exchangeForLongLivedToken({ appSecret: credentials.appSecret, accessToken: short.accessToken })
-  const profile = await fetchInstagramProfile(long.accessToken)
+  const long = await exchangeForLongLivedToken({ ...credentials, accessToken: short.accessToken })
+
+  const pages = await listInstagramPages(long.accessToken)
+  const page = pages[0]
+  if (!page) {
+    throw new InstagramApiError(
+      'Geen Instagram-account gevonden. Koppel het Instagram-account aan een Facebook-pagina en geef NightLight toegang tot die pagina.',
+      200,
+      null,
+      false,
+    )
+  }
+
+  const inspection = await inspectToken({ ...credentials, token: page.pageAccessToken })
+  if (!inspection.isValid || inspection.appId !== credentials.appId) {
+    throw new InstagramApiError(inspection.errorMessage || 'Meta keurde de toegang niet goed', 200, null, true)
+  }
 
   const now = new Date()
   const values = {
-    username: profile.username,
-    accountType: profile.accountType,
-    accessTokenEncrypted: encryptSecret(long.accessToken, password()),
+    username: page.username || page.pageName,
+    accountType: null,
+    pageId: page.pageId,
+    pageName: page.pageName,
+    accessTokenEncrypted: encryptSecret(page.pageAccessToken, password()),
     tokenIssuedAt: now,
-    tokenExpiresAt: new Date(now.getTime() + long.expiresInSeconds * 1000),
-    scopes: short.permissions,
+    tokenExpiresAt: inspection.expiresAt ?? new Date(now.getTime() + FALLBACK_ACCESS_DAYS * 86_400_000),
+    scopes: inspection.scopes,
     status: 'active' as const,
-    lastRefreshAttemptAt: null,
-    lastRefreshError: null,
+    lastCheckedAt: now,
+    lastError: null,
     connectedByUserId: input.userId,
     updatedAt: now,
   }
 
   const [account] = await db.insert(socialAccounts)
-    .values({ provider: 'instagram', externalId: profile.externalId, ...values })
+    .values({ provider: 'instagram', externalId: page.instagramId, ...values })
     .onConflictDoUpdate({ target: [socialAccounts.provider, socialAccounts.externalId], set: values })
     .returning()
   return account!
 }
 
 /**
- * Refreshes one account's long-lived token. A rejected token flips the account to
- * `needs_reauth`; any other failure is recorded and retried by the daily check.
+ * Asks Meta whether the stored access still works and updates expiry and permissions.
+ * Access that Meta rejects flips the account to `needs_reauth`; other failures are recorded and retried.
  */
-export async function refreshInstagramToken(accountId: string) {
+export async function checkInstagramConnection(accountId: string) {
   const [account] = await db.select().from(socialAccounts).where(eq(socialAccounts.id, accountId)).limit(1)
   if (!account) throw new Error('Account niet gevonden')
+  const { credentials } = await loadInstagramIntegration()
 
-  const attemptedAt = new Date()
+  const checkedAt = new Date()
   try {
-    const token = await refreshLongLivedToken(decryptSecret(account.accessTokenEncrypted, password()))
+    if (!credentials.appId || !credentials.appSecret) throw new Error('De Meta-app is niet ingesteld')
+    const inspection = await inspectToken({ ...credentials, token: decryptSecret(account.accessTokenEncrypted, password()) })
+
+    if (!inspection.isValid || inspection.appId !== credentials.appId) {
+      await db.update(socialAccounts).set({
+        status: 'needs_reauth',
+        lastCheckedAt: checkedAt,
+        lastError: inspection.errorMessage || 'Meta keurt de toegang niet meer goed',
+        updatedAt: checkedAt,
+      }).where(eq(socialAccounts.id, account.id))
+      return { ok: false as const, permanent: true, message: inspection.errorMessage || 'Meta keurt de toegang niet meer goed' }
+    }
+
     await db.update(socialAccounts).set({
-      accessTokenEncrypted: encryptSecret(token.accessToken, password()),
-      tokenIssuedAt: attemptedAt,
-      tokenExpiresAt: new Date(attemptedAt.getTime() + token.expiresInSeconds * 1000),
-      status: 'active',
-      lastRefreshAttemptAt: attemptedAt,
-      lastRefreshError: null,
-      updatedAt: attemptedAt,
+      tokenExpiresAt: inspection.expiresAt ?? account.tokenExpiresAt,
+      scopes: inspection.scopes,
+      lastCheckedAt: checkedAt,
+      lastError: null,
+      updatedAt: checkedAt,
     }).where(eq(socialAccounts.id, account.id))
     return { ok: true as const }
   } catch (error) {
     const permanent = error instanceof InstagramApiError && error.permanent
     await db.update(socialAccounts).set({
       status: permanent ? 'needs_reauth' : account.status,
-      lastRefreshAttemptAt: attemptedAt,
-      lastRefreshError: errorText(error).slice(0, 500),
-      updatedAt: attemptedAt,
+      lastCheckedAt: checkedAt,
+      lastError: errorText(error).slice(0, 500),
+      updatedAt: checkedAt,
     }).where(eq(socialAccounts.id, account.id))
-    structuredLog(permanent ? 'error' : 'warn', 'instagram_token_refresh_failed', {
+    structuredLog(permanent ? 'error' : 'warn', 'instagram_connection_check_failed', {
       accountId: account.id,
       permanent,
       message: errorText(error),
@@ -93,20 +127,15 @@ export async function refreshInstagramToken(accountId: string) {
   }
 }
 
-/** Daily check, run from the worker tick: refresh tokens close to expiry, flag the ones that already expired. */
-export async function refreshDueInstagramTokens(now = Date.now()) {
+/** Daily check, run from the worker tick. */
+export async function checkDueInstagramConnections(now = Date.now()) {
   const accounts = await db.select().from(socialAccounts)
     .where(and(eq(socialAccounts.provider, 'instagram'), eq(socialAccounts.status, 'active')))
 
   for (const account of accounts) {
-    if (isTokenExpired(account.tokenExpiresAt, now)) {
-      await db.update(socialAccounts)
-        .set({ status: 'needs_reauth', lastRefreshError: 'Het token is verlopen', updatedAt: new Date() })
-        .where(eq(socialAccounts.id, account.id))
-      structuredLog('error', 'instagram_token_expired', { accountId: account.id })
-      continue
+    if (shouldCheckConnection({ status: account.status, lastCheckedAt: account.lastCheckedAt, now })) {
+      await checkInstagramConnection(account.id)
     }
-    if (shouldRefreshToken({ ...account, now })) await refreshInstagramToken(account.id)
   }
 }
 

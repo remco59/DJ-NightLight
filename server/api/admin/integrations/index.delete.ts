@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (parsed.data.provider === 'instagram') {
-    await db.update(socialSettings).set({ appId: null, appSecretEncrypted: null, updatedAt: new Date() })
+    await db.update(socialSettings).set({ appId: null, appSecretEncrypted: null, loginConfigId: null, updatedAt: new Date() })
       .where(eq(socialSettings.key, 'default'))
     return { instagram: (await loadInstagramIntegration()).status }
   }
