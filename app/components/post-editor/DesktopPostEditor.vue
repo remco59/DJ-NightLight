@@ -2,6 +2,7 @@
 import MediaPicker from '~/components/admin/MediaPicker.vue'
 import PostCanvasStage from '~/components/post-editor/PostCanvasStage.vue'
 import PostInspector from '~/components/post-editor/PostInspector.vue'
+import PostPublishDrawer from '~/components/post-editor/PostPublishDrawer.vue'
 import PostRecentExports from '~/components/post-editor/PostRecentExports.vue'
 import PostTemplateBrowser from '~/components/post-editor/PostTemplateBrowser.vue'
 import { usePostEditor, type PostCanvasSelection, type PostEditorTool } from '~/composables/usePostEditor'
@@ -15,6 +16,8 @@ const tool = ref<PostEditorTool>('media')
 const inspectorCollapsed = ref(false)
 const selection = ref<PostCanvasSelection>('none')
 const exportsOpen = ref(false)
+const publishOpen = ref(false)
+const publishPostId = ref<string | null>(null)
 const templatesOpen = ref(false)
 const mediaPickerOpen = ref(false)
 const previewUrl = ref('')
@@ -29,7 +32,19 @@ const selectionTool = computed<PostEditorTool | null>(() => {
   return null
 })
 const selectedAssetUrl = computed(() => editor.selectedAsset.value?.url ?? null)
-const anyDialogOpen = computed(() => exportsOpen.value || templatesOpen.value || mediaPickerOpen.value || Boolean(previewUrl.value))
+const anyDialogOpen = computed(() => exportsOpen.value || publishOpen.value || templatesOpen.value || mediaPickerOpen.value || Boolean(previewUrl.value))
+
+function openPublish(postId: string) {
+  publishPostId.value = postId
+  exportsOpen.value = false
+  publishOpen.value = true
+}
+
+/** Exports the current design first, so the published image is exactly what the canvas shows. */
+async function exportAndPublish() {
+  const exported = await editor.exportPost()
+  if (exported) openPublish(exported.id)
+}
 
 function activateTool(next: PostEditorTool) {
   tool.value = next
@@ -221,6 +236,16 @@ onBeforeUnmount(() => {
           {{ busy === 'render' ? 'Exporteren…' : 'Post exporteren' }}
           <Icon v-if="busy !== 'render'" name="lucide:arrow-right" aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          class="action"
+          :disabled="busy === 'render' || !editor.readyToExport.value"
+          title="Exporteer en publiceer op Instagram"
+          @click="exportAndPublish"
+        >
+          <Icon name="lucide:send" aria-hidden="true" />
+          <span class="action-label">Publiceren</span>
+        </button>
         <button type="button" class="action" aria-label="Recente exports" aria-haspopup="dialog" :aria-expanded="exportsOpen" title="Recente exports" @click="exportsOpen = true">
           <Icon name="lucide:history" aria-hidden="true" />
           <span class="action-label">Recente exports</span>
@@ -254,7 +279,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <PostRecentExports v-model:open="exportsOpen" />
+    <PostRecentExports v-model:open="exportsOpen" @publish="openPublish($event.id)" />
+    <PostPublishDrawer v-model:open="publishOpen" :post-id="publishPostId" />
     <PostTemplateBrowser v-model:open="templatesOpen" :thumbnails="thumbnails" />
     <MediaPicker
       v-model:open="mediaPickerOpen"

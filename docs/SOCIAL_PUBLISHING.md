@@ -1,6 +1,6 @@
 # Instagram connection
 
-Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Nothing is published yet.
+Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Phase 2 (below) publishes an image right away; scheduling, the queue, reels, stories and carousels follow.
 
 NightLight uses the **Instagram API with Facebook Login**. New Meta apps created from the "Manage messaging & content on Instagram" use case only offer this variant ("API setup with Facebook login"). The Instagram account is found through the Facebook Page it is linked to.
 
@@ -78,3 +78,24 @@ When connecting fails, the settings page shows Meta's own message after "Meta me
 - **"Invalid scope" or a permission error**: the permissions were not added to the use case, or (with Facebook Login for Business) the configuration does not include them. Add a configuration ID.
 - **Account cannot log in**: while the app is in Development mode the Facebook user needs a role on the app.
 - **Worker niet actief** right after a deploy usually clears within a minute.
+
+## Publishing an image (phase 2)
+
+In the Foto editor, **Publiceren** exports the current design and opens the publish drawer; **Recente exports** has a **Publiceren** button per export (and **Opnieuw** after a failure). The drawer shows the connected account, a caption (max 2.200 characters, max 30 hashtags, hashtags are plain caption text) and optional alt text. The post is published immediately and the PNG stays available as an export. Each export shows its Instagram status (Gepubliceerd, Mislukt, ...) with a link to the post.
+
+Who: `content:manage` (owner, manager, content editor). Connecting stays owner only.
+
+### How it works
+
+1. **Prepare.** Instagram only accepts JPEG. NightLight converts the PNG with `sharp` (flattened on the dark brand colour) and stores it under `instagram/<export id>.jpg` in generated storage. The original PNG is kept. Meta fetches it from the public, immutable URL `/api/generated-posts/<id>/instagram.jpg`, so `NUXT_PUBLIC_SITE_URL` must be reachable from the internet; with a localhost URL publishing is refused with a clear message.
+2. **Create a container** (`POST /{ig-id}/media` with `image_url`, caption and `alt_text`), and store the container id on the row **before** publishing.
+3. **Wait** until the container status is `FINISHED` (polled every 3 s, up to about 30 s).
+4. **Publish** (`POST /{ig-id}/media_publish`), then fetch the permalink. A missing permalink never turns a live post into a failure.
+
+The `social_posts` row exists from the start (`publishing`), so a Meta error always leaves a visible record with Meta's own message (`failed`). An invalid or revoked token also sets the account to `needs_reauth`. A container that Meta already reports as `PUBLISHED` is never published again.
+
+Guards: the 9:16 preset is refused (feed images need 4:5 to 1.91:1; stories come in phase 4), the same export cannot be published twice at the same moment, 100 posts per 24 hours per account, JPEG max 8 MB. An export used for a post cannot be deleted (`409`), because `social_post_media` references it with `restrict`.
+
+Audit log: `social_post.publish_started`, `social_post.published`, `social_post.failed`.
+
+Not in this phase: scheduling, automatic retries and recovery of a `publishing` row after a crash (a row older than 10 minutes no longer blocks a new attempt), the Social page, the Agenda overlay, and the mobile editor (use Recente exports on desktop).

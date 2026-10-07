@@ -5046,6 +5046,29 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/social/account:
+    get:
+      operationId: getAdminSocialAccount
+      tags:
+        - admin/social
+      description: What the publish drawer needs, without the Meta app settings that only the owner may see.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/admin/social/instagram/account:
     delete:
       operationId: deleteAdminSocialInstagramAccount
@@ -5155,6 +5178,53 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/social/posts:
+    post:
+      operationId: postAdminSocialPosts
+      tags:
+        - admin/social
+      description: Publishes an exported image to Instagram right away. Scheduling arrives in a later phase.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - content_editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                generatedPostId:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                caption:
+                  default: ""
+                  type: string
+                  maxLength: 10000
+                altText:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - generatedPostId
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/admin/stripe:
     get:
       operationId: getAdminStripe
@@ -6421,6 +6491,30 @@ paths:
           description: Gelukt
           content:
             application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/generated-posts/{id}/instagram.jpg:
+    get:
+      operationId: getGeneratedPostsByIdInstagram.jpg
+      tags:
+        - generated-posts
+      description: JPEG copy of an export, because Instagram does not accept PNG. Public and immutable like the PNG.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            image/jpeg:
               schema:
                 type: string
                 format: binary
