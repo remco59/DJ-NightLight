@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
-import { generatedPosts, socialAccounts, socialPostMedia, socialPosts } from '../../db/schema'
+import { generatedPosts, socialAccounts, socialPostMedia, socialPosts, videoRenderJobs } from '../../db/schema'
 import {
   checkCaption,
   checkScheduleMoment,
@@ -32,11 +32,16 @@ const itemColumns = {
   accountName: socialAccounts.username,
   generatedPostId: socialPostMedia.generatedPostId,
   templateKey: generatedPosts.templateKey,
+  videoRenderJobId: socialPostMedia.videoRenderJobId,
+  durationSeconds: videoRenderJobs.durationSeconds,
+  mediaCount: sql<number>`(select count(*)::int from ${socialPostMedia} m where m.post_id = ${socialPosts.id})`,
 }
 
 function toItem(row: Awaited<ReturnType<typeof selectItems>>[number]): SocialPostItem {
+  const { videoRenderJobId, ...rest } = row
   return {
-    ...row,
+    ...rest,
+    videoUrl: videoRenderJobId ? `/api/generated-videos/${videoRenderJobId}` : null,
     status: row.status as SocialPostStatusKey,
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     publishedAt: row.publishedAt?.toISOString() ?? null,
@@ -50,6 +55,7 @@ function selectItems(where: SQL | undefined, order: SQL[], limit: number) {
     .innerJoin(socialAccounts, eq(socialAccounts.id, socialPosts.accountId))
     .leftJoin(socialPostMedia, and(eq(socialPostMedia.postId, socialPosts.id), eq(socialPostMedia.position, 0)))
     .leftJoin(generatedPosts, eq(generatedPosts.id, socialPostMedia.generatedPostId))
+    .leftJoin(videoRenderJobs, eq(videoRenderJobs.id, socialPostMedia.videoRenderJobId))
     .where(where)
     .orderBy(...order)
     .limit(limit)
@@ -155,7 +161,9 @@ export async function updateSocialPost(id: string, patch: SocialPostPatch, input
 
   const status = action === 'schedule' ? 'scheduled' : 'draft'
   const [updated] = await db.update(socialPosts).set({
-    caption, altText, scheduledAt, status, retryCount: 0, nextRetryAt: null, lastError: null, updatedAt: now,
+    caption, altText, scheduledAt, status, retryCount: 0, nextRetryAt: null, lastError: null,
+    // A container prepared ahead of time carries the old caption, so Meta gets a new one.
+    containerId: null, updatedAt: now,
   }).where(and(eq(socialPosts.id, id), inArray(socialPosts.status, ['draft', 'scheduled']))).returning()
   if (!updated) throw new SocialPublishError('Deze post is net opgepakt door de worker en kan niet meer worden aangepast', 409)
 

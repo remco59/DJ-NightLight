@@ -9,6 +9,22 @@ export const INSTAGRAM_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 /** Instagram allows 100 API-published posts per account per 24 hours. */
 export const INSTAGRAM_DAILY_POST_LIMIT = 100
 
+export const socialPostKinds = ['image', 'carousel', 'reel', 'story'] as const
+export type SocialPostKindKey = typeof socialPostKinds[number]
+
+export const socialPostKindLabels: Record<SocialPostKindKey, string> = {
+  image: 'Afbeelding',
+  carousel: 'Carrousel',
+  reel: 'Reel',
+  story: 'Story',
+}
+
+export const INSTAGRAM_CAROUSEL_MIN = 2
+export const INSTAGRAM_CAROUSEL_MAX = 10
+export const INSTAGRAM_REEL_MIN_SECONDS = 3
+export const INSTAGRAM_REEL_MAX_SECONDS = 15 * 60
+export const INSTAGRAM_STORY_VIDEO_MAX_SECONDS = 60
+
 export const socialPostStatuses = ['draft', 'scheduled', 'publishing', 'published', 'failed', 'cancelled'] as const
 export type SocialPostStatusKey = typeof socialPostStatuses[number]
 
@@ -37,6 +53,41 @@ export function canPublishPresetAsFeedImage(preset: PostPreset | string) {
   return preset === 'square' || preset === 'portrait'
 }
 
+/** A story is a 9:16 image (the `story` preset) or video. */
+export function canPublishPresetAsStory(preset: PostPreset | string) {
+  return preset === 'story'
+}
+
+type CheckResult = { ok: true } | { ok: false, message: string }
+
+/** Slides keep the ratio of the first one, so mixing 1:1 and 4:5 would crop. Every slide must be a feed ratio. */
+export function checkCarouselPresets(presets: readonly string[]): CheckResult {
+  if (presets.length < INSTAGRAM_CAROUSEL_MIN) return { ok: false, message: `Een carrousel heeft minstens ${INSTAGRAM_CAROUSEL_MIN} afbeeldingen nodig` }
+  if (presets.length > INSTAGRAM_CAROUSEL_MAX) return { ok: false, message: `Een carrousel mag maximaal ${INSTAGRAM_CAROUSEL_MAX} afbeeldingen hebben` }
+  if (!presets.every(canPublishPresetAsFeedImage)) return { ok: false, message: 'Een carrousel kan alleen 1:1- of 4:5-afbeeldingen bevatten' }
+  if (new Set(presets).size > 1) return { ok: false, message: 'Alle afbeeldingen in een carrousel moeten hetzelfde formaat hebben (allemaal 1:1 of allemaal 4:5)' }
+  return { ok: true }
+}
+
+/** Reels and video stories take a finished 9:16 MP4 within Instagram's duration limits. */
+export function checkVideoForKind(kind: 'reel' | 'story', video: { width: number, height: number, durationSeconds: number }): CheckResult {
+  // 9:16 within a rounding margin.
+  if (Math.abs(video.width / video.height - 9 / 16) > 0.02) {
+    return { ok: false, message: `Een ${kind === 'reel' ? 'reel' : 'story'} moet een video van 9:16 zijn` }
+  }
+  const max = kind === 'reel' ? INSTAGRAM_REEL_MAX_SECONDS : INSTAGRAM_STORY_VIDEO_MAX_SECONDS
+  if (video.durationSeconds < INSTAGRAM_REEL_MIN_SECONDS || video.durationSeconds > max) {
+    return { ok: false, message: `Een ${kind === 'reel' ? 'reel' : 'video-story'} duurt ${INSTAGRAM_REEL_MIN_SECONDS} tot ${kind === 'reel' ? '900 seconden (15 minuten)' : `${max} seconden`}` }
+  }
+  return { ok: true }
+}
+
+/** `m:ss` for a duration in seconds, as in the mockups ("0:18"). */
+export function formatDuration(seconds: number) {
+  const whole = Math.max(0, Math.round(seconds))
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}
+
 export function countHashtags(caption: string) {
   return caption.match(/(?:^|\s)#[\p{L}\p{N}_]+/gu)?.length ?? 0
 }
@@ -57,6 +108,10 @@ export function checkCaption(caption: string): CaptionCheck {
   }
   return { ok: true }
 }
+
+/** What the publish drawer needs to know about the media it publishes. */
+export type SocialPublishImage = { id: string, imageUrl: string, preset: string, social?: SocialBadge[] }
+export type SocialPublishVideo = { id: string, videoUrl: string, width: number, height: number, durationSeconds: number, title: string | null }
 
 export type SocialBadge = { provider: string, status: SocialPostStatusKey, permalink: string | null, scheduledAt: string | null, lastError: string | null }
 
@@ -137,6 +192,12 @@ export type SocialPostItem = {
   generatedPostId: string | null
   thumbnailUrl: string | null
   templateKey: string | null
+  /** Set for reels and video stories, which have no thumbnail image. */
+  videoUrl: string | null
+  /** Number of images or videos in the post (carousel: 2 to 10). */
+  mediaCount: number
+  /** Seconds, for video posts. */
+  durationSeconds: number | null
 }
 
 const AMSTERDAM = 'Europe/Amsterdam'

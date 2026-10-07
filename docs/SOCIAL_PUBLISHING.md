@@ -1,6 +1,6 @@
 # Instagram connection
 
-Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Phase 2 (below) publishes an image right away; scheduling, the queue, reels, stories and carousels follow.
+Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Phase 2 (below) publishes an image right away; scheduling and the queue followed in phase 3, and reels, stories and carousels in phase 4.
 
 NightLight uses the **Instagram API with Facebook Login**. New Meta apps created from the "Manage messaging & content on Instagram" use case only offer this variant ("API setup with Facebook login"). The Instagram account is found through the Facebook Page it is linked to.
 
@@ -95,7 +95,7 @@ Who: `content:manage` (owner, manager, content editor). Connecting stays owner o
 
 The `social_posts` row exists from the start (`publishing`), so a Meta error always leaves a visible record with Meta's own message (`failed`). An invalid or revoked token also sets the account to `needs_reauth`. A container that Meta already reports as `PUBLISHED` is never published again.
 
-Guards: the 9:16 preset is refused (feed images need 4:5 to 1.91:1; stories come in phase 4), the same export cannot be published twice at the same moment, 100 posts per 24 hours per account, JPEG max 8 MB. An export used for a post cannot be deleted (`409`), because `social_post_media` references it with `restrict`.
+Guards: the 9:16 preset is not a feed image (feed images need 4:5 to 1.91:1; 9:16 is published as a story, phase 4), the same export cannot be published twice at the same moment, 100 posts per 24 hours per account, JPEG max 8 MB. An export used for a post cannot be deleted (`409`), because `social_post_media` references it with `restrict`.
 
 Audit log: `social_post.publish_started`, `social_post.published`, `social_post.failed`.
 
@@ -160,3 +160,41 @@ Agenda shows social posts as a purple event type next to the gigs, with legend t
 - `PATCH /api/admin/social/posts/:id`, `POST /api/admin/social/posts/:id/cancel`, `POST /api/admin/social/posts/:id/retry`.
 
 All need `content:manage`. Audit log: `social_post.scheduled`, `social_post.draft_saved`, `social_post.updated`, `social_post.cancelled`, `social_post.retry_scheduled`, `social_post.retry_requested`, next to the phase 2 entries.
+
+## Reels, stories and carousels (phase 4)
+
+| Kind | Media | Caption | Where |
+| --- | --- | --- | --- |
+| Afbeelding (`image`) | one 1:1 or 4:5 export | yes, plus alt text | Instagram and Facebook-pagina |
+| Carrousel (`carousel`) | 2 to 10 exports, all 1:1 or all 4:5 | yes | Instagram |
+| Story (`story`) | one 9:16 export, or a 9:16 video of 3 to 60 s | no (Instagram stories have none) | Instagram |
+| Reel (`reel`) | a finished 9:16 render of 3 s to 15 min; also shown in the feed | yes | Instagram |
+
+The Facebook Page still takes single images only; the drawer disables it for the other kinds. Alt text only applies to a single image (a carousel has one alt text field in NightLight but Instagram takes it per slide, so it is left out rather than applied to the wrong slide).
+
+### Where to start
+
+- **Story from an image:** make the design in the **9:16** preset in the Foto editor and press **Publiceren**; the drawer recognises it as a story.
+- **Carrousel:** open **Recente exports**, tick **Voor carrousel** on 2 to 10 exports (the order you tick is the order of the slides) and press **Carrousel publiceren**.
+- **Reel or video story:** on **Post generator → Video**, press **Publiceren** next to a finished render and choose **Reel** or **Story**.
+
+Everything else (Nu publiceren / Inplannen, concept, statuses, retries, the Social page and the Agenda) works as in phase 3. The Social page and Agenda show the kind, the number of slides and the duration; a video post has a small video preview instead of an image thumbnail.
+
+### How it works
+
+- **Carousel.** Each slide gets its own container (a JPEG, like a single image), NightLight waits until Meta reports `FINISHED` for every slide, then creates the carousel container from the slide ids and publishes only that one. Only the carousel container id is stored. If the process dies before that, nothing is public yet and the slides are simply created again. After that the usual recovery applies (a container Meta already reports as `PUBLISHED` is never published again).
+- **Story from an image** is a JPEG container with `media_type=STORIES`.
+- **Reel and video story.** Meta fetches the MP4 from the public, immutable URL `/api/generated-videos/<id>` and processes it for a while. So the worker creates the container **about 10 minutes before the planned moment** (`prepareUpcomingContainers`, `FOR UPDATE SKIP LOCKED`, nothing is public yet) and stores its id on the row. At the planned moment the publish step finds the container, checks its status and publishes when it is `FINISHED`. If Meta is still busy it waits up to a minute, then the post goes back in the queue and is checked again after a minute (a "not ready yet" counts as one of the 5 attempts, so it cannot loop forever). A container that Meta reports as `ERROR` or `EXPIRED` is replaced once.
+- **"Nu publiceren" with a video** is never waited on inside the request: the post is queued for this moment, the worker publishes it within a minute or two and the status follows in Social.
+- **Editing** a planned reel or story discards the prepared container, because it carries the old caption.
+- The 100 posts per 24 hours limit counts a carousel as one post.
+
+A render that was used for a social post cannot be deleted (`409`), like exports.
+
+### Not covered
+
+Resumable upload for very large videos (Meta pulls from our public URL; keep reels reasonably small, Meta allows up to 300 MB for reels), Facebook reels and stories, and alt text per carousel slide.
+
+### API
+
+`POST /api/admin/social/posts` takes `kind` (`image`, `carousel`, `reel`, `story`), `generatedPostIds` (or `generatedPostId`) for images and `videoRenderJobId` for video, next to the fields from the earlier phases. Audit entries carry the kind, the export ids and the render id.

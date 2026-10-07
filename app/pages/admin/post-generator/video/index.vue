@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import SocialPublishDrawer from '~/components/social/SocialPublishDrawer.vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import { canCancelRender, type VideoRenderStatus } from '~~/shared/video-generator'
 import { VIDEO_ASPECTS, VIDEO_ASPECT_KEYS, type VideoAspect } from '~~/shared/video-project'
 import { labelFor, renderStatusLabels } from '~~/shared/labels'
+import type { SocialPublishVideo } from '~~/shared/social'
 
 definePageMeta({ layout: 'admin' })
 
@@ -32,6 +34,23 @@ type RenderJob = {
   renderEngine: string | null
   videoUrl: string | null
   createdAt: string
+}
+
+// Publishing a finished render as a reel or story.
+const publishOpen = ref(false)
+const publishVideo = ref<SocialPublishVideo | null>(null)
+
+function openPublish(job: RenderJob) {
+  if (!job.videoUrl) return
+  publishVideo.value = {
+    id: job.id,
+    videoUrl: job.videoUrl,
+    width: job.width,
+    height: job.height,
+    durationSeconds: job.durationSeconds,
+    title: job.projectName,
+  }
+  publishOpen.value = true
 }
 
 type ProjectSort = 'updated' | 'newest' | 'oldest' | 'name'
@@ -366,6 +385,11 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
             MP4 openen
           </a>
 
+          <button v-if="job.videoUrl" class="render-open" type="button" @click="openPublish(job)">
+            <Icon name="lucide:send" aria-hidden="true" />
+            Publiceren
+          </button>
+
           <button
             v-if="canCancelRender(job.status)"
             class="render-cancel"
@@ -381,6 +405,8 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
         <li v-if="!queue?.jobs.length" class="empty render-empty">Nog niets gerenderd.</li>
       </ol>
     </section>
+
+    <SocialPublishDrawer v-model:open="publishOpen" :images="[]" :video="publishVideo" />
 
     <div v-if="showCreate" class="modal-backdrop" role="presentation" @click.self="closeCreate">
       <section class="create-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">

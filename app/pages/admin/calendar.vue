@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
-import { socialProviderLabels, type SocialPostItem } from '~~/shared/social'
+import { socialPostKindLabels, socialProviderLabels, type SocialPostItem, type SocialPostKindKey } from '~~/shared/social'
 
 definePageMeta({ layout: 'admin' })
 useSeoMeta({ title: 'Agenda — DJ NightLight', robots: 'noindex, nofollow' })
@@ -138,6 +138,9 @@ function socialStyle(post: SocialPostItem) {
   const start = new Date(at)
   const minutes = Math.max(0, start.getHours() * 60 + start.getMinutes() - 8 * 60)
   return { top: `${minutes / 60 * 52}px`, height: '42px' }
+}
+function socialKindLabel(post: SocialPostItem) {
+  return socialPostKindLabels[post.kind as SocialPostKindKey] ?? post.kind
 }
 function socialLabel(post: SocialPostItem) {
   return `${socialProviderLabels[post.provider] ?? post.provider}${post.accountName ? ` @${post.accountName}` : ''}`
@@ -464,9 +467,10 @@ async function rotateIcs() {
       <ul v-else>
         <li v-for="post in upcomingSocial" :key="post.id">
           <img v-if="post.thumbnailUrl" :src="post.thumbnailUrl" alt="" loading="lazy">
+          <video v-else-if="post.videoUrl" :src="`${post.videoUrl}#t=0.1`" muted preload="metadata" aria-hidden="true" tabindex="-1" />
           <div>
             <strong>{{ post.title }}</strong>
-            <small>{{ socialLabel(post) }}</small>
+            <small>{{ socialKindLabel(post) }} · {{ socialLabel(post) }}</small>
             <small>{{ post.scheduledAt ? panelFormatter.format(new Date(post.scheduledAt)) : '' }}</small>
           </div>
           <SocialStatusChip :status="post.status" />
@@ -588,7 +592,7 @@ async function rotateIcs() {
 .social-panel header a { color: #c4b5fd; font-size: .78rem; }
 .social-panel ul { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
 .social-panel li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; }
-.social-panel img { width: 2.6rem; height: 2.6rem; border-radius: .45rem; object-fit: cover; background: #08070a; }
+.social-panel img, .social-panel video { width: 2.6rem; height: 2.6rem; border-radius: .45rem; object-fit: cover; background: #08070a; }
 .social-panel li div { display: grid; min-width: 0; }
 .social-panel li strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
 .social-panel li small { color: #8f8798; font-size: .72rem; }

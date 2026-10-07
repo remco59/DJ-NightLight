@@ -3,7 +3,10 @@ import { apiErrorMessage } from '~/utils/api-error'
 import {
   amsterdamLocalToIso,
   isoToAmsterdamLocal,
+  formatDuration,
   socialPostActions,
+  socialPostKindLabels,
+  type SocialPostKindKey,
   socialProviderLabels,
   socialTabLabels,
   socialTabs,
@@ -186,9 +189,15 @@ async function save(action: 'schedule' | 'draft') {
             <td>
               <div class="post-cell">
                 <img v-if="post.thumbnailUrl" :src="post.thumbnailUrl" alt="" loading="lazy">
+                <video v-else-if="post.videoUrl" :src="`${post.videoUrl}#t=0.1`" muted preload="metadata" aria-hidden="true" tabindex="-1" />
                 <div>
                   <strong>{{ post.title }}</strong>
-                  <small>Afbeelding<template v-if="post.templateKey"> · {{ post.templateKey }}</template></small>
+                  <small>
+                    {{ socialPostKindLabels[post.kind as SocialPostKindKey] ?? post.kind }}
+                    <template v-if="post.kind === 'carousel'"> · {{ post.mediaCount }} afbeeldingen</template>
+                    <template v-else-if="post.durationSeconds"> · {{ formatDuration(post.durationSeconds) }}</template>
+                    <template v-if="post.templateKey"> · {{ post.templateKey }}</template>
+                  </small>
                 </div>
               </div>
             </td>
@@ -229,11 +238,11 @@ async function save(action: 'schedule' | 'draft') {
             <h2 id="social-edit-title">{{ editing.title }}</h2>
             <button type="button" class="icon-button" aria-label="Sluiten" @click="editing = null"><Icon name="lucide:x" aria-hidden="true" /></button>
           </header>
-          <label class="field">
+          <label v-if="editing && editing.kind !== 'story'" class="field">
             <span>Bijschrift</span>
             <textarea v-model="form.caption" rows="7" />
           </label>
-          <label class="field">
+          <label v-if="editing && editing.kind === 'image'" class="field">
             <span>Alternatieve tekst</span>
             <textarea v-model="form.altText" rows="2" />
           </label>
@@ -286,7 +295,7 @@ table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 th { padding: .8rem 1rem; color: #8f8798; font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
 td { padding: .8rem 1rem; border-top: 1px solid #1f1b24; vertical-align: top; }
 .post-cell { display: flex; align-items: center; gap: .8rem; min-width: 14rem; }
-.post-cell img { width: 3rem; height: 3rem; border-radius: .5rem; object-fit: cover; background: #08070a; }
+.post-cell img, .post-cell video { width: 3rem; height: 3rem; border-radius: .5rem; object-fit: cover; background: #08070a; }
 .post-cell small, .muted { display: block; color: #8f8798; font-size: .74rem; }
 .error-text { max-width: 24rem; margin: .4rem 0 0; color: #f0a3b0; font-size: .76rem; line-height: 1.4; }
 .note-text { max-width: 24rem; margin: .4rem 0 0; color: #9d97a6; font-size: .76rem; line-height: 1.4; }

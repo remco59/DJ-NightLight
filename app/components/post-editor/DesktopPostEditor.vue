@@ -2,7 +2,7 @@
 import MediaPicker from '~/components/admin/MediaPicker.vue'
 import PostCanvasStage from '~/components/post-editor/PostCanvasStage.vue'
 import PostInspector from '~/components/post-editor/PostInspector.vue'
-import PostPublishDrawer from '~/components/post-editor/PostPublishDrawer.vue'
+import SocialPublishDrawer from '~/components/social/SocialPublishDrawer.vue'
 import PostRecentExports from '~/components/post-editor/PostRecentExports.vue'
 import PostTemplateBrowser from '~/components/post-editor/PostTemplateBrowser.vue'
 import { usePostEditor, type PostCanvasSelection, type PostEditorTool } from '~/composables/usePostEditor'
@@ -17,7 +17,11 @@ const inspectorCollapsed = ref(false)
 const selection = ref<PostCanvasSelection>('none')
 const exportsOpen = ref(false)
 const publishOpen = ref(false)
-const publishPostId = ref<string | null>(null)
+const publishPostIds = ref<string[]>([])
+const publishImages = computed(() => publishPostIds.value.flatMap((id) => {
+  const post = editor.posts.value.find(item => item.id === id)
+  return post ? [post] : []
+}))
 const templatesOpen = ref(false)
 const mediaPickerOpen = ref(false)
 const previewUrl = ref('')
@@ -34,8 +38,8 @@ const selectionTool = computed<PostEditorTool | null>(() => {
 const selectedAssetUrl = computed(() => editor.selectedAsset.value?.url ?? null)
 const anyDialogOpen = computed(() => exportsOpen.value || publishOpen.value || templatesOpen.value || mediaPickerOpen.value || Boolean(previewUrl.value))
 
-function openPublish(postId: string) {
-  publishPostId.value = postId
+function openPublish(...postIds: string[]) {
+  publishPostIds.value = postIds
   exportsOpen.value = false
   publishOpen.value = true
 }
@@ -279,8 +283,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <PostRecentExports v-model:open="exportsOpen" @publish="openPublish($event.id)" />
-    <PostPublishDrawer v-model:open="publishOpen" :post-id="publishPostId" />
+    <PostRecentExports v-model:open="exportsOpen" @publish="openPublish($event.id)" @publish-carousel="openPublish(...$event.map(post => post.id))" />
+    <SocialPublishDrawer v-model:open="publishOpen" :images="publishImages" @published="editor.refresh()" />
     <PostTemplateBrowser v-model:open="templatesOpen" :thumbnails="thumbnails" />
     <MediaPicker
       v-model:open="mediaPickerOpen"
