@@ -214,6 +214,7 @@ async function removeEmailSettings() {
 }
 const instagramMessages: Record<string, { text: string, type: 'success' | 'error' }> = {
   connected: { text: 'Instagram-account gekoppeld.', type: 'success' },
+  choose: { text: 'Facebook gaf toegang tot meerdere Instagram-accounts. Kies hieronder welk account NightLight moet gebruiken.', type: 'success' },
   denied: { text: 'Je hebt geen toegang gegeven. Er is niets gekoppeld.', type: 'error' },
   state: { text: 'De koppelpoging is verlopen of ongeldig. Probeer het opnieuw.', type: 'error' },
   missing: { text: 'Stel eerst het app-ID en het app secret van de Meta-app in.', type: 'error' },
@@ -222,6 +223,10 @@ const instagramMessages: Record<string, { text: string, type: 'success' | 'error
 
 const instagramMessage = ref('')
 const instagramMessageType = ref<'success' | 'error' | ''>('')
+type InstagramChoice = { instagramId: string, username: string, pageId: string, pageName: string }
+const choices = ref<InstagramChoice[]>([])
+const choiceId = ref('')
+
 const metaForm = reactive({ appId: '', appSecret: '', loginConfigId: '' })
 const metaEditing = ref(false)
 const metaMessage = ref('')
@@ -240,6 +245,7 @@ onMounted(() => {
   url.searchParams.delete('instagram')
   url.searchParams.delete('detail')
   history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  if (outcome === 'choose') void loadChoices()
 })
 
 const instagram = computed(() => data.value?.instagram)
@@ -314,6 +320,37 @@ async function removeMetaApp() {
   } catch (error: unknown) {
     metaMessage.value = apiErrorMessage(error, 'Meta-app-gegevens verwijderen is niet gelukt.')
     metaMessageType.value = 'error'
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function loadChoices() {
+  try {
+    const result = await $fetch<{ accounts: InstagramChoice[] }>('/api/admin/social/instagram/candidates')
+    choices.value = result.accounts
+    choiceId.value = result.accounts.length === 1 ? result.accounts[0]!.instagramId : ''
+  } catch (error: unknown) {
+    choices.value = []
+    instagramMessage.value = apiErrorMessage(error, 'De Instagram-accounts ophalen is niet gelukt. Verbind opnieuw.')
+    instagramMessageType.value = 'error'
+  }
+}
+
+async function confirmChoice() {
+  if (!choiceId.value) return
+  busy.value = 'instagram-choose'
+  instagramMessage.value = ''
+  try {
+    await $fetch('/api/admin/social/instagram/choose', { method: 'POST', body: { instagramId: choiceId.value } })
+    choices.value = []
+    choiceId.value = ''
+    await refresh()
+    instagramMessage.value = 'Instagram-account gekoppeld.'
+    instagramMessageType.value = 'success'
+  } catch (error: unknown) {
+    instagramMessage.value = apiErrorMessage(error, 'Koppelen is niet gelukt.')
+    instagramMessageType.value = 'error'
   } finally {
     busy.value = ''
   }
@@ -399,6 +436,21 @@ async function disconnectInstagram() {
         <div>
           <strong>{{ instagram.health.title }}</strong>
           <p>{{ instagram.health.detail }}</p>
+        </div>
+      </div>
+
+      <div v-if="choices.length" class="chooser">
+        <strong>Kies het Instagram-account voor NightLight</strong>
+        <p>Facebook gaf toegang tot meerdere accounts. NightLight gebruikt er één. Koppel je later een ander account, dan vervangt dat het huidige.</p>
+        <label v-for="choice in choices" :key="choice.instagramId" class="choice">
+          <input v-model="choiceId" type="radio" name="instagram-choice" :value="choice.instagramId">
+          <span><b>@{{ choice.username || choice.pageName }}</b><small>Pagina {{ choice.pageName }} · ID {{ choice.instagramId }}</small></span>
+        </label>
+        <div class="actions">
+          <button type="button" :disabled="!choiceId || busy === 'instagram-choose'" @click="confirmChoice">
+            {{ busy === 'instagram-choose' ? 'Koppelen…' : 'Dit account koppelen' }}
+          </button>
+          <button class="ghost" type="button" @click="choices = []">Annuleren</button>
         </div>
       </div>
 
@@ -630,6 +682,12 @@ async function disconnectInstagram() {
 .dev-note p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem}
 .redirect{margin:.7rem 0 0;word-break:break-all}
 .redirect code{color:var(--text-muted)}
+.chooser{margin-top:.9rem;padding:.9rem 1rem;border:1px solid #4a3578;border-radius:.8rem;background:#15101e}
+.chooser p{margin:.25rem 0 .7rem;color:var(--text-subtle);font-size:.74rem;line-height:1.4}
+.choice{display:flex;align-items:center;gap:.7rem;margin-top:.5rem;padding:.65rem .8rem;border:1px solid var(--border);border-radius:.7rem;background:var(--surface-input);cursor:pointer}
+.choice input{width:auto;accent-color:#7a3eed}
+.choice b,.choice small{display:block}
+.choice small{margin-top:.15rem;color:var(--text-subtle);font-size:.7rem}
 .button-link{display:inline-flex;align-items:center;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;text-decoration:none}
 .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
 .integration-head p{margin:0;color:var(--text-subtle);font-size:.8rem}

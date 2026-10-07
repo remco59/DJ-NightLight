@@ -18,7 +18,10 @@ import {
   inspectToken,
   InstagramApiError,
   listInstagramPages,
+  selectInstagramPage,
+  type InstagramPage,
 } from '../server/utils/instagram'
+import { openPendingToken, sealPendingToken } from '../server/utils/instagram-pending'
 
 const DAY = 24 * 60 * 60 * 1000
 const now = Date.UTC(2026, 9, 7, 12, 0, 0)
@@ -225,5 +228,63 @@ describe('Facebook Graph client', () => {
   it('fails clearly on an empty token response', async () => {
     const empty = vi.fn().mockResolvedValue(jsonResponse({}))
     await expect(exchangeForLongLivedToken({ appId: '1', appSecret: 's', accessToken: 'x' }, empty)).rejects.toThrow('geen toegangstoken')
+  })
+})
+
+describe('choosing among several Instagram accounts', () => {
+  const page = (instagramId: string, username: string): InstagramPage => ({
+    pageId: `page-${instagramId}`,
+    pageName: `Pagina ${username}`,
+    pageAccessToken: `token-${instagramId}`,
+    instagramId,
+    username,
+  })
+  const radio = page('17841444481105224', 'radionoord')
+  const dance = page('17841453718603806', 'nextdancesalsaleeuwarden')
+  const dj = page('17841400000000821', 'djnightlight')
+
+  it('takes the only candidate', () => {
+    expect(selectInstagramPage([dj])).toBe(dj)
+  })
+
+  it('never guesses between several new candidates', () => {
+    expect(selectInstagramPage([radio, dance, dj])).toBeNull()
+    expect(selectInstagramPage([radio, dance, dj], { preferredInstagramId: null })).toBeNull()
+  })
+
+  it('keeps the connected account on a reconnect, wherever it appears in the list', () => {
+    expect(selectInstagramPage([radio, dance, dj], { preferredInstagramId: dj.instagramId })).toBe(dj)
+  })
+
+  it('does not fall back to the first candidate when the connected account is gone', () => {
+    expect(selectInstagramPage([radio, dance], { preferredInstagramId: dj.instagramId })).toBeNull()
+  })
+
+  it('returns nothing for an empty list', () => {
+    expect(selectInstagramPage([])).toBeNull()
+  })
+})
+
+describe('pending Instagram choice', () => {
+  const pending = sealPendingToken({ userToken: 'long-user-token', userId: 'user-1', password, now })
+
+  it('does not expose the token in the cookie value', () => {
+    expect(pending).not.toContain('long-user-token')
+  })
+
+  it('opens for the same user within ten minutes', () => {
+    expect(openPendingToken({ value: pending, userId: 'user-1', password, now: now + 5 * 60_000 })).toBe('long-user-token')
+  })
+
+  it('is refused for another user, after expiry, with another secret or when damaged', () => {
+    expect(openPendingToken({ value: pending, userId: 'user-2', password, now })).toBeNull()
+    expect(openPendingToken({ value: pending, userId: 'user-1', password, now: now + 11 * 60_000 })).toBeNull()
+    expect(openPendingToken({ value: pending, userId: 'user-1', password: 'y'.repeat(40), now })).toBeNull()
+    // Damage the authentication tag: GCM must refuse the value.
+    const [version, iv, tag, data] = pending.split(':')
+    const flipped = `${tag![0] === 'A' ? 'B' : 'A'}${tag!.slice(1)}`
+    expect(openPendingToken({ value: [version, iv, flipped, data].join(':'), userId: 'user-1', password, now })).toBeNull()
+    expect(openPendingToken({ value: undefined, userId: 'user-1', password, now })).toBeNull()
+    expect(openPendingToken({ value: 'garbage', userId: 'user-1', password, now })).toBeNull()
   })
 })

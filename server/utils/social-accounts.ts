@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm'
-import { socialAccounts, socialSettings } from '../../db/schema'
+import { and, desc, eq, ne } from 'drizzle-orm'
+import { socialAccounts, socialSettings, type SocialAccount } from '../../db/schema'
 import { instagramRedirectUri, shouldCheckConnection } from '../../shared/instagram'
 import { decryptSecret, encryptSecret } from '../../shared/secret-box'
 import { db } from './db'
@@ -8,7 +8,9 @@ import {
   exchangeForLongLivedToken,
   inspectToken,
   InstagramApiError,
+  type InstagramPage,
   listInstagramPages,
+  selectInstagramPage,
 } from './instagram'
 import { loadInstagramIntegration } from './integration-settings'
 import { structuredLog } from './structured-log'
@@ -24,30 +26,22 @@ function errorText(error: unknown) {
 /** Used when Meta reports no expiry at all; the daily check corrects it from the real answer. */
 const FALLBACK_ACCESS_DAYS = 60
 
-/**
- * Completes the Facebook Login round trip: code → user token → long-lived user token → the Facebook
- * Page that has an Instagram account → that Page's access token (stored encrypted) → account row.
- */
-export async function connectInstagramAccount(input: { code: string, userId: string }) {
+export type ConnectOutcome =
+  | { kind: 'connected', account: SocialAccount }
+  | { kind: 'choose', userToken: string, pages: InstagramPage[] }
+
+async function appCredentials() {
   const { credentials } = await loadInstagramIntegration()
   if (!credentials.appId || !credentials.appSecret) {
     throw new Error('De Meta-app is nog niet ingesteld')
   }
+  return credentials
+}
 
-  const redirectUri = instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || ''))
-  const short = await exchangeCodeForToken({ ...credentials, redirectUri, code: input.code })
-  const long = await exchangeForLongLivedToken({ ...credentials, accessToken: short.accessToken })
-
-  const pages = await listInstagramPages(long.accessToken)
-  const page = pages[0]
-  if (!page) {
-    throw new InstagramApiError(
-      'Geen Instagram-account gevonden. Koppel het Instagram-account aan een Facebook-pagina en geef NightLight toegang tot die pagina.',
-      200,
-      null,
-      false,
-    )
-  }
+/** Stores the chosen Page's access token (encrypted) and makes it the one connected account. */
+async function saveInstagramAccount(input: { page: InstagramPage, userId: string }) {
+  const credentials = await appCredentials()
+  const { page } = input
 
   const inspection = await inspectToken({ ...credentials, token: page.pageAccessToken })
   if (!inspection.isValid || inspection.appId !== credentials.appId) {
@@ -75,7 +69,55 @@ export async function connectInstagramAccount(input: { code: string, userId: str
     .values({ provider: 'instagram', externalId: page.instagramId, ...values })
     .onConflictDoUpdate({ target: [socialAccounts.provider, socialAccounts.externalId], set: values })
     .returning()
+
+  // One Instagram account is connected at a time: choosing another replaces the previous one.
+  await db.delete(socialAccounts)
+    .where(and(eq(socialAccounts.provider, 'instagram'), ne(socialAccounts.id, account!.id)))
   return account!
+}
+
+/**
+ * First half of the Facebook Login round trip: code → user token → long-lived user token → the Pages
+ * that have an Instagram account. Connects straight away when the choice is clear (one candidate, or
+ * the account that is already connected); otherwise the owner has to pick.
+ */
+export async function beginInstagramConnection(input: { code: string, userId: string }): Promise<ConnectOutcome> {
+  const credentials = await appCredentials()
+  const redirectUri = instagramRedirectUri(String(useRuntimeConfig().public.siteUrl || ''))
+  const short = await exchangeCodeForToken({ ...credentials, redirectUri, code: input.code })
+  const long = await exchangeForLongLivedToken({ ...credentials, accessToken: short.accessToken })
+
+  const pages = await listInstagramPages(long.accessToken)
+  if (!pages.length) {
+    throw new InstagramApiError(
+      'Geen Instagram-account gevonden. Koppel het Instagram-account aan een Facebook-pagina en geef NightLight toegang tot dat account en die pagina.',
+      200,
+      null,
+      false,
+    )
+  }
+
+  const [connected] = await db.select().from(socialAccounts)
+    .where(eq(socialAccounts.provider, 'instagram'))
+    .orderBy(desc(socialAccounts.updatedAt)).limit(1)
+  const page = selectInstagramPage(pages, { preferredInstagramId: connected?.externalId })
+  if (!page) return { kind: 'choose', userToken: long.accessToken, pages }
+  return { kind: 'connected', account: await saveInstagramAccount({ page, userId: input.userId }) }
+}
+
+/** Candidates for the chooser; never includes tokens. */
+export async function listInstagramChoices(userToken: string) {
+  const pages = await listInstagramPages(userToken)
+  return pages.map(({ instagramId, username, pageId, pageName }) => ({ instagramId, username, pageId, pageName }))
+}
+
+/** Second half: the owner picked one of the accounts Facebook granted access to. */
+export async function completeInstagramChoice(input: { userToken: string, instagramId: string, userId: string }) {
+  const page = (await listInstagramPages(input.userToken)).find(candidate => candidate.instagramId === input.instagramId)
+  if (!page) {
+    throw new InstagramApiError('Dit Instagram-account is niet (meer) beschikbaar. Verbind opnieuw.', 200, null, false)
+  }
+  return saveInstagramAccount({ page, userId: input.userId })
 }
 
 /**
