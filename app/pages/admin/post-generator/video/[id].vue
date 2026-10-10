@@ -4,6 +4,7 @@ import CanvasGhost from '~/components/video/CanvasGhost.vue'
 import CanvasTransformOverlay from '~/components/video/CanvasTransformOverlay.vue'
 import MobileVideoEditorHeader from '~/components/video/MobileVideoEditorHeader.vue'
 import MobileVideoQuickActions from '~/components/video/MobileVideoQuickActions.vue'
+import MobileVideoSheet from '~/components/video/MobileVideoSheet.vue'
 import MobileVideoToolbar from '~/components/video/MobileVideoToolbar.vue'
 import MobileVideoTransport from '~/components/video/MobileVideoTransport.vue'
 import PanelSplitter from '~/components/video/PanelSplitter.vue'
@@ -27,6 +28,7 @@ import {
   defaultPanelSizes,
   parsePanelSizes,
   type MobileVideoTool,
+  type SheetSnap,
   type PanelKey,
   type PanelSizes,
 } from '~~/shared/video-editor-ui'
@@ -78,14 +80,18 @@ const stageSize = reactive({ width: 0, height: 0 })
 
 // --- Mobile workspace -------------------------------------------------------------
 // Below 760px the editor switches to a dedicated touch layout: compact header,
-// persistent preview + mini timeline, and one tool panel picked from bottom tabs.
+// preview on top, the timeline filling the rest, and tools as a bottom sheet that
+// slides over the timeline when a bottom tab is tapped.
 // The CSS media query uses the same breakpoint so the first paint already fits.
 
 const MOBILE_QUERY = '(max-width: 760px)'
 const isMobile = ref(false)
-const mobileTool = ref<MobileVideoTool>('media')
+const mobileTool = ref<MobileVideoTool | null>(null)
+const sheetSnap = ref<SheetSnap>('half')
+const SHEET_TITLES: Record<MobileVideoTool, string> = { media: 'Media', templates: 'Templates', edit: 'Bewerken', audio: 'Audio', export: 'Export' }
 const replaceKind = ref<MediaKind | null>(null)
-const mobilePanelTab = computed(() => mobileTool.value === 'export' ? 'exports' : mobileTool.value === 'edit' ? 'media' : mobileTool.value)
+const mobilePanelTab = computed(() => mobileTool.value === 'export' ? 'exports' : mobileTool.value === 'edit' || !mobileTool.value ? 'media' : mobileTool.value)
+const sheetTitle = computed(() => replaceKind.value ? 'Media vervangen' : mobileTool.value ? SHEET_TITLES[mobileTool.value] : '')
 const rendering = computed(() => state.renders.some(render => render.status === 'queued' || render.status === 'rendering'))
 
 function startReplace() {
@@ -117,6 +123,8 @@ watch(() => state.selectedId, () => {
 })
 watch(mobileTool, (tool) => {
   if (tool !== 'media') replaceKind.value = null
+  // Every tool opens at half height; drag the handle up for long forms.
+  if (tool) sheetSnap.value = 'half'
 })
 
 let mobileQuery: MediaQueryList | null = null
@@ -585,7 +593,12 @@ useSeoMeta({ title: () => `${state.name} — Video-editor`, robots: 'noindex, no
 
     <template v-if="isMobile">
       <MobileVideoQuickActions @replace="startReplace" />
-      <div class="tool-panel">
+      <MobileVideoSheet
+        v-if="mobileTool"
+        v-model:snap="sheetSnap"
+        :title="sheetTitle"
+        @close="mobileTool = null"
+      >
         <VideoInspector v-if="mobileTool === 'edit'" mobile />
         <VideoMediaPanel
           v-else
@@ -594,12 +607,11 @@ useSeoMeta({ title: () => `${state.name} — Video-editor`, robots: 'noindex, no
           :replace-kind="replaceKind"
           @refresh-media="refreshMedia"
           @refresh-renders="refreshRenders"
-          @template-added="openEdit"
           @replaced="openEdit"
           @cancel-replace="openEdit"
           @open-edit="openEdit"
         />
-      </div>
+      </MobileVideoSheet>
       <MobileVideoToolbar v-model="mobileTool" :has-selection="Boolean(state.selectedId)" :rendering="rendering" />
     </template>
   </div>
@@ -931,31 +943,19 @@ useSeoMeta({ title: () => `${state.name} — Video-editor`, robots: 'noindex, no
     height: clamp(150px, 32dvh, 440px);
   }
 
+  /* The timeline is the main work surface: it takes all the height left between
+     the preview and the bottom navigation. Sheets overlay it without resizing it. */
   .timeline-row {
-    flex: none;
-    height: 126px;
-  }
-
-  .tool-panel {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-    background: var(--ve-bg);
-  }
-
-  .tool-panel > * {
-    flex: 1;
-    min-height: 0;
-    background: var(--ve-bg);
+    flex: 1 1 0;
+    min-height: 126px;
   }
 
   .banner { top: calc(env(safe-area-inset-top) + 96px); }
 }
 
-/* Short landscape phones: give the tool panel room by shrinking the preview. */
+/* Short landscape phones: give the timeline room by shrinking the preview. */
 @media (max-width: 760px) and (max-height: 560px) {
   .stage { height: 30dvh; }
-  .timeline-row { height: 106px; }
+  .timeline-row { min-height: 106px; }
 }
 </style>

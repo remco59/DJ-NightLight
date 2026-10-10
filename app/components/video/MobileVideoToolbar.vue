@@ -2,7 +2,8 @@
 import type { MobileVideoTool } from '~~/shared/video-editor-ui'
 
 const props = defineProps<{ hasSelection: boolean, rendering: boolean }>()
-const tool = defineModel<MobileVideoTool>({ required: true })
+// null = no sheet open. Tapping the active tab closes its sheet.
+const tool = defineModel<MobileVideoTool | null>({ required: true })
 
 const tabs: Array<{ key: MobileVideoTool, label: string, icon: string }> = [
   { key: 'media', label: 'Media', icon: 'lucide:images' },
@@ -20,8 +21,8 @@ const tabs: Array<{ key: MobileVideoTool, label: string, icon: string }> = [
       :key="tab.key"
       type="button"
       :class="{ active: tool === tab.key }"
-      :aria-current="tool === tab.key ? 'page' : undefined"
-      @click="tool = tab.key"
+      :aria-pressed="tool === tab.key"
+      @click="tool = tool === tab.key ? null : tab.key"
     >
       <span class="icon">
         <Icon :name="tab.icon" aria-hidden="true" />
