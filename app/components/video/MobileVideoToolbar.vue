@@ -9,7 +9,6 @@ const tabs: Array<{ key: MobileVideoTool, label: string, icon: string }> = [
   { key: 'media', label: 'Media', icon: 'lucide:images' },
   { key: 'templates', label: 'Templates', icon: 'lucide:layout-template' },
   { key: 'edit', label: 'Bewerken', icon: 'lucide:sliders-horizontal' },
-  { key: 'audio', label: 'Audio', icon: 'lucide:music' },
   { key: 'export', label: 'Export', icon: 'lucide:clapperboard' },
 ]
 </script>
@@ -36,7 +35,7 @@ const tabs: Array<{ key: MobileVideoTool, label: string, icon: string }> = [
 <style scoped>
 .m-toolbar {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: .2rem;
   padding: .35rem .4rem calc(env(safe-area-inset-bottom) + .35rem);
   border-top: 1px solid var(--ve-border);

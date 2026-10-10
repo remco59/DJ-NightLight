@@ -34,7 +34,7 @@ export function timelineDisplayOrder<T extends Pick<VideoTrack, 'kind'>>(tracks:
 }
 
 /** Tabs of the mobile editor's bottom navigation; each opens as a bottom sheet over the timeline. */
-export type MobileVideoTool = 'media' | 'templates' | 'edit' | 'audio' | 'export'
+export type MobileVideoTool = 'media' | 'templates' | 'edit' | 'export'
 
 /** Bottom sheet states of the mobile editor; `closed` is only a drag target. */
 export type SheetSnap = 'half' | 'full'

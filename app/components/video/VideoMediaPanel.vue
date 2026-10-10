@@ -10,10 +10,10 @@ import { useVideoEditor, type EditorMediaAsset } from '~/composables/useVideoEdi
 import type { MediaLibraryItem } from '~~/shared/media-library'
 
 // Desktop shows media / templates / exports in the side panel. The mobile
-// editor reuses this panel for its bottom tabs (plus an Audio tab) with
-// tap-first cards instead of drag and drop.
+// editor reuses this panel for its bottom sheets with tap-first cards instead
+// of drag and drop; audio lives in the media library under the Audio filter.
 const props = defineProps<{
-  tab: 'media' | 'templates' | 'exports' | 'audio'
+  tab: 'media' | 'templates' | 'exports'
   mobile?: boolean
   /** Mobile "Replace" flow: tapping an asset of this kind swaps the selected clip's media. */
   replaceKind?: MediaKind | null
@@ -39,11 +39,6 @@ const projectMediaIds = computed(() => editor.projectMedia.value.map(asset => as
 
 const activeFilter = computed<MediaFilter>(() => props.replaceKind || filter.value)
 const filteredMedia = computed(() => filterMediaAssets(editor.projectMedia.value, activeFilter.value, search.value))
-const audioMedia = computed(() => filterMediaAssets(editor.projectMedia.value, 'audio', search.value))
-const selectedAudio = computed(() => {
-  const item = editor.selection.value?.item
-  return item?.type === 'audio' ? item : null
-})
 const panel = ref<HTMLElement | null>(null)
 watch(() => props.tab, () => {
   if (panel.value) panel.value.scrollTop = 0
@@ -146,8 +141,8 @@ async function deleteRender(id: string) {
       v-model:open="pickerOpen"
       bare
       multiple
-      :kind="props.tab === 'audio' ? 'audio' : 'all'"
-      :title="props.tab === 'audio' ? 'Audio toevoegen aan dit project' : 'Media toevoegen aan dit project'"
+      kind="all"
+      title="Media toevoegen aan dit project"
       :exclude-ids="projectMediaIds"
       upload-tags=""
       @selected-many="addToProject"
@@ -214,31 +209,6 @@ async function deleteRender(id: string) {
           <small>{{ template.category }} · {{ template.defaultDurationSeconds }}s<template v-if="templateHasSound(template)"> · geluid</template></small>
         </button>
       </div>
-    </template>
-
-    <!-- Mobile: audio library -->
-    <template v-else-if="props.tab === 'audio'">
-      <header class="panel-head">
-        <h2>Audio</h2>
-        <button class="pill" type="button" @click="pickerOpen = true">
-          <Icon name="lucide:plus" aria-hidden="true" /><span>Audio toevoegen</span>
-        </button>
-      </header>
-      <button v-if="selectedAudio" type="button" class="selected-audio" @click="emit('openEdit')">
-        <Icon name="lucide:sliders-horizontal" aria-hidden="true" />
-        <span><strong>{{ editor.mediaById.value.get(selectedAudio.assetId)?.title || 'Gekozen audio' }}</strong><small>Volume {{ Math.round(selectedAudio.volume * 100) }}% · pas volume en fades aan</small></span>
-        <Icon name="lucide:chevron-right" aria-hidden="true" />
-      </button>
-      <input v-model="search" class="search" type="search" placeholder="Zoek audio…" aria-label="Audio zoeken">
-      <p v-if="message" class="message">{{ message }}</p>
-      <ul class="m-audio-list">
-        <li v-for="asset in audioMedia" :key="asset.id">
-          <button type="button" class="m-add round" :aria-label="`${assetTitle(asset)} toevoegen bij de afspeelpositie`" @click="addAsset(asset)"><Icon name="lucide:plus" aria-hidden="true" /></button>
-          <span class="audio-copy"><strong>{{ assetTitle(asset) }}</strong><small>{{ formatMediaDuration(asset.durationMs) }}</small></span>
-          <svg class="wave" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path :d="waveformPath(asset.metadata?.peaks)" /></svg>
-        </li>
-        <li v-if="!audioMedia.length" class="empty">Nog geen audio in dit project. Voeg muziek, geluidseffecten of een voice-over toe.</li>
-      </ul>
     </template>
 
     <template v-else-if="props.tab === 'media'">
@@ -886,80 +856,6 @@ h3 {
 
 .m-template-card strong { font-size: .8rem; }
 .m-template-card small { color: var(--ve-muted); font-size: .7rem; }
-
-.selected-audio {
-  display: flex;
-  align-items: center;
-  gap: .7rem;
-  min-height: 52px;
-  padding: .5rem .75rem;
-  border: 1px solid rgba(167, 139, 250, .45);
-  border-radius: 12px;
-  background: rgba(124, 58, 237, .16);
-  color: var(--ve-text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.selected-audio span {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.selected-audio strong, .audio-copy strong {
-  overflow: hidden;
-  font-size: .82rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.selected-audio small, .audio-copy small { color: var(--ve-muted); font-size: .72rem; }
-
-.m-audio-list {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.m-audio-list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: .7rem;
-  min-height: 56px;
-  padding: .45rem .7rem;
-  border: 1px solid var(--ve-border);
-  border-radius: 12px;
-  background: var(--ve-raised);
-}
-
-.m-audio-list li.empty {
-  display: block;
-  border: 0;
-  background: none;
-}
-
-.audio-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.m-audio-list .wave {
-  width: 100%;
-  height: 32px;
-}
-
-.m-audio-list .wave path {
-  stroke: #a78bfa;
-  stroke-width: .8;
-  vector-effect: non-scaling-stroke;
-}
 
 .mobile .renders li { padding: .85rem; }
 
