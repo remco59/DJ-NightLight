@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addMonths,
   buildRevenueSeries,
+  compareAttention,
   countdownLabel,
   daysBetween,
   gigUrgency,
@@ -76,5 +77,19 @@ describe('dashboard helpers', () => {
     expect(grid[3]).toMatchObject({ date: '2026-10-01', day: 1, inMonth: true })
     expect(grid.at(-1)).toMatchObject({ date: '2026-11-01', inMonth: false })
     expect(monthGrid('2027-02')).toHaveLength(28) // 1 Feb 2027 is a Monday and the month has 28 days
+  })
+})
+
+describe('compareAttention', () => {
+  it('sorts by urgency first, then oldest date, undated last', () => {
+    const rows = [
+      { id: 'lead', urgency: 'warn' as const, meta: null },
+      { id: 'warn-late', urgency: 'warn' as const, meta: '2026-11-20' },
+      { id: 'normal', urgency: 'normal' as const, meta: '2026-10-01' },
+      { id: 'danger-late', urgency: 'danger' as const, meta: new Date('2026-10-20') },
+      { id: 'danger-early', urgency: 'danger' as const, meta: '2026-10-12' },
+      { id: 'warn-early', urgency: 'warn' as const, meta: '2026-10-25' },
+    ]
+    expect([...rows].sort(compareAttention).map(row => row.id)).toEqual(['danger-early', 'danger-late', 'warn-early', 'warn-late', 'lead', 'normal'])
   })
 })
