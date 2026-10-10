@@ -445,7 +445,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 
 <section v-if="reviewData?.review" class="card">
   <header class="card-head"><Icon name="lucide:star" class="lead-icon" aria-hidden="true" /><h2>Review van de klant</h2></header>
-  <p class="plain"><strong>{{'★'.repeat(reviewData.review.rating)}}{{'☆'.repeat(5-reviewData.review.rating)}}</strong> <small>{{reviewData.review.authorName||'Anoniem'}}</small></p><p v-if="reviewData.review.comment" class="plain">“{{reviewData.review.comment}}”</p>
+  <p class="plain"><strong :aria-label="`${reviewData.review.rating} van 5 sterren`"><Icon v-for="n in 5" :key="n" name="lucide:star" :style="{ opacity: n <= reviewData.review.rating ? 1 : .3 }" aria-hidden="true" /></strong> <small>{{reviewData.review.authorName||'Anoniem'}}</small></p><p v-if="reviewData.review.comment" class="plain">“{{reviewData.review.comment}}”</p>
 </section>
 
 <section class="card" :data-editing="editing==='public'||undefined">

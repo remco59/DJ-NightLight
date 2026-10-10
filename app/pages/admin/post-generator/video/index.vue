@@ -302,7 +302,7 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
           <div class="project-meta">
             <span><Icon name="lucide:layers-3" aria-hidden="true" />{{ project.itemCount }} items</span>
             <span>{{ project.durationSeconds }}s</span>
-            <span>{{ project.width }} × {{ project.height }}</span>
+            <span>{{ project.width }}<IconTimes />{{ project.height }}</span>
           </div>
 
           <p class="edited">
@@ -374,7 +374,7 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
           <strong class="render-name">{{ job.projectName || (job.projectId ? 'Videoproject' : 'Oude video') }}</strong>
 
           <small class="render-specs">
-            {{ job.width }} × {{ job.height }} · {{ job.durationSeconds }}s
+            {{ job.width }}<IconTimes />{{ job.height }} · {{ job.durationSeconds }}s
             <template v-if="job.renderEngine"> · {{ job.renderEngine === 'intel' ? 'Intel GPU' : 'CPU' }}</template>
           </small>
 

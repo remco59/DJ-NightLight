@@ -479,7 +479,7 @@ async function toggleFullscreen() {
 <template>
   <div class="page" :class="{ 'sheet-open': sheetOpen }" :style="mobileEditorStyle">
     <header class="mobile-editor-header">
-      <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()">←</button>
+      <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()"><Icon name="lucide:arrow-left" aria-hidden="true" /></button>
       <h1 class="mobile-editor-title">Postgenerator</h1>
       <button
         class="mobile-export-button"
