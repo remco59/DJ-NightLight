@@ -1,15 +1,25 @@
 // Browser-safe: the admin UI imports this file, so it must not import Node modules.
 // The OAuth state signing (node:crypto) lives in server/utils/instagram-state.ts.
 //
-// NightLight talks to Instagram through the "Instagram API with Facebook Login":
-// the owner logs in with Facebook, and the Instagram professional account linked to
-// a Facebook Page is found through that Page.
+// NightLight talks to Instagram in one of two ways (the "login type"):
+// - `facebook`: "Instagram API with Facebook Login". The owner logs in with Facebook and the
+//   Instagram professional account linked to a Facebook Page is found through that Page.
+// - `instagram`: "Instagram API with Instagram Login". The owner logs in with Instagram itself;
+//   no Facebook Page is needed (and so no Facebook Page posting).
 
 /** Meta versions the Graph API; change it here only. */
 export const META_GRAPH_VERSION = 'v23.0'
 
+export const INSTAGRAM_LOGIN_TYPES = ['facebook', 'instagram'] as const
+export type InstagramLoginType = typeof INSTAGRAM_LOGIN_TYPES[number]
+export const DEFAULT_LOGIN_TYPE: InstagramLoginType = 'facebook'
+
+export function parseLoginType(value: unknown): InstagramLoginType {
+  return value === 'instagram' ? 'instagram' : DEFAULT_LOGIN_TYPE
+}
+
 /** Meta's documentation calls it `instagram_content_publish`; the app dashboard lists `instagram_content_publishing`. Accept both. */
-export const INSTAGRAM_PUBLISH_SCOPES = ['instagram_content_publish', 'instagram_content_publishing'] as const
+export const INSTAGRAM_PUBLISH_SCOPES = ['instagram_content_publish', 'instagram_content_publishing', 'instagram_business_content_publish'] as const
 /** Needed to post on the Facebook Page; optional for the Instagram connection itself. */
 export const FACEBOOK_PUBLISH_SCOPE = 'pages_manage_posts'
 export const FACEBOOK_LOGIN_SCOPES = [
@@ -20,6 +30,11 @@ export const FACEBOOK_LOGIN_SCOPES = [
   'pages_read_engagement',
   'business_management',
 ] as const
+/** Permissions asked in the Instagram Login dialog. */
+export const INSTAGRAM_LOGIN_SCOPES = [
+  'instagram_business_basic',
+  'instagram_business_content_publish',
+] as const
 export const INSTAGRAM_CALLBACK_PATH = '/api/admin/social/instagram/callback'
 export const INSTAGRAM_STATE_COOKIE = 'nl_instagram_state'
 
@@ -29,6 +44,10 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export const CONNECTION_CHECK_INTERVAL_MS = DAY_MS
 /** Warn in the UI when fewer days than this are left on the access. */
 export const TOKEN_WARNING_DAYS = 7
+/** Instagram Login tokens last 60 days; the daily check renews them once fewer days than this are left. */
+export const TOKEN_RENEW_WITHIN_DAYS = 30
+/** Meta only renews a token that is at least a day old. */
+export const TOKEN_MIN_RENEW_AGE_MS = DAY_MS
 export const OAUTH_STATE_MAX_AGE_MS = 10 * 60_000
 /** The worker ticks every minute; offline after three missed ticks. */
 export const WORKER_ONLINE_WINDOW_MS = 3 * 60_000
@@ -55,6 +74,20 @@ export function buildFacebookAuthorizeUrl(input: { appId: string, redirectUri: s
     params.set('scope', FACEBOOK_LOGIN_SCOPES.join(','))
   }
   return `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth?${params.toString()}`
+}
+
+/**
+ * Instagram Login dialog. The permissions are always sent as `scope`; there is no configuration variant.
+ */
+export function buildInstagramAuthorizeUrl(input: { appId: string, redirectUri: string, state: string }) {
+  const params = new URLSearchParams({
+    client_id: input.appId,
+    redirect_uri: input.redirectUri,
+    response_type: 'code',
+    scope: INSTAGRAM_LOGIN_SCOPES.join(','),
+    state: input.state,
+  })
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`
 }
 
 export function hasPublishScope(scopes: readonly string[]) {
@@ -86,6 +119,16 @@ export function shouldCheckConnection(input: { status: string, lastCheckedAt: Da
   return last === null || now - last >= CONNECTION_CHECK_INTERVAL_MS
 }
 
+/** Instagram Login tokens are renewed while still valid, once they are old enough and close to expiry. */
+export function shouldRenewToken(input: { expiresAt: DateLike, issuedAt: DateLike, now?: number }) {
+  const now = input.now ?? Date.now()
+  const expires = ms(input.expiresAt)
+  const issued = ms(input.issuedAt)
+  if (expires === null || expires <= now) return false
+  if (issued !== null && now - issued < TOKEN_MIN_RENEW_AGE_MS) return false
+  return (expires - now) / DAY_MS < TOKEN_RENEW_WITHIN_DAYS
+}
+
 export function isTokenExpired(expiresAt: DateLike, now = Date.now()) {
   const expires = ms(expiresAt)
   return expires !== null && expires <= now
@@ -100,6 +143,7 @@ export function instagramHealth(input: {
     tokenExpiresAt: DateLike
     scopes: readonly string[]
     lastError: string | null
+    loginType?: InstagramLoginType
   } | null
   workerLastRunAt: DateLike
   now?: number
@@ -125,7 +169,7 @@ export function instagramHealth(input: {
 
   const daysLeft = tokenDaysLeft(account.tokenExpiresAt, now)
   if (daysLeft !== null && daysLeft < TOKEN_WARNING_DAYS) {
-    return { level: 'warning', title: 'Toegang verloopt binnenkort', detail: `Nog ${Math.max(0, daysLeft)} dag(en) geldig. Verbind het account opnieuw om de toegang te verlengen.` }
+    return { level: 'warning', title: 'Toegang verloopt binnenkort', detail: `Nog ${Math.max(0, daysLeft)} dag(en) geldig. ${account.loginType === 'instagram' ? 'De automatische verlenging lukt niet; verbind het account opnieuw.' : 'Verbind het account opnieuw om de toegang te verlengen.'}` }
   }
   if (account.lastError) {
     return { level: 'warning', title: 'Controle van de verbinding mislukt', detail: account.lastError }

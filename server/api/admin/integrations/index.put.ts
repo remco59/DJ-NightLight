@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { calendarSyncSettings, emailProviderSettings, socialAccounts, socialSettings } from '../../../../db/schema'
+import { INSTAGRAM_LOGIN_TYPES } from '../../../../shared/instagram'
 import { encryptSecret } from '../../../../shared/secret-box'
 import { db } from '../../../utils/db'
 import { clearGoogleCalendarTokenCache } from '../../../utils/google-calendar'
-import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration } from '../../../utils/integration-settings'
+import { loadCalendarIntegration, loadEmailIntegration, loadInstagramCredentials, loadInstagramIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
 
 const schema = z.discriminatedUnion('provider', [
@@ -27,9 +28,16 @@ const schema = z.discriminatedUnion('provider', [
   }),
   z.object({
     provider: z.literal('instagram'),
+    // Which login these credentials are for; saving them also makes it the login used for the next connection.
+    loginType: z.enum(INSTAGRAM_LOGIN_TYPES).default('facebook'),
     appId: z.string().trim().regex(/^\d{5,30}$/, 'Een Meta app-ID bestaat uit cijfers'),
     appSecret: z.string().trim().min(16, 'Het app secret is te kort').max(200),
-    loginConfigId: z.string().trim().regex(/^\d{5,30}$/, 'Een configuratie-ID bestaat uit cijfers').or(z.literal('')),
+    loginConfigId: z.string().trim().regex(/^\d{5,30}$/, 'Een configuratie-ID bestaat uit cijfers').or(z.literal('')).default(''),
+  }),
+  // Only switches the login type, keeping the saved credentials of both.
+  z.object({
+    provider: z.literal('instagram_login_type'),
+    loginType: z.enum(INSTAGRAM_LOGIN_TYPES),
   }),
 ])
 
@@ -65,23 +73,42 @@ export default defineEventHandler(async (event) => {
     return { calendar: (await loadCalendarIntegration()).status }
   }
 
+  if (input.provider === 'instagram_login_type') {
+    await db.insert(socialSettings)
+      .values({ key: 'default', loginType: input.loginType })
+      .onConflictDoUpdate({ target: socialSettings.key, set: { loginType: input.loginType, updatedAt: new Date() } })
+    return { instagram: (await loadInstagramIntegration()).status }
+  }
+
   if (input.provider === 'instagram') {
-    const previous = await loadInstagramIntegration()
-    const values = {
-      appId: input.appId,
-      appSecretEncrypted: encryptSecret(input.appSecret, encryptionPassword),
-      loginConfigId: input.loginConfigId || null,
-      updatedAt: new Date(),
-    }
+    const previous = await loadInstagramCredentials(input.loginType)
+    const values = input.loginType === 'instagram'
+      ? {
+          instagramAppId: input.appId,
+          instagramAppSecretEncrypted: encryptSecret(input.appSecret, encryptionPassword),
+          loginType: input.loginType,
+          updatedAt: new Date(),
+        }
+      : {
+          appId: input.appId,
+          appSecretEncrypted: encryptSecret(input.appSecret, encryptionPassword),
+          loginConfigId: input.loginConfigId || null,
+          loginType: input.loginType,
+          updatedAt: new Date(),
+        }
     await db.insert(socialSettings)
       .values({ key: 'default', ...values })
       .onConflictDoUpdate({ target: socialSettings.key, set: values })
 
     // Tokens belong to the app that issued them: a different app means the account must be linked again.
-    if (previous.credentials.appId && previous.credentials.appId !== input.appId) {
+    // Only accounts that were connected with this login type are affected.
+    if (previous.appId && previous.appId !== input.appId) {
       await db.update(socialAccounts)
         .set({ status: 'needs_reauth', updatedAt: new Date() })
-        .where(inArray(socialAccounts.provider, ['instagram', 'facebook']))
+        .where(and(
+          inArray(socialAccounts.provider, ['instagram', 'facebook']),
+          eq(socialAccounts.loginType, input.loginType),
+        ))
     }
     return { instagram: (await loadInstagramIntegration()).status }
   }

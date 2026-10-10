@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { buildFacebookAuthorizeUrl, instagramRedirectUri, INSTAGRAM_STATE_COOKIE, OAUTH_STATE_MAX_AGE_MS } from '../../../../../shared/instagram'
+import { buildFacebookAuthorizeUrl, buildInstagramAuthorizeUrl, instagramRedirectUri, INSTAGRAM_STATE_COOKIE, OAUTH_STATE_MAX_AGE_MS } from '../../../../../shared/instagram'
 import { signOAuthState } from '../../../../utils/instagram-state'
 import { loadInstagramIntegration } from '../../../../utils/integration-settings'
 import { requireStaff } from '../../../../utils/require-staff'
 
 export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
-  const { credentials } = await loadInstagramIntegration()
+  const { credentials, loginType } = await loadInstagramIntegration()
   if (!credentials.appId || !credentials.appSecret) {
     return sendRedirect(event, '/admin/settings?instagram=missing#integrations', 302)
   }
@@ -23,10 +23,14 @@ export default defineEventHandler(async (event) => {
   })
 
   const state = signOAuthState({ nonce, userId: user.id, password: String(config.session.password || '') })
+  const redirectUri = instagramRedirectUri(String(config.public.siteUrl || ''))
+  if (loginType === 'instagram') {
+    return sendRedirect(event, buildInstagramAuthorizeUrl({ appId: credentials.appId, redirectUri, state }), 302)
+  }
   return sendRedirect(event, buildFacebookAuthorizeUrl({
     appId: credentials.appId,
     configId: credentials.configId,
-    redirectUri: instagramRedirectUri(String(config.public.siteUrl || '')),
+    redirectUri,
     state,
   }), 302)
 })

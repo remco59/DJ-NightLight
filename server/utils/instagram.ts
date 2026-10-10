@@ -1,8 +1,17 @@
 // Thin client for the Instagram API with Facebook Login (Graph API). Pure functions
 // with an injectable fetch so response handling can be unit tested without Nuxt.
-import { META_GRAPH_VERSION } from '../../shared/instagram'
+import { INSTAGRAM_LOGIN_SCOPES, META_GRAPH_VERSION, type InstagramLoginType } from '../../shared/instagram'
 
 const GRAPH = `https://graph.facebook.com/${META_GRAPH_VERSION}`
+/** Instagram Login talks to Instagram's own Graph host; the publishing calls are otherwise identical. */
+const INSTAGRAM_GRAPH = `https://graph.instagram.com/${META_GRAPH_VERSION}`
+const INSTAGRAM_UNVERSIONED = 'https://graph.instagram.com'
+const INSTAGRAM_OAUTH = 'https://api.instagram.com/oauth/access_token'
+
+/** Base URL of the Graph API for an account's login type. */
+export function graphBase(loginType: InstagramLoginType | undefined) {
+  return loginType === 'instagram' ? INSTAGRAM_GRAPH : GRAPH
+}
 
 type FetchLike = typeof fetch
 
@@ -40,15 +49,15 @@ async function readJson(response: Response) {
   }
 }
 
-async function get(path: string, params: Record<string, string>, fetchImpl: FetchLike) {
-  const response = await fetchImpl(`${GRAPH}${path}?${new URLSearchParams(params)}`)
+async function get(path: string, params: Record<string, string>, fetchImpl: FetchLike, base = GRAPH) {
+  const response = await fetchImpl(`${base}${path}?${new URLSearchParams(params)}`)
   const payload = await readJson(response)
   if (!response.ok) throw metaError(response.status, payload)
   return payload as Record<string, unknown>
 }
 
-async function post(path: string, params: Record<string, string>, fetchImpl: FetchLike) {
-  const response = await fetchImpl(`${GRAPH}${path}`, {
+async function post(path: string, params: Record<string, string>, fetchImpl: FetchLike, base = GRAPH) {
+  const response = await fetchImpl(`${base}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(params),
@@ -175,6 +184,81 @@ export async function inspectToken(
   }
 }
 
+/** Instagram Login: the code in the redirect can end with `#_`, which is not part of it. */
+function cleanCode(code: string) {
+  return code.replace(/#_$/, '')
+}
+
+export type InstagramLoginSession = { accessToken: string, userId: string, permissions: string[] }
+
+/** Instagram Login, step 1: code → short-lived token (about an hour). */
+export async function exchangeInstagramCode(
+  input: { appId: string, appSecret: string, redirectUri: string, code: string },
+  fetchImpl: FetchLike = fetch,
+): Promise<InstagramLoginSession> {
+  const response = await fetchImpl(INSTAGRAM_OAUTH, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: input.appId,
+      client_secret: input.appSecret,
+      grant_type: 'authorization_code',
+      redirect_uri: input.redirectUri,
+      code: cleanCode(input.code),
+    }),
+  })
+  const payload = await readJson(response) as Record<string, unknown>
+  if (!response.ok) {
+    // This endpoint reports errors as { error_type, code, error_message } instead of { error: {...} }.
+    const message = typeof payload.error_message === 'string' ? payload.error_message : undefined
+    const code = typeof payload.code === 'number' ? payload.code : null
+    throw new InstagramApiError((message || (payload.error as { message?: string } | undefined)?.message || `Instagram antwoordde met status ${response.status}`).slice(0, 500), response.status, code, response.status === 401)
+  }
+  // Newer responses wrap the result in `data: [ ... ]`.
+  const entry = (Array.isArray(payload.data) ? payload.data[0] : payload) as Record<string, unknown> | undefined
+  const accessToken = typeof entry?.access_token === 'string' ? entry.access_token : ''
+  if (!accessToken) throw new InstagramApiError('Instagram gaf geen toegangstoken terug', 200, null, false)
+  const permissions = typeof entry?.permissions === 'string'
+    ? entry.permissions.split(',').map(value => value.trim()).filter(Boolean)
+    : Array.isArray(entry?.permissions) ? entry.permissions.map(String) : [...INSTAGRAM_LOGIN_SCOPES]
+  return { accessToken, userId: String(entry?.user_id ?? ''), permissions }
+}
+
+/** Instagram Login, step 2: short-lived token → long-lived token (60 days). */
+export async function exchangeInstagramLongLivedToken(
+  input: { appSecret: string, accessToken: string },
+  fetchImpl: FetchLike = fetch,
+) {
+  return userToken(await get('/access_token', {
+    grant_type: 'ig_exchange_token',
+    client_secret: input.appSecret,
+    access_token: input.accessToken,
+  }, fetchImpl, INSTAGRAM_UNVERSIONED))
+}
+
+/** Renews a long-lived token for another 60 days. Meta only allows it once the token is a day old and still valid. */
+export async function refreshInstagramToken(accessToken: string, fetchImpl: FetchLike = fetch) {
+  return userToken(await get('/refresh_access_token', {
+    grant_type: 'ig_refresh_token',
+    access_token: accessToken,
+  }, fetchImpl, INSTAGRAM_UNVERSIONED))
+}
+
+export type InstagramProfile = { instagramId: string, username: string, accountType: string | null }
+
+/** The professional account behind a token. Also the validity check: Instagram has no `debug_token`. */
+export async function getInstagramProfile(accessToken: string, fetchImpl: FetchLike = fetch): Promise<InstagramProfile> {
+  const payload = await get('/me', { fields: 'user_id,username,account_type', access_token: accessToken }, fetchImpl, INSTAGRAM_GRAPH)
+  // `user_id` is the id used in /{id}/media; `id` is the app-scoped id.
+  const instagramId = String(payload.user_id ?? payload.id ?? '')
+  if (!instagramId) throw new InstagramApiError('Instagram gaf geen account-id terug', 200, null, false)
+  return {
+    instagramId,
+    username: typeof payload.username === 'string' ? payload.username : '',
+    accountType: typeof payload.account_type === 'string' ? payload.account_type : null,
+  }
+}
+
 function requireId(payload: Record<string, unknown>, what: string) {
   const id = typeof payload.id === 'string' ? payload.id : ''
   if (!id) throw new InstagramApiError(`Meta gaf geen ${what} terug`, 200, null, false)
@@ -183,7 +267,7 @@ function requireId(payload: Record<string, unknown>, what: string) {
 
 /** Step 1 of publishing: Meta fetches the public image URL and returns a container id. */
 export async function createImageContainer(
-  input: { instagramId: string, accessToken: string, imageUrl: string, caption: string, altText?: string | null },
+  input: { instagramId: string, accessToken: string, imageUrl: string, caption: string, altText?: string | null, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   const params: Record<string, string> = {
@@ -192,14 +276,14 @@ export async function createImageContainer(
     access_token: input.accessToken,
   }
   if (input.altText?.trim()) params.alt_text = input.altText.trim()
-  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl, graphBase(input.loginType)), 'container')
 }
 
 export type StoryOrReelType = 'REELS' | 'STORIES'
 
 /** Reel or story from a public MP4 URL. Stories ignore captions; reels are also shown in the feed. */
 export async function createVideoContainer(
-  input: { instagramId: string, accessToken: string, videoUrl: string, mediaType: StoryOrReelType, caption?: string },
+  input: { instagramId: string, accessToken: string, videoUrl: string, mediaType: StoryOrReelType, caption?: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   const params: Record<string, string> = {
@@ -211,24 +295,24 @@ export async function createVideoContainer(
     params.share_to_feed = 'true'
     if (input.caption) params.caption = input.caption
   }
-  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl, graphBase(input.loginType)), 'container')
 }
 
 /** Story from a public JPEG URL. */
 export async function createStoryImageContainer(
-  input: { instagramId: string, accessToken: string, imageUrl: string },
+  input: { instagramId: string, accessToken: string, imageUrl: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   return requireId(await post(`/${input.instagramId}/media`, {
     media_type: 'STORIES',
     image_url: input.imageUrl,
     access_token: input.accessToken,
-  }, fetchImpl), 'container')
+  }, fetchImpl, graphBase(input.loginType)), 'container')
 }
 
 /** One slide of a carousel. It is never published by itself; the carousel container references it. */
 export async function createCarouselItemContainer(
-  input: { instagramId: string, accessToken: string, imageUrl: string, altText?: string | null },
+  input: { instagramId: string, accessToken: string, imageUrl: string, altText?: string | null, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   const params: Record<string, string> = {
@@ -237,11 +321,11 @@ export async function createCarouselItemContainer(
     access_token: input.accessToken,
   }
   if (input.altText?.trim()) params.alt_text = input.altText.trim()
-  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl, graphBase(input.loginType)), 'container')
 }
 
 export async function createCarouselContainer(
-  input: { instagramId: string, accessToken: string, children: readonly string[], caption: string },
+  input: { instagramId: string, accessToken: string, children: readonly string[], caption: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   const params: Record<string, string> = {
@@ -250,7 +334,7 @@ export async function createCarouselContainer(
     access_token: input.accessToken,
   }
   if (input.caption) params.caption = input.caption
-  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl), 'container')
+  return requireId(await post(`/${input.instagramId}/media`, params, fetchImpl, graphBase(input.loginType)), 'container')
 }
 
 export type ContainerStatus = 'EXPIRED' | 'ERROR' | 'FINISHED' | 'IN_PROGRESS' | 'PUBLISHED'
@@ -258,10 +342,10 @@ export type ContainerStatus = 'EXPIRED' | 'ERROR' | 'FINISHED' | 'IN_PROGRESS' |
 const CONTAINER_STATUSES: readonly string[] = ['EXPIRED', 'ERROR', 'FINISHED', 'IN_PROGRESS', 'PUBLISHED']
 
 export async function getContainerStatus(
-  input: { containerId: string, accessToken: string },
+  input: { containerId: string, accessToken: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ): Promise<{ status: ContainerStatus, detail: string | null }> {
-  const payload = await get(`/${input.containerId}`, { fields: 'status_code,status', access_token: input.accessToken }, fetchImpl)
+  const payload = await get(`/${input.containerId}`, { fields: 'status_code,status', access_token: input.accessToken }, fetchImpl, graphBase(input.loginType))
   const code = String(payload.status_code ?? '')
   if (!CONTAINER_STATUSES.includes(code)) {
     throw new InstagramApiError('Meta gaf een onbekende containerstatus terug', 200, null, false)
@@ -271,20 +355,20 @@ export async function getContainerStatus(
 
 /** Step 2: publish a finished container. Never call this twice for one container. */
 export async function publishContainer(
-  input: { instagramId: string, accessToken: string, containerId: string },
+  input: { instagramId: string, accessToken: string, containerId: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
   return requireId(await post(`/${input.instagramId}/media_publish`, {
     creation_id: input.containerId,
     access_token: input.accessToken,
-  }, fetchImpl), 'media-id')
+  }, fetchImpl, graphBase(input.loginType)), 'media-id')
 }
 
 export async function getPermalink(
-  input: { mediaId: string, accessToken: string },
+  input: { mediaId: string, accessToken: string, loginType?: InstagramLoginType },
   fetchImpl: FetchLike = fetch,
 ) {
-  const payload = await get(`/${input.mediaId}`, { fields: 'permalink', access_token: input.accessToken }, fetchImpl)
+  const payload = await get(`/${input.mediaId}`, { fields: 'permalink', access_token: input.accessToken }, fetchImpl, graphBase(input.loginType))
   return typeof payload.permalink === 'string' ? payload.permalink : null
 }
 

@@ -6,7 +6,11 @@ import { clearGoogleCalendarTokenCache } from '../../../utils/google-calendar'
 import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration } from '../../../utils/integration-settings'
 import { requireStaff } from '../../../utils/require-staff'
 
-const schema = z.object({ provider: z.enum(['calendar', 'email', 'instagram']) })
+const schema = z.object({
+  provider: z.enum(['calendar', 'email', 'instagram']),
+  // Which login's app credentials to remove (Instagram only); Facebook Login stays the default.
+  loginType: z.enum(['facebook', 'instagram']).default('facebook'),
+})
 
 export default defineEventHandler(async (event) => {
   await requireStaff(event, ['owner'])
@@ -25,7 +29,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (parsed.data.provider === 'instagram') {
-    await db.update(socialSettings).set({ appId: null, appSecretEncrypted: null, loginConfigId: null, updatedAt: new Date() })
+    const cleared = parsed.data.loginType === 'instagram'
+      ? { instagramAppId: null, instagramAppSecretEncrypted: null }
+      : { appId: null, appSecretEncrypted: null, loginConfigId: null }
+    await db.update(socialSettings).set({ ...cleared, updatedAt: new Date() })
       .where(eq(socialSettings.key, 'default'))
     return { instagram: (await loadInstagramIntegration()).status }
   }

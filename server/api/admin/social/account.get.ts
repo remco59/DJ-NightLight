@@ -1,4 +1,4 @@
-import { hasFacebookPublishScope, instagramHealth } from '../../../../shared/instagram'
+import { hasFacebookPublishScope, instagramHealth, parseLoginType } from '../../../../shared/instagram'
 import { loadActiveAccount } from '../../../utils/social-publish'
 import { requireStaff } from '../../../utils/require-staff'
 import { loadInstagramIntegration } from '../../../utils/integration-settings'
@@ -14,9 +14,11 @@ export default defineEventHandler(async (event) => {
     return { facebook: { connected: false, canPublish: false, name: null, message: null }, connected: false, canPublish: false, username: null, accountType: null, message: 'Er is nog geen Instagram-account gekoppeld. Vraag de eigenaar om dat te doen onder Instellingen → Integraties.' }
   }
 
+  // The connected account may use another login type than the one currently selected in settings.
+  const loginType = parseLoginType(account.loginType)
   const health = instagramHealth({
-    appConfigured: status.configured,
-    account: { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastError: account.lastError },
+    appConfigured: status.loginTypes[loginType].configured,
+    account: { status: account.status, tokenExpiresAt: account.tokenExpiresAt, scopes: account.scopes, lastError: account.lastError, loginType },
     // Only the access matters for publishing now; the worker health is shown in Systeemstatus.
     workerLastRunAt: new Date(),
   })
@@ -37,6 +39,7 @@ export default defineEventHandler(async (event) => {
     canPublish: !blocked && !unreachable,
     username: account.username,
     accountType: account.accountType,
+    loginType,
     message: blocked ? health.detail : unreachable ? 'NUXT_PUBLIC_SITE_URL wijst naar een lokaal adres, dus Meta kan de afbeelding niet ophalen.' : null,
   }
 })

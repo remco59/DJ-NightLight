@@ -2,7 +2,20 @@
 
 Admin → Instellingen → Integraties connects NightLight to the DJ NightLight Instagram account. This is phase 1 of the publishing roadmap (see issue #326): the connection, the access lifecycle and health checks. Phase 2 (below) publishes an image right away; scheduling and the queue followed in phase 3, and reels, stories and carousels in phase 4.
 
-NightLight uses the **Instagram API with Facebook Login**. New Meta apps created from the "Manage messaging & content on Instagram" use case only offer this variant ("API setup with Facebook login"). The Instagram account is found through the Facebook Page it is linked to.
+NightLight supports two ways to connect, chosen with the **login type** (Instellingen → Integraties → Meta-app → *Inlogmethode*, or `INSTAGRAM_LOGIN_TYPE`):
+
+| | Facebook-login (`facebook`, default) | Instagram-login (`instagram`) |
+| --- | --- | --- |
+| API | Instagram API with Facebook Login | Instagram API with Instagram Login |
+| Facebook Page | Required (the account is found through it) | **Not needed** |
+| Facebook Page posting | Yes | No (Instagram only) |
+| App credentials | Meta app ID and secret | **Instagram** app ID and secret (a different pair, see below) |
+| Host | `graph.facebook.com` | `graph.instagram.com` |
+| Token | Page token, checked daily, reconnect before it ends | 60-day token, **renewed automatically** by the daily check |
+
+The login type is remembered per account, so switching the setting never breaks a connected account: it keeps working until you press **Opnieuw verbinden**, which then uses the new login type. Everything after the connection (publishing, scheduling, the queue, reels, stories and carousels) is identical for both.
+
+The rest of this document describes Facebook Login first; [Instagram Login](#instagram-login-no-facebook-page) follows below. New Meta apps created from the "Manage messaging & content on Instagram" use case may only offer one of the two variants in their dashboard, so check which "API setup with ..." options your app shows.
 
 ## What you need
 
@@ -80,6 +93,37 @@ When connecting fails, the settings page shows Meta's own message after "Meta me
 - **Account cannot log in**: while the app is in Development mode the Facebook user needs a role on the app.
 - **Worker niet actief** right after a deploy usually clears within a minute.
 
+## Instagram Login (no Facebook Page)
+
+Use this when the Instagram account has no linked Facebook Page.
+
+**You need**
+- An Instagram **Business or Creator** account (personal accounts cannot publish through the API).
+- A Meta app with the use case **Manage messaging & content on Instagram**, and in it **API setup with Instagram login** available.
+
+**Set up the Meta app**
+1. Open the use case → **API setup with Instagram login**.
+2. Under **Add required content permissions** add `instagram_business_basic` and `instagram_business_content_publish`.
+3. Under **Set up Instagram business login** add the redirect URI shown in NightLight (Instellingen → Integraties → Meta-app) to **OAuth redirect URIs**. It must match exactly.
+4. Copy the **Instagram app ID** and **Instagram app secret** shown on that page. They are *not* the app ID and secret from App settings → Basic, which belong to Facebook Login.
+5. In Development mode, add the Instagram account as an **Instagram tester** (App roles → Roles) and accept the invitation in Instagram (Settings → Website permissions → Tester invitations).
+
+**Configure NightLight.** Choose **Instagram-login** under *Inlogmethode*, enter the Instagram app ID and secret, and press **Instagram verbinden**. Or set `INSTAGRAM_LOGIN_TYPE=instagram`, `INSTAGRAM_IG_APP_ID` and `INSTAGRAM_IG_APP_SECRET` on the server. Settings saved in NightLight win over the environment. A different Instagram app ID marks accounts connected with Instagram Login as `needs_reauth`; accounts connected with Facebook Login are not affected.
+
+**How the connection is stored**
+1. The code from Instagram is exchanged for a short-lived token (`api.instagram.com/oauth/access_token`), then for a long-lived token of 60 days (`graph.instagram.com/access_token`, `ig_exchange_token`).
+2. `GET /me?fields=user_id,username,account_type` gives the account. An Instagram login is always one account, so there is no chooser and no Page.
+3. The token is stored encrypted like the Page token above. Connecting this way takes the previous Instagram account **and any Facebook Page account** out of use.
+4. Instagram has no `debug_token`. The daily check calls `/me` to prove the token works, and **renews the token** (`ig_refresh_token`) once fewer than 30 days are left and it is at least a day old. A failed renewal is shown as a warning and retried at the next check; the account only needs reconnecting if the token actually expires or is revoked.
+
+Publishing, scheduling and retries work as described below, with `graph.instagram.com` as the host. Facebook Page posting is not available: the Facebook option is not shown in the publish drawer.
+
+**Troubleshooting**
+- **"Invalid redirect_uri"**: the redirect URI is missing under *Set up Instagram business login*, or differs from the one NightLight shows.
+- **"Insufficient developer role" / cannot log in**: in Development mode the account must be an accepted Instagram tester.
+- **"De Instagram-app is nog niet ingesteld"**: enter the Instagram app ID and secret, not the Meta app ID and secret.
+- **Switching back to Facebook Login** needs the Facebook app ID and secret and a Page-linked account; the saved credentials of both are kept.
+
 ## Publishing an image (phase 2)
 
 In the Foto editor, **Publiceren** exports the current design and opens the publish drawer; **Recente exports** has a **Publiceren** button per export (and **Opnieuw** after a failure). The drawer shows the connected account, a caption (max 2.200 characters, max 30 hashtags, hashtags are plain caption text) and optional alt text. The post is published immediately and the PNG stays available as an export. Each export shows its Instagram status (Gepubliceerd, Mislukt, ...) with a link to the post.
@@ -103,7 +147,7 @@ Scheduling, the queue, automatic retries and crash recovery came in phase 3 (bel
 
 ## Facebook Page (phase 2b)
 
-The same login also posts on the Facebook Page the Instagram account is linked to. Connecting stores the Page as a second account (`provider = 'facebook'`) with the same Page token, and the daily check keeps both rows in step.
+With Facebook Login, the same login also posts on the Facebook Page the Instagram account is linked to (not available with Instagram Login). Connecting stores the Page as a second account (`provider = 'facebook'`) with the same Page token, and the daily check keeps both rows in step.
 
 **Setup.** Add the permission `pages_manage_posts` in the Meta app (use case *Manage Pages* → Customize → Permissions and features → Add; also add it to the Facebook Login for Business configuration if you use one). In Development mode no App Review is needed. NightLight now asks for it when connecting, so **connect once more** after adding it. Until then the Facebook option in the drawer is disabled with an explanation.
 
