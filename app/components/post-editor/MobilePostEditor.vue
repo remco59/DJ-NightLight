@@ -242,6 +242,40 @@ function endSheetDrag(event: PointerEvent) {
   sheetDrag.pointerId = -1
 }
 
+// A tap outside the sheet closes it, like in the video editor. Drags pass
+// through, so the photo can still be moved or pinched while a sheet is open.
+const TAP_SLOP = 8
+let outsideTap: { x: number, y: number, pointerId: number } | null = null
+
+function onDocumentPointerDown(event: PointerEvent) {
+  const target = event.target as HTMLElement | null
+  const outside = Boolean(sheetOpen.value && isMobile.value && event.isPrimary
+    && !target?.closest('.controls, .mobile-tool-tabs, .mobile-editor-header'))
+  outsideTap = outside ? { x: event.clientX, y: event.clientY, pointerId: event.pointerId } : null
+}
+
+function onDocumentPointerMove(event: PointerEvent) {
+  if (outsideTap && event.pointerId === outsideTap.pointerId
+    && Math.hypot(event.clientX - outsideTap.x, event.clientY - outsideTap.y) > TAP_SLOP) outsideTap = null
+}
+
+function onDocumentPointerUp(event: PointerEvent) {
+  if (outsideTap && event.pointerId === outsideTap.pointerId) closeSheet()
+  outsideTap = null
+}
+
+// The handle doubles as a keyboard control: arrows resize, Escape closes.
+function onHandleKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowUp') setSheetSnap('expanded')
+  else if (event.key === 'ArrowDown') {
+    if (sheetSnap.value === 'expanded') setSheetSnap('normal')
+    else closeSheet()
+  }
+  else if (event.key === 'Escape') closeSheet()
+  else return
+  event.preventDefault()
+}
+
 function updateViewportHeight() {
   viewportHeight.value = window.visualViewport?.height || window.innerHeight
 }
@@ -402,6 +436,9 @@ onMounted(() => {
   updateViewportHeight()
   window.visualViewport?.addEventListener('resize', updateViewportHeight)
   window.addEventListener('resize', updateViewportHeight)
+  document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  document.addEventListener('pointermove', onDocumentPointerMove, true)
+  document.addEventListener('pointerup', onDocumentPointerUp, true)
   resizeObserver = new ResizeObserver(measureLayout)
   if (workspaceRef.value) resizeObserver.observe(workspaceRef.value)
   if (previewStageRef.value) resizeObserver.observe(previewStageRef.value)
@@ -420,6 +457,9 @@ onBeforeUnmount(() => {
   mobileQuery?.removeEventListener('change', updateMobile)
   window.visualViewport?.removeEventListener('resize', updateViewportHeight)
   window.removeEventListener('resize', updateViewportHeight)
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  document.removeEventListener('pointermove', onDocumentPointerMove, true)
+  document.removeEventListener('pointerup', onDocumentPointerUp, true)
 })
 
 function setPreset(preset: PostPreset) {
@@ -476,6 +516,7 @@ async function toggleFullscreen() {
             type="button"
             :aria-label="sheetSnap === 'expanded' ? 'Paneel verkleinen' : 'Paneel vergroten'"
             @click="toggleSheetSize"
+            @keydown="onHandleKeydown"
           >
             <span />
           </button>
@@ -1994,7 +2035,7 @@ input[type='range'] {
   .page {
     --mobile-editor-tabs-height: 4.6rem;
     --sheet-ease: cubic-bezier(.22, .8, .24, 1);
-    --sheet-duration: .22s;
+    --sheet-duration: .25s;
     width: 100%;
     max-width: 100%;
     height: 100%;
@@ -2233,11 +2274,11 @@ input[type='range'] {
     gap: 0;
     padding: 0;
     overflow: hidden;
-    border: 1px solid #3a2d4a;
+    border: 1px solid rgba(167, 139, 250, .22);
     border-bottom: 0;
-    border-radius: 1.35rem 1.35rem 0 0;
-    background: linear-gradient(180deg, #1a1422, #121016 5rem);
-    box-shadow: 0 -18px 48px rgba(0, 0, 0, .5), 0 -1px 0 rgba(157, 92, 255, .22);
+    border-radius: 22px 22px 0 0;
+    background: #111018;
+    box-shadow: 0 -14px 40px rgba(0, 0, 0, .55), 0 -1px 24px rgba(124, 58, 237, .18);
     scrollbar-gutter: auto;
     transform: translateY(0);
     transition:
@@ -2281,10 +2322,15 @@ input[type='range'] {
   }
 
   .sheet-handle span {
-    width: 2.6rem;
-    height: .3rem;
-    border-radius: 999px;
-    background: #4a4252;
+    width: 52px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, .28);
+  }
+
+  .sheet-handle:focus-visible {
+    outline: 2px solid #c4b5fd;
+    outline-offset: -2px;
   }
 
   .sheet-title-row {
@@ -2295,17 +2341,18 @@ input[type='range'] {
   }
 
   .sheet-title-row strong {
-    font-size: 1.35rem;
-    letter-spacing: -.03em;
+    font-size: 1.15rem;
+    font-weight: 700;
   }
 
-  .sheet-close {
-    width: 2.6rem;
-    height: 2.6rem;
+  .controls .sheet-close {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
     display: grid;
     place-items: center;
     padding: 0;
-    border-color: #3a3241;
+    border-color: rgba(255, 255, 255, .08);
     border-radius: 50%;
     background: transparent;
     color: #e8e1ed;

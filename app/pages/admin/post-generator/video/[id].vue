@@ -88,7 +88,7 @@ const MOBILE_QUERY = '(max-width: 760px)'
 const isMobile = ref(false)
 const mobileTool = ref<MobileVideoTool | null>(null)
 const sheetSnap = ref<SheetSnap>('half')
-const SHEET_TITLES: Record<MobileVideoTool, string> = { media: 'Media', templates: 'Templates', edit: 'Bewerken', audio: 'Audio', export: 'Export' }
+const SHEET_TITLES: Record<MobileVideoTool, string> = { media: 'Media', templates: 'Templates', edit: 'Bewerken', export: 'Export' }
 const replaceKind = ref<MediaKind | null>(null)
 const mobilePanelTab = computed(() => mobileTool.value === 'export' ? 'exports' : mobileTool.value === 'edit' || !mobileTool.value ? 'media' : mobileTool.value)
 const sheetTitle = computed(() => replaceKind.value ? 'Media vervangen' : mobileTool.value ? SHEET_TITLES[mobileTool.value] : '')
