@@ -33,8 +33,31 @@ export function timelineDisplayOrder<T extends Pick<VideoTrack, 'kind'>>(tracks:
   return [...visual, ...tracks.filter(track => track.kind === 'audio')]
 }
 
-/** Tabs of the mobile editor's bottom navigation; only one tool panel is open at a time. */
+/** Tabs of the mobile editor's bottom navigation; each opens as a bottom sheet over the timeline. */
 export type MobileVideoTool = 'media' | 'templates' | 'edit' | 'audio' | 'export'
+
+/** Bottom sheet states of the mobile editor; `closed` is only a drag target. */
+export type SheetSnap = 'half' | 'full'
+
+/** Sheet heights in px for a viewport: half for quick actions, full for long forms. */
+export function sheetHeights(viewportHeight: number) {
+  const full = Math.max(260, Math.round(viewportHeight - 170))
+  const half = Math.min(full, Math.max(240, Math.round(viewportHeight * 0.46)))
+  return { half, full }
+}
+
+/**
+ * Snap point a released drag settles on. `velocity` is px/ms (positive = moving
+ * down); a fling goes one snap further in its direction.
+ */
+export function nextSnap(height: number, velocity: number, heights: { half: number, full: number }): SheetSnap | 'closed' {
+  const FLING = 0.6
+  if (velocity > FLING) return height > (heights.half + heights.full) / 2 ? 'half' : 'closed'
+  if (velocity < -FLING) return 'full'
+  const closeLine = heights.half * 0.55
+  if (height < closeLine) return 'closed'
+  return height > (heights.half + heights.full) / 2 ? 'full' : 'half'
+}
 
 export type MediaFilter = 'all' | MediaKind
 

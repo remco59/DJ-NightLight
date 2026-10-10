@@ -4,6 +4,8 @@ import {
   MAX_TIMELINE_ZOOM,
   MIN_TIMELINE_ZOOM,
   MIN_PREVIEW_WIDTH,
+  nextSnap,
+  sheetHeights,
   clampPanelSizes,
   clampZoom,
   fitZoom,
@@ -146,5 +148,27 @@ describe('resizable panels', () => {
     expect(parsePanelSizes('{"side":250,"inspector":"wide","timeline":null}')).toEqual({ side: 250 })
     expect(parsePanelSizes('not json')).toEqual({})
     expect(parsePanelSizes(null)).toEqual({})
+  })
+})
+
+describe('mobile bottom sheet', () => {
+  const heights = sheetHeights(800)
+
+  it('keeps half below full and leaves room for the header', () => {
+    expect(heights.half).toBeLessThan(heights.full)
+    expect(heights.full).toBeLessThanOrEqual(800 - 150)
+    expect(sheetHeights(300).half).toBeLessThanOrEqual(sheetHeights(300).full)
+  })
+
+  it('settles on the nearest snap point after a slow drag', () => {
+    expect(nextSnap(heights.half, 0, heights)).toBe('half')
+    expect(nextSnap(heights.full - 10, 0, heights)).toBe('full')
+    expect(nextSnap(heights.half * 0.3, 0, heights)).toBe('closed')
+  })
+
+  it('lets a fling go one snap further', () => {
+    expect(nextSnap(heights.half, 1, heights)).toBe('closed')
+    expect(nextSnap(heights.full, 1, heights)).toBe('half')
+    expect(nextSnap(heights.half, -1, heights)).toBe('full')
   })
 })
