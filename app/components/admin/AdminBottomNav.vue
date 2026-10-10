@@ -11,11 +11,10 @@ const { user } = useUserSession()
 
 type Item = { label: string, to: string, icon: string, roles: readonly StaffRole[], active: () => boolean }
 const gigRoles: readonly StaffRole[] = ['owner', 'manager', 'dj']
-const isLeadFilter = () => route.query.status === 'lead'
 const items: Item[] = [
   { label: 'Dashboard', to: '/admin', icon: 'lucide:layout-dashboard', roles: ['owner', 'manager', 'dj', 'content_editor'], active: () => route.path === '/admin' },
-  { label: 'Gigs', to: '/admin/gigs', icon: 'lucide:calendar-days', roles: gigRoles, active: () => route.path.startsWith('/admin/gigs') && !(route.path === '/admin/gigs' && isLeadFilter()) },
-  { label: 'Leads', to: '/admin/gigs?status=lead', icon: 'lucide:users-round', roles: gigRoles, active: () => route.path === '/admin/gigs' && isLeadFilter() },
+  { label: 'Gigs', to: '/admin/gigs', icon: 'lucide:disc-3', roles: gigRoles, active: () => route.path.startsWith('/admin/gigs') },
+  { label: 'Agenda', to: '/admin/calendar', icon: 'lucide:calendar-range', roles: ['owner', 'manager'], active: () => route.path.startsWith('/admin/calendar') },
   { label: 'Media', to: '/admin/media', icon: 'lucide:images', roles: ['content_editor'], active: () => route.path.startsWith('/admin/media') },
   { label: 'Social', to: '/admin/social', icon: 'lucide:share-2', roles: ['content_editor'], active: () => route.path.startsWith('/admin/social') },
 ]

@@ -609,7 +609,7 @@ button { color: inherit; }
 .connection-copy { color: #aaa2b2; font-size: .78rem; }
 .connection-dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; background: #766f7c; }
 .connection-dot.ok { background: #44dc78; box-shadow: 0 0 12px rgba(68,220,120,.35); }
-.calendar-shell { overflow: hidden; border: 1px solid var(--border); border-radius: 1rem; background: #0f0d12; }
+.calendar-shell { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 1rem; background: #0f0d12; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border-bottom: 1px solid var(--border); }
 .navigation { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .icon-button, .quiet-button, .small-button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: .65rem; cursor: pointer; }
