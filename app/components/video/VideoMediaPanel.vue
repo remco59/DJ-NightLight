@@ -552,7 +552,7 @@ h3 {
 
 .template-card {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 72px 1fr;
   gap: .7rem;
   align-items: center;
   padding: .5rem;
@@ -566,22 +566,30 @@ h3 {
 
 .template-card:hover { border-color: var(--ve-accent); }
 
-/* Thumbnails show the real logo artwork the templates animate. */
+/* Real stills of each template, rendered by `npm run templates:previews`. */
 .template-art {
   display: block;
-  height: 64px;
+  aspect-ratio: 9 / 16;
   overflow: hidden;
   border-radius: 7px;
-  background: url("/brand/logo/wordmark-thumb.webp") center / 84% auto no-repeat, radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%), #07040d;
+  background: #150c24 center / cover no-repeat;
 }
 
-.template-art[data-template="neon-logo-reveal"],
-.template-art[data-template="electric-gig-poster"],
-.template-art[data-template="neon-outro"],
-.template-art[data-template="lower-third"] {
-  background-image: url("/brand/logo/emblem-thumb.webp"), radial-gradient(circle at 50% 50%, #6d28d966, transparent 62%);
-  background-size: auto 88%, auto;
-}
+.template-art[data-template="gig-announcement"] { background-image: url("/brand/templates/gig-announcement.webp"); }
+.template-art[data-template="recap-intro"] { background-image: url("/brand/templates/recap-intro.webp"); }
+.template-art[data-template="review"] { background-image: url("/brand/templates/review.webp"); }
+.template-art[data-template="upcoming-gigs"] { background-image: url("/brand/templates/upcoming-gigs.webp"); }
+.template-art[data-template="logo-sting"] { background-image: url("/brand/templates/logo-sting.webp"); }
+.template-art[data-template="lower-third"] { background-image: url("/brand/templates/lower-third.webp"); }
+.template-art[data-template="hype-title"] { background-image: url("/brand/templates/hype-title.webp"); }
+.template-art[data-template="photo-drop"] { background-image: url("/brand/templates/photo-drop.webp"); }
+.template-art[data-template="clip-recap"] { background-image: url("/brand/templates/clip-recap.webp"); }
+.template-art[data-template="neon-logo-reveal"] { background-image: url("/brand/templates/neon-logo-reveal.webp"); }
+.template-art[data-template="lightning-banner"] { background-image: url("/brand/templates/lightning-banner.webp"); }
+.template-art[data-template="electric-gig-poster"] { background-image: url("/brand/templates/electric-gig-poster.webp"); }
+.template-art[data-template="now-playing"] { background-image: url("/brand/templates/now-playing.webp"); }
+.template-art[data-template="bolt-transition"] { background-image: url("/brand/templates/bolt-transition.webp"); }
+.template-art[data-template="neon-outro"] { background-image: url("/brand/templates/neon-outro.webp"); }
 
 .template-copy {
   display: flex;
@@ -853,9 +861,9 @@ h3 {
   flex: none;
   flex-direction: column;
   gap: .3rem;
-  width: 30%;
-  min-width: 104px;
-  max-width: 150px;
+  width: 28%;
+  min-width: 96px;
+  max-width: 118px;
   padding: 0;
   border: 0;
   background: none;
@@ -866,8 +874,6 @@ h3 {
 }
 
 .m-template-card .template-art {
-  height: auto;
-  aspect-ratio: 4 / 5;
   border: 2px solid var(--ve-border);
   border-radius: 12px;
 }

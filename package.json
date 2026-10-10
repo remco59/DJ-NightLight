@@ -21,6 +21,7 @@
     "backup:restore-smoke": "sh scripts/backup-restore-smoke.sh",
     "test:e2e": "tsx e2e/nightlight-e2e.ts",
     "test:a11y": "tsx e2e/a11y.ts",
+    "templates:previews": "tsx scripts/generate-template-previews.ts",
     "worker:video": "tsx scripts/video-render-worker.ts"
   },
   "dependencies": {
