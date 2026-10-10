@@ -91,6 +91,21 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
         {{ item.label }}
       </NuxtLink>
     </section>
+    <!-- Phone sheet: the Beheer links are part of the list instead of a collapsible. -->
+    <section v-if="visibleFooterItems.length" class="nav-group beheer-group">
+      <p>Beheer</p>
+      <NuxtLink
+        v-for="item in visibleFooterItems"
+        :key="item.to"
+        :to="item.to"
+        class="nav-link"
+        :class="{ active: isActive(item.to) }"
+        :aria-current="isActive(item.to) ? 'page' : undefined"
+      >
+        <Icon :name="item.icon" aria-hidden="true" />
+        {{ item.label }}
+      </NuxtLink>
+    </section>
   </nav>
 
   <footer class="sidebar-footer">
@@ -187,8 +202,11 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   text-decoration: none;
   font-size: .86rem;
 }
+.beheer-group { display: none; }
 @media (max-width: 820px) {
   .nav-link { min-height: 2.75rem; }
+  .beheer-group { display: block; }
+  .footer-nav { display: none; }
 }
 .nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: var(--text-subtle); }
 .nav-link:hover { background: #17141c; color: #fff; }
