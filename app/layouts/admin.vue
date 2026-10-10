@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminNav from '~/components/admin/AdminNav.vue'
+import AdminBottomNav from '~/components/admin/AdminBottomNav.vue'
 import { worksOffline } from '~~/shared/offline-routes'
 
 const route = useRoute()
@@ -11,6 +12,8 @@ useHead({
     { rel: 'apple-touch-icon', href: '/pwa/apple-touch-icon.png' },
   ],
   meta: [
+    // Lets the bottom navigation respect the safe-area inset on devices with gesture navigation.
+    { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
     { name: 'theme-color', content: '#0a090d' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
     { name: 'apple-mobile-web-app-title', content: 'NightLight' },
@@ -20,9 +23,9 @@ useHead({
 // Offline: only gig pages keep working (from the service worker cache); anything else is replaced by an offline notice.
 const online = useOnline()
 const blocked = computed(() => !online.value && !worksOffline(route.path))
+const postEditorRoute = computed(() => route.path === '/admin/post-generator')
 const mobileOpen = ref(false)
 const sidebar = ref<HTMLElement | null>(null)
-const menuButton = ref<HTMLButtonElement | null>(null)
 
 // On a phone the sidebar is an off-canvas drawer: while closed it must not be
 // reachable with Tab, and while open Escape closes it again.
@@ -41,7 +44,7 @@ watch(mobileOpen, async (open) => {
   if (!isCompact.value) return
   await nextTick()
   if (open) sidebar.value?.querySelector<HTMLElement>('a, button')?.focus()
-  else menuButton.value?.focus()
+  else document.querySelector<HTMLElement>('.bottom-nav button')?.focus()
 })
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && mobileOpen.value) mobileOpen.value = false
@@ -51,25 +54,21 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 </script>
 
 <template>
-  <div class="admin-shell" :class="{ 'post-editor-route': route.path === '/admin/post-generator' }" @keydown="onKeydown">
+  <div class="admin-shell" :class="{ 'post-editor-route': postEditorRoute }" @keydown="onKeydown">
     <a class="skip-link" href="#main">Naar de inhoud</a>
     <header class="mobile-header">
-      <button
-        ref="menuButton"
-        class="menu-button"
-        type="button"
-        :aria-expanded="mobileOpen"
-        :aria-label="mobileOpen ? 'Menu sluiten' : 'Menu openen'"
-        @click="mobileOpen = !mobileOpen"
-      >
-        <Icon :name="mobileOpen ? 'lucide:x' : 'lucide:menu'" aria-hidden="true" />
-      </button>
       <NuxtLink to="/admin" class="brand" aria-label="NightLight">
         <img class="brand-logo" src="/brand/logo/wordmark-thumb.webp" alt="DJ NightLight">
       </NuxtLink>
     </header>
 
-    <aside ref="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="sidebarHidden || undefined" :aria-hidden="sidebarHidden || undefined">
+    <aside ref="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="sidebarHidden || undefined" :aria-hidden="sidebarHidden || undefined" :aria-label="isCompact ? 'Menu' : undefined">
+      <div class="sheet-bar">
+        <span class="sheet-handle" aria-hidden="true" />
+        <button class="sheet-close" type="button" aria-label="Menu sluiten" @click="mobileOpen = false">
+          <Icon name="lucide:x" aria-hidden="true" />
+        </button>
+      </div>
       <AdminNav />
     </aside>
 
@@ -82,6 +81,8 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
       <AdminOfflineNotice v-if="blocked" />
       <slot v-else />
     </main>
+
+    <AdminBottomNav v-if="!postEditorRoute" :more-open="mobileOpen" @more="mobileOpen = !mobileOpen" />
 
     <button
       v-if="mobileOpen"
@@ -126,7 +127,7 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
   margin-left: 17rem;
   padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 4rem;
 }
-.mobile-header, .backdrop { display: none; }
+.mobile-header, .backdrop, .sheet-bar { display: none; }
 .offline-banner {
   position: sticky;
   top: 0;
@@ -172,32 +173,56 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
     align-items: center;
     justify-content: flex-start;
     gap: .75rem;
-    padding: .9rem 1rem;
+    padding: .55rem 1rem;
     border-bottom: 1px solid #26222c;
     background: rgba(14, 12, 18, .94);
     backdrop-filter: blur(14px);
   }
   .mobile-header .brand { min-height: 2.75rem; }
-  .menu-button {
+  /* The navigation is a bottom sheet, opened from "Meer" in the bottom navigation. */
+  .sidebar {
+    inset: auto 0 0 0;
+    width: auto;
+    max-height: 88dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 0;
+    border-top: 1px solid #302b38;
+    border-radius: 1.25rem 1.25rem 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -1rem 3rem rgba(0, 0, 0, .55);
+    transform: translateY(105%);
+    transition: transform .22s ease;
+  }
+  .sidebar.open { transform: translateY(0); }
+  .sidebar :deep(.sidebar-top) { display: none; }
+  .sheet-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    background: #0e0c12;
+  }
+  .sheet-handle { width: 2.5rem; height: .3rem; border-radius: 999px; background: #3a3444; }
+  .sheet-close {
+    position: absolute;
+    right: .5rem;
+    top: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2.75rem;
     height: 2.75rem;
-    flex: 0 0 2.75rem;
-    border: 1px solid #302b38;
-    border-radius: .6rem;
     padding: 0;
-    background: #17141c;
+    border: 0;
+    background: none;
     color: inherit;
   }
-  .sidebar {
-    width: min(19rem, 84vw);
-    transform: translateX(-105%);
-    transition: transform .2s ease;
-  }
-  .sidebar.open { transform: translateX(0); }
-  .admin-main { margin-left: 0; padding-top: 1.5rem; }
+  /* Room for the fixed bottom navigation (3.25rem tabs + padding) plus the safe-area inset. */
+  .admin-main { margin-left: 0; padding-top: 1rem; padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
   .offline-banner { margin-left: 0; }
   /* Touch-sized controls on a phone (the post editor sizes its own). */
   .admin-shell:not(.post-editor-route) .admin-main :deep(:is(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]))) { min-height: 2.75rem; }

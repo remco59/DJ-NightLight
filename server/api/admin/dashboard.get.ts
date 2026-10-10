@@ -5,7 +5,7 @@ import { requireStaff } from '../../utils/require-staff'
 import { gigTitleSql } from '../../utils/gig-title'
 import { emailProviderConfigured } from '../../utils/email-provider'
 import { stripeStatus } from '../../utils/stripe-settings'
-import { addMonths, buildRevenueSeries, countdownLabel, daysBetween, gigUrgency, monthKey, revenueTrend } from '../../../shared/dashboard'
+import { addMonths, buildRevenueSeries, compareAttention, countdownLabel, daysBetween, gigUrgency, monthKey, revenueTrend } from '../../../shared/dashboard'
 import type { Urgency } from '../../../shared/dashboard'
 
 function dateOnly(value: Date) {
@@ -18,6 +18,14 @@ function shortDate(value: Date) {
 
 function formatEuro(cents: number) {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100)
+}
+
+// "3 dagen te laat" for an invoice past its due date (both are YYYY-MM-DD).
+function overdueLabel(dueDate: string | null, today: string) {
+  if (!dueDate) return null
+  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${dueDate}T00:00:00Z`)) / 86_400_000)
+  if (days <= 0) return 'vandaag'
+  return days === 1 ? '1 dag te laat' : `${days} dagen te laat`
 }
 
 function clientName(client: { companyName: string | null, firstName: string | null, lastName: string | null }) {
@@ -226,6 +234,7 @@ export default defineEventHandler(async (event) => {
       description: `${invoice.invoiceNumber ? `Factuur ${invoice.invoiceNumber}` : 'Factuur'} is over de vervaldatum · ${formatEuro(invoice.totalCents)}`,
       meta: invoice.dueDate,
       metaLabel: 'Vervallen',
+      dueLabel: overdueLabel(invoice.dueDate, today),
       urgency: 'danger' as Urgency,
       href: `/admin/invoices/${invoice.id}`,
     })),
@@ -235,9 +244,10 @@ export default defineEventHandler(async (event) => {
         id: `contract-${contract.gigId}`,
         kind: 'contract' as const,
         title: contract.title,
-        description: daysUntil === null ? 'Contract nog niet ondertekend' : `Contract nog niet ondertekend · gig ${countdownLabel(daysUntil)}`,
+        description: 'Contract nog niet ondertekend',
         meta: contract.startsAt,
         metaLabel: 'Gig',
+        dueLabel: daysUntil === null ? null : countdownLabel(daysUntil),
         urgency: (daysUntil === null ? 'normal' : gigUrgency(daysUntil, 1)) as Urgency,
         href: `/admin/gigs/${contract.gigId}`,
       }
@@ -250,10 +260,11 @@ export default defineEventHandler(async (event) => {
       // The calendar date on a lead row is the event date, not when the request came in.
       meta: lead.startsAt,
       metaLabel: 'Event',
+      dueLabel: null,
       urgency: 'warn' as Urgency,
       href: `/admin/gigs/${lead.gigId}`,
     })),
-  ].slice(0, 5)
+  ].sort(compareAttention).slice(0, 5)
 
   const weekGigWhere = assignment
     ? and(

@@ -115,3 +115,18 @@ export function monthGrid(month: string): CalendarCell[] {
   }
   return cells
 }
+
+const urgencyRank: Record<Urgency, number> = { danger: 0, warn: 1, normal: 2 }
+
+/** Attention rows: most urgent first, then the oldest date (due or event) first, undated rows last. */
+export function compareAttention(
+  a: { urgency: Urgency, meta: string | Date | null },
+  b: { urgency: Urgency, meta: string | Date | null },
+) {
+  const byUrgency = urgencyRank[a.urgency] - urgencyRank[b.urgency]
+  if (byUrgency !== 0) return byUrgency
+  const time = (value: string | Date | null) => value ? new Date(value).getTime() : Number.POSITIVE_INFINITY
+  const ta = time(a.meta)
+  const tb = time(b.meta)
+  return ta === tb ? 0 : ta < tb ? -1 : 1
+}

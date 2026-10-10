@@ -42,6 +42,7 @@ type DashboardData = {
     description: string
     meta: string | Date | null
     metaLabel: string
+    dueLabel: string | null
     urgency: Urgency
     href: string
   }>
@@ -75,6 +76,9 @@ const nextGig = computed(() => data.value?.upcoming[0] ?? null)
 const systemIssues = computed(() => data.value?.system.issues ?? 0)
 const systemWarnings = computed(() => data.value?.system.warnings ?? [])
 const systemState = computed(() => systemIssues.value > 0 ? 'problem' : systemWarnings.value.length ? 'warning' : 'ok')
+const systemShort = computed(() => systemState.value === 'problem'
+  ? `${systemIssues.value} ${systemIssues.value === 1 ? 'probleem' : 'problemen'}`
+  : systemState.value === 'warning' ? 'Instellen' : 'Alles actief')
 const systemLabel = computed(() => systemState.value === 'problem'
   ? `${systemIssues.value} ${systemIssues.value === 1 ? 'systeemprobleem' : 'systeemproblemen'}`
   : systemState.value === 'warning' ? 'Instellingen nodig' : 'Alles actief')
@@ -87,6 +91,13 @@ const updatedLabel = computed(() => {
   if (minutes < 1) return 'Zojuist bijgewerkt'
   return `Bijgewerkt ${minutes} min geleden`
 })
+const updatedShort = computed(() => {
+  if (!data.value?.generatedAt) return ''
+  const minutes = Math.floor((nowTick.value - new Date(data.value.generatedAt).getTime()) / 60_000)
+  return minutes < 1 ? 'Zojuist' : `${minutes} min geleden`
+})
+// On a phone the revenue chart is a collapsed preview; desktop always shows it.
+const chartOpen = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 function refreshIfVisible() {
   nowTick.value = Date.now()
@@ -116,6 +127,11 @@ const weekRows = computed(() => {
     week.contractsOpen > 0 && { key: 'contracts', icon: 'lucide:file-signature', to: '#attention', label: `${week.contractsOpen} ${week.contractsOpen === 1 ? 'contract' : 'contracten'} open`, tone: '' },
   ].filter((row): row is { key: string, icon: string, to: string, label: string, tone: string } => Boolean(row))
 })
+
+// Phone: the week rows collapse into one line, "Deze week · 5 contracten open".
+const weekStrip = computed(() => weekRows.value.length
+  ? { to: weekRows.value[0]!.to, label: weekRows.value.map(row => row.label).join(' · ') }
+  : null)
 
 const trendLabel = computed(() => {
   const trend = data.value?.revenue.trendPercent
@@ -179,6 +195,11 @@ function attentionIcon(kind: DashboardData['attention'][number]['kind']) {
   return 'lucide:user-round-plus'
 }
 
+function statusChip(gig: DashboardData['upcoming'][number]) {
+  if (!gig.contractSigned) return { label: 'Contract open', tone: gig.urgency === 'normal' ? 'muted' : gig.urgency }
+  return invoiceChip[gig.invoice] ?? { label: 'Getekend', tone: 'ok' }
+}
+
 const invoiceChip: Record<InvoiceState, { label: string, tone: string } | null> = {
   none: null,
   open: { label: 'Factuur open', tone: 'warn' },
@@ -207,11 +228,13 @@ useSeoMeta({
           :class="systemState"
         >
           <span class="status-dot" aria-hidden="true" />
-          <span>{{ systemLabel }}</span>
+          <span class="label-long">{{ systemLabel }}</span>
+          <span class="label-short" :aria-label="systemLabel">{{ systemShort }}</span>
         </NuxtLink>
         <button type="button" class="secondary refresh" :aria-label="`Vernieuwen. ${updatedLabel}`" :title="updatedLabel" @click="() => refresh()">
           <Icon name="lucide:refresh-cw" :class="{ spinning: status === 'pending' }" aria-hidden="true" />
-          <span class="refresh-label">{{ updatedLabel || 'Vernieuwen' }}</span>
+          <span class="refresh-label label-long">{{ updatedLabel || 'Vernieuwen' }}</span>
+          <span class="refresh-label label-short" aria-hidden="true">{{ updatedShort || 'Vernieuwen' }}</span>
         </button>
         <NuxtLink v-if="canManageGigs" to="/admin/gigs?new=1" class="with-icon primary">
           <Icon name="lucide:plus" aria-hidden="true" />
@@ -256,16 +279,16 @@ useSeoMeta({
           </div>
         </NuxtLink>
 
-        <NuxtLink class="summary-card" to="/admin/gigs?status=lead">
+        <NuxtLink class="summary-card kpi" to="/admin/gigs?status=lead">
           <span class="summary-icon"><Icon name="lucide:users-round" /></span>
           <div class="summary-body">
             <div class="summary-label"><span>Open leads</span><Icon name="lucide:chevron-right" /></div>
             <strong class="summary-value">{{ data?.summary.leads ?? 0 }}</strong>
-            <span class="summary-detail">{{ (data?.summary.leads ?? 0) > 0 ? 'Aanvragen die opvolging nodig hebben' : 'Geen aanvragen om op te volgen' }}</span>
+            <span class="summary-detail"><span class="detail-long">{{ (data?.summary.leads ?? 0) > 0 ? 'Aanvragen die opvolging nodig hebben' : 'Geen aanvragen om op te volgen' }}</span><span class="detail-short">{{ (data?.summary.leads ?? 0) > 0 ? 'Opvolging nodig' : 'Geen aanvragen' }}</span></span>
           </div>
         </NuxtLink>
 
-        <NuxtLink class="summary-card" to="/admin/invoices">
+        <NuxtLink class="summary-card kpi" to="/admin/invoices">
           <span class="summary-icon"><Icon name="lucide:file-text" /></span>
           <div class="summary-body">
             <div class="summary-label"><span>Openstaand</span><Icon name="lucide:chevron-right" /></div>
@@ -275,12 +298,12 @@ useSeoMeta({
           </div>
         </NuxtLink>
 
-        <NuxtLink class="summary-card" to="/admin/calendar">
+        <NuxtLink class="summary-card kpi" to="/admin/calendar">
           <span class="summary-icon"><Icon name="lucide:chart-no-axes-combined" /></span>
           <div class="summary-body">
             <div class="summary-label"><span>Omzet deze maand</span><Icon name="lucide:chevron-right" /></div>
             <strong class="summary-value">{{ formatCurrency(data?.summary.bookedRevenueThisMonthCents ?? 0) }}</strong>
-            <span class="summary-detail">{{ (data?.summary.bookedRevenueThisMonthCents ?? 0) > 0 ? 'geboekt deze kalendermaand' : 'nog niets geboekt' }}</span>
+            <span class="summary-detail detail-long">{{ (data?.summary.bookedRevenueThisMonthCents ?? 0) > 0 ? 'geboekt deze kalendermaand' : 'nog niets geboekt' }}</span>
             <span
               v-if="trendLabel"
               class="summary-flag"
@@ -289,6 +312,12 @@ useSeoMeta({
           </div>
         </NuxtLink>
       </section>
+
+      <NuxtLink v-if="weekStrip" :to="weekStrip.to" class="week-strip">
+        <span>Deze week</span>
+        <strong class="truncate">{{ weekStrip.label }}</strong>
+        <Icon name="lucide:arrow-right" aria-hidden="true" />
+      </NuxtLink>
 
       <section class="dashboard-grid">
         <div id="attention" class="panel attention-panel">
@@ -335,6 +364,7 @@ useSeoMeta({
                 <small>{{ item.metaLabel }}</small>
                 <Icon name="lucide:calendar-days" aria-hidden="true" />{{ formatMeta(item.meta) }}
               </span>
+              <span v-if="item.dueLabel" class="attention-due">{{ item.dueLabel }}</span>
               <Icon class="row-chevron" name="lucide:chevron-right" />
             </NuxtLink>
             <NuxtLink v-if="attentionHidden" to="/admin/gigs" class="attention-more">
@@ -414,6 +444,7 @@ useSeoMeta({
                 </span>
                 <span v-if="invoiceChip[gig.invoice]" class="chip" :class="invoiceChip[gig.invoice]!.tone">{{ invoiceChip[gig.invoice]!.label }}</span>
               </div>
+              <span class="chip mobile-chip" :class="statusChip(gig).tone">{{ statusChip(gig).label }}</span>
               <span class="gig-detail with-icon time"><Icon name="lucide:clock-3" />{{ formatRange(gig.startsAt, gig.endsAt) }}</span>
               <span class="gig-amount num">{{ gig.feeCents ? formatCurrency(gig.feeCents) : '—' }}</span>
               <Icon class="row-chevron" name="lucide:chevron-right" />
@@ -439,8 +470,14 @@ useSeoMeta({
             <h2>Omzet per maand</h2>
           </div>
           <span class="panel-note">Geboekte gigs, 5 maanden terug en 6 vooruit</span>
+          <button type="button" class="chart-toggle" :aria-expanded="chartOpen" aria-controls="revenue-chart" @click="chartOpen = !chartOpen">
+            {{ chartOpen ? 'Verberg' : 'Toon' }}
+            <Icon :name="chartOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
+          </button>
         </div>
-        <AdminRevenueChart :months="data?.revenue.months ?? []" />
+        <div id="revenue-chart" class="chart-body" :class="{ open: chartOpen }">
+          <AdminRevenueChart :months="data?.revenue.months ?? []" />
+        </div>
       </section>
     </template>
   </div>
@@ -569,6 +606,7 @@ useSeoMeta({
 .chip.muted { background:#1a171f; color:#a59cad; }
 
 .chart-panel { margin-top:.85rem; }
+.chart-toggle,.week-strip,.mobile-chip,.label-short,.detail-short,.attention-due { display:none; }
 
 .empty { display:grid; gap:.3rem; padding:2rem 1.2rem; color:#aaa3b4; }
 .empty span { color:var(--text-subtle); }
@@ -583,45 +621,81 @@ useSeoMeta({
   .gig-table-head,.gig-row { grid-template-columns:110px minmax(140px,1fr) minmax(150px,.9fr) minmax(110px,.7fr) 70px 18px; }
 }
 @media (max-width: 780px) {
-  .page-header { align-items:flex-start; flex-direction:column; }
-  .actions { width:100%; flex-wrap:wrap; }
-  .actions .primary,.actions .secondary { flex:1; justify-content:center; }
-  /* Phone: the next gig leads, the other figures sit two by two. */
-  .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
-  .summary-card.next-gig { grid-column:1 / -1; }
-  .summary-card:last-child { grid-column:1 / -1; }
-  .attention-row { grid-template-columns:42px minmax(0,1fr) 18px; }
-  .attention-meta { display:none; }
-  /* Let descriptions wrap instead of cutting off mid-sentence. */
-  .attention-copy span { white-space:normal; overflow:visible; }
-  .gig-table-head { display:none; }
-  .gig-table { padding-top:.3rem; }
-  .gig-row { grid-template-columns:72px minmax(0,1fr) auto 18px; gap:.3rem .7rem; padding-block:.7rem; }
-  .gig-date { grid-column:1; grid-row:1 / span 3; align-self:start; }
-  .gig-main { grid-column:2 / 4; grid-row:1; }
-  .chips { grid-column:2; grid-row:2; }
-  .gig-amount { grid-column:3; grid-row:2; text-align:right; }
-  .gig-detail.time { grid-column:2 / 4; grid-row:3; }
-  .gig-row > .row-chevron { grid-column:4; grid-row:1 / span 3; }
-  .calendar-panel { display:none; }
-}
-@media (max-width: 520px) {
-  .page-header h1 { font-size:2.45rem; }
-  .actions { display:grid; grid-template-columns:1fr 1fr; }
-  .system-status { grid-column:1 / -1; justify-content:center; min-height:34px; padding-block:.4rem; }
-  .summary-card { grid-template-columns:1fr; gap:.55rem; }
-  .summary-card.next-gig,.summary-card:last-child { grid-template-columns:42px minmax(0,1fr); gap:1rem; }
-  .summary-icon { width:42px; height:42px; }
-  .summary-card:not(.next-gig):not(:last-child) .summary-icon { display:none; }
-  .summary-value { margin-top:.6rem; font-size:1.7rem; }
-  .panel-heading { align-items:center; }
-  .panel-heading a { font-size:.72rem; }
+  /* Phone: a focused overview. Status row, hero gig, one KPI strip, three-item lists. */
+  .page-header { align-items:stretch; flex-direction:column; gap:.85rem; margin-bottom:.85rem; }
+  .page-header h1 { font-size:2.6rem; }
+  .page-header p:last-child { font-size:.95rem; }
+  .actions { width:100%; }
+  .actions .system-status,.actions .refresh { display:none; }
+  .actions .primary { flex:1; justify-content:center; min-height:48px; font-size:.95rem; border-radius:.85rem; }
+
+  .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; }
+  .summary-card.next-gig { position:relative; grid-column:1 / -1; min-height:0; display:block; padding:.9rem; background:radial-gradient(120% 120% at 100% 0%,rgba(137,79,255,.22),transparent 60%),linear-gradient(145deg,var(--surface-card),#0d0b10); border-color:#3a2d55; }
+  .summary-card.next-gig .summary-icon { position:absolute; left:.9rem; top:.9rem; width:40px; height:40px; }
+  .summary-card.next-gig .summary-label { min-height:40px; padding-left:3.25rem; font-size:1.05rem; }
+  .next-gig-content { grid-template-columns:64px minmax(0,1fr); margin-top:.7rem; }
+  .date-tile { min-height:68px; }
+  .date-tile strong { font-size:1.6rem; }
+  .date-tile span { font-size:.8rem; }
+  .next-copy > strong { font-size:1.1rem; }
+  .next-copy .muted { font-size:.9rem; }
+  .countdown { font-size:.82rem; padding:.2rem .65rem; }
+  .checklist { gap:.4rem .9rem; margin-top:.75rem; }
+  .checklist li { min-height:1.75rem; font-size:.86rem; }
+  .checklist li :deep(svg) { width:1.15rem; height:1.15rem; }
+
+  .summary-card.kpi { min-height:0; grid-template-columns:1fr; gap:0; padding:.7rem .7rem .75rem; border-radius:.85rem; }
+  .summary-card.kpi .summary-icon,.summary-card.kpi .summary-label :deep(svg) { display:none; }
+  .summary-card.kpi .summary-label { font-size:.8rem; font-weight:700; color:#cfc8d8; line-height:1.2; min-height:2.4em; align-items:flex-start; }
+  .summary-card.kpi .summary-value { margin-top:.3rem; font-size:1.55rem; }
+  .summary-card.kpi .summary-detail { margin-top:.35rem; font-size:.8rem; line-height:1.3; }
+  .summary-card.kpi .summary-flag { margin-top:.35rem; padding:0; background:none; font-size:.78rem; }
+  .detail-long { display:none; }
+  .detail-short { display:inline; }
+  .summary-card.kpi .summary-flag.danger { display:none; }
+
+  .week-strip { display:flex; align-items:center; gap:.5rem; min-height:44px; margin-top:.55rem; padding:0 .85rem; border:1px solid #292530; border-radius:.85rem; background:var(--surface-card); color:#a59cad; font-size:.88rem; text-decoration:none; }
+  .week-strip span { flex:0 0 auto; }
+  .week-strip span::after { content:' ·'; }
+  .week-strip strong { flex:1 1 auto; min-width:0; color:#e4deea; font-weight:700; }
+  .week-strip :deep(svg) { flex:0 0 auto; width:1rem; height:1rem; color:#b45cff; }
+  .week-panel { display:none; }
+  .dashboard-grid,.chart-panel { margin-top:.55rem; }
+
+  .panel-heading { min-height:56px; padding:.6rem .85rem; }
+  .panel-heading h2 { font-size:1.05rem; }
+  .panel-heading a { font-size:.85rem; }
+  .heading-icon { width:36px; height:36px; }
   .panel-note { display:none; }
-  .panel-heading { min-height:56px; padding:.7rem .85rem; }
-  .panel-heading h2 { font-size:1rem; }
-  .heading-icon { width:34px; height:34px; }
-  .attention-list,.week-list,.gig-table { padding-inline:.75rem; }
-  .summary-card.next-gig .next-copy { gap:.3rem; }
-  .dashboard-grid,.chart-panel { margin-top:.65rem; }
+
+  .attention-list,.gig-table { padding-inline:.6rem; padding-bottom:.4rem; }
+  .attention-row:nth-of-type(n+4),.gig-row:nth-of-type(n+4),.attention-more { display:none; }
+  .attention-row { grid-template-columns:36px minmax(0,1fr) auto 14px; gap:.55rem; min-height:60px; padding:.5rem .3rem .5rem .5rem; }
+  .attention-icon { width:36px; height:36px; }
+  .attention-meta { display:none; }
+  .attention-due { display:block; color:#a59cad; font-size:.8rem; white-space:nowrap; }
+  .attention-copy strong { font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attention-copy span { font-size:.8rem; }
+  .setup-warnings { margin:.6rem; }
+
+  .gig-table-head { display:none; }
+  .gig-row { grid-template-columns:64px minmax(0,1fr) auto 16px; gap:.15rem .65rem; min-height:64px; padding-block:.6rem; padding-right:.2rem; margin-left:0; padding-left:.55rem; }
+  .gig-date { grid-column:1; grid-row:1 / span 2; align-self:center; }
+  .gig-date span { font-size:.8rem; }
+  .gig-date strong { font-size:.95rem; }
+  .gig-date small,.gig-main .gig-detail,.chips { display:none; }
+  .gig-main { grid-column:2; grid-row:1; }
+  .gig-title { font-size:.95rem; }
+  .gig-amount { grid-column:3; grid-row:1; font-size:.92rem; }
+  .gig-detail.time { grid-column:2; grid-row:2; justify-self:start; font-size:.82rem; }
+  .gig-detail.time :deep(:is(svg,.iconify)),.gig-detail.time > :deep(*:first-child:not(:last-child)) { display:none; }
+  .mobile-chip { display:inline-block; grid-column:2 / 4; grid-row:2; justify-self:end; font-size:.75rem; padding:.18rem .55rem; }
+  .gig-row > .row-chevron { grid-column:4; grid-row:1 / span 2; }
+  .calendar-panel { display:none; }
+
+  /* Revenue: collapsed preview on a phone. */
+  .chart-toggle { display:inline-flex; align-items:center; gap:.3rem; min-height:44px; padding:0 .4rem; border:0; background:none; color:#b45cff; font-size:.85rem; font-weight:800; cursor:pointer; }
+  .chart-toggle :deep(svg) { width:1rem; height:1rem; }
+  .chart-body:not(.open) { display:none; }
 }
 </style>
