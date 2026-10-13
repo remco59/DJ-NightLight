@@ -83,6 +83,17 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
       { label: 'Contact', variable: 'contact' },
     ],
   },
+  owner_lead_followup: {
+    eyebrow: 'Aanvraag',
+    title: 'Een aanvraag wacht op jou',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Open de aanvraag',
+    details: [
+      { label: 'Aanvraag', variable: 'gigTitle' },
+      { label: 'Binnengekomen', variable: 'receivedOn' },
+      { label: 'Datum feest', variable: 'eventDate' },
+    ],
+  },
   owner_invoice_paid: {
     eyebrow: 'Betaling',
     title: 'Een factuur is betaald',

@@ -1,6 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm'
-import { businessSettings, outboxEvents } from '../../db/schema'
+import { businessSettings, gigs, outboxEvents } from '../../db/schema'
 import { renderBrandedEmailHtml } from '../../shared/email-automation'
+import { leadFollowUp } from '../../shared/lead-followup'
 import {
   isOwnerNotificationKind,
   OWNER_NOTIFICATION_MAX_ATTEMPTS,
@@ -12,6 +13,7 @@ import {
 import { db } from './db'
 import { loadEmailBranding } from './email-branding'
 import { sendEmail } from './email-provider'
+import { gigTitleSql } from './gig-title'
 
 const EVENT_TYPE = 'owner_notification'
 
@@ -47,9 +49,10 @@ function logFailure(event: string, error: unknown, extra: Record<string, unknown
  */
 export async function queueOwnerNotification(kind: OwnerNotificationKind, aggregateId: string, payload: OwnerNotificationPayload, dedupeSuffix?: string) {
   try {
-    await db.insert(outboxEvents).values(ownerNotificationOutboxValues(kind, aggregateId, payload, dedupeSuffix))
+    const inserted = await db.insert(outboxEvents).values(ownerNotificationOutboxValues(kind, aggregateId, payload, dedupeSuffix))
       .onConflictDoNothing({ target: outboxEvents.dedupeKey })
-    void consumeOwnerNotifications().catch(error => logFailure('owner_notification_delivery_failed', error))
+      .returning({ id: outboxEvents.id })
+    if (inserted.length) void consumeOwnerNotifications().catch(error => logFailure('owner_notification_delivery_failed', error))
   }
   catch (error) {
     logFailure('owner_notification_queue_failed', error, { kind })
@@ -128,4 +131,45 @@ export async function consumeOwnerNotifications(limit = 20) {
   finally {
     delivering = false
   }
+}
+
+/** Reminders only cover recent leads, so rolling this out does not mail about every old request. */
+const LEAD_REMINDER_WINDOW_MS = 14 * 24 * 60 * 60 * 1000
+
+/**
+ * Queues a reminder for every open lead that needs the owner now: unanswered after a day, or
+ * with a follow-up date that has come. Once per lead and moment, so it is safe to call every minute.
+ */
+export async function queueDueLeadReminders(now = new Date()) {
+  const settings = await loadOwnerNotificationSettings()
+  if (!settings.email || !settings.kinds.includes('lead_followup')) return 0
+
+  const leads = await db
+    .select({
+      id: gigs.id,
+      title: gigTitleSql(),
+      createdAt: gigs.createdAt,
+      startsAt: gigs.startsAt,
+      lastContactedAt: gigs.lastContactedAt,
+      followUpAt: gigs.followUpAt,
+    })
+    .from(gigs)
+    .where(and(eq(gigs.status, 'lead'), isNull(gigs.deletedAt)))
+    .limit(500)
+
+  let queued = 0
+  for (const lead of leads) {
+    const followUp = leadFollowUp(lead, now)
+    if (!followUp || (followUp.state !== 'respond' && followUp.state !== 'follow_up') || !followUp.dueAt) continue
+    if (followUp.dueAt.getTime() < now.getTime() - LEAD_REMINDER_WINDOW_MS) continue
+    await queueOwnerNotification('lead_followup', lead.id, {
+      gigId: lead.id,
+      gigTitle: lead.title,
+      state: followUp.state,
+      receivedOn: lead.createdAt.toISOString().slice(0, 10),
+      eventDate: lead.startsAt?.toISOString().slice(0, 10) ?? null,
+    }, `${lead.id}:${followUp.state}:${followUp.dueAt.toISOString()}`)
+    queued += 1
+  }
+  return queued
 }

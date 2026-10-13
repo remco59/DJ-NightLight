@@ -13,6 +13,7 @@ type DashboardData = {
   summary: {
     upcoming: number
     leads: number
+    leadsToAct: number
     unpaidInvoices: number
     unpaidAmountCents: number
     overdueInvoices: number
@@ -284,7 +285,7 @@ useSeoMeta({
           <div class="summary-body">
             <div class="summary-label"><span>Open leads</span><Icon name="lucide:chevron-right" /></div>
             <strong class="summary-value">{{ data?.summary.leads ?? 0 }}</strong>
-            <span class="summary-detail"><span class="detail-long">{{ (data?.summary.leads ?? 0) > 0 ? 'Aanvragen die opvolging nodig hebben' : 'Geen aanvragen om op te volgen' }}</span><span class="detail-short">{{ (data?.summary.leads ?? 0) > 0 ? 'Opvolging nodig' : 'Geen aanvragen' }}</span></span>
+            <span class="summary-detail"><span class="detail-long">{{ (data?.summary.leadsToAct ?? 0) > 0 ? `${data?.summary.leadsToAct} ${data?.summary.leadsToAct === 1 ? 'aanvraag wacht' : 'aanvragen wachten'} op jou` : (data?.summary.leads ?? 0) > 0 ? 'Alle aanvragen zijn opgepakt' : 'Geen aanvragen om op te volgen' }}</span><span class="detail-short">{{ (data?.summary.leadsToAct ?? 0) > 0 ? 'Opvolging nodig' : (data?.summary.leads ?? 0) > 0 ? 'Opgepakt' : 'Geen aanvragen' }}</span></span>
           </div>
         </NuxtLink>
 

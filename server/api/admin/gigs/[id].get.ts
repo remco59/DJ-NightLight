@@ -35,6 +35,8 @@ export default defineEventHandler(async (event) => {
       source: gigs.source,
       createdAt: gigs.createdAt,
       updatedAt: gigs.updatedAt,
+      lastContactedAt: gigs.lastContactedAt,
+      followUpAt: gigs.followUpAt,
       clientFirstName: clients.firstName,
       clientLastName: clients.lastName,
       clientCompanyName: clients.companyName,

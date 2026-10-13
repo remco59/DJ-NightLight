@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
 import { gigDisplayTitle } from '~~/shared/gig-title'
+import { FOLLOW_UP_CHOICES, leadFollowUp, leadFollowUpHint } from '~~/shared/lead-followup'
 import type { QuestionnaireField } from '~~/shared/questionnaire'
 import { activityActionLabels, gigStatusLabels, labelFor, musicWishCategoryLabels, portalLinkStateLabels, submissionStatusLabels } from '~~/shared/labels'
 
@@ -17,7 +18,7 @@ type VenueOption={id:string;name:string;city:string|null}
 type DjOption={id:string;name:string;email:string}
 type Contact={id?:string;name:string;role:string|null;email:string|null;phone:string|null;notes:string|null}
 type Timeline={id?:string;time:string|null;title:string;description:string|null;ordering?:number}
-type Gig={id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null;venueAddress:string|null;venueCity:string|null}
+type Gig={createdAt:string;lastContactedAt:string|null;followUpAt:string|null;id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null;venueAddress:string|null;venueCity:string|null}
 type Activity={id:string;action:string;metadata:Record<string,unknown>|null;createdAt:string;actorName:string|null;actorEmail:string|null}
 type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
 type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
@@ -53,6 +54,18 @@ const timelineRows=(list:Timeline[])=>list.map(t=>({time:t.time||'',title:t.titl
 const contacts=ref(contactRows(data.value.contacts))
 const timeline=ref(timelineRows(data.value.timeline))
 const saving=ref(false);const message=ref('')
+// Follow-up of an open lead: has the owner answered, and when to follow up.
+const followUp=computed(()=>{
+  const gig=data.value?.gig
+  return gig?.status==='lead'?leadFollowUp({createdAt:gig.createdAt,lastContactedAt:gig.lastContactedAt,followUpAt:gig.followUpAt,startsAt:gig.startsAt}):null
+})
+const contacting=ref(false)
+async function markContacted(days:number|null){
+  contacting.value=true;message.value=''
+  try{await $fetch(`/api/admin/gigs/${id}/contacted`,{method:'POST',body:{followUpInDays:days}});await refresh();message.value='Reactie vastgelegd.'}
+  catch(error:unknown){message.value=apiErrorMessage(error,'Reactie vastleggen is niet gelukt.')}
+  finally{contacting.value=false}
+}
 // Warns, without blocking, when the planned times overlap another gig.
 const {conflicts}=useGigConflicts(()=>({startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),excludeId:id}))
 const portalMessage=ref('');const portalUrl=ref('');const portalDays=ref(30);const portalBusy=ref(false)
@@ -340,6 +353,16 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <section v-if="editing==='basics'" class="card" data-editing><h2 class="card-title">Gig bewerken</h2><div class="grid"><label class="wide">Titel<input v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Bron<input v-model="form.source"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></section>
 
 
+<section v-if="followUp&&canManageGigs&&online" class="card followup-card" aria-labelledby="followup-title">
+  <header class="card-head"><Icon name="lucide:message-circle-reply" class="lead-icon" aria-hidden="true" /><h2 id="followup-title">Opvolging</h2><AdminStatusChip kind="followup" :status="followUp.state" /></header>
+  <p class="followup-hint">{{leadFollowUpHint(followUp)}}</p>
+  <p id="followup-prompt" class="followup-prompt">{{followUp.state==='waiting'?'Opnieuw gereageerd? Plan je volgende opvolging:':'Heb je gereageerd? Plan dan je opvolging:'}}</p>
+  <div class="followup-actions" role="group" aria-labelledby="followup-prompt">
+    <button v-for="choice in FOLLOW_UP_CHOICES" :key="choice.days" type="button" class="secondary" :disabled="contacting" :aria-label="`Ik heb gereageerd, opvolgen ${choice.label.toLowerCase()}`" @click="markContacted(choice.days)">{{choice.label}}</button>
+    <button type="button" class="secondary" :disabled="contacting" aria-label="Ik heb gereageerd, geen opvolging" @click="markContacted(null)">Geen opvolging</button>
+  </div>
+</section>
+
 <ul class="summary-list">
 <li><button type="button" class="row-card" @click="selectTab('planning')"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Planning</strong><span>{{gigWhen}}</span><small>{{data.gig.loadInAt?`Opbouw ${planningMoment(data.gig.loadInAt)}`:'Opbouw nog niet gepland'}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
 <li><button type="button" class="row-card" @click="selectTab('client')"><Icon name="lucide:users" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Klant</strong><span>{{clientLabel}}</span><small>{{contacts.length?`${contacts.length} ${contacts.length===1?'contactpersoon':'contactpersonen'}`:'Geen contactpersoon'}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
@@ -509,6 +532,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </div></template>
 
 <style scoped>
+.followup-card .card-head{flex-wrap:wrap}.followup-hint{margin:.1rem 0 .9rem;color:var(--text-muted);font-size:.9rem}.followup-prompt{margin:0 0 .5rem;font-size:.85rem;font-weight:700}.followup-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}.followup-actions button{min-height:2.75rem;width:100%}@media(max-width:560px){.followup-actions{grid-template-columns:1fr}}
 .gigpage{max-width:46rem;margin-inline:auto;padding-bottom:2rem;--accent:#9d5cff;--accent-soft:#c9b2ef}
 .top{margin-bottom:.9rem}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:2.75rem}

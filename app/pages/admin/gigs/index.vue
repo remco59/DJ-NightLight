@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import { gigEndFromDuration } from '~~/shared/gig-duration'
+import { leadFollowUp } from '~~/shared/lead-followup'
 import { apiErrorMessage } from '~/utils/api-error'
 import { gigStatusLabels, labelFor } from '~~/shared/labels'
 
@@ -20,7 +21,8 @@ type GigRow = {
   id:string; title:string; eventType:string|null; status:'lead'|'booked'|'declined'|'cancelled';
   startsAt:string|null; endsAt:string|null; fee:string|null; currency:string; publicVisibility:boolean;
   clientId:string|null; venueId:string|null; clientFirstName:string|null; clientLastName:string|null;
-  clientCompanyName:string|null; venueName:string|null; venueCity:string|null; assignedUserId:string|null
+  clientCompanyName:string|null; venueName:string|null; venueCity:string|null; assignedUserId:string|null;
+  createdAt:string; lastContactedAt:string|null; followUpAt:string|null
 }
 type GigListResponse = { gigs:GigRow[]; options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[];eventTypes:string[]} }
 
@@ -94,6 +96,7 @@ function clientName(client:ClientOption){return client.companyName||[client.firs
 function venueName(venue:VenueOption){return venue.city?`${venue.name} — ${venue.city}`:venue.name}
 function assignedName(gig:GigRow){return data.value?.options.djs.find(d=>d.id===gig.assignedUserId)?.name||'Niet toegewezen'}
 function rowClient(gig:GigRow){return gig.clientCompanyName||[gig.clientFirstName,gig.clientLastName].filter(Boolean).join(' ')||'Geen klant'}
+function followUpState(gig:GigRow){return gig.status==='lead'?leadFollowUp(gig)?.state:undefined}
 function formatDate(value:string|null){return value?new Intl.DateTimeFormat('nl-NL',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Datum niet ingesteld'}
 function money(value:string|null,currency:string){return value?new Intl.NumberFormat('nl-NL',{style:'currency',currency}).format(Number(value)):'—'}
 function iso(value:string){return value?new Date(value).toISOString():null}
@@ -592,7 +595,7 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
     <div v-if="status==='pending'&&!data" class="empty">Gigs laden…</div><div v-else-if="!data?.gigs.length" class="empty">Geen gigs gevonden met deze filters.</div>
     <div v-else class="gig-scroller">
       <button v-if="canScrollUp" class="scroll-hint top" type="button" @click="scrollListBy(-1)"><Icon name="lucide:chevron-up" aria-hidden="true" />{{upHint}}</button>
-      <div ref="listEl" class="gig-list" @scroll.passive="updateScrollHints"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row" :data-gig-id="gig.id" :data-reference="reference?.id===gig.id?reference.kind:undefined"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('nl-NL',{month:'short'}):'n.n.b.'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><span v-if="referenceBadge(gig.id)" class="reference-badge" :data-kind="reference?.kind"><Icon v-if="reference?.kind==='now'" name="lucide:calendar-clock" aria-hidden="true" />{{referenceBadge(gig.id)}}</span><AdminStatusChip kind="gig" :status="gig.status" /><span v-if="gig.publicVisibility" class="public">Publiek</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'Geen locatie'}} · {{gig.eventType||'Soort evenement niet ingesteld'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
+      <div ref="listEl" class="gig-list" @scroll.passive="updateScrollHints"><NuxtLink v-for="gig in data.gigs" :key="gig.id" :to="`/admin/gigs/${gig.id}`" class="gig-row" :data-gig-id="gig.id" :data-reference="reference?.id===gig.id?reference.kind:undefined"><div class="date"><strong>{{gig.startsAt?new Date(gig.startsAt).getDate():'—'}}</strong><span>{{gig.startsAt?new Date(gig.startsAt).toLocaleDateString('nl-NL',{month:'short'}):'n.n.b.'}}</span></div><div class="main"><div class="title-line"><strong>{{gig.title}}</strong><span v-if="referenceBadge(gig.id)" class="reference-badge" :data-kind="reference?.kind"><Icon v-if="reference?.kind==='now'" name="lucide:calendar-clock" aria-hidden="true" />{{referenceBadge(gig.id)}}</span><AdminStatusChip kind="gig" :status="gig.status" /><AdminStatusChip v-if="followUpState(gig)" kind="followup" :status="followUpState(gig)!" /><span v-if="gig.publicVisibility" class="public">Publiek</span></div><span>{{rowClient(gig)}} · {{gig.venueName||'Geen locatie'}} · {{gig.eventType||'Soort evenement niet ingesteld'}} · {{assignedName(gig)}}</span></div><div class="right"><strong>{{money(gig.fee,gig.currency)}}</strong><span>{{formatDate(gig.startsAt)}}</span></div></NuxtLink></div>
       <button v-if="canScrollDown" class="scroll-hint bottom" type="button" @click="scrollListBy(1)"><Icon name="lucide:chevron-down" aria-hidden="true" />{{downHint}}</button>
     </div>
   </div>
