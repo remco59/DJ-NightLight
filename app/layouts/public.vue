@@ -27,6 +27,20 @@ const onBookingPage = computed(() => route.path === '/boeken')
 watch(() => route.path, () => {
   menuOpen.value = false
 })
+
+// The full-screen menu behaves like a layer: Escape closes it and the page
+// behind it stops scrolling.
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') menuOpen.value = false
+}
+watch(menuOpen, (open) => {
+  document.documentElement.style.overflow = open ? 'hidden' : ''
+})
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  document.documentElement.style.overflow = ''
+})
 </script>
 
 <template>
@@ -47,6 +61,7 @@ watch(() => route.path, () => {
           class="menu"
           type="button"
           :aria-expanded="menuOpen"
+          aria-controls="mobile-nav"
           :aria-label="menuOpen ? data?.content.publicCopy.navigation.close : data?.content.publicCopy.navigation.menu"
           @click="menuOpen = !menuOpen"
         >
@@ -57,7 +72,7 @@ watch(() => route.path, () => {
     </header>
 
     <Transition name="menu-panel">
-      <nav v-if="menuOpen" class="mobile-nav" aria-label="Mobiele navigatie">
+      <nav v-if="menuOpen" id="mobile-nav" class="mobile-nav" aria-label="Mobiele navigatie">
         <div class="mobile-nav-links">
           <NuxtLink v-for="(item,index) in nav" :key="item.to" :to="item.to">
             <span>{{ String(index + 1).padStart(2, '0') }}</span>
