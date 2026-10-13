@@ -32,6 +32,10 @@ Owners and managers can record two things on a gig while offline. They are store
 
 Sync happens when the app is open (the `online` event, login and app start). Background Sync is deliberately not used: iOS Safari does not support it. Changes of another user on the same device stay untouched until that user signs in. A session that expires while offline keeps the queue.
 
+## Working on two devices
+
+Saving the full gig form (`PUT /api/admin/gigs/:id?version=<updatedAt>`) is checked against the version the page loaded. When the gig changed in the meantime (edited on another device, or an offline note that was synced), the server answers `409`, nothing is overwritten and the gig page offers "Gig opnieuw laden". Reloading shows the latest data; the change then has to be entered again. A request without `version` is still accepted.
+
 ## Not offline
 
 Creating or editing venues, clients, invoices, portal links and everything else needs a connection. Gig attachments do not exist in the product yet, so there is nothing to store; the contract answers are only visible to owners and managers.

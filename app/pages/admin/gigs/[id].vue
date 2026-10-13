@@ -57,7 +57,8 @@ const contactRows=(list:Contact[])=>list.map(c=>({name:c.name,role:c.role||'',em
 const timelineRows=(list:Timeline[])=>list.map(t=>({time:t.time||'',title:t.title,description:t.description||''}))
 const contacts=ref(contactRows(data.value.contacts))
 const timeline=ref(timelineRows(data.value.timeline))
-const saving=ref(false);const message=ref('')
+const saving=ref(false);const message=ref('');const conflict=ref(false)
+async function reloadAfterConflict(){await refresh();resetForm();markSaved();conflict.value=false;message.value='Gig opnieuw geladen met de nieuwste gegevens. Voer je wijziging opnieuw in.'}
 // Follow-up of an open lead: has the owner answered, and when to follow up.
 const followUp=computed(()=>{
   const gig=data.value?.gig
@@ -243,13 +244,13 @@ async function save(){
   }
   saving.value=true;message.value=''
   try{
-    await $fetch(`/api/admin/gigs/${id}`,{method:'PUT',query:notify?undefined:{notify:'0'},body:{
+    await $fetch(`/api/admin/gigs/${id}`,{method:'PUT',query:{...(notify?{}:{notify:'0'}),...(data.value?.gig.updatedAt?{version:data.value.gig.updatedAt}:{})},body:{
       ...form,clientId:form.clientId||null,venueId:form.venueId||null,assignedUserId:form.assignedUserId||null,
       startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),fee:form.fee||null,
       contacts:contacts.value,timeline:timeline.value,
     }})
     markSaved();await refresh();editing.value='';message.value='Gig opgeslagen.'
-  }catch(error:unknown){message.value=apiErrorMessage(error,'Gig opslaan is niet gelukt.')}
+  }catch(error:unknown){message.value=apiErrorMessage(error,'Gig opslaan is niet gelukt.');if((error as {statusCode?:number}).statusCode===409)conflict.value=true}
   finally{saving.value=false}
 }
 async function duplicate(){
@@ -564,7 +565,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </section>
 </div>
 
-<div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span v-if="isDirty">Wijzigingen worden pas bewaard na opslaan.</span></div><button v-if="isDirty" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
+<div v-if="canEdit&&(isDirty||message)" class="save-bar"><div><strong role="status">{{message||(isDirty?'Niet-opgeslagen wijzigingen':'Alles is opgeslagen')}}</strong><span v-if="isDirty">Wijzigingen worden pas bewaard na opslaan.</span></div><button v-if="conflict" class="primary" type="button" @click="reloadAfterConflict">Gig opnieuw laden</button><button v-else-if="isDirty" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Gig opslaan'}}</button></div>
 </form>
 
 </div></template>
