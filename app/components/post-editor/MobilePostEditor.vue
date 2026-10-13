@@ -72,6 +72,31 @@ const toolbarHeight = ref(0)
 const viewportHeight = ref(0)
 const stageSize = reactive({ width: 0, height: 0 })
 const templateCategory = ref('all')
+
+// --- Template thumbnails ---------------------------------------------------------
+// Rendered from the current photo and copy so each card shows the real result.
+const thumbnails = ref<Record<string, string>>({})
+let thumbnailTimer: ReturnType<typeof setTimeout> | null = null
+let thumbnailRun = 0
+let thumbnailsFor = ''
+
+const thumbnailInputs = computed(() => {
+  const { showSafeArea: _view, ...rest } = design
+  return JSON.stringify({ rest, source: editor.sourceVersion.value })
+})
+
+async function renderThumbnails(inputs: string) {
+  const run = ++thumbnailRun
+  const next: Record<string, string> = {}
+  for (const template of templates) {
+    const url = await editor.renderTemplateThumbnail(template.key)
+    if (run !== thumbnailRun) return
+    if (url) next[template.key] = url
+  }
+  thumbnails.value = next
+  if (Object.keys(next).length) thumbnailsFor = inputs
+}
+
 const sheetDrag = reactive({
   active: false,
   moved: false,
@@ -88,6 +113,19 @@ let resizeObserver: ResizeObserver | null = null
 let mobileQuery: MediaQueryList | null = null
 
 const sheetOpen = computed(() => sheetSnap.value !== 'closed')
+
+const thumbnailsNeeded = computed(() => !isMobile.value || (sheetOpen.value && mobileTool.value === 'template'))
+watch([thumbnailInputs, thumbnailsNeeded], ([inputs, needed]) => {
+  if (!needed || !import.meta.client || inputs === thumbnailsFor) return
+  if (thumbnailTimer) clearTimeout(thumbnailTimer)
+  // Render straight away the first time; let typing settle before re-rendering all posts.
+  const delay = Object.keys(thumbnails.value).length ? 450 : 0
+  thumbnailTimer = setTimeout(() => void renderThumbnails(inputs).catch(() => {}), delay)
+}, { immediate: true })
+onBeforeUnmount(() => {
+  if (thumbnailTimer) clearTimeout(thumbnailTimer)
+  thumbnailRun++
+})
 const sheetSnaps = computed(() => sheetSnapHeights({
   viewportHeight: viewportHeight.value,
   // The format controls stay reachable above even an expanded sheet.
@@ -701,40 +739,13 @@ async function toggleFullscreen() {
                 }"
                 @click="applyTemplate(template.key)"
               >
-                <span
-                  class="template-shot"
-                  :class="'template-' + template.key"
-                  :style="selectedAsset ? { backgroundImage: 'url(' + selectedAsset.thumbnailUrl + ')' } : undefined"
-                >
+                <span class="template-shot">
+                  <img v-if="thumbnails[template.key]" :src="thumbnails[template.key]" alt="" draggable="false">
+                  <span v-else class="template-placeholder">
+                    <span class="template-logo">NIGHTLIGHT</span>
+                    <span class="template-headline">{{ template.label }}</span>
+                  </span>
                   <span class="template-category">{{ template.category }}</span>
-                  <span class="template-logo">NIGHTLIGHT</span>
-
-                  <template v-if="template.key === 'gig-announcement'">
-                    <span class="template-display template-display-gig">DIT<br>WEEKEND</span>
-                    <span class="template-pill">DJ NIGHTLIGHT</span>
-                    <span class="template-mini-meta">12 DEC · 22:00</span>
-                  </template>
-
-                  <template v-else-if="template.key === 'recap'">
-                    <span class="template-display template-display-recap">WAT EEN<br>AVOND</span>
-                    <span class="template-pill">TERUGBLIK</span>
-                  </template>
-
-                  <template v-else-if="template.key === 'review'">
-                    <span class="template-display template-display-recap">★★★★★</span>
-                    <span class="template-pill">REVIEW</span>
-                    <span class="template-mini-meta">BRUILOFT · GRONINGEN</span>
-                  </template>
-
-                  <template v-else-if="template.key === 'upcoming-gigs'">
-                    <span class="template-display template-display-planning">DECEMBER</span>
-                    <span class="template-pill">PLANNING</span>
-                    <span class="template-mini-list">
-                      <i v-for="row in 3" :key="row" />
-                    </span>
-                  </template>
-
-                  <span v-else class="template-headline">JOUW AVOND.<br>JOUW SOUND.</span>
                 </span>
                 <span class="template-copy">
                   <span class="template-copy-head">
@@ -1505,9 +1516,7 @@ input[type='range'] {
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: .45rem;
-  background: linear-gradient(145deg, #2d1d3a, #08070a);
-  background-size: cover;
-  background-position: center;
+  background: #0b0a0e;
 }
 
 .template-category {
@@ -1526,143 +1535,36 @@ input[type='range'] {
   backdrop-filter: blur(8px);
 }
 
-.template-shot::after {
-  content: '';
+.template-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.template-placeholder {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(5,4,7,.9), rgba(5,4,7,.08) 62%);
-}
-
-.template-poster {
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.55);
-}
-
-.template-poster::before {
-  content: '';
-  position: absolute;
-  inset: 8px;
-  border: 1px solid rgba(255,255,255,.55);
-  z-index: 1;
-}
-
-.template-minimal::after {
-  background: linear-gradient(to right, rgba(9,8,11,.96) 0 52%, rgba(9,8,11,.2) 100%);
-}
-
-.template-gig-announcement::after,
-.template-recap::after,
-.template-upcoming-gigs::after {
-  background-image:
-    url('/post-generator/nightlight-campaign-overlay.svg'),
-    linear-gradient(to bottom, rgba(6,2,11,.12), rgba(5,2,9,.9));
-  background-position: center;
-  background-size: cover;
-}
-
-.template-gig-announcement,
-.template-recap,
-.template-upcoming-gigs {
-  box-shadow:
-    inset 0 0 0 1px rgba(216,168,255,.46),
-    inset 0 0 32px rgba(119,38,190,.24);
-}
-
-.template-logo,
-.template-headline,
-.template-display,
-.template-pill,
-.template-mini-meta,
-.template-mini-list {
-  position: absolute;
-  z-index: 2;
+  display: grid;
+  align-content: space-between;
+  padding: .45rem;
   color: #fff;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(157,92,255,.35), transparent 60%),
+    linear-gradient(180deg, #1a1422, #09080c);
 }
 
 .template-logo {
-  top: .45rem;
-  left: .45rem;
   font-size: .42rem;
   font-weight: 900;
   letter-spacing: .04em;
 }
 
 .template-headline {
-  left: .45rem;
-  bottom: .48rem;
   font-size: .62rem;
   line-height: .92;
   font-weight: 950;
-}
-
-.template-display {
-  left: .45rem;
-  right: .45rem;
-  text-align: center;
-  font-weight: 950;
-  font-style: italic;
-  line-height: .88;
-  text-shadow: 0 2px 12px rgba(0,0,0,.85);
-}
-
-.template-display-gig {
-  top: 34%;
-  font-size: .8rem;
-}
-
-.template-display-recap {
-  top: 29%;
-  font-size: .72rem;
-}
-
-.template-display-planning {
-  top: 25%;
-  font-size: .72rem;
-}
-
-.template-pill {
-  left: 16%;
-  right: 16%;
-  top: 53%;
-  padding: .22rem .28rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #7c3aed, #d000ff);
-  box-shadow: 0 0 12px rgba(190,40,255,.55);
-  text-align: center;
-  font-size: .56rem;
-  font-weight: 950;
-}
-
-.template-recap .template-pill {
-  top: 50%;
-}
-
-.template-upcoming-gigs .template-pill {
-  top: 39%;
-}
-
-.template-mini-meta {
-  left: .45rem;
-  right: .45rem;
-  bottom: .5rem;
-  text-align: center;
-  color: #d9b7ff;
-  font-size: .42rem;
-  font-weight: 800;
-}
-
-.template-mini-list {
-  left: .55rem;
-  right: .55rem;
-  top: 55%;
-  display: grid;
-  gap: .17rem;
-}
-
-.template-mini-list i {
-  height: .5rem;
-  border: 0;
-  border-radius: 0;
-  background: url('/post-generator/nightlight-event-card.svg') center / 100% 100% no-repeat;
+  text-transform: uppercase;
 }
 
 .template-copy {
