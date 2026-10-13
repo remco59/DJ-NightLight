@@ -91,6 +91,16 @@ body {
   color: #fff;
 }
 
+/* Browser surfaces that would otherwise ship with default blue and grey. */
+html {
+  accent-color: var(--electric-accent);
+  caret-color: var(--electric-soft);
+  scrollbar-color: var(--border-strong) var(--surface-page);
+}
+
+/* Dates and times line up in lists instead of jittering. */
+time { font-variant-numeric: tabular-nums; }
+
 a { color: inherit; }
 
 h1, h2, h3 { font-weight: 800; }
