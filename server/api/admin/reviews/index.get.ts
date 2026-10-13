@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
     rating: gigReviews.rating,
     comment: gigReviews.comment,
     authorName: gigReviews.authorName,
+    publicConsent: gigReviews.publicConsent,
+    published: gigReviews.published,
     createdAt: gigReviews.createdAt,
   }).from(gigReviews).innerJoin(gigs, eq(gigReviews.gigId, gigs.id)).orderBy(desc(gigReviews.createdAt)).limit(500)
 

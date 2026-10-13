@@ -94,6 +94,17 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
       { label: 'Datum feest', variable: 'eventDate' },
     ],
   },
+  owner_review_received: {
+    eyebrow: 'Review',
+    title: 'Je hebt een nieuwe review',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Bekijk de review',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Beoordeling', variable: 'rating' },
+      { label: 'Mag op de website', variable: 'publicConsent' },
+    ],
+  },
   owner_invoice_paid: {
     eyebrow: 'Betaling',
     title: 'Een factuur is betaald',

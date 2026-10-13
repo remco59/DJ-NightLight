@@ -223,7 +223,7 @@ paths:
                       format: email
                       pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
                 ownerNotificationKinds:
-                  maxItems: 4
+                  maxItems: 5
                   type: array
                   items:
                     type: string
@@ -232,6 +232,7 @@ paths:
                       - invoice_paid
                       - portal_submitted
                       - lead_followup
+                      - review_received
               required:
                 - companyName
                 - address
@@ -287,6 +288,7 @@ paths:
                     - invoice_paid
                     - portal_submitted
                     - lead_followup
+                    - review_received
       responses:
         "200":
           description: Gelukt
@@ -5245,6 +5247,50 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/reviews/{id}:
+    patch:
+      operationId: patchAdminReviewsById
+      tags:
+        - admin/reviews
+      description: Shows a review on the website or hides it again. Only reviews with the client's consent and some text can be shown.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                published:
+                  type: boolean
+              required:
+                - published
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/admin/session/revoke-all:
     post:
       operationId: postAdminSessionRevokeAll
@@ -6846,6 +6892,9 @@ paths:
                   default: ""
                   type: string
                   maxLength: 200
+                publicConsent:
+                  default: false
+                  type: boolean
               required:
                 - rating
       parameters:
@@ -7236,6 +7285,20 @@ paths:
       operationId: getPublicRecentGigs
       tags:
         - public
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/public/reviews:
+    get:
+      operationId: getPublicReviews
+      tags:
+        - public
+      description: Reviews the owner chose to show, for clients who allowed it. Only first name, text, rating and month.
       security: []
       responses:
         "200":

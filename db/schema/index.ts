@@ -154,6 +154,8 @@ export const gigReviews = pgTable('gig_reviews', {
   rating: integer('rating').notNull(),
   comment: text('comment'),
   authorName: varchar('author_name', { length: 200 }),
+  publicConsent: boolean('public_consent').default(false).notNull(),
+  published: boolean('published').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, table => [uniqueIndex('gig_reviews_gig_id_unique').on(table.gigId)])
 
@@ -218,7 +220,7 @@ export const businessSettings = pgTable('business_settings', {
   paymentTerms: text('payment_terms').default('Betaal het volledige bedrag vóór de vervaldatum.').notNull(),
   legalText: text('legal_text').default('').notNull(),
   ownerNotificationEmail: varchar('owner_notification_email', { length: 320 }).default('').notNull(),
-  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup']).notNull(),
+  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received']).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { auditLogs, gigReviews } from '../../../../../db/schema'
 import { gigIsFinished } from '../../../../../shared/gig-phase'
 import { db } from '../../../../utils/db'
+import { queueOwnerNotification } from '../../../../utils/owner-notifications'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
@@ -10,6 +11,8 @@ const reviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
   comment: z.string().trim().max(2000).optional().default(''),
   authorName: z.string().trim().max(200).optional().default(''),
+  // The client may allow the review to be shown on the website (after the owner approves it).
+  publicConsent: z.boolean().optional().default(false),
 })
 
 export default defineEventHandler(async (event) => {
@@ -30,6 +33,7 @@ export default defineEventHandler(async (event) => {
     rating: parsed.data.rating,
     comment: parsed.data.comment || null,
     authorName: parsed.data.authorName || null,
+    publicConsent: parsed.data.publicConsent,
   }).onConflictDoNothing().returning({ id: gigReviews.id })
   if (!review) throw createError({ statusCode: 409, statusMessage: 'Er is al een review voor deze gig ingestuurd' })
 
@@ -39,6 +43,13 @@ export default defineEventHandler(async (event) => {
     entityId: access.gigId,
     action: 'review_submitted',
     metadata: { linkId: access.linkId, rating: parsed.data.rating },
+  })
+  await queueOwnerNotification('review_received', review.id, {
+    gigTitle: access.title,
+    rating: parsed.data.rating,
+    comment: parsed.data.comment,
+    authorName: parsed.data.authorName,
+    publicConsent: parsed.data.publicConsent ? 1 : 0,
   })
   return { ok: true }
 })
