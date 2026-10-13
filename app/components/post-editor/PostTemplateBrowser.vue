@@ -168,4 +168,18 @@ watch(open, (value) => {
   overflow: auto;
   padding: 1.2rem 1.3rem 1.5rem;
 }
+
+@media (max-width: 520px) {
+  .backdrop {
+    padding: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+}
 </style>

@@ -1,16 +1,25 @@
 <script setup lang="ts">
-import { usePostEditor, POST_IMAGE_TYPES } from '~/composables/usePostEditor'
+import MediaPicker from '~/components/admin/MediaPicker.vue'
+import PostPreviewDialog from '~/components/post-editor/PostPreviewDialog.vue'
+import PostRecentExports from '~/components/post-editor/PostRecentExports.vue'
+import PostTemplateBrowser from '~/components/post-editor/PostTemplateBrowser.vue'
+import SocialPublishDrawer from '~/components/social/SocialPublishDrawer.vue'
+import { usePostEditor, POST_IMAGE_TYPES, type PostCanvasSelection } from '~/composables/usePostEditor'
 import {
   coverImageRect,
   postImageDragDelta,
+  postTemplateInfo,
   POST_PRESETS,
   type PostPreset,
+  type PostTextField,
 } from '~~/shared/post-generator'
 import {
   fitPreviewSize,
+  hitTestBoxes,
   pinchPostZoom,
   resolveSheetSnap,
   sheetSnapHeights,
+  snapToCentre,
   type PostEditorSheetSnap,
 } from '~~/shared/post-editor-ui'
 
@@ -27,6 +36,8 @@ const {
   readyToExport,
   templates,
   brands,
+  canUndo,
+  canRedo,
   applyTemplate,
   resetImagePosition,
   addGigItem,
@@ -40,6 +51,55 @@ const exportBlockedReason = computed(() => {
   return 'Vul een kop in of zet de kop uit, dan kun je exporteren.'
 })
 const sourceSearch = ref('')
+const mediaView = ref<'library' | 'recent'>('library')
+// Generated posts already carry overlays; using one as a source would double them up.
+const hideGenerated = ref(true)
+const selection = ref<PostCanvasSelection>('none')
+
+const template = computed(() => postTemplateInfo(design.templateKey))
+const usesField = (field: PostTextField) => template.value.fields.includes(field)
+const fieldLabels: Record<PostTextField, string> = {
+  headline: 'Kop',
+  subline: 'Ondertitel',
+  date: 'Datum',
+  time: 'Tijd',
+  location: 'Locatie',
+  cta: 'Call to action',
+  gigList: 'Giglijst',
+}
+
+// Dialogs shared with the desktop editor.
+const exportsOpen = ref(false)
+const publishOpen = ref(false)
+const publishPostIds = ref<string[]>([])
+const publishImages = computed(() => publishPostIds.value.flatMap((id) => {
+  const post = editor.posts.value.find(item => item.id === id)
+  return post ? [post] : []
+}))
+const templatesOpen = ref(false)
+const mediaPickerOpen = ref(false)
+const previewOpen = ref(false)
+const previewBusy = ref(false)
+const anyDialogOpen = computed(() => exportsOpen.value || publishOpen.value || templatesOpen.value || mediaPickerOpen.value || previewOpen.value)
+const selectedAssetUrl = computed(() => selectedAsset.value?.url ?? null)
+
+function openPublish(...postIds: string[]) {
+  publishPostIds.value = postIds
+  exportsOpen.value = false
+  publishOpen.value = true
+}
+
+/** Exports the current design first, so the published image is exactly what the canvas shows. */
+async function exportAndPublish() {
+  const exported = await editor.exportPost()
+  if (exported) openPublish(exported.id)
+}
+
+let messageTimer: ReturnType<typeof setTimeout> | null = null
+watch(message, (value) => {
+  if (messageTimer) clearTimeout(messageTimer)
+  if (value) messageTimer = setTimeout(() => { message.value = '' }, 8000)
+})
 const freshFile = ref<File | null>(null)
 const freshInput = ref<HTMLInputElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -47,9 +107,8 @@ const previewShellRef = ref<HTMLElement | null>(null)
 const openSections = ref<number[]>([1, 2, 3])
 
 type MobileTool = 'photo' | 'template' | 'text' | 'style' | 'export'
-type MobileSheetTool = Exclude<MobileTool, 'export'>
 
-const mobileTool = ref<MobileSheetTool>('text')
+const mobileTool = ref<MobileTool>('text')
 const mobileTabs: Array<{ key: MobileTool, label: string, title: string, icon: string, step: number }> = [
   { key: 'photo', label: 'Foto', title: 'Foto', icon: 'lucide:image', step: 1 },
   { key: 'template', label: 'Template', title: 'Templates', icon: 'lucide:layout-grid', step: 2 },
@@ -114,7 +173,7 @@ let mobileQuery: MediaQueryList | null = null
 
 const sheetOpen = computed(() => sheetSnap.value !== 'closed')
 
-const thumbnailsNeeded = computed(() => !isMobile.value || (sheetOpen.value && mobileTool.value === 'template'))
+const thumbnailsNeeded = computed(() => !isMobile.value || templatesOpen.value || (sheetOpen.value && mobileTool.value === 'template'))
 watch([thumbnailInputs, thumbnailsNeeded], ([inputs, needed]) => {
   if (!needed || !import.meta.client || inputs === thumbnailsFor) return
   if (thumbnailTimer) clearTimeout(thumbnailTimer)
@@ -124,6 +183,7 @@ watch([thumbnailInputs, thumbnailsNeeded], ([inputs, needed]) => {
 }, { immediate: true })
 onBeforeUnmount(() => {
   if (thumbnailTimer) clearTimeout(thumbnailTimer)
+  if (messageTimer) clearTimeout(messageTimer)
   thumbnailRun++
 })
 const sheetSnaps = computed(() => sheetSnapHeights({
@@ -142,20 +202,46 @@ const mobileEditorStyle = computed(() => ({
 }))
 const activeToolTitle = computed(() => mobileTabs.find(tab => tab.key === mobileTool.value)?.title || '')
 const templateCategories = computed(() => [...new Set(templates.map(template => template.category))])
-const canvasFrameStyle = computed(() => {
-  if (!isMobile.value) return undefined
-  const target = POST_PRESETS[design.preset]
-  const fit = fitPreviewSize({
-    availableWidth: stageSize.width,
-    availableHeight: stageSize.height,
-    designWidth: target.width,
-    designHeight: target.height,
-  })
-  return { width: fit.width + 'px', height: fit.height + 'px' }
+const target = computed(() => POST_PRESETS[design.preset])
+const frameFit = computed(() => fitPreviewSize({
+  availableWidth: stageSize.width,
+  availableHeight: stageSize.height,
+  designWidth: target.value.width,
+  designHeight: target.value.height,
+}))
+const canvasFrameStyle = computed(() => isMobile.value
+  ? { width: frameFit.value.width + 'px', height: frameFit.value.height + 'px' }
+  : undefined)
+
+// Overlay geometry: export pixels to on-screen pixels.
+function toScreen(box: { x: number, y: number, width: number, height: number }) {
+  const ratio = frameFit.value.width / target.value.width
+  return {
+    left: box.x * ratio + 'px',
+    top: box.y * ratio + 'px',
+    width: box.width * ratio + 'px',
+    height: box.height * ratio + 'px',
+  }
+}
+const imageBoxStyle = computed(() => editor.imageRect.value ? toScreen(editor.imageRect.value) : null)
+const imageOverflows = computed(() => {
+  const rect = editor.imageRect.value
+  return Boolean(rect && (rect.width > target.value.width + 1 || rect.height > target.value.height + 1))
 })
+const textBoxStyles = computed(() => editor.textBoxes.value.map(box => toScreen({
+  x: box.x - 8,
+  y: box.y - 6,
+  width: box.width + 16,
+  height: box.height + 12,
+})))
+
+// A touch that moves less than this is a tap, which selects instead of dragging.
+const CLICK_SLOP = 6
+const SNAP_PIXELS = 8
 
 const dragState = reactive({
   active: false,
+  moved: false,
   pointerId: -1,
   startX: 0,
   startY: 0,
@@ -167,19 +253,44 @@ const pinchState = reactive({
   startDistance: 0,
   startZoom: 1,
 })
+// Dragging a corner handle scales the photo around the centre of the post.
+const scaleState = reactive({
+  active: false,
+  pointerId: -1,
+  startZoom: 1,
+  startDistance: 0,
+  centreX: 0,
+  centreY: 0,
+})
+const snapped = reactive({ x: false, y: false })
+const gesturing = computed(() => (dragState.active && dragState.moved) || pinchState.active || scaleState.active)
 const activePointers = new Map<number, { x: number, y: number }>()
 
 const presetOptions = Object.entries(POST_PRESETS) as Array<[PostPreset, (typeof POST_PRESETS)[PostPreset]]>
 
-const filteredAssets = computed(() => {
+const MEDIA_GRID_COUNT = 24
+
+const matchingAssets = computed(() => {
   const q = sourceSearch.value.trim().toLowerCase()
-  const assets = editor.assets.value
-  if (!q) return assets
-  return assets.filter(asset => [
+  const all = mediaView.value === 'recent' ? editor.recentAssets.value : editor.assets.value
+  const source = hideGenerated.value ? all.filter(asset => asset.source !== 'generated') : all
+  if (!q) return source
+  return source.filter(asset => [
     asset.title,
     asset.altText,
     asset.originalFilename,
   ].some(value => value.toLowerCase().includes(q)))
+})
+
+const filteredAssets = computed(() => {
+  const items = matchingAssets.value.slice(0, MEDIA_GRID_COUNT)
+  // Keep the selected photo visible even when it is further down the library.
+  const selected = selectedAsset.value
+  if (mediaView.value === 'library' && selected && items.length && !items.some(item => item.id === selected.id)
+    && matchingAssets.value.some(item => item.id === selected.id)) {
+    items.splice(items.length - 1, 1, selected)
+  }
+  return items
 })
 
 function isSectionOpen(step: number) {
@@ -191,12 +302,6 @@ function toggleSection(step: number) {
 }
 
 function selectMobileTool(tool: MobileTool, step: number) {
-  // Export is an action, not an editing sheet.
-  if (tool === 'export') {
-    void editor.exportPost()
-    return
-  }
-
   if (sheetOpen.value && mobileTool.value === tool) {
     closeSheet()
     return
@@ -287,7 +392,7 @@ let outsideTap: { x: number, y: number, pointerId: number } | null = null
 
 function onDocumentPointerDown(event: PointerEvent) {
   const target = event.target as HTMLElement | null
-  const outside = Boolean(sheetOpen.value && isMobile.value && event.isPrimary
+  const outside = Boolean(sheetOpen.value && isMobile.value && event.isPrimary && !anyDialogOpen.value
     && !target?.closest('.controls, .mobile-tool-tabs, .mobile-editor-header'))
   outsideTap = outside ? { x: event.clientX, y: event.clientY, pointerId: event.pointerId } : null
 }
@@ -372,8 +477,9 @@ function pointerDistance() {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-function beginDrag(pointerId: number, x: number, y: number) {
+function beginDrag(pointerId: number, x: number, y: number, moved = false) {
   dragState.active = true
+  dragState.moved = moved
   dragState.pointerId = pointerId
   dragState.startX = x
   dragState.startY = y
@@ -386,6 +492,8 @@ function startPreviewDrag(event: PointerEvent) {
   if (event.pointerType === 'mouse' && event.button !== 0) return
 
   event.preventDefault()
+  // One undo step per gesture, however many pointers it uses.
+  if (!activePointers.size) editor.beginTransient()
   activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
   canvasRef.value.setPointerCapture(event.pointerId)
 
@@ -396,6 +504,7 @@ function startPreviewDrag(event: PointerEvent) {
     pinchState.active = true
     pinchState.startDistance = pointerDistance()
     pinchState.startZoom = design.zoom
+    selection.value = 'image'
     return
   }
 
@@ -418,32 +527,64 @@ function movePreviewDrag(event: PointerEvent) {
   if (!dragState.active || event.pointerId !== dragState.pointerId || !canvasRef.value || !editor.sourceSize.width) return
 
   event.preventDefault()
+  const deltaX = event.clientX - dragState.startX
+  const deltaY = event.clientY - dragState.startY
+  if (!dragState.moved) {
+    if (Math.hypot(deltaX, deltaY) < CLICK_SLOP) return
+    dragState.moved = true
+    selection.value = 'image'
+  }
+
   const canvasBounds = canvasRef.value.getBoundingClientRect()
   if (!canvasBounds.width || !canvasBounds.height) return
 
-  const target = POST_PRESETS[design.preset]
   const rendered = coverImageRect({
     sourceWidth: editor.sourceSize.width,
     sourceHeight: editor.sourceSize.height,
-    targetWidth: target.width,
-    targetHeight: target.height,
+    targetWidth: target.value.width,
+    targetHeight: target.value.height,
     zoom: design.zoom,
     imageX: 0,
     imageY: 0,
   })
   const delta = postImageDragDelta({
-    deltaX: event.clientX - dragState.startX,
-    deltaY: event.clientY - dragState.startY,
+    deltaX,
+    deltaY,
     displayWidth: canvasBounds.width,
     displayHeight: canvasBounds.height,
-    targetWidth: target.width,
-    targetHeight: target.height,
+    targetWidth: target.value.width,
+    targetHeight: target.value.height,
     renderedWidth: rendered.width,
     renderedHeight: rendered.height,
   })
+  // Snap to the centre within a few screen pixels (1 unit = half the overflow).
+  const ratio = canvasBounds.width / target.value.width
+  const overflowX = (rendered.width - target.value.width) * ratio / 2
+  const overflowY = (rendered.height - target.value.height) * ratio / 2
+  const x = snapToCentre(clampCropPosition(dragState.startImageX + delta.x), overflowX > 0 ? SNAP_PIXELS / overflowX : 0)
+  const y = snapToCentre(clampCropPosition(dragState.startImageY + delta.y), overflowY > 0 ? SNAP_PIXELS / overflowY : 0)
+  design.imageX = x.value
+  design.imageY = y.value
+  snapped.x = x.snapped && overflowX > 0
+  snapped.y = y.snapped && overflowY > 0
+}
 
-  design.imageX = clampCropPosition(dragState.startImageX + delta.x)
-  design.imageY = clampCropPosition(dragState.startImageY + delta.y)
+/** A tap selects what is under the finger: text opens the text tool, anything else the photo. */
+function tapCanvas(event: PointerEvent) {
+  const bounds = canvasRef.value?.getBoundingClientRect()
+  if (!bounds?.width) return
+  const hit = hitTestBoxes(
+    editor.textBoxes.value,
+    (event.clientX - bounds.left) * (target.value.width / bounds.width),
+    (event.clientY - bounds.top) * (target.value.height / bounds.height),
+    10,
+  )
+  if (hit >= 0) {
+    selection.value = 'text'
+    selectMobileTool('text', 3)
+  } else {
+    selection.value = 'image'
+  }
 }
 
 function endPreviewDrag(event: PointerEvent) {
@@ -457,13 +598,55 @@ function endPreviewDrag(event: PointerEvent) {
     pinchState.active = false
     // Continue dragging with the finger that stays down, without a jump.
     const [remaining] = [...activePointers.entries()]
-    if (remaining) beginDrag(remaining[0], remaining[1].x, remaining[1].y)
+    if (remaining) beginDrag(remaining[0], remaining[1].x, remaining[1].y, true)
+    else editor.endTransient()
     return
   }
 
-  if (event.pointerId !== dragState.pointerId) return
-  dragState.active = false
-  dragState.pointerId = -1
+  const wasTap = event.pointerId === dragState.pointerId && !dragState.moved && event.type === 'pointerup'
+  if (event.pointerId === dragState.pointerId) {
+    dragState.active = false
+    dragState.moved = false
+    dragState.pointerId = -1
+  }
+  snapped.x = false
+  snapped.y = false
+  if (!activePointers.size) editor.endTransient()
+  if (wasTap) tapCanvas(event)
+}
+
+function startHandle(event: PointerEvent) {
+  const bounds = canvasRef.value?.getBoundingClientRect()
+  if (!bounds) return
+  event.preventDefault()
+  event.stopPropagation()
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  const centreX = bounds.left + bounds.width / 2
+  const centreY = bounds.top + bounds.height / 2
+  Object.assign(scaleState, {
+    active: true,
+    pointerId: event.pointerId,
+    startZoom: design.zoom,
+    centreX,
+    centreY,
+    startDistance: Math.hypot(event.clientX - centreX, event.clientY - centreY),
+  })
+  editor.beginTransient()
+}
+
+function moveHandle(event: PointerEvent) {
+  if (!scaleState.active || event.pointerId !== scaleState.pointerId) return
+  const distance = Math.hypot(event.clientX - scaleState.centreX, event.clientY - scaleState.centreY)
+  design.zoom = pinchPostZoom(scaleState.startZoom, scaleState.startDistance, distance)
+}
+
+function endHandle(event: PointerEvent) {
+  if (!scaleState.active || event.pointerId !== scaleState.pointerId) return
+  const handle = event.currentTarget as HTMLElement
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+  scaleState.active = false
+  scaleState.pointerId = -1
+  editor.endTransient()
 }
 
 onMounted(() => {
@@ -519,6 +702,14 @@ async function toggleFullscreen() {
     <header class="mobile-editor-header">
       <button class="mobile-back-button" type="button" aria-label="Ga terug" @click="router.back()">←</button>
       <h1 class="mobile-editor-title">Postgenerator</h1>
+      <div class="mobile-history" role="group" aria-label="Geschiedenis">
+        <button type="button" class="mobile-history-button" aria-label="Ongedaan maken" :disabled="!canUndo" @click="editor.undo()">
+          <Icon name="lucide:undo-2" aria-hidden="true" />
+        </button>
+        <button type="button" class="mobile-history-button" aria-label="Opnieuw" :disabled="!canRedo" @click="editor.redo()">
+          <Icon name="lucide:redo-2" aria-hidden="true" />
+        </button>
+      </div>
       <button
         class="mobile-export-button"
         type="button"
@@ -531,9 +722,12 @@ async function toggleFullscreen() {
     </header>
 
     <p v-if="exportBlockedReason && !message" id="export-blocked-reason" class="message export-hint mobile-only">{{ exportBlockedReason }}</p>
-    <p v-if="message" class="message">
-      {{ message }}
-      <a v-if="lastRenderedUrl" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">PNG downloaden</a>
+    <p v-if="message" class="message" role="status">
+      <span>
+        {{ message }}
+        <a v-if="lastRenderedUrl && busy !== 'render'" class="mobile-only message-download" :href="lastRenderedUrl" download="nightlight-post.png">PNG downloaden</a>
+      </span>
+      <button type="button" class="message-close" aria-label="Sluiten" @click="message = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
     </p>
 
     <div ref="workspaceRef" class="workspace">
@@ -621,14 +815,22 @@ async function toggleFullscreen() {
               <button v-if="sourceSearch" type="button" aria-label="Zoekopdracht wissen" @click="sourceSearch = ''"><Icon name="lucide:x" aria-hidden="true" /></button>
             </div>
 
-            <div class="media-meta">
-              <span>Mediabibliotheek</span>
-              <small>{{ filteredAssets.length }} foto’s</small>
+            <div class="chip-row segmented media-view" role="group" aria-label="Mediabron">
+              <button type="button" class="chip" :class="{ active: mediaView === 'library' }" :aria-pressed="mediaView === 'library'" @click="mediaView = 'library'">Bibliotheek</button>
+              <button type="button" class="chip" :class="{ active: mediaView === 'recent' }" :aria-pressed="mediaView === 'recent'" @click="mediaView = 'recent'">Recent gebruikt</button>
             </div>
 
-            <div class="media-grid">
+            <div class="media-meta">
+              <label class="filter-toggle">
+                <input v-model="hideGenerated" type="checkbox">
+                <span>Gegenereerde posts verbergen</span>
+              </label>
+              <small>{{ matchingAssets.length }} foto’s</small>
+            </div>
+
+            <div v-if="filteredAssets.length" class="media-grid">
               <button
-                v-for="asset in filteredAssets.slice(0, 12)"
+                v-for="asset in filteredAssets"
                 :key="asset.id"
                 type="button"
                 class="media-option"
@@ -640,6 +842,13 @@ async function toggleFullscreen() {
                 <span v-if="sourceAssetId === asset.id" class="selected-mark"><Icon name="lucide:check" aria-hidden="true" /></span>
               </button>
             </div>
+            <p v-else class="empty-note">
+              {{ mediaView === 'recent' ? 'Foto’s die je in een export gebruikt, verschijnen hier.' : 'Geen foto’s gevonden.' }}
+            </p>
+
+            <button class="browse-button" type="button" @click="mediaPickerOpen = true">
+              Alles bekijken <Icon name="lucide:arrow-right" aria-hidden="true" />
+            </button>
 
             <div class="mobile-only photo-adjust">
               <div class="subheading-row">
@@ -727,34 +936,56 @@ async function toggleFullscreen() {
               </button>
             </div>
 
+            <button class="browse-button" type="button" @click="templatesOpen = true">
+              Alle templates bekijken ({{ templates.length }}) <Icon name="lucide:arrow-right" aria-hidden="true" />
+            </button>
+
             <div class="template-grid">
               <button
-                v-for="template in templates"
-                :key="template.key"
+                v-for="item in templates"
+                :key="item.key"
                 type="button"
                 class="template-card"
                 :class="{
-                  active: design.templateKey === template.key,
-                  'mobile-filtered-out': templateCategory !== 'all' && template.category !== templateCategory,
+                  active: design.templateKey === item.key,
+                  'mobile-filtered-out': templateCategory !== 'all' && item.category !== templateCategory,
                 }"
-                @click="applyTemplate(template.key)"
+                @click="applyTemplate(item.key)"
               >
                 <span class="template-shot">
-                  <img v-if="thumbnails[template.key]" :src="thumbnails[template.key]" alt="" draggable="false">
+                  <img v-if="thumbnails[item.key]" :src="thumbnails[item.key]" alt="" draggable="false">
                   <span v-else class="template-placeholder">
                     <span class="template-logo">NIGHTLIGHT</span>
-                    <span class="template-headline">{{ template.label }}</span>
+                    <span class="template-headline">{{ item.label }}</span>
                   </span>
-                  <span class="template-category">{{ template.category }}</span>
+                  <span class="template-category">{{ item.category }}</span>
                 </span>
                 <span class="template-copy">
                   <span class="template-copy-head">
-                    <strong>{{ template.label }}</strong>
-                    <em>{{ template.category }}</em>
+                    <strong>{{ item.label }}</strong>
+                    <em>{{ item.category }}</em>
                   </span>
-                  <small>{{ template.description }}</small>
+                  <small>{{ item.description }}</small>
                 </span>
               </button>
+            </div>
+
+            <div class="template-info">
+              <div class="subheading-row">
+                <strong>{{ template.label }}</strong>
+                <small>{{ template.category }}</small>
+              </div>
+              <p>{{ template.description }}</p>
+              <dl>
+                <div>
+                  <dt>Tekstvelden</dt>
+                  <dd>{{ template.fields.map(field => fieldLabels[field]).join(', ') }}</dd>
+                </div>
+                <div>
+                  <dt>Tekstopmaak</dt>
+                  <dd>{{ template.flexibleText ? 'Uitlijning en positie instelbaar' : 'Gecentreerd, bepaald door het template' }}</dd>
+                </div>
+              </dl>
             </div>
           </div>
         </section>
@@ -775,7 +1006,7 @@ async function toggleFullscreen() {
           </button>
 
           <div v-if="isSectionOpen(3)" class="section-body form-stack">
-            <div class="field">
+            <div v-if="usesField('headline')" class="field">
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:type" aria-hidden="true" /></span>
                 <span class="field-name">
@@ -793,7 +1024,7 @@ async function toggleFullscreen() {
               <textarea v-model="design.headline" rows="2" maxlength="180" :disabled="!design.visibility.headline" />
             </div>
 
-            <div class="field">
+            <div v-if="usesField('subline')" class="field">
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:align-left" aria-hidden="true" /></span>
                 <span class="field-name">
@@ -811,8 +1042,8 @@ async function toggleFullscreen() {
               <textarea v-model="design.subline" rows="2" maxlength="260" :disabled="!design.visibility.subline" />
             </div>
 
-            <div class="two">
-              <div class="field">
+            <div v-if="usesField('date') || usesField('time')" class="two">
+              <div v-if="usesField('date')" class="field">
                 <div class="label-row">
                   <span class="mobile-only field-icon"><Icon name="lucide:calendar" aria-hidden="true" /></span>
                   <span class="field-name">
@@ -827,7 +1058,7 @@ async function toggleFullscreen() {
                 <input v-model="design.dateText" maxlength="160" placeholder="12 DEC" :disabled="!design.visibility.date">
               </div>
 
-              <div class="field">
+              <div v-if="usesField('time')" class="field">
                 <div class="label-row">
                   <span class="mobile-only field-icon"><Icon name="lucide:clock" aria-hidden="true" /></span>
                   <span class="field-name">
@@ -843,7 +1074,7 @@ async function toggleFullscreen() {
               </div>
             </div>
 
-            <div class="field">
+            <div v-if="usesField('location')" class="field">
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:map-pin" aria-hidden="true" /></span>
                 <span class="field-name">
@@ -858,7 +1089,7 @@ async function toggleFullscreen() {
               <input v-model="design.locationText" maxlength="160" placeholder="Groningen" :disabled="!design.visibility.location">
             </div>
 
-            <div class="field">
+            <div v-if="usesField('cta')" class="field">
               <div class="label-row">
                 <span class="mobile-only field-icon"><Icon name="lucide:megaphone" aria-hidden="true" /></span>
                 <span class="field-name">
@@ -873,7 +1104,7 @@ async function toggleFullscreen() {
               <input v-model="design.ctaText" maxlength="180" placeholder="TOT DAN!" :disabled="!design.visibility.cta">
             </div>
 
-            <div v-if="design.templateKey === 'upcoming-gigs'" class="gig-list-editor">
+            <div v-if="usesField('gigList')" class="gig-list-editor">
               <div class="gig-list-head">
                 <div>
                   <strong>Aankomende gigs</strong>
@@ -908,7 +1139,7 @@ async function toggleFullscreen() {
                 :disabled="design.gigItems.length >= 6"
                 @click="addGigItem"
               >
-                + Add gig
+                + Gig toevoegen
               </button>
             </div>
 
@@ -984,7 +1215,10 @@ async function toggleFullscreen() {
                 </button>
               </div>
             </div>
-            <div class="mobile-only style-group">
+            <p v-if="!template.flexibleText" class="mobile-only style-note">
+              {{ template.label }} centreert de tekst; uitlijning en positie worden bepaald door het template.
+            </p>
+            <div v-if="template.flexibleText" class="mobile-only style-group">
               <span>Uitlijning</span>
               <div class="chip-row segmented">
                 <button
@@ -1000,7 +1234,7 @@ async function toggleFullscreen() {
                 </button>
               </div>
             </div>
-            <div class="mobile-only style-group">
+            <div v-if="template.flexibleText" class="mobile-only style-group">
               <span>Tekstpositie</span>
               <div class="chip-row segmented">
                 <button
@@ -1016,7 +1250,12 @@ async function toggleFullscreen() {
                 </button>
               </div>
             </div>
-            <div class="two text-layout">
+            <p class="mobile-only style-note">
+              {{ template.flexibleText
+                ? 'Fades, kaders en panelen komen uit het template en volgen de sterkte van de overlay.'
+                : 'Campagnetextuur, gloed en penseelaccenten komen uit het template en volgen de sterkte van de overlay.' }}
+            </p>
+            <div v-if="template.flexibleText" class="two text-layout">
               <label>
                 <span>Tekstuitlijning</span>
                 <select v-model="design.textAlign">
@@ -1034,6 +1273,39 @@ async function toggleFullscreen() {
                 </select>
               </label>
             </div>
+          </div>
+        </section>
+
+        <section class="workflow-card">
+          <button
+            class="section-heading"
+            type="button"
+            :aria-expanded="isSectionOpen(5)"
+            @click="toggleSection(5)"
+          >
+            <span class="step-number">5</span>
+            <span class="section-title">
+              <strong>Export</strong>
+              <small>Voorbeeld, exporteren en publiceren</small>
+            </span>
+            <Icon class="chevron" :name="isSectionOpen(5) ? 'lucide:chevron-up' : 'lucide:chevron-down'" aria-hidden="true" />
+          </button>
+
+          <div v-if="isSectionOpen(5)" class="section-body export-actions">
+            <p v-if="exportBlockedReason" class="export-note">{{ exportBlockedReason }}</p>
+            <button class="export-action primary" type="button" :disabled="busy === 'render' || !readyToExport" @click="editor.exportPost()">
+              <Icon name="lucide:download" aria-hidden="true" />{{ busy === 'render' ? 'Exporteren…' : 'Post exporteren' }}
+            </button>
+            <button class="export-action" type="button" :disabled="previewBusy || !selectedAsset" @click="previewOpen = true">
+              <Icon name="lucide:eye" aria-hidden="true" />{{ previewBusy ? 'Renderen…' : 'Voorbeeld zonder hulplijnen' }}
+            </button>
+            <button class="export-action" type="button" :disabled="busy === 'render' || !readyToExport" @click="exportAndPublish">
+              <Icon name="lucide:send" aria-hidden="true" />Exporteren en publiceren
+            </button>
+            <button class="export-action" type="button" aria-haspopup="dialog" @click="exportsOpen = true">
+              <Icon name="lucide:history" aria-hidden="true" />Recente exports
+              <span v-if="editor.posts.value.length" class="export-count">{{ editor.posts.value.length }}</span>
+            </button>
           </div>
         </section>
 
@@ -1063,22 +1335,49 @@ async function toggleFullscreen() {
             </div>
           </div>
 
-          <div ref="previewStageRef" class="preview-stage">
-            <div v-if="selectedAsset" class="canvas-frame" :data-preset="design.preset" :style="canvasFrameStyle">
+          <div ref="previewStageRef" class="preview-stage" @pointerdown.self="selection = 'none'">
+            <div v-if="selectedAsset" class="canvas-frame" :class="{ selected: selection === 'image' }" :data-preset="design.preset" :style="canvasFrameStyle">
               <canvas
                 ref="canvasRef"
                 class="preview-canvas"
-                :class="{ dragging: dragState.active }"
-                title="Sleep de foto om hem te verplaatsen"
+                :class="{ dragging: gesturing }"
+                title="Sleep de foto om hem te verplaatsen, tik op tekst om die te bewerken"
                 @pointerdown="startPreviewDrag"
                 @pointermove="movePreviewDrag"
                 @pointerup="endPreviewDrag"
                 @pointercancel="endPreviewDrag"
                 @lostpointercapture="endPreviewDrag"
               />
-              <span class="drag-hint" :class="{ active: dragState.active }">
+
+              <div class="overlay" aria-hidden="true">
+                <!-- Full photo extent while it is selected, including the part outside the post. -->
+                <div v-if="selection === 'image' && imageOverflows && imageBoxStyle" class="image-extent" :style="imageBoxStyle" />
+                <template v-if="selection === 'text'">
+                  <div v-for="(style, index) in textBoxStyles" :key="index" class="text-box" :style="style" />
+                </template>
+                <template v-if="dragState.active && dragState.moved">
+                  <div class="guide vertical" :class="{ snapped: snapped.x }" />
+                  <div class="guide horizontal" :class="{ snapped: snapped.y }" />
+                </template>
+              </div>
+
+              <template v-if="selection === 'image'">
+                <span
+                  v-for="corner in ['nw', 'ne', 'sw', 'se']"
+                  :key="corner"
+                  class="handle"
+                  :class="corner"
+                  aria-hidden="true"
+                  @pointerdown="startHandle"
+                  @pointermove="moveHandle"
+                  @pointerup="endHandle"
+                  @pointercancel="endHandle"
+                />
+              </template>
+
+              <span class="drag-hint" :class="{ active: gesturing }">
                 <Icon name="lucide:move" aria-hidden="true" />
-                {{ dragState.active ? 'Foto verplaatsen' : 'Sleep de foto om te verplaatsen' }}
+                {{ scaleState.active || pinchState.active ? `Schaal ${Math.round(design.zoom * 100)}%` : gesturing ? 'Foto verplaatsen' : 'Sleep om te verplaatsen · tik op tekst om die te bewerken' }}
               </span>
             </div>
             <div v-else class="no-source">
@@ -1101,14 +1400,27 @@ async function toggleFullscreen() {
         class="mobile-tool-tab"
         :class="{ active: sheetOpen && mobileTool === tab.key }"
         type="button"
-        :aria-expanded="tab.key === 'export' ? undefined : sheetOpen && mobileTool === tab.key"
-        :disabled="tab.key === 'export' && (busy === 'render' || !readyToExport)"
+        :aria-expanded="sheetOpen && mobileTool === tab.key"
         @click="selectMobileTool(tab.key, tab.step)"
       >
         <span class="mobile-tab-icon" aria-hidden="true"><Icon :name="tab.icon" /></span>
-        <span>{{ tab.key === 'export' && busy === 'render' ? 'Bezig…' : tab.label }}</span>
+        <span>{{ tab.label }}</span>
       </button>
     </nav>
+
+    <PostRecentExports v-model:open="exportsOpen" @publish="openPublish($event.id)" @publish-carousel="openPublish(...$event.map(post => post.id))" />
+    <SocialPublishDrawer v-model:open="publishOpen" :images="publishImages" @published="editor.refresh()" />
+    <PostTemplateBrowser v-model:open="templatesOpen" :thumbnails="thumbnails" />
+    <MediaPicker
+      v-model:open="mediaPickerOpen"
+      :model-value="selectedAssetUrl"
+      label="Bronfoto"
+      bare
+      :allow-external="false"
+      upload-tags="post-generator"
+      @selected="asset => editor.selectAsset(asset.id)"
+    />
+    <PostPreviewDialog v-model:open="previewOpen" v-model:busy="previewBusy" @export="editor.exportPost()" />
   </div>
 </template>
 
@@ -1124,6 +1436,11 @@ async function toggleFullscreen() {
 .mobile-editor-header,
 .mobile-tool-tabs {
   display: none;
+}
+
+.mobile-history {
+  display: flex;
+  gap: .3rem;
 }
 
 /* Mobile sheet chrome and mobile-only controls; the desktop layout ignores the
@@ -1821,6 +2138,76 @@ input[type='range'] {
   max-height: 74vh;
 }
 
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.image-extent {
+  position: absolute;
+  border: 1px dashed rgba(201, 165, 255, .85);
+  background: rgba(124, 58, 237, .08);
+}
+
+.text-box {
+  position: absolute;
+  border: 1.5px solid rgba(201, 165, 255, .95);
+  border-radius: .2rem;
+  background: rgba(124, 58, 237, .12);
+}
+
+.guide {
+  position: absolute;
+  background: rgba(255, 255, 255, .4);
+}
+
+.guide.vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.guide.horizontal {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+.guide.snapped {
+  background: #c9a5ff;
+  box-shadow: 0 0 6px rgba(201, 165, 255, .9);
+}
+
+.handle {
+  position: absolute;
+  z-index: 3;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: nwse-resize;
+}
+
+.handle::after {
+  content: '';
+  width: .85rem;
+  height: .85rem;
+  border: 2px solid #c9a5ff;
+  border-radius: 50%;
+  background: #17101f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+}
+
+.handle.nw { top: -1.375rem; left: -1.375rem; }
+.handle.ne { top: -1.375rem; right: -1.375rem; cursor: nesw-resize; }
+.handle.sw { bottom: -1.375rem; left: -1.375rem; cursor: nesw-resize; }
+.handle.se { bottom: -1.375rem; right: -1.375rem; }
+
 .preview-canvas {
   display: block;
   width: auto;
@@ -1953,7 +2340,7 @@ input[type='range'] {
     z-index: 40;
     flex: 0 0 auto;
     display: grid;
-    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto auto;
     align-items: center;
     gap: .55rem;
     min-height: 3.7rem;
@@ -1975,9 +2362,20 @@ input[type='range'] {
   }
 
   .mobile-back-button,
-  .mobile-export-button {
+  .mobile-export-button,
+  .mobile-history-button {
     min-height: 2.75rem;
     border-radius: .78rem;
+  }
+
+  .mobile-history-button {
+    width: 2.75rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-color: #342d3b;
+    background: #151219;
+    font-size: 1.15rem;
   }
 
   .mobile-back-button {
@@ -2003,8 +2401,25 @@ input[type='range'] {
     left: .75rem;
     right: .75rem;
     z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
     margin: 0;
     box-shadow: 0 16px 42px rgba(0, 0, 0, .42);
+  }
+
+  .message-close {
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #a79eae;
   }
 
   /* A standing hint, not a toast: it sits under the header until export is possible. */
@@ -2124,13 +2539,14 @@ input[type='range'] {
     padding-bottom: 1rem;
   }
 
-  /* Sized by the script so the whole post always fits the free space. */
+  /* Sized by the script so the whole post always fits the free space. The
+     frame does not clip, so the photo outline and handles can stick out. */
   .canvas-frame {
     width: 0;
     height: 0;
     max-width: 100%;
     max-height: 100%;
-    overflow: hidden;
+    overflow: visible;
     border-radius: .55rem;
     box-shadow:
       0 0 0 1px rgba(157, 92, 255, .55),
@@ -2142,7 +2558,7 @@ input[type='range'] {
     max-width: none;
     height: 100%;
     max-height: none;
-    border-radius: 0;
+    border-radius: .55rem;
     box-shadow: none;
   }
 
@@ -2279,7 +2695,8 @@ input[type='range'] {
   .controls.mobile-tool-photo .workflow-card:nth-child(1),
   .controls.mobile-tool-template .workflow-card:nth-child(2),
   .controls.mobile-tool-text .workflow-card:nth-child(3),
-  .controls.mobile-tool-style .workflow-card:nth-child(4) {
+  .controls.mobile-tool-style .workflow-card:nth-child(4),
+  .controls.mobile-tool-export .workflow-card:nth-child(5) {
     display: block;
   }
 
@@ -2390,6 +2807,52 @@ input[type='range'] {
     scroll-snap-align: start;
   }
 
+  .media-view {
+    margin-top: .65rem;
+  }
+
+  .filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 2.75rem;
+    color: #c9c0d0;
+    font-size: .78rem;
+    cursor: pointer;
+  }
+
+  .filter-toggle input {
+    width: 1.1rem;
+    height: 1.1rem;
+    min-height: 1.1rem;
+    margin: 0;
+    padding: 0;
+    accent-color: #9d5cff;
+  }
+
+  .empty-note {
+    margin: .75rem 0 0;
+    color: #8f8797;
+    font-size: .78rem;
+  }
+
+  .browse-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: .35rem;
+    padding: 0 .85rem;
+    border-color: #3a3241;
+    background: transparent;
+    color: #c9a5ff;
+    font-size: .8rem;
+    font-weight: 700;
+  }
+
+  .template-chips + .browse-button {
+    margin: 0 0 .65rem;
+  }
+
   .photo-adjust {
     display: grid;
     gap: .55rem;
@@ -2469,6 +2932,45 @@ input[type='range'] {
 
   .template-category {
     display: none;
+  }
+
+  .template-info {
+    display: grid;
+    gap: .5rem;
+    margin-top: .9rem;
+    padding: .8rem;
+    border: 1px solid #2e2834;
+    border-radius: .8rem;
+    background: #0e0c11;
+    color: #bcb2c4;
+    font-size: .78rem;
+  }
+
+  .template-info .subheading-row {
+    margin: 0;
+    color: #f3eef7;
+  }
+
+  .template-info p {
+    margin: 0;
+    color: #8f8797;
+  }
+
+  .template-info dl {
+    display: grid;
+    gap: .45rem;
+    margin: 0;
+  }
+
+  .template-info dt {
+    color: #8f8797;
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .template-info dd {
+    margin: .1rem 0 0;
   }
 
   .template-copy {
@@ -2657,6 +3159,56 @@ input[type='range'] {
     gap: .45rem;
     color: #bcb2c4;
     font-size: .78rem;
+  }
+
+  .style-note {
+    margin: .9rem 0 0;
+    color: #8f8797;
+    font-size: .74rem;
+  }
+
+  /* Export */
+
+  .export-actions {
+    display: grid;
+    gap: .55rem;
+    padding-top: .5rem;
+  }
+
+  .export-note {
+    margin: 0;
+    color: #8f8797;
+    font-size: .78rem;
+  }
+
+  .export-action {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 0 1rem;
+    border-color: #3a3241;
+    border-radius: .8rem;
+    background: #151219;
+    font-size: .88rem;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .export-action.primary {
+    border-color: var(--button-primary-bg);
+    background: var(--button-primary-bg);
+    color: var(--button-primary-fg);
+  }
+
+  .export-count {
+    margin-left: auto;
+    min-width: 1.4rem;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    background: #221d29;
+    color: #b8afc2;
+    font-size: .7rem;
+    text-align: center;
   }
 
   .form-stack > .style-group,

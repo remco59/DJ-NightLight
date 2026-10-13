@@ -214,17 +214,6 @@ useSeoMeta({ title: 'Video-editor — DJ NightLight', robots: 'noindex, nofollow
         <h1>Videoprojecten</h1>
         <p class="subtitle">Reels, Stories en terugblikken op een timeline, met NightLight motion graphics.</p>
       </div>
-
-      <nav class="mode-switch" aria-label="Generator kiezen">
-        <NuxtLink to="/admin/post-generator" class="mode-option">
-          <Icon name="lucide:image" aria-hidden="true" />
-          Afbeeldingen
-        </NuxtLink>
-        <span class="mode-option active" aria-current="page">
-          <Icon name="lucide:video" aria-hidden="true" />
-          Video
-        </span>
-      </nav>
     </header>
 
     <section class="toolbar" aria-label="Videoprojecten filteren">
@@ -490,32 +479,6 @@ h1 {
 
 h2 {
   margin: 0;
-}
-
-.mode-switch {
-  display: inline-flex;
-  padding: .25rem;
-  border: 1px solid #332d3b;
-  border-radius: .8rem;
-  background: #121016;
-}
-
-.mode-option {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .65rem 1rem;
-  border-radius: .6rem;
-  color: #aaa2b2;
-  text-decoration: none;
-  font-size: .9rem;
-  font-weight: 700;
-}
-
-.mode-option.active {
-  background: linear-gradient(135deg, #6d28d9, #7c3aed);
-  color: #fff;
-  box-shadow: 0 6px 24px rgba(124, 58, 237, .2);
 }
 
 .toolbar {
@@ -1235,15 +1198,6 @@ button:disabled {
 @media (max-width: 680px) {
   .header {
     align-items: stretch;
-  }
-
-  .mode-switch {
-    width: 100%;
-  }
-
-  .mode-option {
-    flex: 1;
-    justify-content: center;
   }
 
   .toolbar {
