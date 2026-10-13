@@ -69,6 +69,41 @@ type EmailPresentation = {
 }
 
 const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
+  // Notifications to the owner, not to a client.
+  owner_new_inquiry: {
+    eyebrow: 'Nieuwe aanvraag',
+    title: 'Er is een nieuwe aanvraag',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Open de aanvraag',
+    details: [
+      { label: 'Naam', variable: 'clientName' },
+      { label: 'Soort feest', variable: 'eventType' },
+      { label: 'Datum', variable: 'eventDate' },
+      { label: 'Locatie', variable: 'location' },
+      { label: 'Contact', variable: 'contact' },
+    ],
+  },
+  owner_invoice_paid: {
+    eyebrow: 'Betaling',
+    title: 'Een factuur is betaald',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Open de factuur',
+    details: [
+      { label: 'Factuurnummer', variable: 'invoiceNumber' },
+      { label: 'Bedrag', variable: 'amount' },
+    ],
+  },
+  owner_portal_submitted: {
+    eyebrow: 'Klantportaal',
+    title: 'Een klant heeft het portaal ingevuld',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Open de gig',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Ingediend door', variable: 'acceptedName' },
+      { label: 'Muziekwensen', variable: 'wishCount' },
+    ],
+  },
   lead_acknowledgement: {
     eyebrow: 'Aanvraag',
     title: 'Bedankt voor je aanvraag',

@@ -3,6 +3,7 @@ import { inquiryInputSchema } from '../../../shared/schemas/inquiry'
 import { recordAudit } from '../../utils/audit'
 import { db } from '../../utils/db'
 import { queueGigEmail } from '../../utils/email-automation'
+import { queueOwnerNotification } from '../../utils/owner-notifications'
 import { assertRateLimit } from '../../utils/rate-limit'
 
 export default defineEventHandler(async (event) => {
@@ -63,6 +64,16 @@ export default defineEventHandler(async (event) => {
   })
 
   await queueGigEmail('lead_acknowledgement', result.gig.id, `lead-acknowledgement:${result.gig.id}`)
+  await queueOwnerNotification('new_inquiry', result.gig.id, {
+    gigId: result.gig.id,
+    name: input.name,
+    company: input.company,
+    eventType: input.eventType,
+    eventDate: input.eventDate,
+    location: input.location,
+    email: input.email,
+    phone: input.phone,
+  })
 
   event.node.res.statusCode = 201
   return { ok: true }

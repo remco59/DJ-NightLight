@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ownerNotificationKinds, ownerNotificationLabels, type OwnerNotificationKind } from '~~/shared/owner-notifications'
 import { apiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({ layout: 'admin' })
@@ -21,6 +22,8 @@ type Settings = {
   defaultPaymentTermDays:number
   paymentTerms:string
   legalText:string
+  ownerNotificationEmail:string
+  ownerNotificationKinds:OwnerNotificationKind[]
 }
 
 type RenderStatus = {
@@ -39,7 +42,7 @@ type StripeStatus = {
 }
 
 type SettingsTab = 'general'|'rendering'|'integrations'|'system'
-type GeneralPanel = 'overview'|'company'|'invoice'|'security'
+type GeneralPanel = 'overview'|'company'|'invoice'|'notifications'|'security'
 
 const {data,refresh}=await useFetch<{settings:Settings}>('/api/admin/business-settings')
 if(!data.value)throw createError({statusCode:500,statusMessage:'Bedrijfsinstellingen niet beschikbaar'})
@@ -53,7 +56,7 @@ const [{data:renderStatus},{data:integrationStatus},{data:stripeStatus}] = await
 const form=reactive({...data.value.settings})
 const saving=ref('')
 const message=ref('')
-const messageSection=ref<'company'|'invoice'|''>('')
+const messageSection=ref<'company'|'invoice'|'notifications'|''>('')
 const passwordOpen=ref(false)
 const passwordForm=reactive({currentPassword:'',newPassword:'',confirmPassword:''})
 const passwordSaving=ref(false)
@@ -95,18 +98,40 @@ function setVatRate(event:Event){
   form.defaultVatRateBasisPoints=Math.round(Number((event.target as HTMLInputElement).value)*100)
 }
 
-async function save(section:'company'|'invoice'){
+async function save(section:'company'|'invoice'|'notifications'){
   saving.value=section
   message.value=''
   messageSection.value=section
   try{
     await $fetch('/api/admin/business-settings',{method:'PUT',body:form})
     await refresh()
-    message.value=section==='company'?'Bedrijfsgegevens opgeslagen.':'Factuurinstellingen opgeslagen.'
+    message.value=section==='company'?'Bedrijfsgegevens opgeslagen.':section==='notifications'?'Meldingen opgeslagen.':'Factuurinstellingen opgeslagen.'
   }catch(error:unknown){
     message.value=apiErrorMessage(error,'Instellingen opslaan is niet gelukt.')
   }finally{
     saving.value=''
+  }
+}
+
+const testSending=ref(false)
+const testMessage=ref('')
+const testFailed=ref(false)
+const notificationsSummary=computed(()=>form.ownerNotificationEmail?`${form.ownerNotificationKinds.length} van ${ownerNotificationKinds.length} aan`:'Uit')
+function toggleNotification(kind:OwnerNotificationKind,on:boolean){
+  form.ownerNotificationKinds=on?[...new Set([...form.ownerNotificationKinds,kind])]:form.ownerNotificationKinds.filter(item=>item!==kind)
+}
+async function sendTestNotification(){
+  testSending.value=true
+  testMessage.value=''
+  testFailed.value=false
+  try{
+    const result=await $fetch<{recipient:string}>('/api/admin/business-settings/test-notification',{method:'POST',body:{kind:form.ownerNotificationKinds[0]||'new_inquiry'}})
+    testMessage.value=`Testmelding verstuurd naar ${result.recipient}.`
+  }catch(error:unknown){
+    testFailed.value=true
+    testMessage.value=apiErrorMessage(error,'Testmelding versturen is niet gelukt.')
+  }finally{
+    testSending.value=false
   }
 }
 
@@ -183,6 +208,11 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
             <div><h2>Facturatie</h2><p>Factuurnummering, betaaltermijnen en standaardteksten.</p><dl><div><dt>Volgend nummer</dt><dd>{{nextInvoiceLabel}}</dd></div><div><dt>Betaaltermijn</dt><dd>{{form.defaultPaymentTermDays}} dagen</dd></div><div><dt>Standaard btw</dt><dd>{{form.defaultVatRateBasisPoints/100}}%</dd></div></dl></div>
             <Icon class="card-arrow" name="lucide:chevron-right"/>
           </button>
+          <button class="overview-card" @click="generalPanel='notifications'">
+            <span class="section-icon"><Icon name="lucide:bell"/></span>
+            <div><h2>Meldingen</h2><p>Een e-mail bij een nieuwe aanvraag, betaling of ingevuld klantportaal.</p><dl><div><dt>Naar</dt><dd>{{form.ownerNotificationEmail||'Niet ingesteld'}}</dd></div><div><dt>Status</dt><dd>{{notificationsSummary}}</dd></div></dl></div>
+            <Icon class="card-arrow" name="lucide:chevron-right"/>
+          </button>
           <button class="overview-card" @click="generalPanel='security'">
             <span class="section-icon"><Icon name="lucide:lock-keyhole"/></span>
             <div><h2>Account & beveiliging</h2><p>Wijzig je wachtwoord en houd je account veilig.</p><span class="manage-link">Beheren <Icon name="lucide:arrow-right"/></span></div>
@@ -231,6 +261,26 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
           <div class="card-actions"><span v-if="messageSection==='invoice'">{{message}}</span><button :disabled="saving==='invoice'">{{saving==='invoice'?'Opslaan…':'Wijzigingen opslaan'}}</button></div>
         </form>
 
+        <form v-if="generalPanel==='notifications'" class="card detail-card" @submit.prevent="save('notifications')">
+          <div class="detail-heading"><span class="section-icon"><Icon name="lucide:bell"/></span><div><h2>Meldingen</h2><p>Laat je per e-mail weten wanneer er iets gebeurt, zodat je niet steeds het dashboard hoeft te openen.</p></div></div>
+          <div class="grid">
+            <label class="wide">E-mailadres voor meldingen<input v-model="form.ownerNotificationEmail" type="email" autocomplete="email" placeholder="jij@example.com"><small>Laat leeg om geen meldingen te ontvangen.</small></label>
+          </div>
+          <fieldset class="notification-kinds" :disabled="!form.ownerNotificationEmail">
+            <legend>Waarover wil je een melding?</legend>
+            <label v-for="kind in ownerNotificationKinds" :key="kind" class="notification-kind">
+              <input type="checkbox" :checked="form.ownerNotificationKinds.includes(kind)" @change="toggleNotification(kind,($event.target as HTMLInputElement).checked)">
+              <span><strong>{{ownerNotificationLabels[kind].label}}</strong><small>{{ownerNotificationLabels[kind].description}}</small></span>
+            </label>
+          </fieldset>
+          <div class="card-actions">
+            <span v-if="messageSection==='notifications'&&message">{{message}}</span>
+            <span v-else-if="testMessage" :class="{error:testFailed}" role="status">{{testMessage}}</span>
+            <button type="button" class="outline" :disabled="testSending||!data?.settings.ownerNotificationEmail||form.ownerNotificationEmail!==data?.settings.ownerNotificationEmail" @click="sendTestNotification">{{testSending?'Versturen…':'Testmelding versturen'}}</button>
+            <button :disabled="saving==='notifications'">{{saving==='notifications'?'Opslaan…':'Wijzigingen opslaan'}}</button>
+          </div>
+        </form>
+
         <section v-if="generalPanel==='security'" class="card detail-card security-card">
           <div class="detail-heading"><span class="section-icon"><Icon name="lucide:lock-keyhole"/></span><div><h2>Account & beveiliging</h2><p>Wijzig je wachtwoord om je account veilig te houden.</p></div></div>
           <button v-if="!passwordOpen" class="outline" type="button" @click="passwordOpen=true">Wachtwoord wijzigen <Icon name="lucide:arrow-right"/></button>
@@ -271,6 +321,7 @@ useSeoMeta({title:'Instellingen — DJ NightLight',robots:'noindex, nofollow'})
 </template>
 
 <style scoped>
+.notification-kinds{display:grid;gap:.4rem;margin:1.1rem 0 0;padding:0;border:0}.notification-kinds legend{margin-bottom:.4rem;padding:0;font-weight:700}.notification-kinds:disabled{opacity:.5}.notification-kind{display:flex;align-items:flex-start;gap:.7rem;padding:.65rem .75rem;border:1px solid var(--border);border-radius:.7rem;cursor:pointer}.notification-kind input{width:auto;margin-top:.2rem}.notification-kind span{display:grid;gap:.1rem}.notification-kind small{color:var(--text-muted)}
 .settings{max-width:1180px;margin-inline:auto;padding-bottom:4rem}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1rem}.page-head h1{margin:.15rem 0;font-size:clamp(2.8rem,6vw,4.5rem);letter-spacing:-.045em}.page-head>div>p:last-child{margin:.2rem 0;color:var(--text-subtle)}
 .settings-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.settings-tabs button{display:flex;align-items:center;gap:.45rem;min-height:2.65rem;padding:.68rem 1rem;border:1px solid var(--border-strong);border-radius:.72rem;background:#0d0b10;color:#cfc6d6;font-size:.8rem;font-weight:760;cursor:pointer}.settings-tabs button.active{border-color:#6f42c1;background:linear-gradient(135deg,#5526aa,#6f35df);color:#fff;box-shadow:0 8px 26px rgba(84,38,170,.18)}

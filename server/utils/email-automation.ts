@@ -30,6 +30,7 @@ import { gigTitleSql } from './gig-title'
 import { getInvoiceDetail } from './invoice-data'
 import { buildInvoicePdf } from './invoice-pdf'
 import { getMediaStorage } from './media-storage'
+import { consumeOwnerNotifications } from './owner-notifications'
 import { createReviewPortalUrl } from './review-link'
 
 function clientName(input: { firstName: string | null, lastName: string | null, companyName: string | null }) {
@@ -393,7 +394,7 @@ export async function consumeEmailOutbox(limit = 20) {
     await queueInvoiceEmail('payment_received', invoiceId, `payment-received:${invoiceId}`)
     await db.update(outboxEvents).set({ processedAt: new Date() }).where(eq(outboxEvents.id, event.id))
   }
-  return events.length
+  return events.length + await consumeOwnerNotifications(limit)
 }
 
 function withinSchedulingWindow(runAt: Date) {

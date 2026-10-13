@@ -5,6 +5,7 @@ import { musicWishSchema, validateQuestionnaireAnswers } from '../../../../../sh
 import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { getPortalForm } from '../../../../utils/portal-form'
+import { queueOwnerNotification } from '../../../../utils/owner-notifications'
 import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
 import { z } from 'zod'
@@ -68,5 +69,11 @@ export default defineEventHandler(async (event) => {
     })
     return saved
   })
+  await queueOwnerNotification('portal_submitted', access.gigId, {
+    gigId: access.gigId,
+    gigTitle: access.title,
+    acceptedName: parsed.data.acceptedName,
+    wishCount: parsed.data.wishes.length,
+  }, `${submission.id}:${now.getTime()}`)
   return { ok: true, submittedAt: submission.submittedAt }
 })
