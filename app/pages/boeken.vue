@@ -17,6 +17,19 @@ const DRAFT_KEY='nightlight-booking-draft'
 onMounted(()=>{try{const saved=sessionStorage.getItem(DRAFT_KEY);if(saved)Object.assign(form,{...JSON.parse(saved),website:''})}catch{/* storage unavailable */}})
 watch(form,(value)=>{if(sent.value)return;try{const {website:_website,...draft}=value;sessionStorage.setItem(DRAFT_KEY,JSON.stringify(draft))}catch{/* storage unavailable */}},{deep:true})
 
+// Tell the visitor right away whether the chosen date is still free. A failed check just shows nothing.
+const availability=ref<'free'|'taken'|''>('')
+let availabilityRequest=0
+watch(()=>form.eventDate,async(date)=>{
+  const request=++availabilityRequest
+  availability.value=''
+  if(!date)return
+  try{
+    const result=await $fetch<{available:boolean}>('/api/public/availability',{query:{date}})
+    if(request===availabilityRequest)availability.value=result.available?'free':'taken'
+  }catch{/* the check is a hint, never required */}
+})
+
 function errorFor(field:InquiryField){return fieldErrors.value[field]}
 function describedBy(field:InquiryField){return errorFor(field)?`${field}-error`:undefined}
 function clearError(field:InquiryField){if(fieldErrors.value[field])fieldErrors.value=Object.fromEntries(Object.entries(fieldErrors.value).filter(([key])=>key!==field))}
@@ -84,6 +97,10 @@ useSeoMeta({title:()=>`Boeken — ${content.value?.brandName||'DJ NightLight'}`,
               <span class="label-text">{{content.publicCopy.booking.dateLabel}}</span>
               <input v-model="form.eventDate" type="date" :min="today" :aria-invalid="Boolean(errorFor('eventDate'))" :aria-describedby="describedBy('eventDate')" @input="clearError('eventDate')">
               <small v-if="errorFor('eventDate')" id="eventDate-error" class="field-error">{{errorFor('eventDate')}}</small>
+              <small class="availability" :data-state="availability||undefined" role="status">
+                <template v-if="availability==='free'">Die dag ben ik nog vrij.</template>
+                <template v-else-if="availability==='taken'">Die dag ben ik al geboekt. Vraag gerust toch aan, soms is er een oplossing.</template>
+              </small>
             </label>
             <label>
               <span class="label-text">{{content.publicCopy.booking.locationLabel}}</span>
@@ -137,7 +154,7 @@ useSeoMeta({title:()=>`Boeken — ${content.value?.brandName||'DJ NightLight'}`,
 </template>
 
 <style scoped>
-.booking-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(2rem,7vw,7rem);align-items:start}.display-title{font-size:clamp(3rem,7vw,6rem)}.direct{display:grid;gap:.4rem;margin-top:2rem}.direct a{display:inline-flex;align-items:center;gap:.5rem;width:max-content;min-height:2.75rem;color:#b8b2bd}.form-wrap{padding:1.4rem;border:1px solid #29252e;border-radius:1rem;background:#0e0c11}.form-intro{margin:0 0 1.2rem;color:var(--text-muted);font-size:.9rem;line-height:1.55}.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem .8rem;min-width:0;margin:0 0 1.4rem;padding:0;border:0}.fields legend{grid-column:1/-1;margin-bottom:.9rem;padding:0;color:var(--text);font-size:1.05rem;font-weight:800}.event-type{display:grid;gap:.45rem}.event-type-options{display:flex;flex-wrap:wrap;gap:.4rem}.event-type-options button{min-height:2.75rem;border:1px solid #34303a;border-radius:999px;padding:.45rem .9rem;background:transparent;color:#d8d2dc;font-size:.88rem;cursor:pointer}.event-type-options button[aria-pressed="true"]{border-color:var(--electric-accent);background:rgba(157,92,255,.16);color:#fff}.submit-row{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}.submit-row span{color:var(--text-muted);font-size:.85rem}.wide{grid-column:1/-1}label{display:grid;grid-template-rows:auto auto;align-content:start;gap:.35rem;color:#b3adb9;font-size:.8rem}.label-text em{margin-left:.35rem;color:var(--text-subtle);font-style:normal}input,textarea{width:100%;min-height:2.85rem;scroll-margin-top:7rem;border:1px solid #34303a;border-radius:.65rem;padding:.78rem;background:#08070a;color:var(--text)}input::placeholder,textarea::placeholder{color:var(--text-subtle)}input[aria-invalid="true"],textarea[aria-invalid="true"]{border-color:#c4566a}.field-error{color:#ffb3bf;font-size:.78rem;line-height:1.4}.honey{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}.public-button{border:0;cursor:pointer}.public-button:disabled{opacity:.55}.error{color:#ffb3bf}.success{display:grid;min-height:25rem;align-content:center;gap:.7rem}.success span{color:var(--text-subtle);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}.success strong{font-size:2rem;line-height:1.05;outline:none}.success p{color:#a39daa;line-height:1.6}.success-direct a{color:#e6defc}@media(max-width:800px){.booking-grid,.fields{grid-template-columns:1fr}.wide{grid-column:auto}}
+.booking-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(2rem,7vw,7rem);align-items:start}.display-title{font-size:clamp(3rem,7vw,6rem)}.direct{display:grid;gap:.4rem;margin-top:2rem}.direct a{display:inline-flex;align-items:center;gap:.5rem;width:max-content;min-height:2.75rem;color:#b8b2bd}.form-wrap{padding:1.4rem;border:1px solid #29252e;border-radius:1rem;background:#0e0c11}.form-intro{margin:0 0 1.2rem;color:var(--text-muted);font-size:.9rem;line-height:1.55}.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem .8rem;min-width:0;margin:0 0 1.4rem;padding:0;border:0}.fields legend{grid-column:1/-1;margin-bottom:.9rem;padding:0;color:var(--text);font-size:1.05rem;font-weight:800}.event-type{display:grid;gap:.45rem}.event-type-options{display:flex;flex-wrap:wrap;gap:.4rem}.event-type-options button{min-height:2.75rem;border:1px solid #34303a;border-radius:999px;padding:.45rem .9rem;background:transparent;color:#d8d2dc;font-size:.88rem;cursor:pointer}.event-type-options button[aria-pressed="true"]{border-color:var(--electric-accent);background:rgba(157,92,255,.16);color:#fff}.submit-row{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}.submit-row span{color:var(--text-muted);font-size:.85rem}.wide{grid-column:1/-1}label{display:grid;grid-template-rows:auto auto;align-content:start;gap:.35rem;color:#b3adb9;font-size:.8rem}.label-text em{margin-left:.35rem;color:var(--text-subtle);font-style:normal}input,textarea{width:100%;min-height:2.85rem;scroll-margin-top:7rem;border:1px solid #34303a;border-radius:.65rem;padding:.78rem;background:#08070a;color:var(--text)}input::placeholder,textarea::placeholder{color:var(--text-subtle)}input[aria-invalid="true"],textarea[aria-invalid="true"]{border-color:#c4566a}.availability{min-height:0;font-size:.8rem;line-height:1.4}.availability[data-state="free"]{color:#8fe0a8}.availability[data-state="taken"]{color:#f5c26b}.field-error{color:#ffb3bf;font-size:.78rem;line-height:1.4}.honey{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}.public-button{border:0;cursor:pointer}.public-button:disabled{opacity:.55}.error{color:#ffb3bf}.success{display:grid;min-height:25rem;align-content:center;gap:.7rem}.success span{color:var(--text-subtle);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}.success strong{font-size:2rem;line-height:1.05;outline:none}.success p{color:#a39daa;line-height:1.6}.success-direct a{color:#e6defc}@media(max-width:800px){.booking-grid,.fields{grid-template-columns:1fr}.wide{grid-column:auto}}
 /* Motion: acknowledge input and outcomes without delaying the form. */
 @keyframes form-settle{from{opacity:0;transform:translateY(.5rem)}to{opacity:1;transform:none}}
 .field-error{animation:form-settle .24s cubic-bezier(.16,1,.3,1) both}

@@ -2732,6 +2732,29 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/conflicts:
+    get:
+      operationId: getAdminGigsConflicts
+      tags:
+        - admin/gigs
+      description: Leads and booked gigs that overlap the given times, so the gig form can warn about a double booking.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+        - dj
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/admin/integrations:
     get:
       operationId: getAdminIntegrations
@@ -6983,6 +7006,22 @@ paths:
             application/json:
               schema:
                 type: object
+  /api/public/availability:
+    get:
+      operationId: getPublicAvailability
+      tags:
+        - public
+      description: Whether the DJ is still free on a date. Only a yes/no is returned, never what is planned. Confirmed bookings count; open leads do not.
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /api/public/content:
     get:
       operationId: getPublicContent

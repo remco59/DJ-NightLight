@@ -45,6 +45,8 @@ const form=reactive({
   publicVisibility:false,publicTitle:'',publicDescription:'',internalNotes:''
 })
 
+// Warns, without blocking, when the new gig overlaps another one.
+const {conflicts}=useGigConflicts(()=>({startsAt:iso(form.startsAt),endsAt:gigEndFromDuration(form.startsAt,form.durationHours)?.toISOString()||null,loadInAt:iso(form.loadInAt)}))
 const clientSearch=ref('')
 const venueSearch=ref('')
 const clientPickerOpen=ref(false)
@@ -483,6 +485,7 @@ useSeoMeta({title:'Gigs — DJ NightLight',robots:'noindex, nofollow'})
                 <label>Duur (uren)<input v-model="form.durationHours" type="number" min="0.25" step="0.25" inputmode="decimal" placeholder="4"></label>
                 <label>Opbouw<input v-model="form.loadInAt" type="datetime-local"></label>
               </div>
+              <AdminGigConflictWarning :conflicts="conflicts" />
             </section>
 
             <section class="form-section">

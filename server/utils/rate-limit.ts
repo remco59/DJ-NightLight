@@ -14,6 +14,8 @@ export const RATE_LIMITS = {
   bootstrap: { limit: 5, windowMs: 15 * 60 * 1000, message: 'Te veel verzoeken. Probeer het later opnieuw.' },
   // Public contact form
   public: { limit: 5, windowMs: 60 * 60 * 1000, message: 'Te veel verzoeken. Probeer het later opnieuw.' },
+  // Public availability check on the booking form (one request per chosen date)
+  availability: { limit: 60, windowMs: 10 * 60 * 1000, message: 'Te veel verzoeken. Probeer het later opnieuw.' },
   // Client portal (magic-link URLs)
   portal: { limit: 60, windowMs: 10 * 60 * 1000, message: 'Te veel verzoeken aan het portaal. Probeer het later opnieuw.' },
   // Baseline per client and API area for public, portal and auth routes
