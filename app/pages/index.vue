@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reviewStars } from '~~/shared/reviews'
 import { businessJsonLd, jsonLdScript } from '~~/shared/seo'
 import { responsiveImage } from '~~/shared/responsive-image'
 import { dutchDayOfMonth, dutchMonthShort, dutchShortDate, dutchTimeRange } from '~~/shared/dutch-date'
@@ -97,6 +98,10 @@ const serviceVisuals = computed(() => {
 })
 
 const heroImage = computed(() => responsiveImage(heroVisual.value.url, 1920))
+
+// Reviews the owner approved, for clients who allowed it. The section stays out when there are none.
+const { data: reviewData } = await useFetch<{ reviews: Array<{ rating: number, comment: string, author: string, createdAt: string }> }>('/api/public/reviews', { key: 'public-reviews' })
+const reviewMonth = new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric', timeZone: 'Europe/Amsterdam' })
 
 const showMediaLink = computed(() => Boolean(content.value?.gallery.some(image => image.url) || content.value?.showreelUrl))
 
@@ -236,6 +241,18 @@ useSeoMeta({
       </div>
     </section>
 
+    <section v-if="reviewData?.reviews.length" class="client-reviews public-container" aria-labelledby="client-reviews-title">
+      <p class="eyebrow">Reviews</p>
+      <h2 id="client-reviews-title">Wat klanten zeggen.</h2>
+      <ul class="client-review-list">
+        <li v-for="review in reviewData.reviews" :key="`${review.createdAt}-${review.author}`" class="client-review">
+          <span class="client-review-stars" role="img" :aria-label="`${review.rating} van 5 sterren`">{{ reviewStars(review.rating) }}</span>
+          <blockquote>“{{ review.comment }}”</blockquote>
+          <p class="client-review-meta"><strong>{{ review.author }}</strong> · <time :datetime="review.createdAt">{{ reviewMonth.format(new Date(review.createdAt)) }}</time></p>
+        </li>
+      </ul>
+    </section>
+
     <section class="proof-shell">
       <div class="proof public-container">
         <p class="eyebrow">{{ content.publicCopy.home.proofEyebrow }}</p>
@@ -264,6 +281,7 @@ useSeoMeta({
 </template>
 
 <style scoped>
+.client-reviews{padding:3rem 0 7rem}.client-reviews h2{margin:.65rem 0 2rem;font-size:clamp(2rem,3.4vw,3.4rem);line-height:1;letter-spacing:-.04em}.client-review-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:1rem;margin:0;padding:0;list-style:none}.client-review{display:grid;align-content:start;gap:.9rem;padding:1.5rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.client-review-stars{color:var(--electric-soft);font-size:1.05rem;letter-spacing:.18em}.client-review blockquote{margin:0;color:#e4dfe9;font-size:1.05rem;line-height:1.6}.client-review-meta{margin:0;color:var(--text-subtle);font-size:.85rem}.client-review-meta strong{color:var(--text)}@media(max-width:700px){.client-reviews{padding:2rem 0 4.5rem}}
 .hero{position:relative;min-height:96svh;display:grid;align-items:end;padding:8rem 0 4.5rem;overflow:hidden;background:#08080b}.hero-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 42%}.hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,7,9,.96) 0%,rgba(7,7,9,.74) 42%,rgba(7,7,9,.22) 76%,rgba(7,7,9,.48) 100%),linear-gradient(0deg,rgba(7,7,9,.88),transparent 45%)}.hero::before{content:"";position:absolute;z-index:1;inset:0;background:radial-gradient(circle at 78% 36%,rgba(120,72,255,.2),transparent 36%);pointer-events:none}.hero-noise{position:absolute;inset:0;opacity:.12;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E")}.hero-electric{position:absolute;z-index:1;top:4.3rem;left:-3rem;width:min(30rem,45vw);height:9rem;background:url("/brand/web/wordmark-arcs-960.webp") left center/contain no-repeat;opacity:.13;filter:drop-shadow(0 0 1.2rem rgba(157,92,255,.3));pointer-events:none}.hero-inner{position:relative;z-index:1;padding-bottom:clamp(1rem,4vh,4rem)}.hero h1{max-width:11ch;margin:.45rem 0 1.25rem;font-size:clamp(3.6rem,9vw,8rem);line-height:.86;letter-spacing:-.04em;text-wrap:balance}.hero-copy{max-width:40rem;margin:0;color:#c1bbc6;font-size:clamp(1rem,1.45vw,1.2rem);line-height:1.58;text-shadow:0 1px 1.5rem rgba(0,0,0,.75)}.hero-actions{display:flex;gap:.65rem;margin-top:2rem}.hero-caption{position:absolute;z-index:1;right:clamp(1rem,4vw,3.5rem);bottom:4.8rem;margin:0;max-width:16rem;color:var(--text-subtle);font-size:.72rem;line-height:1.5;text-align:right;text-transform:uppercase;letter-spacing:.12em}.scroll-cue{position:absolute;z-index:1;right:clamp(1rem,4vw,3.5rem);bottom:2rem;color:var(--text-subtle);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase}
 
 .visual-beat{position:relative;padding:5.5rem 0 2rem}.visual-beat::before{content:"";position:absolute;top:3.35rem;right:0;width:min(8rem,22vw);height:1px;background:linear-gradient(90deg,transparent,var(--electric-accent));box-shadow:0 0 .65rem rgba(157,92,255,.28)}.visual-heading{display:flex;justify-content:flex-end;margin-bottom:1.4rem}.visual-heading>p{max-width:31rem;margin:0;color:var(--text-subtle);font-size:.94rem;line-height:1.55}.visual-beat figure{position:relative;width:100%;margin:0;overflow:hidden;background:#111014}.visual-beat img{display:block;width:100%;height:min(68vh,52rem);object-fit:cover;filter:saturate(.9) contrast(1.04)}.visual-beat figure::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,7,9,.75),transparent 52%)}.visual-beat figcaption{position:absolute;z-index:1;left:max(clamp(1.2rem,4vw,4rem),calc((100vw - 1400px)/2));right:max(clamp(1.2rem,4vw,4rem),calc((100vw - 1400px)/2));bottom:clamp(1.5rem,4vw,3.5rem);display:flex;align-items:end;justify-content:space-between;gap:1rem}.visual-beat figcaption span{font-family:var(--font-meta);font-variant-numeric:tabular-nums;letter-spacing:.05em;font-size:.7rem;color:#aaa3af}.visual-beat figcaption strong{max-width:22ch;font-size:clamp(1.3rem,2.5vw,2.35rem);line-height:1.03;letter-spacing:-.04em;text-align:right}

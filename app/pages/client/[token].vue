@@ -52,6 +52,7 @@ const reviewRating = ref(0)
 const reviewHover = ref(0)
 const reviewComment = ref('')
 const reviewName = ref('')
+const reviewConsent = ref(false)
 const reviewBusy = ref(false)
 const reviewMessage = ref('')
 
@@ -145,6 +146,7 @@ async function submitReview() {
       rating: reviewRating.value,
       comment: reviewComment.value,
       authorName: reviewName.value,
+      publicConsent: reviewConsent.value,
     } })
     await refresh()
   } catch (reviewError: unknown) {
@@ -254,6 +256,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
           <label>Jouw ervaring (optioneel)<textarea v-model="reviewComment" rows="4" maxlength="2000" /></label>
           <label>Je naam (optioneel)<input v-model="reviewName" maxlength="200" autocomplete="name"></label>
+          <label class="consent"><input v-model="reviewConsent" type="checkbox"><span>Je mag mijn review met mijn voornaam op de website tonen.<small>Dat gebeurt pas nadat NightLight de review heeft gelezen. Laat het weten als je hem later toch weg wilt.</small></span></label>
           <p v-if="reviewMessage" class="message" role="status">{{ reviewMessage }}</p>
           <div class="submit-actions"><button class="primary-action" :disabled="reviewBusy || !reviewRating">{{ reviewBusy ? 'Versturen…' : 'Review versturen' }} <Icon v-if="!reviewBusy" name="lucide:arrow-right" aria-hidden="true" /></button></div>
         </form>
@@ -356,6 +359,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
+.review-card .consent{display:flex;align-items:flex-start;gap:.7rem;font-size:.85rem;font-weight:500}.review-card .consent input{width:auto;min-width:1.15rem;height:1.15rem;margin-top:.15rem}.review-card .consent span{display:grid;gap:.2rem}.review-card .consent small{color:var(--text-subtle);font-size:.76rem;font-weight:400;line-height:1.45}
 .payment-notice{margin:.5rem 0 0;font-size:.9rem;color:var(--text-subtle)}
 .review-card{display:grid;gap:1rem}.review-card h2{margin:.2rem 0;font-size:1.5rem;letter-spacing:-.025em}.review-card form{display:grid;gap:1rem}.review-intro{margin:0;color:var(--text-subtle)}.star-picker{display:flex;gap:.25rem}.star-picker button{border:0;background:none;padding:.2rem;color:#7d7489;font-size:2.2rem;line-height:0;cursor:pointer;transition:color .12s,transform .12s}.star-picker button:hover{transform:scale(1.1)}.star-picker button.on{color:#a66eff}.star-picker button.on svg{fill:currentColor}.review-done{display:flex;align-items:flex-start;gap:.85rem;color:#bdebd1}.review-done>svg{font-size:1.5rem;margin-top:.1rem}.review-done div{display:grid;gap:.4rem}.review-done p{margin:0;color:var(--text-subtle)}.review-stars-static{display:flex;gap:.15rem;color:#4a4352}.review-stars-static .on{color:#a66eff;fill:currentColor}
 

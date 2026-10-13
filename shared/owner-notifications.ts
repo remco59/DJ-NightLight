@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { formatMoney, type EmailVariables } from './email-automation'
 import { absoluteUrl } from './seo'
 
-export const ownerNotificationKinds = ['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup'] as const
+export const ownerNotificationKinds = ['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received'] as const
 export type OwnerNotificationKind = typeof ownerNotificationKinds[number]
 
 export const ownerNotificationLabels: Record<OwnerNotificationKind, { label: string, description: string }> = {
@@ -10,6 +10,7 @@ export const ownerNotificationLabels: Record<OwnerNotificationKind, { label: str
   invoice_paid: { label: 'Factuur betaald', description: 'Een klant betaalt een factuur via Stripe.' },
   portal_submitted: { label: 'Klantportaal ingevuld', description: 'Een klant dient de gegevens en muziekwensen in.' },
   lead_followup: { label: 'Lead opvolgen', description: 'Een aanvraag wacht op een reactie of moet worden opgevolgd.' },
+  review_received: { label: 'Nieuwe review', description: 'Een klant laat een review achter.' },
 }
 
 export function isOwnerNotificationKind(value: unknown): value is OwnerNotificationKind {
@@ -83,6 +84,23 @@ export function ownerNotificationMessage(kind: OwnerNotificationKind, payload: O
     }
   }
 
+  if (kind === 'review_received') {
+    const rating = Math.max(0, Math.min(5, Number(payload.rating) || 0))
+    const title = oneLine(payload.gigTitle) || 'een boeking'
+    const comment = oneLine(payload.comment, 280)
+    return {
+      templateKey: 'owner_review_received',
+      subject: `Nieuwe review: ${rating} ${rating === 1 ? 'ster' : 'sterren'} voor ${title}`,
+      text: `${oneLine(payload.authorName) || 'Een klant'} gaf ${title} ${rating} van 5 sterren.${comment ? ` “${comment}”` : ''}`,
+      variables: {
+        gigTitle: title,
+        rating: `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${rating} van 5)`,
+        publicConsent: payload.publicConsent ? 'Ja, na jouw goedkeuring' : 'Nee',
+        adminUrl: absoluteUrl(siteUrl, '/admin/reviews'),
+      },
+    }
+  }
+
   if (kind === 'lead_followup') {
     const title = oneLine(payload.gigTitle) || 'een aanvraag'
     const received = dutchDate(payload.receivedOn)
@@ -120,6 +138,7 @@ export function ownerNotificationMessage(kind: OwnerNotificationKind, payload: O
 /** Example data for the "testmelding" button. */
 export function ownerNotificationSample(kind: OwnerNotificationKind): OwnerNotificationPayload {
   if (kind === 'new_inquiry') return { gigId: 'voorbeeld', name: 'Voorbeeld Klant', eventType: 'Bruiloft', eventDate: '2027-06-12', location: 'Groningen', email: 'klant@example.com', phone: '06 12345678' }
+  if (kind === 'review_received') return { gigTitle: 'Bruiloft Voorbeeld', authorName: 'Voorbeeld Klant', rating: 5, comment: 'Geweldige avond, de dansvloer stond de hele tijd vol!', publicConsent: 1 }
   if (kind === 'lead_followup') return { gigId: 'voorbeeld', gigTitle: 'Bruiloft — Voorbeeld Klant', state: 'respond', receivedOn: '2027-01-08', eventDate: '2027-06-12' }
   if (kind === 'invoice_paid') return { invoiceId: 'voorbeeld', invoiceNumber: 'NL-2027-001', amountCents: 125000, currency: 'EUR' }
   return { gigId: 'voorbeeld', gigTitle: 'Bruiloft Voorbeeld', acceptedName: 'Voorbeeld Klant', wishCount: 12 }
