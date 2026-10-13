@@ -4,7 +4,7 @@ import { AbsoluteFill, Img, interpolate, random, Sequence, staticFile } from 're
 import type { GraphicItem, ProjectAssetMap } from '../shared/video-project'
 import type { LucideIconName } from '../shared/lucide-icons'
 import { MOTION_ACCENTS, iconProp, listProp, parseGigRow, textProp, type MotionTemplateKey } from '../shared/video-templates'
-import { boltTransitionMid, clipRecapSlot, hypeTitlePerLine } from '../shared/template-sounds'
+import { boltTransitionMid, clipRecapSlot, GLITCH_TITLE_PERIOD, hypeTitlePerLine, neonSignLetterFrame } from '../shared/template-sounds'
 import { safeInsets } from '../shared/template-layout'
 import { stagger } from './animation'
 import { BRAND_LOGOS, type BrandLogo } from './brand-logo'
@@ -1451,6 +1451,355 @@ const NeonOutro: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
   )
 }
 
+// ── Neon title and lower-third family ───────────────────────────────────────
+//
+// Lighter templates for over-footage use: each one stands alone (no logo
+// build) and shares the Electric look through NeonPanel, Kicker and the tube.
+
+/** Anchors a lower third bottom-left, clear of the platform UI on tall canvases. */
+function lowerThirdBox(width: number, height: number): React.CSSProperties {
+  return { position: 'absolute', left: 40, bottom: safeInsets(width, height).bottom - 30, maxWidth: width - 80 }
+}
+
+/** A wipe that lets go of its clip once done, so edge glows are not cut off. */
+function settledWipe(t: number): React.CSSProperties {
+  return t >= 1 ? {} : wipe(t)
+}
+
+/** Display type sized so `length` characters fit in `available` px. */
+function fitSize(available: number, length: number, max: number, ratio = 0.7) {
+  return Math.min(max, available / (ratio * Math.max(6, length)))
+}
+
+/** A horizontal neon tube: it draws from the left, then flickers. */
+const NeonTube: React.FC<{
+  colors: Colors
+  width: number
+  thickness?: number
+  progress: number
+  frame: number
+  seed: string
+  from: number
+}> = ({ colors, width, thickness = 9, progress, frame, seed, from }) => {
+  const on = frame < from ? 1 : Math.max(0.6, flicker(frame, seed, from))
+  return h('div', {
+    style: {
+      width,
+      height: thickness,
+      borderRadius: thickness,
+      background: `linear-gradient(90deg, ${colors.accent}, #ffffff 40%, ${colors.soft} 70%, ${colors.accent})`,
+      boxShadow: `0 0 ${14 * on}px ${colors.glow}, 0 0 ${44 * on}px ${colors.glow}cc, 0 0 ${90 * on}px ${colors.glow}66`,
+      clipPath: `inset(-300% ${(1 - progress) * 100}% -300% 0)`,
+      opacity: 0.55 + on * 0.45,
+    },
+  })
+}
+
+const NeonTubeBar: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const title = textProp(item.templateProps, 'title')
+  const subtitle = textProp(item.templateProps, 'subtitle')
+  const barWidth = Math.min(width - 80, 900)
+  const rise = reveal(frame, 10, 10)
+  const drop = reveal(frame, 14, 10)
+  return h(
+    AbsoluteFill,
+    null,
+    h(
+      'div',
+      { style: { ...lowerThirdBox(width, height), width: barWidth, display: 'flex', flexDirection: 'column', gap: 14 } },
+      title
+        ? h('div', { style: { overflow: 'hidden', padding: '12px 40px 0 0' } },
+            h('div', { style: { ...gradientText(colors, 18), fontSize: fitSize(barWidth - 40, title.length, 104, 0.78), lineHeight: 1, whiteSpace: 'nowrap', transform: `translateY(${(1 - rise) * 90}px) skewX(-8deg)`, opacity: rise } }, title))
+        : null,
+      h(NeonTube, { colors, width: barWidth, progress: reveal(frame, 0, 14), frame, seed: `tube-${item.id}`, from: 14 }),
+      subtitle
+        ? h(Kicker, { colors, style: { opacity: drop, transform: `translateY(${(1 - drop) * -24}px)` } }, subtitle)
+        : null,
+    ),
+  )
+}
+
+const GlassStrip: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const title = textProp(item.templateProps, 'title')
+  const subtitle = textProp(item.templateProps, 'subtitle')
+  const stripIcon = iconOf(item, 'icon')
+  const available = width - 80 - 100 - (stripIcon ? 110 : 0)
+  return h(
+    AbsoluteFill,
+    null,
+    h(
+      'div',
+      { style: { ...lowerThirdBox(width, height), ...settledWipe(reveal(frame, 0, 12)) } },
+      h(
+        NeonPanel,
+        { colors, style: { padding: '24px 56px 24px 44px', ...electricEdge(colors, frame, `glass-${item.id}`, 8), border: `2px solid ${colors.accent}aa` } },
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 28 } },
+          stripIcon
+            ? h('span', { style: { display: 'flex', color: colors.soft, fontSize: 70, filter: `drop-shadow(0 0 14px ${colors.glow})` } }, h(LucideIcon, { name: stripIcon }))
+            : null,
+          h(
+            'div',
+            { style: { minWidth: 0 } },
+            title ? h('div', { style: { ...display, fontStyle: 'normal', fontSize: fitSize(available, title.length, 60), lineHeight: 1.05, whiteSpace: 'nowrap', textShadow: glow(colors, 22) } }, title) : null,
+            subtitle ? h(Kicker, { colors, size: 26, style: { marginTop: 8, opacity: reveal(frame, 8, 10) } }, subtitle) : null,
+          ),
+        ),
+      ),
+    ),
+  )
+}
+
+const SocialHandle: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const label = textProp(item.templateProps, 'label')
+  const handle = textProp(item.templateProps, 'handle')
+  const handleIcon = iconOf(item, 'handleIcon')
+  const pop = reveal(frame, 0, 10)
+  const available = width - 80 - 140 - (handleIcon ? 120 : 0)
+  return h(
+    AbsoluteFill,
+    null,
+    h(
+      'div',
+      { style: { position: 'absolute', left: 0, right: 0, bottom: safeInsets(width, height).bottom - 30, display: 'flex', justifyContent: 'center' } },
+      h(
+        'div',
+        { style: slam(pop, 1.3) },
+        h(
+          NeonPanel,
+          { colors, skew: 0, style: { display: 'flex', alignItems: 'center', gap: 28, padding: '20px 56px 20px 24px', borderRadius: 999, ...electricEdge(colors, frame, `handle-${item.id}`, 8) } },
+          handleIcon
+            ? h('span', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999, fontSize: 46, background: `linear-gradient(135deg, ${colors.glow}, ${colors.accent})`, boxShadow: `0 0 28px ${colors.glow}` } }, h(LucideIcon, { name: handleIcon }))
+            : null,
+          h(
+            'div',
+            { style: { minWidth: 0 } },
+            label ? h(Kicker, { colors, size: 22 }, label) : null,
+            handle ? h('div', { style: { ...display, fontStyle: 'normal', textTransform: 'none', fontSize: fitSize(available, handle.length, 58, 0.6), lineHeight: 1.05, whiteSpace: 'nowrap', textShadow: glow(colors, 20) } }, handle) : null,
+          ),
+        ),
+      ),
+    ),
+  )
+}
+
+const BookingCta: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const props = item.templateProps
+  const headline = textProp(props, 'headline')
+  const contact = textProp(props, 'contact')
+  const contactIcon = iconOf(item, 'contactIcon')
+  const cta = textProp(props, 'cta')
+  return h(
+    AbsoluteFill,
+    { style: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: safeInsets(width, height).bottom - 30 } },
+    // Keeps white type readable over bright footage.
+    h(AbsoluteFill, { style: { background: 'linear-gradient(0deg, rgba(5,3,10,.78), transparent 55%)', opacity: reveal(frame, 0, 10) } }),
+    h(
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 26, padding: '0 40px' } },
+      headline ? h(LeadIn, { colors, frame, start: 4, size: fitSize(width - 80, headline.length, TYPE.lead + 20, 0.62) }, headline) : null,
+      contact
+        ? h(Kicker, { colors, style: { display: 'flex', alignItems: 'center', gap: 14, opacity: reveal(frame, 10, 10) } }, contactIcon ? h(LucideIcon, { name: contactIcon }) : null, contact)
+        : null,
+      cta ? h(CtaButton, { colors, frame, start: 16, icon: iconOf(item, 'ctaIcon'), label: cta }) : null,
+    ),
+  )
+}
+
+const NeonSignTitle: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
+  const colors = colorsFor(item)
+  const title = textProp(item.templateProps, 'title').slice(0, 18)
+  const subtitle = textProp(item.templateProps, 'subtitle')
+  const lastOn = neonSignLetterFrame(Math.max(0, title.length - 1))
+  return h(
+    AbsoluteFill,
+    { style: { alignItems: 'center', justifyContent: 'center', gap: 34, padding: 40 } },
+    h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 50%, ${colors.glow}33, transparent 62%)`, opacity: reveal(frame, 4, 30) } }),
+    h(
+      'div',
+      { style: { display: 'flex', justifyContent: 'center', whiteSpace: 'pre', fontSize: fitSize(width - 80, title.length, 230, 0.78), lineHeight: 1, transform: 'rotate(-3deg)' } },
+      Array.from(title).map((letter, index) => {
+        const start = neonSignLetterFrame(index)
+        // A tube sputters when it strikes, then hums with the odd dip.
+        const lit = frame < start ? 0 : frame < start + 8 ? flicker(frame, `sign-${item.id}-${index}`, start) : 0.85 + 0.15 * flicker(frame, `hum-${item.id}-${index}`, start)
+        return h('span', {
+          key: index,
+          style: {
+            ...display,
+            color: lit > 0.5 ? '#ffffff' : `${colors.accent}55`,
+            textShadow: lit > 0.1
+              ? `0 0 ${6 * lit}px #fff, 0 0 ${20 * lit}px ${colors.accent}, 0 0 ${48 * lit}px ${colors.glow}, 0 0 ${100 * lit}px ${colors.glow}`
+              : 'none',
+            opacity: lit > 0.1 ? 0.55 + lit * 0.45 : 1,
+          },
+        }, letter)
+      }),
+    ),
+    subtitle ? h(Kicker, { colors, style: { opacity: reveal(frame, lastOn + 4, 12), transform: 'rotate(-3deg)' } }, subtitle) : null,
+  )
+}
+
+const GlitchTitle: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
+  const colors = colorsFor(item)
+  const title = textProp(item.templateProps, 'title')
+  const subtitle = textProp(item.templateProps, 'subtitle')
+  // Bursts of heavy tearing every period, with a faint jitter in between.
+  const burst = frame < 8 || frame % GLITCH_TITLE_PERIOD < 4
+  const amount = burst ? 1 : 0.12
+  const shift = (key: string) => (random(`${key}-${item.id}-${frame}`) - 0.5) * 2
+  const size = fitSize(width - 80, title.length, 230, 0.72)
+  const layer = (key: string, color: string, dx: number, blend?: React.CSSProperties['mixBlendMode']): React.ReactNode =>
+    h('div', {
+      key,
+      style: { ...display, gridArea: '1 / 1', color, fontSize: size, lineHeight: 1, whiteSpace: 'nowrap', transform: `translateX(${dx}px) skewX(-8deg)`, mixBlendMode: blend, textAlign: 'center' },
+    }, title)
+  const tearTop = random(`tear-${item.id}-${frame}`) * 70
+  return h(
+    AbsoluteFill,
+    { style: { alignItems: 'center', justifyContent: 'center', gap: 30, padding: 40 } },
+    h(
+      'div',
+      { style: { display: 'grid', placeItems: 'center' } },
+      layer('red', '#ff2d55', -shift('r') * 26 * amount - 6, 'screen'),
+      layer('cyan', '#00e5ff', shift('c') * 26 * amount + 6, 'screen'),
+      h('div', { key: 'main', style: { gridArea: '1 / 1', filter: `drop-shadow(0 0 28px ${colors.glow})` } }, layer('main-text', '#ffffff', shift('m') * 6 * amount)),
+      // A slice of the title torn sideways.
+      burst
+        ? h('div', { key: 'tear', style: { gridArea: '1 / 1', clipPath: `inset(${tearTop}% 0 ${Math.max(0, 100 - tearTop - 14)}% 0)`, transform: `translateX(${shift('t') * 90}px)` } }, layer('tear-text', colors.soft, 0))
+        : null,
+    ),
+    subtitle ? h(Kicker, { colors, style: { opacity: reveal(frame, 8, 8) * (burst && random(`sub-${frame}`) > 0.7 ? 0.4 : 1) } }, subtitle) : null,
+    // Scanlines over everything.
+    h(AbsoluteFill, { style: { background: 'repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.28) 3px 4px)', opacity: 0.5 } }),
+  )
+}
+
+const ChapterCard: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
+  const colors = colorsFor(item)
+  const number = textProp(item.templateProps, 'number')
+  const title = textProp(item.templateProps, 'title')
+  const hit = reveal(frame, 4, 8)
+  return h(
+    AbsoluteFill,
+    { style: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: 40 } },
+    h(AbsoluteFill, { style: { background: `radial-gradient(circle at 50% 50%, ${colors.glow}44, transparent 60%)`, opacity: reveal(frame, 0, 18) } }),
+    number
+      ? h('div', { style: slam(hit, 1.6, { ...gradientText(colors, 40), fontSize: fitSize(width - 80, number.length * 1.4, 360, 0.7), lineHeight: 0.9, letterSpacing: -10, transform: 'skewX(-8deg)' }) }, number)
+      : null,
+    h(NeonRule, { colors, width: Math.min(width - 120, 760), progress: reveal(frame, 8, 14) }),
+    title
+      ? h('div', { style: { ...display, fontSize: fitSize(width - 80, title.length, 120, 0.66), lineHeight: 1, whiteSpace: 'nowrap', textShadow: glow(colors, 28), opacity: reveal(frame, 14, 10), transform: `translateY(${(1 - reveal(frame, 14, 10)) * 40}px) skewX(-8deg)` } }, title)
+      : null,
+  )
+}
+
+const CountdownTitle: React.FC<TemplateRenderProps> = ({ item, frame, width }) => {
+  const colors = colorsFor(item)
+  const props = item.templateProps
+  const prefix = textProp(props, 'prefix')
+  const value = textProp(props, 'value')
+  const unit = textProp(props, 'unit')
+  const subtitle = textProp(props, 'subtitle')
+  const ring = Math.min(width - 120, 760)
+  const pulse = frame > 16 ? 0.5 + 0.5 * Math.sin((frame - 16) / 5) : 1
+  const draw = reveal(frame, 0, 16)
+  return h(
+    AbsoluteFill,
+    { style: { alignItems: 'center', justifyContent: 'center', gap: 44, padding: 40 } },
+    h(
+      'div',
+      { style: { position: 'relative', width: ring, height: ring, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transform: `scale(${1 + (1 - pulse) * 0.012})` } },
+      h('div', {
+        style: {
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          border: `8px solid ${colors.soft}`,
+          boxShadow: `0 0 ${24 + pulse * 22}px ${colors.glow}, 0 0 ${80 + pulse * 50}px ${colors.glow}88, inset 0 0 ${30 + pulse * 20}px ${colors.accent}66`,
+          background: 'rgba(6,4,10,.55)',
+          ...ringMask(draw),
+        },
+      }),
+      prefix ? h(Kicker, { colors, style: { position: 'relative', opacity: reveal(frame, 10, 8), marginBottom: 6 } }, prefix) : null,
+      value ? h('div', { style: slam(reveal(frame, 12, 8), 1.6, { ...gradientText(colors, 36), position: 'relative', fontSize: Math.min(ring * 0.5, (ring * 0.78) / (0.66 * Math.max(2, value.length))), lineHeight: 0.95, letterSpacing: -6, transform: 'skewX(-8deg)' }) }, value) : null,
+      unit ? h('div', { style: { ...display, position: 'relative', fontSize: ring * 0.1, letterSpacing: 6, textShadow: `0 0 24px ${colors.glow}`, opacity: reveal(frame, 16, 8) } }, unit) : null,
+    ),
+    subtitle ? h(Kicker, { colors, style: { opacity: reveal(frame, 20, 10), textAlign: 'center' } }, subtitle) : null,
+  )
+}
+
+const QuoteCallout: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const quote = textProp(item.templateProps, 'quote')
+  const author = textProp(item.templateProps, 'author')
+  const rise = reveal(frame, 4, 12)
+  return h(
+    AbsoluteFill,
+    null,
+    h(
+      'div',
+      { style: { position: 'absolute', left: 50, right: 50, bottom: safeInsets(width, height).bottom - 30, opacity: rise, transform: `translateY(${(1 - rise) * 50}px)` } },
+      h(EdgeArcs, { colors, frame, seed: `quote-arcs-${item.id}`, from: 10 }),
+      h(
+        NeonPanel,
+        { colors, skew: 0, style: { position: 'relative', padding: '34px 48px', ...electricEdge(colors, frame, `quote-edge-${item.id}`, 8) } },
+        h('div', { style: { ...gradientText(colors, 16), fontSize: 120, lineHeight: 0.6, height: 56 } }, '“'),
+        quote ? h('div', { style: { ...body, fontSize: quote.length > 70 ? 40 : 52, fontWeight: 800, lineHeight: 1.2, textShadow: '0 4px 18px rgba(0,0,0,.8)' } }, quote) : null,
+        author ? h(Kicker, { colors, size: 26, style: { marginTop: 22, opacity: reveal(frame, 14, 10) } }, author) : null,
+      ),
+    ),
+  )
+}
+
+const VenueTag: React.FC<TemplateRenderProps> = ({ item, frame, width, height }) => {
+  const colors = colorsFor(item)
+  const venue = textProp(item.templateProps, 'venue')
+  const city = textProp(item.templateProps, 'city')
+  const pin = iconOf(item, 'icon')
+  const landed = 8
+  // The pin drops in, bounces, and sends out a ripple when it lands.
+  const fall = interpolate(frame, [0, landed, landed + 4, landed + 8], [-140, 0, -18, 0], clamp)
+  const ripple = reveal(frame, landed, 16)
+  const available = width - 80 - 150
+  return h(
+    AbsoluteFill,
+    null,
+    h(
+      'div',
+      { style: { ...lowerThirdBox(width, height), display: 'flex', alignItems: 'center', gap: 26 } },
+      pin
+        ? h(
+            'div',
+            { style: { position: 'relative', width: 104, height: 104, flexShrink: 0 } },
+            ripple > 0 && ripple < 1 ? h('div', { style: { position: 'absolute', inset: 0, borderRadius: '50%', border: `4px solid ${colors.soft}`, transform: `scale(${1 + ripple * 1.1})`, opacity: 1 - ripple } }) : null,
+            h('div', {
+              style: {
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 58,
+                background: `linear-gradient(135deg, ${colors.glow}, ${colors.accent})`, boxShadow: `0 0 30px ${colors.glow}`,
+                transform: `translateY(${fall}px)`, opacity: reveal(frame, 0, 4),
+              },
+            }, h(LucideIcon, { name: pin })),
+          )
+        : null,
+      h(
+        'div',
+        { style: settledWipe(reveal(frame, landed, 12)) },
+        h(
+          NeonPanel,
+          { colors, style: { padding: '16px 48px 16px 40px', ...electricEdge(colors, frame, `venue-${item.id}`, landed + 2), border: `2px solid ${colors.accent}aa` } },
+          venue ? h('div', { style: { ...display, fontStyle: 'normal', fontSize: fitSize(available, venue.length, 56), lineHeight: 1.05, whiteSpace: 'nowrap', textShadow: glow(colors, 20) } }, venue) : null,
+          city ? h(Kicker, { colors, size: 26, style: { marginTop: 6 } }, city) : null,
+        ),
+      ),
+    ),
+  )
+}
+
 export const MOTION_TEMPLATE_COMPONENTS: Record<MotionTemplateKey, React.FC<TemplateRenderProps>> = {
   'gig-announcement': GigAnnouncement,
   'recap-intro': RecapIntro,
@@ -1467,4 +1816,14 @@ export const MOTION_TEMPLATE_COMPONENTS: Record<MotionTemplateKey, React.FC<Temp
   'now-playing': NowPlaying,
   'bolt-transition': BoltTransition,
   'neon-outro': NeonOutro,
+  'neon-tube-bar': NeonTubeBar,
+  'glass-strip': GlassStrip,
+  'social-handle': SocialHandle,
+  'booking-cta': BookingCta,
+  'neon-sign-title': NeonSignTitle,
+  'glitch-title': GlitchTitle,
+  'chapter-card': ChapterCard,
+  'countdown-title': CountdownTitle,
+  'quote-callout': QuoteCallout,
+  'venue-tag': VenueTag,
 }

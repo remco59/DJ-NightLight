@@ -560,6 +560,16 @@ h3 {
 .template-art[data-template="now-playing"] { background-image: url("/brand/templates/now-playing.webp"); }
 .template-art[data-template="bolt-transition"] { background-image: url("/brand/templates/bolt-transition.webp"); }
 .template-art[data-template="neon-outro"] { background-image: url("/brand/templates/neon-outro.webp"); }
+.template-art[data-template="neon-tube-bar"] { background-image: url("/brand/templates/neon-tube-bar.webp"); }
+.template-art[data-template="glass-strip"] { background-image: url("/brand/templates/glass-strip.webp"); }
+.template-art[data-template="social-handle"] { background-image: url("/brand/templates/social-handle.webp"); }
+.template-art[data-template="booking-cta"] { background-image: url("/brand/templates/booking-cta.webp"); }
+.template-art[data-template="neon-sign-title"] { background-image: url("/brand/templates/neon-sign-title.webp"); }
+.template-art[data-template="glitch-title"] { background-image: url("/brand/templates/glitch-title.webp"); }
+.template-art[data-template="chapter-card"] { background-image: url("/brand/templates/chapter-card.webp"); }
+.template-art[data-template="countdown-title"] { background-image: url("/brand/templates/countdown-title.webp"); }
+.template-art[data-template="quote-callout"] { background-image: url("/brand/templates/quote-callout.webp"); }
+.template-art[data-template="venue-tag"] { background-image: url("/brand/templates/venue-tag.webp"); }
 
 .template-copy {
   display: flex;

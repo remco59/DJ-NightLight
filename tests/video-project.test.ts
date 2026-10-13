@@ -166,6 +166,16 @@ describe('motion templates', () => {
       'now-playing',
       'bolt-transition',
       'neon-outro',
+      'neon-tube-bar',
+      'glass-strip',
+      'social-handle',
+      'booking-cta',
+      'neon-sign-title',
+      'glitch-title',
+      'chapter-card',
+      'countdown-title',
+      'quote-callout',
+      'venue-tag',
     ])
   })
 
