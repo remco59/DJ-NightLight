@@ -3,6 +3,7 @@ import MediaPicker from '~/components/admin/MediaPicker.vue'
 import PostCanvasStage from '~/components/post-editor/PostCanvasStage.vue'
 import PostInspector from '~/components/post-editor/PostInspector.vue'
 import SocialPublishDrawer from '~/components/social/SocialPublishDrawer.vue'
+import PostPreviewDialog from '~/components/post-editor/PostPreviewDialog.vue'
 import PostRecentExports from '~/components/post-editor/PostRecentExports.vue'
 import PostTemplateBrowser from '~/components/post-editor/PostTemplateBrowser.vue'
 import { usePostEditor, type PostCanvasSelection, type PostEditorTool } from '~/composables/usePostEditor'
@@ -24,9 +25,8 @@ const publishImages = computed(() => publishPostIds.value.flatMap((id) => {
 }))
 const templatesOpen = ref(false)
 const mediaPickerOpen = ref(false)
-const previewUrl = ref('')
+const previewOpen = ref(false)
 const previewBusy = ref(false)
-const previewCloseRef = ref<HTMLButtonElement | null>(null)
 const stageRef = ref<InstanceType<typeof PostCanvasStage> | null>(null)
 const modKey = ref('Ctrl')
 
@@ -36,7 +36,7 @@ const selectionTool = computed<PostEditorTool | null>(() => {
   return null
 })
 const selectedAssetUrl = computed(() => editor.selectedAsset.value?.url ?? null)
-const anyDialogOpen = computed(() => exportsOpen.value || publishOpen.value || templatesOpen.value || mediaPickerOpen.value || Boolean(previewUrl.value))
+const anyDialogOpen = computed(() => exportsOpen.value || publishOpen.value || templatesOpen.value || mediaPickerOpen.value || previewOpen.value)
 
 function openPublish(...postIds: string[]) {
   publishPostIds.value = postIds
@@ -89,36 +89,6 @@ watch([thumbnailInputs, thumbnailsNeeded], ([inputs, needed]) => {
   thumbnailTimer = setTimeout(() => void renderThumbnails(inputs).catch(() => {}), delay)
 }, { immediate: true })
 
-// --- Preview --------------------------------------------------------------------
-
-async function openPreview() {
-  if (!editor.selectedAsset.value) {
-    message.value = 'Kies eerst een foto.'
-    return
-  }
-  previewBusy.value = true
-  try {
-    const blob = await editor.renderExportBlob()
-    previewUrl.value = URL.createObjectURL(blob)
-    await nextTick()
-    previewCloseRef.value?.focus()
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : 'Voorbeeld maken is niet gelukt.'
-  } finally {
-    previewBusy.value = false
-  }
-}
-
-function closePreview() {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  previewUrl.value = ''
-}
-
-async function exportFromPreview() {
-  closePreview()
-  await editor.exportPost()
-}
-
 // --- Messages --------------------------------------------------------------------
 
 let messageTimer: ReturnType<typeof setTimeout> | null = null
@@ -136,7 +106,6 @@ function isTyping(target: EventTarget | null) {
 
 function onKey(event: KeyboardEvent) {
   if (anyDialogOpen.value) {
-    if (event.key === 'Escape' && previewUrl.value) closePreview()
     return
   }
   const mod = event.metaKey || event.ctrlKey
@@ -183,7 +152,6 @@ onBeforeUnmount(() => {
   if (thumbnailTimer) clearTimeout(thumbnailTimer)
   if (messageTimer) clearTimeout(messageTimer)
   thumbnailRun += 1
-  closePreview()
 })
 </script>
 
@@ -222,12 +190,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <nav class="mode-switch" aria-label="Editormodus">
-          <span class="mode active" aria-current="page"><Icon name="lucide:image" aria-hidden="true" /> Afbeelding</span>
-          <NuxtLink class="mode" to="/admin/post-generator/video"><Icon name="lucide:film" aria-hidden="true" /> Video</NuxtLink>
-        </nav>
-
-        <button type="button" class="action" aria-label="Voorbeeld" :disabled="previewBusy || !editor.selectedAsset.value" title="Bekijk de post zonder hulplijnen" @click="openPreview">
+        <button type="button" class="action" aria-label="Voorbeeld" :disabled="previewBusy || !editor.selectedAsset.value" title="Bekijk de post zonder hulplijnen" @click="previewOpen = true">
           <Icon name="lucide:eye" aria-hidden="true" />
           <span class="action-label">{{ previewBusy ? 'Renderen…' : 'Voorbeeld' }}</span>
         </button>
@@ -296,22 +259,7 @@ onBeforeUnmount(() => {
       @selected="asset => editor.selectAsset(asset.id)"
     />
 
-    <Teleport to="body">
-      <div v-if="previewUrl" class="preview-backdrop" @click.self="closePreview">
-        <section class="preview-dialog" role="dialog" aria-modal="true" aria-label="Voorbeeld van de post">
-          <img :src="previewUrl" alt="Voorbeeld van de geëxporteerde post">
-          <footer class="preview-footer">
-            <span>Precies zoals geëxporteerd · zonder hulplijnen · {{ design.preset === 'story' ? '9:16' : design.preset === 'portrait' ? '4:5' : '1:1' }}</span>
-            <div>
-              <button ref="previewCloseRef" type="button" class="action" @click="closePreview">Sluiten</button>
-              <button type="button" class="action primary" :disabled="busy === 'render' || !editor.readyToExport.value" @click="exportFromPreview">
-                Post exporteren <Icon name="lucide:arrow-right" aria-hidden="true" />
-              </button>
-            </div>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <PostPreviewDialog v-model:open="previewOpen" v-model:busy="previewBusy" @export="editor.exportPost()" />
   </div>
 </template>
 
@@ -382,8 +330,7 @@ h1 {
   gap: .6rem;
 }
 
-.action-group,
-.mode-switch {
+.action-group {
   display: inline-flex;
   align-items: center;
   gap: .15rem;
@@ -414,28 +361,6 @@ h1 {
 .icon-action:disabled {
   cursor: not-allowed;
   opacity: .35;
-}
-
-.mode {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .5rem .8rem;
-  border: 1px solid transparent;
-  border-radius: .5rem;
-  color: #a89fb2;
-  font-size: .8rem;
-  text-decoration: none;
-}
-
-.mode:hover {
-  color: #fff;
-}
-
-.mode.active {
-  border-color: #6d4bb0;
-  background: rgba(124, 58, 237, .18);
-  color: #fff;
 }
 
 .action {
@@ -538,47 +463,6 @@ h1 {
 .toast button:hover {
   background: #221d29;
   color: #fff;
-}
-
-.preview-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  background: rgba(4, 3, 6, .88);
-  backdrop-filter: blur(10px);
-}
-
-.preview-dialog {
-  display: grid;
-  justify-items: center;
-  gap: .9rem;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.preview-dialog img {
-  max-width: min(100%, 1080px);
-  max-height: calc(100dvh - 7rem);
-  object-fit: contain;
-  box-shadow: 0 30px 100px rgba(0, 0, 0, .6);
-}
-
-.preview-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-  color: #8f8798;
-  font-size: .76rem;
-}
-
-.preview-footer div {
-  display: flex;
-  gap: .5rem;
 }
 
 @container post-editor (max-width: 1100px) {
