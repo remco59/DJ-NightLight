@@ -30,15 +30,24 @@ npm run build
 
 ## Accessibility check
 
-`npm run test:a11y` (`e2e/a11y.ts`) runs [axe-core](https://github.com/dequelabs/axe-core) against the public pages (home, over, media, agenda, boeken including its error state, and every published landing page) at a desktop and a mobile size. It checks WCAG 2.0/2.1 level A and AA plus axe's best practices and fails on any violation. CI runs it after the E2E workflows, against the production build.
+The product standard is WCAG 2.1 level AA (see [PRODUCT.md](../PRODUCT.md)). `npm run test:a11y` (`e2e/a11y.ts`) runs [axe-core](https://github.com/dequelabs/axe-core) against:
+
+- the public pages (home, over, media, agenda, boeken, and every published landing page), including the booking form with an availability message and with its error state;
+- the client portal with a quote waiting for an answer;
+- the back office: dashboard, gigs, invoices, finance, clients, venues, calendar, reviews, e-mail and settings, plus a gig (overview, finance and client tabs), a client and a quote.
+
+Each page is checked at a desktop and a phone size. It tests WCAG 2.0/2.1 level A and AA plus axe's best practices and fails on any violation. CI runs it after the E2E workflows, against the production build, and treats a missing login as an error.
+
+The portal and back-office pages need an account. The test signs in with the owner account that the E2E workflows create (`A11Y_ADMIN_EMAIL` and `A11Y_ADMIN_PASSWORD` override it) and creates what it needs itself: a client "A11y Testklant", a gig "A11y testgig" far in the future, a sent quote and two costs. Reruns reuse them. Without a working login it checks the public site only and says so, unless `A11Y_REQUIRE_ADMIN=1` is set.
 
 To run it locally, start the app (`npm run dev` or the production build), then:
 
 ```bash
-E2E_BASE_URL=http://127.0.0.1:3000 A11Y_BROWSER_PATH=/path/to/chromium npm run test:a11y
+E2E_BASE_URL=http://127.0.0.1:3000 A11Y_BROWSER_PATH=/path/to/chromium \
+  A11Y_ADMIN_EMAIL=you@example.com A11Y_ADMIN_PASSWORD=... npm run test:a11y
 ```
 
-Without `A11Y_BROWSER_PATH` it uses an installed Google Chrome. axe cannot measure colour contrast for text on gradients or background images, so check those by eye when you change the look of a page. Keep new interactive elements reachable with the keyboard and visible when focused (the global `:focus-visible` style does this).
+Without `A11Y_BROWSER_PATH` it uses an installed Google Chrome. axe cannot measure colour contrast for text on gradients or background images, so check those by eye when you change the look of a page. Keep new interactive elements reachable with the keyboard and visible when focused (the global `:focus-visible` style does this). Add a new page or state to `e2e/a11y.ts` in the same change that introduces it.
 
 ## Git hooks
 

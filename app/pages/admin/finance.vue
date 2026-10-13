@@ -80,7 +80,7 @@ useSeoMeta({ title: 'Financiën — DJ NightLight', robots: 'noindex, nofollow' 
 
     <section class="card">
       <h2>Per maand</h2>
-      <div class="table-wrap">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Omzet, kosten en resultaat per maand">
         <table>
           <caption class="sr-only">Omzet, kosten en resultaat per maand in {{ data.year }}</caption>
           <thead>
