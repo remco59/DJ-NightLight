@@ -17,6 +17,12 @@ export default defineEventHandler(async (event) => {
   const { contacts, timeline, assignedUserId, ...gigValues } = input
   const validAssignee = await validateGigAssignee(assignedUserId)
 
+  // The page sends the `updatedAt` its form was loaded with; a gig changed in the meantime (on another
+  // device, or by an offline note that was synced) is not silently overwritten.
+  const version = getQuery(event).version
+  const expectedVersion = typeof version === 'string' && version ? new Date(version).getTime() : null
+  if (expectedVersion !== null && Number.isNaN(expectedVersion)) throw createError({ statusCode: 400, statusMessage: 'Ongeldige versie' })
+
   const [existing] = await db.select({
     id: gigs.id,
     status: gigs.status,
@@ -25,6 +31,12 @@ export default defineEventHandler(async (event) => {
   if (!existing) throw createError({ statusCode: 404, statusMessage: 'Gig niet gevonden' })
 
   const gig = await db.transaction(async (tx) => {
+    if (expectedVersion !== null) {
+      const [current] = await tx.select({ updatedAt: gigs.updatedAt }).from(gigs).where(eq(gigs.id, id)).limit(1).for('update')
+      if (current && current.updatedAt.getTime() !== expectedVersion) {
+        throw createError({ statusCode: 409, statusMessage: 'Deze gig is ondertussen gewijzigd, bijvoorbeeld op een ander apparaat. Laad de gig opnieuw en pas je wijziging dan opnieuw toe.' })
+      }
+    }
     const [updated] = await tx
       .update(gigs)
       .set({ ...gigValues, assignedUserId: validAssignee, updatedAt: new Date() })
