@@ -467,7 +467,7 @@ const suppressionGroups = computed(() => {
             <input v-model="templateSearch" type="search" placeholder="Zoek template…" aria-label="Zoek template">
           </div>
           <div v-for="group in groupedTemplates" :key="group.label" class="template-group">
-            <h3>{{ group.label }}</h3>
+            <h2>{{ group.label }}</h2>
             <button
               v-for="template in group.items"
               :key="template.key"
@@ -507,12 +507,12 @@ const suppressionGroups = computed(() => {
           </div>
 
           <div class="field-block">
-            <div class="field-heading"><span>Onderwerp</span><select aria-label="Variabele invoegen in onderwerp" @change="appendVariable('subject', $event)"><option value="">+ Variabele invoegen</option><option v-for="option in variableOptions" :key="option[0]" :value="option[0]">{{ option[1] }}</option></select></div>
-            <input v-model="form.subject">
+            <div class="field-heading"><span id="template-subject-label">Onderwerp</span><select aria-label="Variabele invoegen in onderwerp" @change="appendVariable('subject', $event)"><option value="">+ Variabele invoegen</option><option v-for="option in variableOptions" :key="option[0]" :value="option[0]">{{ option[1] }}</option></select></div>
+            <input v-model="form.subject" aria-labelledby="template-subject-label">
           </div>
           <div class="field-block">
-            <div class="field-heading"><span>Inhoud</span><select aria-label="Variabele invoegen in inhoud" @change="appendVariable('body', $event)"><option value="">+ Variabele invoegen</option><option v-for="option in variableOptions" :key="option[0]" :value="option[0]">{{ option[1] }}</option></select></div>
-            <textarea v-model="form.body" rows="12" />
+            <div class="field-heading"><span id="template-body-label">Inhoud</span><select aria-label="Variabele invoegen in inhoud" @change="appendVariable('body', $event)"><option value="">+ Variabele invoegen</option><option v-for="option in variableOptions" :key="option[0]" :value="option[0]">{{ option[1] }}</option></select></div>
+            <textarea v-model="form.body" rows="12" aria-labelledby="template-body-label" />
           </div>
 
           <div class="timing-card">
@@ -547,7 +547,7 @@ const suppressionGroups = computed(() => {
         <aside v-if="selected" class="preview-panel panel">
           <div class="preview-toolbar">
             <div><span>Live preview</span><small>Voorbeelddata: Bruiloft Sam & Noor</small></div>
-            <div class="preview-modes"><button type="button" :class="{ active: previewMode === 'desktop' }" @click="previewMode = 'desktop'"><Icon name="lucide:monitor" aria-hidden="true" /></button><button type="button" :class="{ active: previewMode === 'mobile' }" @click="previewMode = 'mobile'"><Icon name="lucide:smartphone" aria-hidden="true" /></button></div>
+            <div class="preview-modes"><button type="button" aria-label="Voorbeeld als desktop" :aria-pressed="previewMode === 'desktop'" :class="{ active: previewMode === 'desktop' }" @click="previewMode = 'desktop'"><Icon name="lucide:monitor" aria-hidden="true" /></button><button type="button" aria-label="Voorbeeld als telefoon" :aria-pressed="previewMode === 'mobile'" :class="{ active: previewMode === 'mobile' }" @click="previewMode = 'mobile'"><Icon name="lucide:smartphone" aria-hidden="true" /></button></div>
           </div>
           <div class="preview-frame" :class="previewMode">
             <iframe v-if="preview" class="email-preview" :srcdoc="preview.html" title="Voorbeeld van de e-mail in huisstijl" sandbox="" />
@@ -688,7 +688,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .search-field { display: flex; gap: .5rem; align-items: center; border: 1px solid #302a36; border-radius: .65rem; background: #151219; padding: 0 .7rem; }
 .search-field input { border: 0; background: transparent; padding-left: 0; }
 .template-group { margin-top: 1rem; }
-.template-group h3 { margin: 0 0 .45rem .45rem; color: #c8c1cc; font-size: .75rem; }
+.template-group h2 { margin: 0 0 .45rem .45rem; color: #c8c1cc; font-size: .75rem; }
 .template-group button { display: grid; grid-template-columns: 9px 1fr; gap: .65rem; width: 100%; padding: .7rem; text-align: left; border-color: transparent; background: transparent; }
 .template-group button.active { border-color: #5c3f86; background: linear-gradient(90deg, #2e1857aa, #1a1422); }
 .template-group button > span:last-child { display: grid; gap: .18rem; }

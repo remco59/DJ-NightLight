@@ -58,4 +58,8 @@ A single, named DJ you deal with directly, from first message to last song. The 
 
 ## Accessibility & Inclusion
 
-No product-specific standard has been set. Public pages should meet WCAG AA contrast and keyboard use as a baseline; this is an open decision to confirm.
+The standard is **WCAG 2.1 level AA** for the whole product: the public site, the client portal and the back office, on desktop and on a phone.
+
+- It is checked automatically on every change: `npm run test:a11y` (axe-core, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#accessibility-check)) runs in CI and fails on any violation. It covers the public pages (including the booking form in its error and availability states), the client portal with an open quote, and the main back-office pages.
+- Automation finds about a third of the problems. Contrast on gradients and images, the meaning of labels, focus order in dialogs and screen reader use still need a person. New interactive UI is therefore also checked by hand: reachable and usable with the keyboard only, visible focus, touch targets of at least 44px, text alternatives for icons and images, and no motion that ignores `prefers-reduced-motion`.
+- A page or state that is not yet covered by the test should be added to `e2e/a11y.ts` in the same change that introduces it.

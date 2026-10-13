@@ -568,7 +568,7 @@ useSeoMeta({
 .attention-copy strong { font-size:.84rem; }
 .attention-copy span { margin-top:.18rem; color:#9a91a6; font-size:.74rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .attention-meta { display:inline-flex; align-items:center; gap:.4rem; color:#9f96ac; font-size:.7rem; white-space:nowrap; }
-.attention-meta small { color:#7f778b; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.attention-meta small { color:#aaa2b8; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
 .attention-meta :deep(svg) { width:.95rem; height:.95rem; }
 .attention-more { display:flex; align-items:center; min-height:2.75rem; padding:0 .6rem; color:#b45cff; font-size:.76rem; font-weight:800; text-decoration:none; }
 .row-chevron { width:1rem; height:1rem; color:#c3b5d4; }

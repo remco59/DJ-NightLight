@@ -61,8 +61,8 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
       </button>
     </div>
 
-    <div class="cal-grid" role="grid" :aria-label="`Gigs in ${monthLabel}`">
-      <span v-for="day in weekdays" :key="day" class="cal-weekday" role="columnheader">{{ day }}</span>
+    <div class="cal-grid" role="group" :aria-label="`Gigs in ${monthLabel}`">
+      <span v-for="day in weekdays" :key="day" class="cal-weekday">{{ day }}</span>
       <template v-for="cell in grid" :key="cell.date">
         <button
           v-if="cell.inMonth && gigsByDay.get(cell.date)?.length"
@@ -84,7 +84,6 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
           v-else
           class="cal-cell"
           :class="{ outside: !cell.inMonth, today: cell.date === todayKey }"
-          role="gridcell"
         >{{ cell.day }}</span>
       </template>
     </div>
@@ -107,7 +106,7 @@ const weekdays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 .cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.2rem; }
 .cal-weekday { padding:.2rem 0; color:#8f879c; font-size:.68rem; font-weight:800; text-align:center; text-transform:uppercase; }
 .cal-cell { position:relative; padding:0; border:0; font:inherit; cursor:default; display:grid; place-items:center; aspect-ratio:1.15; border-radius:.5rem; color:#cfc7da; font-size:.78rem; text-decoration:none; }
-.cal-cell.outside { color:#4f4959; }
+.cal-cell.outside { color:#8a8296; }
 .cal-cell.today { border:1px solid #6d4aa8; }
 .cal-cell.has-gig { cursor:pointer; background:#211439; color:#f1e6ff; font-weight:800; }
 .cal-cell.has-gig:hover { background:#2b1a4d; }

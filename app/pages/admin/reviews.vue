@@ -48,7 +48,7 @@ useSeoMeta({ title: 'Reviews — DJ NightLight', robots: 'noindex, nofollow' })
 
     <article v-for="review in data?.reviews || []" :key="review.id" class="review">
       <div class="review-head">
-        <span class="stars" :aria-label="`${review.rating} van 5 sterren`"><Icon v-for="n in 5" :key="n" name="lucide:star" :class="{ on: n <= review.rating }" aria-hidden="true" /></span>
+        <span class="stars" role="img" :aria-label="`${review.rating} van 5 sterren`"><Icon v-for="n in 5" :key="n" name="lucide:star" :class="{ on: n <= review.rating }" aria-hidden="true" /></span>
         <NuxtLink :to="`/admin/gigs/${review.gigId}`">{{ review.gigTitle }}</NuxtLink>
       </div>
       <p v-if="review.comment" class="comment">“{{ review.comment }}”</p>
