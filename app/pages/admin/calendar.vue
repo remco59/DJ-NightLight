@@ -461,7 +461,7 @@ async function rotateIcs() {
     <aside v-if="socialAvailable" class="social-panel" aria-labelledby="social-panel-title">
       <header>
         <h2 id="social-panel-title">Social planning</h2>
-        <NuxtLink to="/admin/social">Open Social →</NuxtLink>
+        <NuxtLink to="/admin/social">Open Social <Icon name="lucide:arrow-right" aria-hidden="true" /></NuxtLink>
       </header>
       <p v-if="!upcomingSocial.length" class="panel-empty">Geen geplande posts.</p>
       <ul v-else>

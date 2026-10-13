@@ -219,7 +219,7 @@ watch(open, (value) => {
 
             <div v-if="video" class="preview-video">
               <video :src="video.videoUrl" controls preload="metadata" muted playsinline aria-label="Voorbeeld van de video" />
-              <small>{{ video.title || 'Video' }} · {{ video.width }}×{{ video.height }} · {{ formatDuration(video.durationSeconds) }}</small>
+              <small>{{ video.title || 'Video' }} · {{ video.width }}<IconTimes />{{ video.height }} · {{ formatDuration(video.durationSeconds) }}</small>
             </div>
             <ol v-else-if="images.length" class="slides" :aria-label="`${images.length} afbeelding${images.length === 1 ? '' : 'en'}`">
               <li v-for="(image, index) in showSlides" :key="image.id">

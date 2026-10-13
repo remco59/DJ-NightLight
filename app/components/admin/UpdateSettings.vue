@@ -115,13 +115,13 @@ async function startUpdate() {
 
     <template v-else>
       <div v-if="check?.updateAvailable" class="update-hero">
-        <span class="hero-icon" aria-hidden="true">↓</span>
+        <span class="hero-icon"><Icon name="lucide:download" aria-hidden="true" /></span>
         <div>
           <h3>Software-update beschikbaar</h3>
           <p>Er staat een nieuwere versie van NightLight klaar.</p>
           <div class="version-route" aria-label="Versie-update">
             <code>{{ current?.shortSha || 'Onbekend' }}</code>
-            <span aria-hidden="true">→</span>
+            <Icon name="lucide:arrow-right" aria-hidden="true" />
             <code class="latest">{{ latest?.shortSha || 'Onbekend' }}</code>
           </div>
           <small v-if="latest">Nieuwste versie van {{ formatShortDate(latest.date) }}</small>
@@ -129,7 +129,7 @@ async function startUpdate() {
       </div>
 
       <div v-else-if="check" class="update-hero up-to-date">
-        <span class="hero-icon" aria-hidden="true">✓</span>
+        <span class="hero-icon"><Icon name="lucide:check" aria-hidden="true" /></span>
         <div>
           <h3>NightLight is up-to-date</h3>
           <p>Je draait de nieuwste beschikbare versie.</p>
@@ -138,7 +138,7 @@ async function startUpdate() {
       </div>
 
       <div v-else class="update-hero neutral">
-        <span class="hero-icon" aria-hidden="true">↻</span>
+        <span class="hero-icon"><Icon name="lucide:refresh-cw" aria-hidden="true" /></span>
         <div>
           <h3>Nog niet gecontroleerd</h3>
           <p>Controleer of er een nieuwere versie van NightLight beschikbaar is.</p>
@@ -147,7 +147,7 @@ async function startUpdate() {
 
       <dl class="versions">
         <div>
-          <span class="version-icon" aria-hidden="true">◇</span>
+          <span class="version-icon"><Icon name="lucide:git-commit-horizontal" aria-hidden="true" /></span>
           <div>
             <dt>Geïnstalleerd</dt>
             <dd>{{ current?.shortSha || 'Onbekend' }}</dd>
@@ -155,7 +155,7 @@ async function startUpdate() {
           </div>
         </div>
         <div v-if="check?.updateAvailable">
-          <span class="version-icon accent" aria-hidden="true">◇</span>
+          <span class="version-icon accent"><Icon name="lucide:git-commit-horizontal" aria-hidden="true" /></span>
           <div>
             <dt>Beschikbaar</dt>
             <dd class="accent-text">{{ latest?.shortSha || 'Onbekend' }}</dd>
@@ -205,12 +205,12 @@ async function startUpdate() {
           :disabled="starting || busy || checking"
           @click="startUpdate"
         >
-          <span aria-hidden="true">↓</span>
+          <Icon name="lucide:download" aria-hidden="true" />
           {{ starting || busy ? 'Bijwerken…' : `Bijwerken naar ${latest?.shortSha || 'nieuwste versie'}` }}
         </button>
 
         <button class="ghost recheck" type="button" :disabled="checking || busy" @click="checkForUpdates">
-          <span aria-hidden="true">↻</span>
+          <Icon name="lucide:refresh-cw" aria-hidden="true" />
           {{ checking ? 'Controleren…' : check ? 'Opnieuw controleren' : 'Controleren op updates' }}
         </button>
 
@@ -219,7 +219,7 @@ async function startUpdate() {
 
       <details v-if="lastRun" class="last-run" :class="lastRun.phase">
         <summary>
-          <span class="run-icon" aria-hidden="true">{{ lastRun.phase === 'succeeded' ? '✓' : '!' }}</span>
+          <span class="run-icon"><Icon :name="lastRun.phase === 'succeeded' ? 'lucide:check' : 'lucide:triangle-alert'" aria-hidden="true" /></span>
           <span class="run-copy">
             <strong>{{ lastRun.phase === 'succeeded' ? 'Laatste update geslaagd' : 'Laatste update mislukt' }}</strong>
             <small>{{ formatDate(lastRun.finishedAt) }}<template v-if="lastRun.message"> · {{ lastRun.message }}</template></small>
@@ -242,7 +242,7 @@ async function startUpdate() {
 .update-hero{display:flex;gap:1rem;align-items:flex-start;margin-top:1.35rem;padding:1.25rem;border:1px solid #66490d;border-radius:1rem;background:linear-gradient(135deg,rgba(83,58,9,.72),rgba(37,28,12,.68));box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
 .update-hero.up-to-date{border-color:#24573a;background:linear-gradient(135deg,rgba(19,66,42,.6),rgba(17,35,27,.62))}
 .update-hero.neutral{border-color:var(--border);background:var(--surface-input)}
-.hero-icon{display:grid;place-items:center;flex:0 0 3rem;width:3rem;height:3rem;border-radius:50%;background:rgba(185,127,14,.22);color:#f4bd43;font-size:1.65rem;font-weight:800}
+.hero-icon{display:grid;place-items:center;flex:0 0 3rem;width:3rem;height:3rem;border-radius:50%;background:rgba(185,127,14,.22);color:#f4bd43;font-size:1.5rem}
 .update-hero.up-to-date .hero-icon{background:rgba(31,143,81,.2);color:#5fe294}
 .update-hero.neutral .hero-icon{background:rgba(255,255,255,.055);color:var(--text-muted)}
 .update-hero h3{margin:.05rem 0 .2rem;font-size:1.02rem}
