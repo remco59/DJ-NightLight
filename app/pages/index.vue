@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { businessJsonLd, jsonLdScript } from '~~/shared/seo'
 import { responsiveImage } from '~~/shared/responsive-image'
 import { dutchDayOfMonth, dutchMonthShort, dutchShortDate, dutchTimeRange } from '~~/shared/dutch-date'
 
@@ -98,6 +99,24 @@ const serviceVisuals = computed(() => {
 const heroImage = computed(() => responsiveImage(heroVisual.value.url, 1920))
 
 const showMediaLink = computed(() => Boolean(content.value?.gallery.some(image => image.url) || content.value?.showreelUrl))
+
+const siteUrl = String(useRuntimeConfig().public.siteUrl)
+useHead(() => ({
+  script: content.value
+    ? [{
+        type: 'application/ld+json',
+        innerHTML: jsonLdScript(businessJsonLd({
+          siteUrl,
+          name: content.value.brandName || 'DJ NightLight',
+          description: content.value.seoDescription,
+          image: content.value.seoImageUrl || content.value.heroImageUrl,
+          email: content.value.contactEmail,
+          phone: content.value.contactPhone,
+          sameAs: [content.value.instagramUrl, content.value.spotifyUrl],
+        })),
+      }]
+    : [],
+}))
 
 useSeoMeta({
   title: () => content.value?.seoTitle || 'DJ NightLight',

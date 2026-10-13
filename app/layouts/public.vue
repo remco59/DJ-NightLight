@@ -1,9 +1,26 @@
 <script setup lang="ts">
+import { absoluteUrl } from '~~/shared/seo'
 const { data } = await useSiteContent()
 const { data: landingNavigation } = await useFetch<{ pages: Array<{ slug: string, label: string }> }>('/api/public/landing-pages/navigation', {
   key: 'landing-navigation',
 })
 const route = useRoute()
+
+// Canonical address and share defaults for every public page. Pages that call useSeoMeta
+// themselves (title, description, image) override these.
+const siteUrl = String(useRuntimeConfig().public.siteUrl)
+const canonicalUrl = computed(() => absoluteUrl(siteUrl, route.path))
+useHead(() => ({
+  link: [{ rel: 'canonical', href: canonicalUrl.value }],
+}))
+useSeoMeta({
+  ogUrl: () => canonicalUrl.value,
+  ogType: 'website',
+  ogLocale: 'nl_NL',
+  ogSiteName: () => data.value?.content.brandName || 'DJ NightLight',
+  twitterCard: 'summary_large_image',
+  ogImage: () => data.value?.content.seoImageUrl || data.value?.content.heroImageUrl || undefined,
+})
 const menuOpen = ref(false)
 
 // The header keeps a short, fixed shape: every landing page is still in the

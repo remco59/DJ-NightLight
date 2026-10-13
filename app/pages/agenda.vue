@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { eventJsonLd, jsonLdScript } from '~~/shared/seo'
 import { dutchDayOfMonth, dutchFullDate, dutchMonthShort, dutchTimeRange, dutchYear } from '~~/shared/dutch-date'
 
 definePageMeta({ layout: 'public' })
@@ -24,6 +25,26 @@ const month = dutchMonthShort
 const year = dutchYear
 const fullDate = dutchFullDate
 const timeRange = dutchTimeRange
+
+// Google only accepts an Event with a location, so gigs without one stay out of the markup.
+const siteUrl = String(useRuntimeConfig().public.siteUrl)
+const eventGigs = computed(() => (data.value?.gigs ?? []).filter(gig => gig.location))
+useHead(() => ({
+  script: eventGigs.value.length
+    ? [{
+        type: 'application/ld+json',
+        innerHTML: jsonLdScript(eventGigs.value.map(gig => eventJsonLd({
+          siteUrl,
+          title: gig.title,
+          description: gig.description,
+          startsAt: gig.startsAt,
+          endsAt: gig.endsAt,
+          location: gig.location,
+          organizer: content.value?.brandName || 'DJ NightLight',
+        }))),
+      }]
+    : [],
+}))
 
 useSeoMeta({
   title: () => `Agenda — ${content.value?.brandName || 'DJ NightLight'}`,
