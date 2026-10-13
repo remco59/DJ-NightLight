@@ -53,6 +53,8 @@ const timelineRows=(list:Timeline[])=>list.map(t=>({time:t.time||'',title:t.titl
 const contacts=ref(contactRows(data.value.contacts))
 const timeline=ref(timelineRows(data.value.timeline))
 const saving=ref(false);const message=ref('')
+// Warns, without blocking, when the planned times overlap another gig.
+const {conflicts}=useGigConflicts(()=>({startsAt:iso(form.startsAt),endsAt:iso(form.endsAt),loadInAt:iso(form.loadInAt),excludeId:id}))
 const portalMessage=ref('');const portalUrl=ref('');const portalDays=ref(30);const portalBusy=ref(false)
 const actionMenu=ref<HTMLDetailsElement|null>(null);const portalMenu=ref<HTMLDetailsElement|null>(null)
 const {data:portalData,refresh:refreshPortal}=await useFetch<{links:PortalLink[]}>(`/api/admin/gigs/${id}/portal-links`,{immediate:canManageGigs.value})
@@ -351,6 +353,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 <div v-if="canEdit&&editing!=='planning'" class="panel-tools"><button type="button" class="text-button" @click="edit('planning')"><Icon name="lucide:pencil" aria-hidden="true" />Planning bewerken</button></div>
 <section class="card" :data-editing="editing==='planning'||undefined">
   <header class="card-head"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><h2>Datum & tijd</h2></header>
+  <AdminGigConflictWarning :conflicts="conflicts" />
   <div v-if="editing==='planning'" class="grid"><label>Start<input v-model="form.startsAt" type="datetime-local"></label><label>Einde<input v-model="form.endsAt" type="datetime-local"></label></div>
   <dl v-else class="split"><div><dt>Start</dt><dd>{{planningMoment(data.gig.startsAt,'Nog niet ingevuld')}}</dd></div><div><dt>Einde</dt><dd>{{planningMoment(data.gig.endsAt,'Nog niet ingevuld')}}</dd></div></dl>
 </section>
