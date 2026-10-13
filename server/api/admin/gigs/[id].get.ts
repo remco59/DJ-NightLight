@@ -1,5 +1,5 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
-import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues, quotes } from '../../../../db/schema'
+import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues, quotes, expenses, businessSettings } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { gigTitleSql } from '../../../utils/gig-title'
 import { requireStaff } from '../../../utils/require-staff'
@@ -90,6 +90,7 @@ export default defineEventHandler(async (event) => {
         dueDate: invoices.dueDate,
         currency: invoices.currency,
         totalCents: invoices.totalCents,
+        subtotalCents: invoices.subtotalCents,
         finalizedAt: invoices.finalizedAt,
         paymentProvider: payments.provider,
         stripeSessionId: payments.providerSessionId,
@@ -118,5 +119,22 @@ export default defineEventHandler(async (event) => {
       }).from(quotes).where(eq(quotes.gigId, id)).orderBy(desc(quotes.createdAt))
     : []
 
-  return { gig, contacts, timeline, activity, invoices: invoiceRows, quotes: quoteRows, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
+  const expenseRows = canManage
+    ? await db.select({
+        id: expenses.id,
+        kind: expenses.kind,
+        spentOn: expenses.spentOn,
+        description: expenses.description,
+        category: expenses.category,
+        amountCents: expenses.amountCents,
+        vatCents: expenses.vatCents,
+        kilometers: expenses.kilometers,
+        kmRateCents: expenses.kmRateCents,
+      }).from(expenses).where(eq(expenses.gigId, id)).orderBy(desc(expenses.spentOn), desc(expenses.createdAt))
+    : []
+  const [financeSettings] = canManage
+    ? await db.select({ kmRateCents: businessSettings.kmRateCents }).from(businessSettings).where(eq(businessSettings.key, 'default')).limit(1)
+    : []
+
+  return { gig, contacts, timeline, activity, invoices: invoiceRows, quotes: quoteRows, expenses: expenseRows, kmRateCents: financeSettings?.kmRateCents ?? 23, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
 })

@@ -24,6 +24,10 @@ tags:
     description: Back office (ingelogde medewerkers)
   - name: admin/email
     description: Back office (ingelogde medewerkers)
+  - name: admin/expenses
+    description: Back office (ingelogde medewerkers)
+  - name: admin/finance
+    description: Back office (ingelogde medewerkers)
   - name: admin/gigs
     description: Back office (ingelogde medewerkers)
   - name: admin/integrations
@@ -1821,6 +1825,344 @@ paths:
               required:
                 - templateKey
                 - recipient
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/expenses:
+    post:
+      operationId: postAdminExpenses
+      tags:
+        - admin/expenses
+      description: Registers a cost or a trip. A trip's amount is worked out from the kilometres and the rate.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    kind:
+                      type: string
+                      const: cost
+                    gigId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: string
+                          const: ""
+                        - type: "null"
+                    spentOn:
+                      type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    description:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    category:
+                      type: string
+                      enum:
+                        - reis
+                        - materiaal
+                        - huur
+                        - muziek
+                        - marketing
+                        - verzekering
+                        - overig
+                    amountCents:
+                      type: integer
+                      minimum: 0
+                      maximum: 100000000
+                    vatCents:
+                      default: 0
+                      type: integer
+                      minimum: 0
+                      maximum: 100000000
+                  required:
+                    - kind
+                    - spentOn
+                    - description
+                    - category
+                    - amountCents
+                - type: object
+                  properties:
+                    kind:
+                      type: string
+                      const: mileage
+                    gigId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: string
+                          const: ""
+                        - type: "null"
+                    spentOn:
+                      type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    description:
+                      default: ""
+                      type: string
+                      maxLength: 300
+                    kilometers:
+                      type: number
+                      minimum: 0.1
+                      maximum: 5000
+                    kmRateCents:
+                      type: integer
+                      minimum: 0
+                      maximum: 500
+                  required:
+                    - kind
+                    - spentOn
+                    - kilometers
+                    - kmRateCents
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/expenses/{id}:
+    put:
+      operationId: putAdminExpensesById
+      tags:
+        - admin/expenses
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    kind:
+                      type: string
+                      const: cost
+                    gigId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: string
+                          const: ""
+                        - type: "null"
+                    spentOn:
+                      type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    description:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    category:
+                      type: string
+                      enum:
+                        - reis
+                        - materiaal
+                        - huur
+                        - muziek
+                        - marketing
+                        - verzekering
+                        - overig
+                    amountCents:
+                      type: integer
+                      minimum: 0
+                      maximum: 100000000
+                    vatCents:
+                      default: 0
+                      type: integer
+                      minimum: 0
+                      maximum: 100000000
+                  required:
+                    - kind
+                    - spentOn
+                    - description
+                    - category
+                    - amountCents
+                - type: object
+                  properties:
+                    kind:
+                      type: string
+                      const: mileage
+                    gigId:
+                      anyOf:
+                        - type: string
+                          format: uuid
+                          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        - type: string
+                          const: ""
+                        - type: "null"
+                    spentOn:
+                      type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    description:
+                      default: ""
+                      type: string
+                      maxLength: 300
+                    kilometers:
+                      type: number
+                      minimum: 0.1
+                      maximum: 5000
+                    kmRateCents:
+                      type: integer
+                      minimum: 0
+                      maximum: 500
+                  required:
+                    - kind
+                    - spentOn
+                    - kilometers
+                    - kmRateCents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminExpensesById
+      tags:
+        - admin/expenses
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/finance:
+    get:
+      operationId: getAdminFinance
+      tags:
+        - admin/finance
+      description: "Year overview for the finance page: revenue, costs, result per month, and the costs of that year."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/finance/export.csv:
+    get:
+      operationId: getAdminFinanceExport.csv
+      tags:
+        - admin/finance
+      description: One line per invoice or cost of a year, for the accountant.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/finance/settings:
+    put:
+      operationId: putAdminFinanceSettings
+      tags:
+        - admin/finance
+      description: The default reimbursement per kilometre. Existing mileage keeps the rate it was registered with.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kmRateCents:
+                  type: integer
+                  minimum: 0
+                  maximum: 500
+              required:
+                - kmRateCents
       responses:
         "200":
           description: Gelukt

@@ -216,6 +216,7 @@ export const businessSettings = pgTable('business_settings', {
   invoicePrefix: varchar('invoice_prefix', { length: 16 }).default('NL').notNull(),
   nextInvoiceNumber: integer('next_invoice_number').default(1).notNull(),
   nextQuoteNumber: integer('next_quote_number').default(1).notNull(),
+  kmRateCents: integer('km_rate_cents').default(23).notNull(),
   defaultVatMode: invoiceVatMode('default_vat_mode').default('exclusive').notNull(),
   defaultVatRateBasisPoints: integer('default_vat_rate_basis_points').default(2100).notNull(),
   defaultPaymentTermDays: integer('default_payment_term_days').default(30).notNull(),
@@ -300,6 +301,21 @@ export const quoteLineItems = pgTable('quote_line_items', {
   ordering: integer('ordering').default(0).notNull(),
   ...timestamps,
 })
+
+export const expenses = pgTable('expenses', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  kind: varchar('kind', { length: 16 }).$type<'cost' | 'mileage'>().default('cost').notNull(),
+  spentOn: date('spent_on').notNull(),
+  description: varchar('description', { length: 300 }).notNull(),
+  category: varchar('category', { length: 40 }).default('overig').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  vatCents: integer('vat_cents').default(0).notNull(),
+  kilometers: numeric('kilometers', { precision: 8, scale: 1 }),
+  kmRateCents: integer('km_rate_cents'),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [index('expenses_spent_on_idx').on(table.spentOn), index('expenses_gig_id_idx').on(table.gigId)])
 
 export const payments = pgTable('payments', {
   id: uuid('id').defaultRandom().primaryKey(),
