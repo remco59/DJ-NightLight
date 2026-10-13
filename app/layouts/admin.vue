@@ -74,8 +74,9 @@ watch(()=>route.path,()=>{mobileOpen.value=false})
 
     <div v-if="!online" class="offline-banner" role="status">
       <Icon name="lucide:wifi-off" aria-hidden="true" />
-      Offline — je ziet de laatst opgehaalde gigs. Aanmaken en wijzigen kan alleen met verbinding.
+      Offline — je ziet de laatst opgehaalde gegevens. Alleen notities en de status van een gig kun je nu vastleggen; de rest kan alleen met verbinding.
     </div>
+    <AdminOutboxStatus />
 
     <main id="main" class="admin-main" tabindex="-1" :inert="(isCompact && mobileOpen) || undefined">
       <AdminOfflineNotice v-if="blocked" />

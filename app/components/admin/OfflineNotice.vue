@@ -7,9 +7,10 @@ const emit = defineEmits<{ retry: [] }>()
   <section class="offline-notice" aria-labelledby="offline-title">
     <Icon name="lucide:wifi-off" aria-hidden="true" />
     <h1 id="offline-title">Je bent offline</h1>
-    <p>Deze pagina heeft een internetverbinding nodig. Gigs die je eerder hebt bekeken kun je ook zonder verbinding bekijken.</p>
+    <p>Deze pagina heeft een internetverbinding nodig. Het dashboard, de agenda, gigs, locaties en klanten die je eerder hebt bekeken kun je ook zonder verbinding bekijken.</p>
     <div class="actions">
       <NuxtLink class="primary" to="/admin/gigs">Naar gigs</NuxtLink>
+      <NuxtLink class="secondary" to="/admin">Naar het dashboard</NuxtLink>
       <button v-if="retry" class="secondary" type="button" @click="emit('retry')">Opnieuw proberen</button>
     </div>
   </section>

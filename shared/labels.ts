@@ -102,6 +102,7 @@ export const activityActionLabels: Labels = {
   created: 'Aangemaakt',
   updated: 'Bijgewerkt',
   status_changed: 'Status gewijzigd',
+  offline_note_added: 'Notitie toegevoegd (offline)',
   assignment_changed: 'DJ-toewijzing gewijzigd',
   duplicated: 'Gedupliceerd',
   archived: 'Gearchiveerd',

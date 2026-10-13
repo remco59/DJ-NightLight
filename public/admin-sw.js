@@ -1,22 +1,37 @@
 /* Service worker for the admin app (scope /admin).
  *
- * Goal: gig details stay readable without a connection. It deliberately caches
- * very little:
+ * Goal: the pages a DJ needs on location stay readable without a connection. It
+ * deliberately caches very little:
  *  - hashed /_nuxt assets (cache-first), so a visited page still boots offline;
- *  - the gig list, gig details and gig pages (network-first, cached copy only
- *    used when the network fails).
- * Nothing else under /api is ever cached, and every write goes straight to the
- * network. Cached gig data is removed on logout / expired session (see the
- * admin-pwa client plugin), because it holds client and fee information.
+ *  - a short list of read-only API responses and their pages (network-first, the
+ *    cached copy is only used when the network fails): gigs, music wishes,
+ *    venues, clients, the dashboard and the agenda.
+ * Nothing else under /api is ever cached (no portal links, invoices or settings),
+ * and every write goes straight to the network. Queued offline changes live in the
+ * app (IndexedDB), not here. Cached data is removed on logout / expired session
+ * (see the admin-pwa client plugin), because it holds client and fee information.
  */
-const VERSION = 'v1'
+const VERSION = 'v2'
 const ASSETS = `nl-assets-${VERSION}`
-const DATA = `nl-gigs-${VERSION}`
+const DATA = `nl-data-${VERSION}`
 const OFFLINE_URL = '/admin-offline.html'
-const MAX_DATA_ENTRIES = 80
+const MAX_DATA_ENTRIES = 160
 
-const GIG_API = /^\/api\/admin\/gigs(\/[0-9a-f-]{36})?$/i
-const GIG_PAGE = /^\/admin\/gigs(\/[0-9a-f-]{36})?\/?$/i
+const DATA_API = [
+  /^\/api\/admin\/gigs(\/[0-9a-f-]{36})?$/i,
+  /^\/api\/admin\/gigs\/[0-9a-f-]{36}\/portal-submission$/i,
+  /^\/api\/admin\/venues\/[0-9a-f-]{36}$/i,
+  /^\/api\/admin\/clients\/[0-9a-f-]{36}$/i,
+  /^\/api\/admin\/dashboard$/i,
+  /^\/api\/admin\/calendar\/events$/i,
+]
+const DATA_PAGES = [
+  /^\/admin\/?$/i,
+  /^\/admin\/gigs(\/[0-9a-f-]{36})?\/?$/i,
+  /^\/admin\/calendar\/?$/i,
+  /^\/admin\/venues\/[0-9a-f-]{36}\/?$/i,
+  /^\/admin\/clients\/[0-9a-f-]{36}\/?$/i,
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(ASSETS).then(cache => cache.add(OFFLINE_URL)).then(() => self.skipWaiting()))
@@ -33,7 +48,7 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'clear-gig-cache') event.waitUntil(caches.delete(DATA))
+  if (event.data?.type === 'clear-cache') event.waitUntil(caches.delete(DATA))
 })
 
 async function trim(cache) {
@@ -78,7 +93,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (GIG_API.test(url.pathname)) {
+  if (DATA_API.some(pattern => pattern.test(url.pathname))) {
     // Keyed on the full URL: a filtered list is only available offline once it was loaded online.
     event.respondWith(networkFirst(request))
     return
@@ -86,7 +101,7 @@ self.addEventListener('fetch', (event) => {
 
   // The warm-up fetches pages with this header so they are stored like a visit.
   const isPage = request.mode === 'navigate' || request.headers.has('x-pwa-warm')
-  if (isPage && GIG_PAGE.test(url.pathname)) {
+  if (isPage && DATA_PAGES.some(pattern => pattern.test(url.pathname))) {
     event.respondWith(networkFirst(request, () => caches.match(OFFLINE_URL)))
     return
   }

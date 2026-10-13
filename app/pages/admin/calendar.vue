@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/utils/api-error'
+import { monthGridRange } from '~/utils/calendar-range'
 import { calendarSyncStatusLabels, gigStatusLabels, labelFor } from '~~/shared/labels'
 import { socialPostKindLabels, socialProviderLabels, type SocialPostItem, type SocialPostKindKey } from '~~/shared/social'
 
@@ -89,9 +90,7 @@ function visibleRange(mode: ViewMode, value: Date) {
   if (mode === 'day') return { start: startOfDay(value), end: addDays(startOfDay(value), 1) }
   if (mode === 'week') return { start: startOfWeek(value), end: endOfWeek(value) }
   if (mode === 'year') return { start: startOfYear(value), end: endOfYear(value) }
-  const monthStart = startOfMonth(value)
-  const gridStart = startOfWeek(monthStart)
-  return { start: gridStart, end: addDays(gridStart, 42) }
+  return monthGridRange(value)
 }
 
 const range = computed(() => visibleRange(view.value, cursor.value))
