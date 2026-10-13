@@ -2,6 +2,8 @@
 import { apiErrorMessage } from '~/utils/api-error'
 import { gigDisplayTitle } from '~~/shared/gig-title'
 import { FOLLOW_UP_CHOICES, leadFollowUp, leadFollowUpHint } from '~~/shared/lead-followup'
+import { todayInAmsterdam } from '~~/shared/dates'
+import { quoteDisplayStatus, type QuoteStatus } from '~~/shared/quote'
 import type { QuestionnaireField } from '~~/shared/questionnaire'
 import { activityActionLabels, gigStatusLabels, labelFor, musicWishCategoryLabels, portalLinkStateLabels, submissionStatusLabels } from '~~/shared/labels'
 
@@ -21,7 +23,8 @@ type Timeline={id?:string;time:string|null;title:string;description:string|null;
 type Gig={createdAt:string;lastContactedAt:string|null;followUpAt:string|null;id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null;venueAddress:string|null;venueCity:string|null}
 type Activity={id:string;action:string;metadata:Record<string,unknown>|null;createdAt:string;actorName:string|null;actorEmail:string|null}
 type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
-type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
+type QuoteSummary={id:string;quoteNumber:string|null;status:QuoteStatus;validUntil:string;currency:string;totalCents:number;sentAt:string|null;acceptedAt:string|null;acceptedName:string|null;invoiceId:string|null}
+type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];quotes:QuoteSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
 type PortalLink={id:string;expiresAt:string;revokedAt:string|null;lastUsedAt:string|null;url:string|null;lastInvitedAt:string;invitationCount:number;createdAt:string;state:'active'|'expired'|'revoked'}
 type PortalSubmission={status:'not_started'|'draft'|'submitted';submission:{answers:Record<string,unknown>;acceptedName:string|null;submittedAt:string|null}|null;fields:QuestionnaireField[];templateVersion:number;wishes:Array<{id:string;category:string;artist:string|null;title:string|null;spotifyUrl:string|null;note:string|null}>}
 
@@ -130,6 +133,23 @@ const portalSummary=computed(()=>{
 })
 
 const liveInvoices=computed(()=>(data.value?.invoices||[]).filter(invoice=>invoice.status!=='void'))
+// Quotes: a sent quote past its date counts as expired. Only one quote can be in progress at a time.
+const quoteList=computed(()=>(data.value?.quotes||[]).map(quote=>({...quote,display:quoteDisplayStatus(quote,todayInAmsterdam())})))
+const openQuote=computed(()=>quoteList.value.find(quote=>quote.status==='draft'||quote.status==='sent'))
+const acceptedQuote=computed(()=>quoteList.value.find(quote=>quote.status==='accepted'))
+const quoteBusy=ref(false)
+async function createQuote(){
+  quoteBusy.value=true;message.value=''
+  try{const result=await $fetch<{quote:{id:string}}>(`/api/admin/gigs/${id}/quote`,{method:'POST'});await navigateTo(`/admin/quotes/${result.quote.id}`)}
+  catch(error:unknown){message.value=apiErrorMessage(error,'Offerte aanmaken is niet gelukt.')}
+  finally{quoteBusy.value=false}
+}
+async function createInvoiceFromQuote(quoteId:string){
+  quoteBusy.value=true;message.value=''
+  try{const result=await $fetch<{invoice:{id:string}}>(`/api/admin/quotes/${quoteId}/invoice`,{method:'POST'});await navigateTo(`/admin/invoices/${result.invoice.id}`)}
+  catch(error:unknown){message.value=apiErrorMessage(error,'Factuur aanmaken is niet gelukt.')}
+  finally{quoteBusy.value=false}
+}
 const currency=computed(()=>data.value?.gig.currency||'EUR')
 const invoiceTotals=computed(()=>{
   const sent=liveInvoices.value.filter(invoice=>invoice.status==='finalized')
@@ -148,10 +168,12 @@ type NextStep={title:string;hint?:string;action?:string;to?:string;run?:()=>void
 const nextStep=computed<NextStep|null>(()=>{
   const gig=data.value?.gig;if(!gig)return null
   if(gig.status==='declined'||gig.status==='cancelled')return null
-  if(gig.status==='lead')return {title:'Boeking bevestigen',hint:gig.startsAt?undefined:'Vul eerst een datum in als die bekend is.',action:'Gig boeken',run:()=>{form.status='booked';save()}}
+  if(gig.status==='lead')return {title:'Boeking bevestigen',hint:acceptedQuote.value?`${acceptedQuote.value.acceptedName||'De klant'} is akkoord met de offerte.`:gig.startsAt?undefined:'Vul eerst een datum in als die bekend is.',action:'Gig boeken',run:()=>{form.status='booked';save()}}
   const invoices=liveInvoices.value
   const draft=invoices.find(invoice=>invoice.status==='draft')
   const open=invoices.find(invoice=>invoice.status==='finalized'&&invoice.paymentStatus!=='paid')
+  const quoteToInvoice=acceptedQuote.value&&!acceptedQuote.value.invoiceId?acceptedQuote.value:null
+  if(!invoices.length&&quoteToInvoice)return {title:'Factuur maken',hint:'De klant is akkoord met de offerte.',action:'Factuur maken uit offerte',run:()=>createInvoiceFromQuote(quoteToInvoice.id)}
   if(!invoices.length)return {title:'Factuur maken',hint:'Er zijn nog geen facturen voor deze gig.',action:'Factuur aanmaken',run:createInvoice}
   if(draft)return {title:'Factuur afronden',hint:'De conceptfactuur is nog niet verstuurd.',action:'Factuur openen',to:`/admin/invoices/${draft.id}`}
   if(!hasActivePortalLink.value&&!submissionData.value?.submission)return {title:'Klantportaal versturen',hint:'Laat de klant gegevens en muziekwensen invullen.',action:'Uitnodiging versturen',run:sendPortalInvitation}
@@ -472,6 +494,19 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </section>
 
 <template v-if="canManageGigs">
+<section class="card quotes-card">
+  <header class="card-head"><Icon name="lucide:file-signature" class="lead-icon" aria-hidden="true" /><h2>Offertes</h2></header>
+  <p v-if="!quoteList.length" class="empty">Nog geen offerte voor deze gig.</p>
+  <div v-for="quote in quoteList" :key="quote.id" class="quote-item">
+    <NuxtLink :to="`/admin/quotes/${quote.id}`" class="invoice-row">
+      <span class="invoice-main"><strong>{{quote.quoteNumber||'Conceptofferte'}}</strong><small>{{quote.status==='draft'?'Concept':quote.acceptedAt?`Akkoord van ${quote.acceptedName||'de klant'} · ${longDate(quote.acceptedAt)}`:`Geldig tot ${invoiceDate(quote.validUntil)}`}}</small><span class="invoice-statuses"><AdminStatusChip kind="quote" :status="quote.display" /></span></span>
+      <strong class="invoice-total">{{money(quote.totalCents,quote.currency)}}</strong><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" />
+    </NuxtLink>
+    <button v-if="quote.status==='accepted'&&!quote.invoiceId&&canEdit" type="button" class="primary wide-button" :disabled="quoteBusy" @click="createInvoiceFromQuote(quote.id)">Factuur maken uit offerte</button>
+  </div>
+  <button v-if="canEdit&&!openQuote&&!acceptedQuote" type="button" :class="quoteList.length?'outline wide-button':'primary wide-button'" :disabled="quoteBusy" @click="createQuote">Offerte maken</button>
+</section>
+
 <section class="card">
   <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>Facturen</h2></header>
   <p v-if="!data.invoices.length" class="empty">Nog geen facturen voor deze gig.</p>

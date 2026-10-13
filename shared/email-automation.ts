@@ -94,6 +94,19 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
       { label: 'Datum feest', variable: 'eventDate' },
     ],
   },
+  owner_quote_response: {
+    eyebrow: 'Offerte',
+    title: 'Reactie op je offerte',
+    ctaVariable: 'adminUrl',
+    ctaLabel: 'Open de gig',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Offerte', variable: 'quoteNumber' },
+      { label: 'Bedrag', variable: 'amount' },
+      { label: 'Reactie', variable: 'outcome' },
+      { label: 'Akkoord door', variable: 'acceptedName' },
+    ],
+  },
   owner_review_received: {
     eyebrow: 'Review',
     title: 'Je hebt een nieuwe review',
@@ -156,6 +169,17 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     details: [
       { label: 'Boeking', variable: 'gigTitle' },
       { label: 'Datum', variable: 'gigDate' },
+    ],
+  },
+  quote_sent: {
+    eyebrow: 'Offerte',
+    title: 'Je offerte staat klaar',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Bekijk de offerte',
+    details: [
+      { label: 'Offertenummer', variable: 'quoteNumber' },
+      { label: 'Bedrag', variable: 'quoteTotal' },
+      { label: 'Geldig tot', variable: 'quoteValidUntil' },
     ],
   },
   invoice_sent: {

@@ -18,6 +18,7 @@ type PortalData = {
   review: { rating: number, comment: string | null, createdAt: string } | null
   questionnaire: { version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
+  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, declinedAt: string | null } | null
   invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
 }
 
@@ -37,6 +38,41 @@ for (const field of data.value?.questionnaire.fields || []) {
 }
 
 const acceptedName = ref(data.value?.questionnaire.acceptedName || '')
+
+// Quote: the client can accept it (typed name and a tick) or turn it down while it is still valid.
+const quoteName = ref(data.value?.client.name || '')
+const quoteAgree = ref(false)
+const quoteBusy = ref(false)
+const quoteMessage = ref('')
+const declining = ref(false)
+const declineReason = ref('')
+const quoteStatusLabels = { sent: 'Wacht op jouw akkoord', accepted: 'Geaccepteerd', declined: 'Afgewezen', expired: 'Verlopen' } as const
+function formatMoney(cents: number, currency: string) { return new Intl.NumberFormat('nl-NL', { style: 'currency', currency }).format(cents / 100) }
+function formatQuoteDay(value: string) { return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeZone: 'Europe/Amsterdam' }).format(new Date(`${value}T12:00:00`)) }
+async function acceptQuote() {
+  quoteBusy.value = true
+  quoteMessage.value = ''
+  try {
+    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-accept`, { method: 'POST', body: { acceptedName: quoteName.value, agree: quoteAgree.value } })
+    await refresh()
+  } catch (quoteError: unknown) {
+    quoteMessage.value = apiErrorMessage(quoteError, 'Akkoord geven is niet gelukt. Probeer het opnieuw.')
+  } finally {
+    quoteBusy.value = false
+  }
+}
+async function declineQuote() {
+  quoteBusy.value = true
+  quoteMessage.value = ''
+  try {
+    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-decline`, { method: 'POST', body: { reason: declineReason.value } })
+    await refresh()
+  } catch (quoteError: unknown) {
+    quoteMessage.value = apiErrorMessage(quoteError, 'Afwijzen is niet gelukt. Probeer het opnieuw.')
+  } finally {
+    quoteBusy.value = false
+  }
+}
 const wishes = ref<Wish[]>((data.value?.wishes || []).map(wish => ({ ...wish })))
 const submitting = ref(false)
 const message = ref('')
@@ -211,6 +247,59 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         </div>
       </header>
 
+      <section v-if="data.quote" id="quote" class="surface step-section quote-card" aria-labelledby="quote-title">
+        <header class="quote-head">
+          <div>
+            <p class="eyebrow">Offerte {{ data.quote.quoteNumber }}</p>
+            <h2 id="quote-title">{{ formatMoney(data.quote.totalCents, data.quote.currency) }}</h2>
+          </div>
+          <span class="quote-badge" :data-status="data.quote.status">{{ quoteStatusLabels[data.quote.status] }}</span>
+        </header>
+        <p class="quote-valid">Geldig tot {{ formatQuoteDay(data.quote.validUntil) }}</p>
+
+        <table class="quote-lines">
+          <caption class="sr-only">Regels van de offerte</caption>
+          <thead><tr><th scope="col">Omschrijving</th><th scope="col" class="num">Aantal</th><th scope="col" class="num">Bedrag</th></tr></thead>
+          <tbody>
+            <tr v-for="(line, index) in data.quote.lines" :key="index">
+              <td>{{ line.description }}</td>
+              <td class="num">{{ Number(line.quantity) }}</td>
+              <td class="num">{{ formatMoney(line.totalCents, data.quote.currency) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <dl class="quote-totals">
+          <div><dt>Subtotaal</dt><dd>{{ formatMoney(data.quote.subtotalCents, data.quote.currency) }}</dd></div>
+          <div><dt>{{ data.quote.vatMode === 'exempt' ? 'Geen btw' : `BTW (${data.quote.vatRateBasisPoints / 100}%)` }}</dt><dd>{{ formatMoney(data.quote.vatAmountCents, data.quote.currency) }}</dd></div>
+          <div class="grand"><dt>Totaal</dt><dd>{{ formatMoney(data.quote.totalCents, data.quote.currency) }}</dd></div>
+        </dl>
+        <p v-if="data.quote.terms" class="quote-terms">{{ data.quote.terms }}</p>
+
+        <form v-if="data.quote.open" class="quote-form" @submit.prevent="acceptQuote">
+          <label>Je naam<input v-model="quoteName" required minlength="2" maxlength="200" autocomplete="name"></label>
+          <label class="consent"><input v-model="quoteAgree" type="checkbox" required><span>Ik ga akkoord met deze offerte van {{ formatMoney(data.quote.totalCents, data.quote.currency) }}.</span></label>
+          <p v-if="quoteMessage" class="message" role="alert">{{ quoteMessage }}</p>
+          <div class="quote-actions">
+            <button class="primary-action" :disabled="quoteBusy || !quoteAgree || quoteName.trim().length < 2">{{ quoteBusy ? 'Versturen…' : 'Akkoord geven' }} <Icon v-if="!quoteBusy" name="lucide:check" aria-hidden="true" /></button>
+            <button v-if="!declining" type="button" class="ghost-action" :disabled="quoteBusy" @click="declining = true">Afwijzen</button>
+            <a class="ghost-action" :href="`/api/client/portal/${encodeURIComponent(token)}/quote-pdf`" download><Icon name="lucide:download" aria-hidden="true" />PDF</a>
+          </div>
+          <div v-if="declining" class="quote-decline">
+            <label>Wil je laten weten waarom? <small>optioneel</small><textarea v-model="declineReason" rows="3" maxlength="2000" /></label>
+            <div class="quote-actions">
+              <button type="button" class="secondary-action" :disabled="quoteBusy" @click="declineQuote">Offerte afwijzen</button>
+              <button type="button" class="ghost-action" :disabled="quoteBusy" @click="declining = false">Toch niet</button>
+            </div>
+          </div>
+        </form>
+        <div v-else class="quote-result" :data-status="data.quote.status">
+          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. Ik bevestig de boeking zo snel mogelijk.</span></p>
+          <p v-else-if="data.quote.status === 'declined'" role="status"><Icon name="lucide:circle-x" aria-hidden="true" /><span>Je hebt de offerte afgewezen. Wil je toch nog iets aanpassen? Neem gerust contact op.</span></p>
+          <p v-else role="status"><Icon name="lucide:clock-alert" aria-hidden="true" /><span>Deze offerte is verlopen. Neem contact op als je hem toch wilt accepteren, dan maak ik een nieuwe.</span></p>
+          <a class="ghost-action" :href="`/api/client/portal/${encodeURIComponent(token)}/quote-pdf`" download><Icon name="lucide:download" aria-hidden="true" />PDF</a>
+        </div>
+      </section>
+
       <section v-if="data.invoice?.status === 'finalized'" class="summary-grid" :class="{ 'is-prominent': invoiceProminent, 'is-paid': data.invoice.paymentStatus === 'paid' }">
         <article class="surface summary-card invoice-card">
           <div class="summary-icon"><Icon :name="data.invoice.paymentStatus === 'paid' ? 'lucide:check' : 'lucide:file-text'" aria-hidden="true" /></div>
@@ -359,6 +448,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
+.quote-card{display:grid;gap:1rem;margin-bottom:1rem}.quote-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem}.quote-head h2{margin:.2rem 0 0;font-size:clamp(1.8rem,5vw,2.6rem);letter-spacing:-.03em}.quote-badge{padding:.25rem .7rem;border:1px solid #34506e;border-radius:999px;color:#a8cdf5;font-size:.78rem;font-weight:700}.quote-badge[data-status=accepted]{border-color:#2f5a42;color:#a9e1bb}.quote-badge[data-status=declined]{border-color:#5a2a33;color:#f3a7b2}.quote-badge[data-status=expired]{border-color:#5b4a24;color:#f2cf8a}.quote-valid{margin:0;color:var(--text-subtle)}.quote-lines{width:100%;border-collapse:collapse;font-size:.92rem}.quote-lines th{padding:.4rem 0;color:var(--text-subtle);font-size:.74rem;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}.quote-lines td{padding:.7rem 0;border-bottom:1px solid var(--border)}.quote-lines .num{text-align:right;white-space:nowrap;padding-left:1rem}.quote-totals{display:grid;gap:.3rem;margin:0}.quote-totals div{display:flex;justify-content:space-between;color:var(--text-subtle)}.quote-totals dd{margin:0}.quote-totals .grand{color:var(--text);font-size:1.1rem;font-weight:800}.quote-terms{margin:0;color:var(--text-subtle);font-size:.85rem;line-height:1.55}.quote-form{display:grid;gap:.9rem;padding-top:.5rem;border-top:1px solid var(--border)}.quote-form .consent{display:flex;align-items:flex-start;gap:.7rem;font-size:.9rem;font-weight:500}.quote-form .consent input{width:auto;min-width:1.15rem;height:1.15rem;margin-top:.15rem}.quote-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem}.quote-decline{display:grid;gap:.7rem}.quote-result{display:grid;gap:.8rem;padding-top:.5rem;border-top:1px solid var(--border)}.quote-result p{display:flex;gap:.7rem;align-items:flex-start;margin:0;line-height:1.55}.quote-result svg{flex:none;width:1.3rem;height:1.3rem;margin-top:.15rem}.quote-result[data-status=accepted] svg{color:#4ade80}.quote-result[data-status=declined] svg{color:#f3a7b2}.quote-result[data-status=expired] svg{color:#f2cf8a}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .review-card .consent{display:flex;align-items:flex-start;gap:.7rem;font-size:.85rem;font-weight:500}.review-card .consent input{width:auto;min-width:1.15rem;height:1.15rem;margin-top:.15rem}.review-card .consent span{display:grid;gap:.2rem}.review-card .consent small{color:var(--text-subtle);font-size:.76rem;font-weight:400;line-height:1.45}
 .payment-notice{margin:.5rem 0 0;font-size:.9rem;color:var(--text-subtle)}
 .review-card{display:grid;gap:1rem}.review-card h2{margin:.2rem 0;font-size:1.5rem;letter-spacing:-.025em}.review-card form{display:grid;gap:1rem}.review-intro{margin:0;color:var(--text-subtle)}.star-picker{display:flex;gap:.25rem}.star-picker button{border:0;background:none;padding:.2rem;color:#7d7489;font-size:2.2rem;line-height:0;cursor:pointer;transition:color .12s,transform .12s}.star-picker button:hover{transform:scale(1.1)}.star-picker button.on{color:#a66eff}.star-picker button.on svg{fill:currentColor}.review-done{display:flex;align-items:flex-start;gap:.85rem;color:#bdebd1}.review-done>svg{font-size:1.5rem;margin-top:.1rem}.review-done div{display:grid;gap:.4rem}.review-done p{margin:0;color:var(--text-subtle)}.review-stars-static{display:flex;gap:.15rem;color:#4a4352}.review-stars-static .on{color:#a66eff;fill:currentColor}

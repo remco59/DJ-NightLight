@@ -22,6 +22,7 @@ Admin → Email contains the initial workflows:
 - booking accepted
 - client portal invitation
 - portal reminder
+- quote sent (a link to the client portal, where the client can accept the quote)
 - invoice sent
 - payment reminder
 - overdue reminder
