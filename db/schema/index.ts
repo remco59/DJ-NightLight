@@ -215,6 +215,8 @@ export const businessSettings = pgTable('business_settings', {
   defaultPaymentTermDays: integer('default_payment_term_days').default(30).notNull(),
   paymentTerms: text('payment_terms').default('Betaal het volledige bedrag vóór de vervaldatum.').notNull(),
   legalText: text('legal_text').default('').notNull(),
+  ownerNotificationEmail: varchar('owner_notification_email', { length: 320 }).default('').notNull(),
+  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted']).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 

@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { auditLogs, invoices, outboxEvents, payments, stripeWebhookEvents } from '../../../db/schema'
 import { checkoutAmountMatches, checkoutPaymentOutcome } from '../../../shared/payment-events'
 import { db } from '../../utils/db'
+import { consumeOwnerNotifications, ownerNotificationOutboxValues } from '../../utils/owner-notifications'
 import { getStripeClient, getStripeWebhookSecret } from '../../utils/stripe'
 
 function objectId(value: string | { id: string } | null) {
@@ -82,7 +83,13 @@ export default defineEventHandler(async (event) => {
         dedupeKey: `payment-received:${invoice.id}`,
         payload: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, amountCents: invoice.totalCents, currency: invoice.currency },
       }).onConflictDoNothing({ target: outboxEvents.dedupeKey })
+      // Tell the owner too, in the same transaction so a retried webhook cannot notify twice.
+      await tx.insert(outboxEvents).values(ownerNotificationOutboxValues('invoice_paid', invoice.id, {
+        invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, amountCents: invoice.totalCents, currency: invoice.currency,
+      })).onConflictDoNothing({ target: outboxEvents.dedupeKey })
     }
   })
+  // Deliver at once; the email worker retries anything that fails. Never fails the webhook.
+  void consumeOwnerNotifications().catch(() => undefined)
   return { received: true }
 })

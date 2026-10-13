@@ -90,4 +90,7 @@ export const businessSettingsInputSchema = z.object({
   defaultPaymentTermDays: z.number().int().min(0).max(365),
   paymentTerms: z.string().trim().max(5000),
   legalText: z.string().trim().max(5000),
+  // Optional so older clients (and queued offline changes) keep working; left out means unchanged.
+  ownerNotificationEmail: z.union([z.literal(''), z.email()]).optional(),
+  ownerNotificationKinds: z.array(z.enum(['new_inquiry', 'invoice_paid', 'portal_submitted'])).max(3).optional(),
 })

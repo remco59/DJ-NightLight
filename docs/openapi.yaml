@@ -215,6 +215,22 @@ paths:
                 legalText:
                   type: string
                   maxLength: 5000
+                ownerNotificationEmail:
+                  anyOf:
+                    - type: string
+                      const: ""
+                    - type: string
+                      format: email
+                      pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                ownerNotificationKinds:
+                  maxItems: 3
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - new_inquiry
+                      - invoice_paid
+                      - portal_submitted
               required:
                 - companyName
                 - address
@@ -232,6 +248,43 @@ paths:
                 - defaultPaymentTermDays
                 - paymentTerms
                 - legalText
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/business-settings/test-notification:
+    post:
+      operationId: postAdminBusinessSettingsTestNotification
+      tags:
+        - admin/business-settings
+      description: Sends an example notification to the saved address, so the owner can check that it arrives.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  default: new_inquiry
+                  type: string
+                  enum:
+                    - new_inquiry
+                    - invoice_paid
+                    - portal_submitted
       responses:
         "200":
           description: Gelukt
