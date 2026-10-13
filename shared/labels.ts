@@ -121,6 +121,7 @@ export const activityActionLabels: Labels = {
   portal_link_revoked: 'Portaallink ingetrokken',
   portal_invitation_resent: 'Portaaluitnodiging opnieuw verstuurd',
   portal_submission_completed: 'Portaalformulier ingediend',
+  lead_contacted: 'Gereageerd op aanvraag',
   questionnaire_version_created: 'Nieuwe vragenlijstversie',
   website_inquiry: 'Aanvraag via website',
   email_sent_manually: 'E-mail handmatig verstuurd',

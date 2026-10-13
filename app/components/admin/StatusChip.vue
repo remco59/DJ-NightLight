@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { leadFollowUpLabels } from '~~/shared/lead-followup'
 import { gigStatusLabels, invoiceStatusLabels, labelFor, paymentStatusLabels } from '~~/shared/labels'
 
 // One chip for every status in the back office, so "Geboekt", "Betaald" and
 // "Concept" look the same wherever they appear.
 const props = defineProps<{
-  kind: 'gig' | 'invoice' | 'payment'
+  kind: 'gig' | 'invoice' | 'payment' | 'followup'
   status: string
   /** Payment provider: a 'manual' payment is only marked as paid, not confirmed by Stripe. */
   provider?: string | null
@@ -16,8 +17,9 @@ const tones: Record<typeof props.kind, Record<string, Tone>> = {
   gig: { lead: 'info', booked: 'success', declined: 'danger', cancelled: 'danger' },
   invoice: { draft: 'neutral', finalized: 'info', void: 'danger' },
   payment: { unpaid: 'warning', pending: 'info', paid: 'success', failed: 'danger' },
+  followup: { new: 'info', respond: 'danger', waiting: 'neutral', follow_up: 'warning' },
 }
-const labels = { gig: gigStatusLabels, invoice: invoiceStatusLabels, payment: paymentStatusLabels }
+const labels = { gig: gigStatusLabels, invoice: invoiceStatusLabels, payment: paymentStatusLabels, followup: leadFollowUpLabels }
 
 const markedPaid = computed(() => props.kind === 'payment' && props.status === 'paid' && props.provider === 'manual')
 const tone = computed<Tone>(() => markedPaid.value ? 'warning' : tones[props.kind][props.status] ?? 'neutral')

@@ -4,6 +4,7 @@ import {
   processDueEmailJobs,
   recoverStuckEmailJobs,
 } from '../utils/email-automation'
+import { queueDueLeadReminders } from '../utils/owner-notifications'
 
 let running = false
 
@@ -12,6 +13,7 @@ async function tick() {
   running = true
   try {
     await recoverStuckEmailJobs()
+    await queueDueLeadReminders()
     await consumeEmailOutbox()
     await materializeScheduledEmailJobs()
     await processDueEmailJobs(10)

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ownerNotificationKinds } from './owner-notifications'
 
 export const vatModes = ['exclusive', 'inclusive', 'exempt'] as const
 export type VatMode = typeof vatModes[number]
@@ -92,5 +93,5 @@ export const businessSettingsInputSchema = z.object({
   legalText: z.string().trim().max(5000),
   // Optional so older clients (and queued offline changes) keep working; left out means unchanged.
   ownerNotificationEmail: z.union([z.literal(''), z.email()]).optional(),
-  ownerNotificationKinds: z.array(z.enum(['new_inquiry', 'invoice_paid', 'portal_submitted'])).max(3).optional(),
+  ownerNotificationKinds: z.array(z.enum(ownerNotificationKinds)).max(ownerNotificationKinds.length).optional(),
 })

@@ -5,6 +5,7 @@ import { requireStaff } from '../../utils/require-staff'
 import { gigTitleSql } from '../../utils/gig-title'
 import { emailProviderConfigured } from '../../utils/email-provider'
 import { stripeStatus } from '../../utils/stripe-settings'
+import { leadFollowUp, leadFollowUpHint } from '../../../shared/lead-followup'
 import { addMonths, buildRevenueSeries, compareAttention, countdownLabel, daysBetween, gigUrgency, monthKey, revenueTrend } from '../../../shared/dashboard'
 import type { Urgency } from '../../../shared/dashboard'
 
@@ -51,7 +52,7 @@ export default defineEventHandler(async (event) => {
 
   if (user.role === 'content_editor') {
     return {
-      summary: { upcoming: 0, leads: 0, unpaidInvoices: 0, unpaidAmountCents: 0, overdueInvoices: 0, overdueAmountCents: 0, bookedRevenueThisMonthCents: 0, attention: 0 },
+      summary: { upcoming: 0, leads: 0, leadsToAct: 0, unpaidInvoices: 0, unpaidAmountCents: 0, overdueInvoices: 0, overdueAmountCents: 0, bookedRevenueThisMonthCents: 0, attention: 0 },
       upcoming: [],
       attention: [],
       week: { gigs: 0, bookedRevenueCents: 0, invoicesDue: 0, contractsOpen: 0 },
@@ -211,19 +212,26 @@ export default defineEventHandler(async (event) => {
     .leftJoin(contractSubmissions, eq(contractSubmissions.gigId, gigs.id))
     .where(openContractWhere)
 
-  const leadItems = await db
+  // Open leads that need the owner now: unanswered, or with a follow-up that has come. A lead
+  // that has been answered and is waiting for the client stays off this list.
+  const openLeads = await db
     .select({
       gigId: gigs.id,
       title: gigTitleSql(),
       createdAt: gigs.createdAt,
       startsAt: gigs.startsAt,
+      lastContactedAt: gigs.lastContactedAt,
+      followUpAt: gigs.followUpAt,
       venueName: venues.name,
     })
     .from(gigs)
     .leftJoin(venues, eq(gigs.venueId, venues.id))
     .where(leadWhere)
     .orderBy(desc(gigs.createdAt))
-    .limit(3)
+    .limit(100)
+  const leadItems = openLeads
+    .map(lead => ({ ...lead, followUp: leadFollowUp(lead, now) }))
+    .filter(lead => lead.followUp?.actionable)
 
   // Most urgent first: money that is late, then contracts for gigs that are close, then new requests.
   const attention = [
@@ -252,18 +260,21 @@ export default defineEventHandler(async (event) => {
         href: `/admin/gigs/${contract.gigId}`,
       }
     }),
-    ...leadItems.map(lead => ({
-      id: `lead-${lead.gigId}`,
-      kind: 'lead' as const,
-      title: lead.title,
-      description: `Nieuwe aanvraag · binnengekomen ${shortDate(lead.createdAt)}${lead.venueName && lead.venueName !== lead.title ? ` · ${lead.venueName}` : ''}`,
-      // The calendar date on a lead row is the event date, not when the request came in.
-      meta: lead.startsAt,
-      metaLabel: 'Event',
-      dueLabel: null,
-      urgency: 'warn' as Urgency,
-      href: `/admin/gigs/${lead.gigId}`,
-    })),
+    ...leadItems.map((lead) => {
+      const followUp = lead.followUp!
+      return {
+        id: `lead-${lead.gigId}`,
+        kind: 'lead' as const,
+        title: lead.title,
+        description: `${followUp.label} · binnengekomen ${shortDate(lead.createdAt)}${lead.venueName && lead.venueName !== lead.title ? ` · ${lead.venueName}` : ''}`,
+        // Sorted by when the lead became due, so the one that has waited longest comes first.
+        meta: followUp.dueAt,
+        metaLabel: 'Aan de beurt',
+        dueLabel: leadFollowUpHint(followUp, now) || null,
+        urgency: (followUp.state === 'respond' ? 'danger' : 'warn') as Urgency,
+        href: `/admin/gigs/${lead.gigId}`,
+      }
+    }),
   ].sort(compareAttention).slice(0, 5)
 
   const weekGigWhere = assignment
@@ -298,7 +309,7 @@ export default defineEventHandler(async (event) => {
   }, 0)
 
   const contractsOpen = openContractCountRow?.value ?? 0
-  const attentionCount = (overdueCountRow?.value ?? 0) + contractsOpen + leads
+  const attentionCount = (overdueCountRow?.value ?? 0) + contractsOpen + leadItems.length
 
   // Booked revenue for the chart: five months back, this month and six ahead.
   const thisMonth = monthKey(now)
@@ -384,6 +395,7 @@ export default defineEventHandler(async (event) => {
     summary: {
       upcoming: upcomingCountRow?.value ?? 0,
       leads,
+      leadsToAct: leadItems.length,
       unpaidInvoices,
       unpaidAmountCents,
       overdueInvoices: overdueRows.length,

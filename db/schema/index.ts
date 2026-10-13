@@ -106,6 +106,8 @@ export const gigs = pgTable('gigs', {
   publicDescription: text('public_description'),
   internalNotes: text('internal_notes'),
   source: varchar('source', { length: 160 }),
+  lastContactedAt: timestamp('last_contacted_at', { withTimezone: true }),
+  followUpAt: timestamp('follow_up_at', { withTimezone: true }),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   ...timestamps,
 }, table => [index('gigs_assigned_user_id_idx').on(table.assignedUserId)])
@@ -216,7 +218,7 @@ export const businessSettings = pgTable('business_settings', {
   paymentTerms: text('payment_terms').default('Betaal het volledige bedrag vóór de vervaldatum.').notNull(),
   legalText: text('legal_text').default('').notNull(),
   ownerNotificationEmail: varchar('owner_notification_email', { length: 320 }).default('').notNull(),
-  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted']).notNull(),
+  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup']).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
