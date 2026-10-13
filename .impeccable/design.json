@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T00:00:00Z",
+  "title": "Design System: DJ NightLight",
+  "extensions": {
+    "colorMeta": {
+      "electric-accent": { "role": "primary", "displayName": "Electric Violet", "canonical": "#9d5cff", "tonalRamp": ["#2a1450", "#3f1f7a", "#5a2fb0", "#7c3aed", "#9d5cff", "#b98cff", "#d5bcff", "#eadcff"] },
+      "electric-soft": { "role": "primary", "displayName": "Lavender Mist", "canonical": "#eadcff", "tonalRamp": ["#4a3a6b", "#6a549a", "#8d74c4", "#b19ae0", "#cdbaf2", "#eadcff", "#f3eaff", "#faf6ff"] },
+      "surface-page": { "role": "neutral", "displayName": "Stage Black", "canonical": "#08080b", "tonalRamp": ["#08080b", "#0b0a0d", "#100e14", "#17141c", "#29242f", "#332e39", "#9a93a4", "#f6f3fa"] },
+      "text": { "role": "neutral", "displayName": "Paper White", "canonical": "#f6f3fa", "tonalRamp": ["#332e39", "#5a5463", "#7d768a", "#9a93a4", "#aaa4b1", "#cfc9d6", "#eae6ef", "#f6f3fa"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Public page titles; 800 weight, -0.04em, line-height 0.9." },
+      "headline": { "displayName": "Headline", "purpose": "Section and gig titles." },
+      "title": { "displayName": "Title", "purpose": "Card and panel headings." },
+      "body": { "displayName": "Body", "purpose": "Reading copy and lead paragraphs." },
+      "label": { "displayName": "Label", "purpose": "Uppercase eyebrow with a violet gradient rule." },
+      "meta": { "displayName": "Meta", "purpose": "Mono details: dates, venues, counts." }
+    },
+    "shadows": [
+      { "name": "violet-glow", "value": "0 0 1.6rem rgba(109,40,217,.2)", "purpose": "Hover halo on the white pill button." },
+      { "name": "hairline-glow", "value": "0 0 .7rem rgba(157,92,255,.34)", "purpose": "Glow on the eyebrow rule and nav underline." },
+      { "name": "floating-panel", "value": "0 1.2rem 3rem rgba(0,0,0,.55)", "purpose": "Menus, popovers, toasts, sheets." }
+    ],
+    "motion": [
+      { "name": "ease-ui", "value": ".22s ease", "purpose": "Public button and link transitions (lift, glow, color)." },
+      { "name": "ease-admin", "value": ".15s ease", "purpose": "Back-office control hover states." },
+      { "name": "ease-media", "value": ".65s cubic-bezier(.2,.7,.2,1)", "purpose": "Gallery image zoom on hover." }
+    ],
+    "breakpoints": [
+      { "name": "header-collapse", "value": "1000px" },
+      { "name": "tablet", "value": "850px" },
+      { "name": "phone", "value": "760px" },
+      { "name": "forms-single", "value": "750px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Public Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "White pill; the one primary action on the public site.",
+      "html": "<button class=\"ds-btn-primary\">Boeken</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:2.9rem;padding:.78rem 1.2rem;border:1px solid #fff;border-radius:999px;background:#fff;color:#09080b;font:800 .9rem Archivo,system-ui,sans-serif;letter-spacing:-.015em;cursor:pointer;box-shadow:0 0 0 1px rgba(157,92,255,.08),0 0 1.25rem rgba(109,40,217,.08);transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}.ds-btn-primary:hover{transform:translateY(-2px);border-color:#eadcff;box-shadow:0 0 0 1px rgba(157,92,255,.2),0 0 1.6rem rgba(109,40,217,.2)}.ds-btn-primary:focus-visible{outline:2px solid #d9cfff;outline-offset:4px}"
+    },
+    {
+      "name": "Public Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Translucent pill for secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Bekijk agenda</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:2.9rem;padding:.78rem 1.2rem;border:1px solid #3c3741;border-radius:999px;background:rgba(12,10,15,.48);color:#eeeaf2;font:800 .9rem Archivo,system-ui,sans-serif;letter-spacing:-.015em;cursor:pointer;backdrop-filter:blur(8px);transition:border-color .22s ease,background-color .22s ease,box-shadow .22s ease}.ds-btn-secondary:hover{border-color:rgba(157,92,255,.52);background:rgba(24,20,29,.7);box-shadow:0 0 1.2rem rgba(109,40,217,.1)}.ds-btn-secondary:focus-visible{outline:2px solid #d9cfff;outline-offset:4px}"
+    },
+    {
+      "name": "Admin Button",
+      "kind": "button",
+      "refersTo": "button-admin",
+      "description": "Compact rounded-rectangle control for the back office.",
+      "html": "<button class=\"ds-admin-btn\">Annuleren</button> <button class=\"ds-admin-btn ds-admin-btn-primary\">Opslaan</button>",
+      "css": ".ds-admin-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.6rem;padding:.55rem .95rem;border:1px solid #2f2a37;border-radius:.65rem;background:#131118;color:#e9e5ee;font:600 .84rem Archivo,system-ui,sans-serif;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}.ds-admin-btn:hover{border-color:#463d52;background:#1a1720;color:#fff}.ds-admin-btn-primary{border-color:#fff;background:#fff;color:#09080b;font-weight:700}.ds-admin-btn-primary:hover{border-color:#e6e0ee;background:#e6e0ee;color:#09080b}.ds-admin-btn:focus-visible{outline:2px solid #d9cfff;outline-offset:4px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Dark well with a violet focus ring.",
+      "html": "<label class=\"ds-field\">Venue<input class=\"ds-input\" placeholder=\"Club naam\"></label>",
+      "css": ".ds-field{display:grid;gap:.4rem;color:#c9c2d1;font:600 .8rem Archivo,system-ui,sans-serif}.ds-input{width:100%;min-height:2.6rem;padding:.6rem .75rem;border:1px solid #2f2a37;border-radius:.6rem;background:#0f0d13;color:#f6f3fa;font:400 .86rem Archivo,system-ui,sans-serif}.ds-input::placeholder{color:#9a93a4}.ds-input:focus{outline:none;border-color:#7a57de;box-shadow:0 0 0 3px rgba(122,87,222,.2)}"
+    },
+    {
+      "name": "Eyebrow",
+      "kind": "custom",
+      "refersTo": "label",
+      "description": "Uppercase label ending in the violet gradient rule; the signature accent moment.",
+      "html": "<p class=\"ds-eyebrow\">Aankomende shows</p>",
+      "css": ".ds-eyebrow{margin:0;color:#b9b6c6;font:650 .77rem/1.4 Archivo,system-ui,sans-serif;letter-spacing:.17em;text-transform:uppercase}.ds-eyebrow::after{content:\"\";display:inline-block;width:2.35rem;height:1px;margin-left:.75rem;vertical-align:.28em;background:linear-gradient(90deg,#9d5cff,transparent);box-shadow:0 0 .7rem rgba(157,92,255,.34)}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Pill with a dot; tone tints border and text only.",
+      "html": "<span class=\"ds-chip ds-chip-success\">Betaald</span> <span class=\"ds-chip ds-chip-warning\">In afwachting</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border:1px solid #332e39;border-radius:999px;color:#aaa4b1;font:700 .78rem/1.3 Archivo,system-ui,sans-serif;white-space:nowrap}.ds-chip::before{content:\"\";width:.42rem;height:.42rem;border-radius:50%;background:currentColor}.ds-chip-success{border-color:#2f5a42;color:#a9e1bb}.ds-chip-warning{border-color:#5b4a24;color:#f2cf8a}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Booth Panel with a hairline border and no shadow at rest.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-meta\">14 NOV · UTRECHT</p><h3 class=\"ds-card-title\">Warehouse Night</h3></div>",
+      "css": ".ds-card{padding:1.3rem;border:1px solid #29242f;border-radius:1rem;background:#100e14;color:#f6f3fa}.ds-card-meta{margin:0 0 .5rem;color:#9a93a4;font:400 .75rem SFMono-Regular,Consolas,monospace;letter-spacing:.04em}.ds-card-title{margin:0;font:800 1.5rem/1 Archivo,system-ui,sans-serif;letter-spacing:-.04em}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Booth",
+    "overview": "The whole system is a dark room with one source of light. Near-black violet surfaces carry the interface, a single electric violet (#9d5cff) glows at the edges, and everything else is white type and white pill buttons. It should feel like standing in front of a DJ booth at night, not like a SaaS dashboard dressed in dark mode.\n\nThe public site and the back office share the same tokens and the same voice, with different density. The public site is editorial: oversized Archivo headlines at 0.9 line-height, big gaps, full-bleed photography, hairline dividers, and mono-spaced metadata set like a setlist. The back office is the same world made compact and mobile-first.\n\nLight is a recurring signature, used sparingly. A short gradient hairline fading from violet to transparent appears under eyebrows, above the footer, and beside visual beats. Nothing is lit all over.",
+    "keyCharacteristics": [
+      "Dark only. There is no light theme.",
+      "One accent hue (violet), used for glow, active state and hairlines, never as a large fill.",
+      "White pill as the single primary action, site-wide and in the back office.",
+      "Heavy, tightly tracked Archivo for headlines; mono for metadata.",
+      "Tonal layering plus hairline borders for depth; shadows only on floating layers.",
+      "Focus is always visible (lavender outline), contrast is checked (4.5:1 minimum on raised surfaces)."
+    ],
+    "rules": [
+      { "name": "The One Light Rule", "body": "Violet is the only chromatic accent on any screen. It marks light (a glow, a hairline, an active state), never a surface. A violet button or violet card background is wrong.", "section": "colors" },
+      { "name": "The White Action Rule", "body": "The primary action is white on near-black, everywhere. Do not introduce a colored primary button.", "section": "colors" },
+      { "name": "The Tight Heavy Rule", "body": "Anything set large is weight 800 with -0.04em tracking and line-height at or below 1. Anything set small is not.", "section": "typography" },
+      { "name": "The Setlist Rule", "body": "Facts about an event (date, time, venue, count) are mono and often uppercase. Prose is Archivo. Do not mix the two inside one sentence.", "section": "typography" },
+      { "name": "The Glow-Not-Shadow Rule", "body": "On the dark surface, a shadow that is not black is light. Use violet glow to signal hover or emphasis, and black shadow only to separate floating layers from the page.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every surface in the violet-tinted dark ramp (#08080b to #17141c) and separate layers with a 1px hairline before reaching for a shadow.",
+      "Do make the primary action a white pill (public) or a white rounded rectangle (back office), with near-black text (#09080b).",
+      "Do set large type at weight 800, -0.04em, line-height 0.9 to 1; use text-wrap: balance on display titles.",
+      "Do put event facts (date, venue, counts) in the mono stack with tabular numerals.",
+      "Do end each eyebrow with the short violet gradient rule, and let it be the main place the accent shows up.",
+      "Do keep text on dark surfaces at 4.5:1 or better, and keep the lavender focus outline on every control.",
+      "Do honor prefers-reduced-motion: no lifts, sheens or smooth scroll."
+    ],
+    "donts": [
+      "Don't add a light theme or a white page background.",
+      "Don't fill large areas or buttons with violet; it is a light source, not a paint color.",
+      "Don't introduce a second accent hue. Green, amber and red exist only for status.",
+      "Don't use gradient text or colored side-stripe borders on cards.",
+      "Don't use pill buttons inside dense back-office toolbars; they get the .65rem rounded rectangle.",
+      "Don't set small text in the tight, heavy display style, or headlines in medium weight with loose tracking.",
+      "Don't use stock-photo gloss: photography is real nights, slightly desaturated, darkened toward the caption edge."
+    ]
+  }
+}
