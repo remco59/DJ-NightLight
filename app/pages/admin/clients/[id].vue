@@ -49,6 +49,39 @@ async function save(){
   finally{saving.value=false}
 }
 const confirmAction=useConfirm()
+// Privacy (AVG): download everything we hold about this client, or erase the personal data.
+const { user } = useUserSession()
+const isOwner = computed(() => user.value?.role === 'owner')
+const erasing = ref(false)
+const clientName = computed(() => data.value?.client.companyName || [data.value?.client.firstName, data.value?.client.lastName].filter(Boolean).join(' ') || 'deze klant')
+async function eraseData(){
+  const confirmed = await confirmAction({
+    title: `Persoonsgegevens van ${clientName.value} verwijderen?`,
+    body: 'Naam, e-mailadres, telefoonnummer, adres, notities, contactpersonen, antwoorden op de vragenlijst en reviews worden gewist, de portaallinks ingetrokken en geplande e-mails geannuleerd. Eventuele facturen en hun documenten blijven bewaard, omdat je die wettelijk moet bewaren; ook de omschrijvingen van factuur- en offerteregels blijven staan, dus controleer zelf of daar een naam in staat. Gegevens bij Stripe, Resend en Google Agenda moet je daar zelf wissen. Dit kan niet ongedaan worden gemaakt. Download eerst de klantgegevens als je een kopie wilt.',
+    confirmLabel: 'Definitief verwijderen',
+    tone: 'danger',
+  })
+  if (!confirmed) return
+  erasing.value = true
+  message.value = ''
+  try {
+    const summary = await $fetch<{ gigs: number, contactsRemoved: number, invoicesKept: number, emailsScrubbed: number, portalLinksRevoked: number }>(`/api/admin/clients/${id}/anonymize`, { method: 'POST', body: { confirm: true } })
+    await confirmAction({
+      title: 'Persoonsgegevens verwijderd',
+      body: [
+        `${summary.gigs} ${summary.gigs === 1 ? 'gig' : 'gigs'} opgeschoond`,
+        summary.contactsRemoved ? `${summary.contactsRemoved} ${summary.contactsRemoved === 1 ? 'contactpersoon' : 'contactpersonen'} gewist` : '',
+        summary.emailsScrubbed ? `${summary.emailsScrubbed} ${summary.emailsScrubbed === 1 ? 'e-mail' : 'e-mails'} gewist` : '',
+        summary.portalLinksRevoked ? `${summary.portalLinksRevoked} ${summary.portalLinksRevoked === 1 ? 'portaallink' : 'portaallinks'} ingetrokken` : '',
+      ].filter(Boolean).join(', ') + '. ' + (summary.invoicesKept
+        ? `${summary.invoicesKept} ${summary.invoicesKept === 1 ? 'factuur is' : 'facturen zijn'} bewaard vanwege de wettelijke bewaarplicht.`
+        : 'Er waren geen facturen om te bewaren.'),
+      confirmLabel: 'Sluiten',
+    })
+    await navigateTo('/admin/clients')
+  } catch (error: unknown) { message.value = apiErrorMessage(error, 'Verwijderen is niet gelukt.') }
+  finally { erasing.value = false }
+}
 async function remove(){
   if(!(await confirmAction({title:'Deze klant verwijderen?',body:'De klantgegevens worden definitief verwijderd.',confirmLabel:'Verwijderen',tone:'danger'}))) return
   try{
@@ -90,6 +123,16 @@ useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
       <div class="form-actions"><button v-if="online" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Wijzigingen opslaan'}}</button><span>{{online?message:'Offline — wijzigen kan alleen met verbinding.'}}</span></div>
     </form>
 
+    <section class="privacy" aria-labelledby="privacy-title">
+      <div class="section-heading"><p class="eyebrow">Privacy</p><h2 id="privacy-title">Gegevens van deze klant</h2></div>
+      <p class="hint">Vraagt de klant wat je van hem bewaart, of wil hij dat het wordt gewist? Download dan eerst alles, en verwijder daarna de persoonsgegevens.</p>
+      <div class="privacy-actions">
+        <a v-if="online" class="outline-link" :href="`/api/admin/clients/${id}/export`" download><Icon name="lucide:download" aria-hidden="true" />Download klantgegevens</a>
+        <button v-if="online && isOwner" class="with-icon danger" type="button" :disabled="erasing" @click="eraseData"><Icon name="lucide:eraser" aria-hidden="true" />{{erasing?'Verwijderen…':'Persoonsgegevens verwijderen'}}</button>
+      </div>
+      <p v-if="!online" class="hint">Offline kun je dit niet gebruiken.</p>
+    </section>
+
     <section class="history">
       <div class="section-heading"><p class="eyebrow">Geschiedenis</p><h2>Gigs</h2></div>
       <p v-if="!data.history.length" class="empty">Nog geen gigs gekoppeld aan deze klant.</p>
@@ -101,5 +144,6 @@ useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
 </template>
 
 <style scoped>
+.privacy{margin-top:1rem;padding:1.3rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.privacy-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}.outline-link{display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding:.5rem .95rem;border:1px solid var(--border-strong);border-radius:.7rem;color:var(--text);font-weight:700;text-decoration:none}
 .detail-page{max-width:900px;margin-inline:auto}.back{display:inline-flex;align-items:center;gap:.35rem;min-height:2.75rem;margin-bottom:1.2rem;color:var(--text-subtle);text-decoration:none}header{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.2rem,6vw,4rem);letter-spacing:-.04em}.editor,.history{padding:1.3rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem}label{display:grid;gap:.4rem;color:var(--text-muted);font-size:.82rem}input,select,textarea{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.75rem;background:var(--surface-input);color:var(--text)}.wide{grid-column:1/-1}.form-actions{display:flex;align-items:center;gap:1rem;margin-top:1rem;color:var(--text-subtle)}.primary,.danger{border:0;border-radius:.65rem;padding:.72rem .9rem;font-weight:800;cursor:pointer}.primary{background:var(--button-primary-bg);color:var(--button-primary-fg)}.danger{background:var(--button-danger-bg);color:var(--button-danger-fg)}.history{margin-top:1rem}.section-heading h2{margin:.2rem 0 1rem}.gig{display:flex;justify-content:space-between;gap:1rem;padding:.9rem 0;border-top:1px solid #26212c;text-decoration:none}.gig strong,.gig span{display:block}.gig span{color:var(--text-subtle);font-size:.8rem}.meta{text-align:right}.empty{color:#817a8b}.automation{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid #26212c}.automation-heading{display:flex;justify-content:space-between;align-items:start;gap:1rem;margin-bottom:.6rem}.automation-heading h2{margin:.2rem 0}.hint{margin:.3rem 0 0;color:#817a8b;font-size:.8rem}.warn{color:#e6c46f}.automation-bulk{display:flex;gap:.8rem;white-space:nowrap}.link{border:0;padding:0;background:none;color:#b9b2c2;cursor:pointer;font-size:.8rem}.automation-row{display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-top:1px solid #1f1b24;color:#e7e2ec;font-size:.9rem;cursor:pointer}.automation-row input{width:auto;accent-color:#fff}.automation-row strong,.automation-row small{display:block}.automation-row small{margin-top:.15rem;color:var(--text-subtle);font-size:.75rem}@media(max-width:650px){header,.automation-heading{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.gig{align-items:start;flex-direction:column}.meta{text-align:left}.danger{width:100%}}
 </style>
