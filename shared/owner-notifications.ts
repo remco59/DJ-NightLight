@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { formatMoney, type EmailVariables } from './email-automation'
 import { absoluteUrl } from './seo'
 
-export const ownerNotificationKinds = ['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received'] as const
+export const ownerNotificationKinds = ['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received', 'quote_response'] as const
 export type OwnerNotificationKind = typeof ownerNotificationKinds[number]
 
 export const ownerNotificationLabels: Record<OwnerNotificationKind, { label: string, description: string }> = {
@@ -11,6 +11,7 @@ export const ownerNotificationLabels: Record<OwnerNotificationKind, { label: str
   portal_submitted: { label: 'Klantportaal ingevuld', description: 'Een klant dient de gegevens en muziekwensen in.' },
   lead_followup: { label: 'Lead opvolgen', description: 'Een aanvraag wacht op een reactie of moet worden opgevolgd.' },
   review_received: { label: 'Nieuwe review', description: 'Een klant laat een review achter.' },
+  quote_response: { label: 'Reactie op offerte', description: 'Een klant geeft akkoord op een offerte of wijst hem af.' },
 }
 
 export function isOwnerNotificationKind(value: unknown): value is OwnerNotificationKind {
@@ -84,6 +85,29 @@ export function ownerNotificationMessage(kind: OwnerNotificationKind, payload: O
     }
   }
 
+  if (kind === 'quote_response') {
+    const accepted = payload.outcome === 'accepted'
+    const title = oneLine(payload.gigTitle) || 'een boeking'
+    const number = oneLine(payload.quoteNumber)
+    const amount = typeof payload.totalCents === 'number' ? formatMoney(payload.totalCents, oneLine(payload.currency, 3) || 'EUR') : ''
+    const reason = oneLine(payload.reason, 280)
+    return {
+      templateKey: 'owner_quote_response',
+      subject: accepted ? `Offerte geaccepteerd: ${title}` : `Offerte afgewezen: ${title}`,
+      text: accepted
+        ? `${oneLine(payload.acceptedName) || 'De klant'} heeft de offerte${number ? ` ${number}` : ''} voor ${title} geaccepteerd. Bevestig de boeking en maak de factuur.`
+        : `De klant heeft de offerte${number ? ` ${number}` : ''} voor ${title} afgewezen.${reason ? ` Reden: “${reason}”` : ''}`,
+      variables: {
+        gigTitle: title,
+        quoteNumber: number,
+        amount,
+        outcome: accepted ? 'Geaccepteerd' : 'Afgewezen',
+        acceptedName: accepted ? oneLine(payload.acceptedName) : '',
+        adminUrl: absoluteUrl(siteUrl, `/admin/gigs/${oneLine(payload.gigId, 60)}`),
+      },
+    }
+  }
+
   if (kind === 'review_received') {
     const rating = Math.max(0, Math.min(5, Number(payload.rating) || 0))
     const title = oneLine(payload.gigTitle) || 'een boeking'
@@ -138,6 +162,7 @@ export function ownerNotificationMessage(kind: OwnerNotificationKind, payload: O
 /** Example data for the "testmelding" button. */
 export function ownerNotificationSample(kind: OwnerNotificationKind): OwnerNotificationPayload {
   if (kind === 'new_inquiry') return { gigId: 'voorbeeld', name: 'Voorbeeld Klant', eventType: 'Bruiloft', eventDate: '2027-06-12', location: 'Groningen', email: 'klant@example.com', phone: '06 12345678' }
+  if (kind === 'quote_response') return { gigId: 'voorbeeld', gigTitle: 'Bruiloft Voorbeeld', quoteNumber: 'OFF-2027-0001', totalCents: 125000, currency: 'EUR', outcome: 'accepted', acceptedName: 'Voorbeeld Klant' }
   if (kind === 'review_received') return { gigTitle: 'Bruiloft Voorbeeld', authorName: 'Voorbeeld Klant', rating: 5, comment: 'Geweldige avond, de dansvloer stond de hele tijd vol!', publicConsent: 1 }
   if (kind === 'lead_followup') return { gigId: 'voorbeeld', gigTitle: 'Bruiloft — Voorbeeld Klant', state: 'respond', receivedOn: '2027-01-08', eventDate: '2027-06-12' }
   if (kind === 'invoice_paid') return { invoiceId: 'voorbeeld', invoiceNumber: 'NL-2027-001', amountCents: 125000, currency: 'EUR' }

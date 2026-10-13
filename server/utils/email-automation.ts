@@ -11,6 +11,7 @@ import {
   gigs,
   invoices,
   outboxEvents,
+  quotes,
 } from '../../db/schema'
 import {
   clientAllowsAutomaticEmail,
@@ -216,6 +217,44 @@ export async function queueInvoiceEmail(templateKey: string, invoiceId: string, 
     attachments: templateKey === 'invoice_sent' && context.invoiceNumber
       ? [{ kind: 'invoice', invoiceId, filename: `${context.invoiceNumber}.pdf` }]
       : undefined,
+  })
+}
+
+/** Queues the quote mail with a link to the client portal, where the quote can be viewed and accepted. */
+export async function queueQuoteEmail(quoteId: string, dedupeKey: string) {
+  const [row] = await db
+    .select({
+      quoteNumber: quotes.quoteNumber,
+      totalCents: quotes.totalCents,
+      currency: quotes.currency,
+      validUntil: quotes.validUntil,
+      gigId: quotes.gigId,
+      gigTitle: gigTitleSql(),
+      clientEmail: clients.email,
+      firstName: clients.firstName,
+      lastName: clients.lastName,
+      companyName: clients.companyName,
+      documentSnapshot: quotes.documentSnapshot,
+    })
+    .from(quotes)
+    .innerJoin(gigs, eq(quotes.gigId, gigs.id))
+    .leftJoin(clients, eq(quotes.clientId, clients.id))
+    .where(eq(quotes.id, quoteId))
+    .limit(1)
+  if (!row?.clientEmail) return null
+  return queueEmailJob({
+    templateKey: 'quote_sent',
+    gigId: row.gigId,
+    recipient: row.clientEmail,
+    variables: {
+      clientName: clientName(row),
+      gigTitle: row.gigTitle,
+      quoteNumber: row.quoteNumber || '',
+      quoteTotal: formatMoney(row.totalCents, row.currency),
+      quoteValidUntil: fmtDateOnly(row.validUntil),
+      portalUrl: row.documentSnapshot?.portalUrl || '',
+    },
+    dedupeKey,
   })
 }
 

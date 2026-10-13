@@ -1,5 +1,5 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
-import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues } from '../../../../db/schema'
+import { auditLogs, clients, gigContacts, gigs, gigTimelineItems, invoices, payments, users, venues, quotes } from '../../../../db/schema'
 import { db } from '../../../utils/db'
 import { gigTitleSql } from '../../../utils/gig-title'
 import { requireStaff } from '../../../utils/require-staff'
@@ -103,5 +103,20 @@ export default defineEventHandler(async (event) => {
         .orderBy(desc(invoices.createdAt))
     : []
 
-  return { gig, contacts, timeline, activity, invoices: invoiceRows, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
+  const quoteRows = canManage
+    ? await db.select({
+        id: quotes.id,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+        currency: quotes.currency,
+        totalCents: quotes.totalCents,
+        sentAt: quotes.sentAt,
+        acceptedAt: quotes.acceptedAt,
+        acceptedName: quotes.acceptedName,
+        invoiceId: quotes.invoiceId,
+      }).from(quotes).where(eq(quotes.gigId, id)).orderBy(desc(quotes.createdAt))
+    : []
+
+  return { gig, contacts, timeline, activity, invoices: invoiceRows, quotes: quoteRows, options: { clients: clientOptions, venues: venueOptions, djs: djOptions } }
 })

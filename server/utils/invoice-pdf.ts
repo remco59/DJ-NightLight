@@ -49,12 +49,15 @@ function addressLines(value: string) {
 }
 
 function shortText(value: string, max = 54) {
-  return value.length <= max ? value : `${value.slice(0, max - 1)}…`
+  return value.length <= max ? value : `${value.slice(0, max - 3)}...`
 }
 
 export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
   const portalUrl = snapshot.portalUrl && /^https?:\/\//i.test(snapshot.portalUrl) ? snapshot.portalUrl : ''
-  const bankTransfer: BankTransferInstructions | null = snapshot.business.iban
+  // A quote uses the same layout, with its own wording and without any payment details.
+  const quote = snapshot.documentKind === 'quote'
+  const documentTitle = quote ? 'Offerte' : 'Factuur'
+  const bankTransfer: BankTransferInstructions | null = !quote && snapshot.business.iban
     ? {
         iban: snapshot.business.iban,
         bic: '',
@@ -88,14 +91,14 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
 
     if (pageIndex === 0) {
       commands.push(
-        textCommand('Factuur', 36, 790, 20, 'F2'),
+        textCommand(documentTitle, 36, 790, 20, 'F2'),
         fillRect(486, 760, 73, 52, '1 0.08 0.24'),
         textCommand(shortText(snapshot.business.companyName.toUpperCase(), 12), 495, 783, 8, 'F2', '1 1 1'),
-        textCommand('Factuurnummer', 36, 755, 8, 'F2'),
+        textCommand(quote ? 'Offertenummer' : 'Factuurnummer', 36, 755, 8, 'F2'),
         textCommand(snapshot.invoiceNumber, 112, 755, 8, 'F2'),
-        textCommand('Uitgiftedatum', 36, 741, 8, 'F2'),
+        textCommand(quote ? 'Offertedatum' : 'Uitgiftedatum', 36, 741, 8, 'F2'),
         textCommand(dateLabel(snapshot.issueDate), 112, 741, 8),
-        textCommand('Vervaldatum', 36, 727, 8, 'F2'),
+        textCommand(quote ? 'Geldig tot' : 'Vervaldatum', 36, 727, 8, 'F2'),
         textCommand(dateLabel(snapshot.dueDate), 112, 727, 8),
         textCommand(snapshot.business.companyName, 36, 687, 9, 'F2'),
       )
@@ -111,20 +114,20 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
       ].filter(Boolean)
       sender.forEach((line, index) => commands.push(textCommand(shortText(line), 36, 671 - index * 13, 8)))
 
-      commands.push(textCommand('Factuur aan', 275, 687, 9, 'F2'))
+      commands.push(textCommand(quote ? 'Offerte voor' : 'Factuur aan', 275, 687, 9, 'F2'))
       const recipient = [snapshot.client.name, ...addressLines(snapshot.client.billingAddress), snapshot.client.email].filter(Boolean)
       recipient.slice(0, 7).forEach((line, index) => commands.push(textCommand(shortText(line), 275, 671 - index * 13, 8)))
 
       commands.push(
-        textCommand(`${money(snapshot.totals.totalCents, snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
-        textCommand('Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.05 0.25 0.8' : '0.35 0.35 0.35'),
+        textCommand(quote ? `${money(snapshot.totals.totalCents, snapshot.currency)} - geldig tot ${dateLabel(snapshot.dueDate)}` : `${money(snapshot.totals.totalCents, snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
+        textCommand(quote ? 'Akkoord geven via het beveiligde NightLight-klantportaal' : 'Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.05 0.25 0.8' : '0.35 0.35 0.35'),
       )
       if (portalUrl) commands.push(lineCommand(36, 524, 262, 524, 0.5, '0.05 0.25 0.8'))
     } else {
       commands.push(
-        textCommand('Factuur', 36, 790, 16, 'F2'),
+        textCommand(documentTitle, 36, 790, 16, 'F2'),
         textCommand(snapshot.invoiceNumber, 36, 770, 8),
-        textCommand('Vervolg factuurregels', 36, 735, 10, 'F2'),
+        textCommand(quote ? 'Vervolg offerteregels' : 'Vervolg factuurregels', 36, 735, 10, 'F2'),
       )
     }
 
@@ -163,7 +166,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
         lineCommand(330, totalsY - 39, 559, totalsY - 39, 0.35, '0.7 0.7 0.7'),
         textCommand('Totaal', 330, totalsY - 54, 8),
         rightTextCommand(money(snapshot.totals.totalCents, snapshot.currency), 559, totalsY - 54, 8),
-        textCommand('Verschuldigd bedrag', 330, totalsY - 72, 8, 'F2'),
+        textCommand(quote ? 'Totaalbedrag' : 'Verschuldigd bedrag', 330, totalsY - 72, 8, 'F2'),
         rightTextCommand(money(snapshot.totals.totalCents, snapshot.currency), 559, totalsY - 72, 8, 'F2'),
       )
 
@@ -186,7 +189,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
           commands.push(textCommand(shortText(value!, 46), 132, bankY - 48 - index * 13, 7))
         })
       } else {
-        commands.push(textCommand(snapshot.paymentTerms || 'Betaal het verschuldigde bedrag voor de vervaldatum.', 36, 96, 7))
+        commands.push(textCommand(snapshot.paymentTerms || (quote ? 'Deze offerte is geldig tot de genoemde datum.' : 'Betaal het verschuldigde bedrag voor de vervaldatum.'), 36, 96, 7))
       }
 
       if (snapshot.legalText) commands.push(textCommand(shortText(snapshot.legalText, 92), 36, 58, 6, 'F1', '0.35 0.35 0.35'))

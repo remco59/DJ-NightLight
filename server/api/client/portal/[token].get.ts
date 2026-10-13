@@ -1,6 +1,8 @@
-import { and, desc, eq, ne } from 'drizzle-orm'
-import { gigReviews, invoices, payments, portalLinks } from '../../../../db/schema'
+import { and, desc, eq, inArray, ne } from 'drizzle-orm'
+import { gigReviews, invoices, payments, portalLinks, quotes } from '../../../../db/schema'
+import { todayInAmsterdam } from '../../../../shared/dates'
 import { gigIsFinished } from '../../../../shared/gig-phase'
+import { quoteDisplayStatus, quoteIsOpenForResponse } from '../../../../shared/quote'
 import { recordAudit } from '../../../utils/audit'
 import { db, sql } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
@@ -35,6 +37,34 @@ export default defineEventHandler(async (event) => {
   }).from(invoices).leftJoin(payments, eq(payments.invoiceId, invoices.id)).where(and(
     eq(invoices.gigId, access.gigId), ne(invoices.status, 'void'),
   )).orderBy(desc(invoices.finalizedAt), desc(invoices.createdAt)).limit(1)
+
+  // The newest quote the client can see: sent, accepted or declined (never a draft or a withdrawn one).
+  const [quoteRow] = await db.select().from(quotes)
+    .where(and(eq(quotes.gigId, access.gigId), inArray(quotes.status, ['sent', 'accepted', 'declined'])))
+    .orderBy(desc(quotes.sentAt)).limit(1)
+  const today = todayInAmsterdam()
+  const quote = quoteRow?.documentSnapshot
+    ? {
+        id: quoteRow.id,
+        quoteNumber: quoteRow.quoteNumber,
+        status: quoteDisplayStatus(quoteRow, today),
+        open: quoteIsOpenForResponse(quoteRow, today) && access.status !== 'declined' && access.status !== 'cancelled',
+        issueDate: quoteRow.issueDate,
+        validUntil: quoteRow.validUntil,
+        currency: quoteRow.currency,
+        vatMode: quoteRow.vatMode,
+        vatRateBasisPoints: quoteRow.vatRateBasisPoints,
+        subtotalCents: quoteRow.subtotalCents,
+        vatAmountCents: quoteRow.vatAmountCents,
+        totalCents: quoteRow.totalCents,
+        terms: quoteRow.terms,
+        notes: quoteRow.notes,
+        lines: quoteRow.documentSnapshot.lines,
+        acceptedName: quoteRow.acceptedName,
+        acceptedAt: quoteRow.acceptedAt,
+        declinedAt: quoteRow.declinedAt,
+      }
+    : null
 
   const imageRows = await sql<[{ imageUrl: string | null }]>`
     SELECT coalesce(g.client_portal_image_url, bs.client_portal_default_image_url) AS "imageUrl"
@@ -80,5 +110,6 @@ export default defineEventHandler(async (event) => {
       ordering: wish.ordering,
     })),
     invoice: invoice || null,
+    quote,
   }
 })

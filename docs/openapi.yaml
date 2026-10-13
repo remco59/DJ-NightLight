@@ -40,6 +40,8 @@ tags:
     description: Back office (ingelogde medewerkers)
   - name: admin/questionnaire
     description: Back office (ingelogde medewerkers)
+  - name: admin/quotes
+    description: Back office (ingelogde medewerkers)
   - name: admin/render-settings
     description: Back office (ingelogde medewerkers)
   - name: admin/reviews
@@ -223,7 +225,7 @@ paths:
                       format: email
                       pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
                 ownerNotificationKinds:
-                  maxItems: 5
+                  maxItems: 6
                   type: array
                   items:
                     type: string
@@ -233,6 +235,7 @@ paths:
                       - portal_submitted
                       - lead_followup
                       - review_received
+                      - quote_response
               required:
                 - companyName
                 - address
@@ -289,6 +292,7 @@ paths:
                     - portal_submitted
                     - lead_followup
                     - review_received
+                    - quote_response
       responses:
         "200":
           description: Gelukt
@@ -2806,6 +2810,37 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/quote:
+    post:
+      operationId: postAdminGigsByIdQuote
+      tags:
+        - admin/gigs
+      description: Starts a draft quote for a gig, with one line for the gig's fee.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/admin/gigs/{id}/review:
     get:
       operationId: getAdminGigsByIdReview
@@ -5169,6 +5204,318 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /api/admin/quotes/{id}:
+    get:
+      operationId: getAdminQuotesById
+      tags:
+        - admin/quotes
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminQuotesById
+      tags:
+        - admin/quotes
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issueDate:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                validUntil:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                vatMode:
+                  type: string
+                  enum:
+                    - exclusive
+                    - inclusive
+                    - exempt
+                vatRateBasisPoints:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+                terms:
+                  type: string
+                  maxLength: 5000
+                notes:
+                  type: string
+                  maxLength: 5000
+                lines:
+                  minItems: 1
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      description:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      quantity:
+                        type: string
+                        pattern: ^\d{1,9}(?:\.\d{1,3})?$
+                      unitPriceCents:
+                        type: integer
+                        minimum: 0
+                        maximum: 100000000
+                    required:
+                      - description
+                      - quantity
+                      - unitPriceCents
+              required:
+                - issueDate
+                - validUntil
+                - currency
+                - vatMode
+                - vatRateBasisPoints
+                - terms
+                - notes
+                - lines
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteAdminQuotesById
+      tags:
+        - admin/quotes
+      description: Only a draft can be deleted. A sent quote is withdrawn with "laten vervallen" and keeps its number.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/invoice:
+    post:
+      operationId: postAdminQuotesByIdInvoice
+      tags:
+        - admin/quotes
+      description: Turns an accepted quote into a draft invoice with the same lines and VAT.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/pdf:
+    get:
+      operationId: getAdminQuotesByIdPdf
+      tags:
+        - admin/quotes
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/send:
+    post:
+      operationId: postAdminQuotesByIdSend
+      tags:
+        - admin/quotes
+      description: "Locks the draft: gives it a number, freezes the document and mails the client a link to the portal."
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/send-check:
+    get:
+      operationId: getAdminQuotesByIdSendCheck
+      tags:
+        - admin/quotes
+      description: What stops the quote from being sent, and whether the client gets an email about it.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/void:
+    post:
+      operationId: postAdminQuotesByIdVoid
+      tags:
+        - admin/quotes
+      description: Withdraws a sent quote. The number stays; the client can no longer accept it.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/admin/render-settings:
     get:
       operationId: getAdminRenderSettings
@@ -6844,6 +7191,113 @@ paths:
   /api/client/portal/{token}/invoice-pdf:
     get:
       operationId: getClientPortalByTokenInvoicePdf
+      tags:
+        - client
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/quote-accept:
+    post:
+      operationId: postClientPortalByTokenQuoteAccept
+      tags:
+        - client
+      description: "The client accepts the quote that is open for this gig: a typed name and an explicit tick, kept with the time."
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acceptedName:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                agree:
+                  type: boolean
+                  const: true
+              required:
+                - acceptedName
+                - agree
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/quote-decline:
+    post:
+      operationId: postClientPortalByTokenQuoteDecline
+      tags:
+        - client
+      description: The client turns the open quote down, optionally with a reason.
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  default: ""
+                  type: string
+                  maxLength: 2000
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/quote-pdf:
+    get:
+      operationId: getClientPortalByTokenQuotePdf
       tags:
         - client
       security: []

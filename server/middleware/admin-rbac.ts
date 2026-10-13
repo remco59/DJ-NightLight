@@ -40,6 +40,7 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
     pathname.startsWith('/api/admin/clients')
     || pathname.startsWith('/api/admin/venues')
     || pathname.startsWith('/api/admin/invoices')
+    || pathname.startsWith('/api/admin/quotes')
     || pathname.startsWith('/api/admin/calendar')
     || pathname.startsWith('/api/admin/email')
     || pathname.startsWith('/api/admin/questionnaire')

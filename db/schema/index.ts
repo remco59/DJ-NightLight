@@ -30,6 +30,7 @@ export const gigStatus = pgEnum('gig_status', ['lead', 'booked', 'declined', 'ca
 export const submissionStatus = pgEnum('submission_status', ['draft', 'submitted'])
 export const musicWishCategory = pgEnum('music_wish_category', ['must_play', 'nice_to_have', 'do_not_play', 'special_moment'])
 export const invoiceStatus = pgEnum('invoice_status', ['draft', 'finalized', 'void'])
+export const quoteStatus = pgEnum('quote_status', ['draft', 'sent', 'accepted', 'declined', 'void'])
 export const invoicePaymentStatus = pgEnum('invoice_payment_status', ['unpaid', 'pending', 'paid', 'failed'])
 export const invoiceVatMode = pgEnum('invoice_vat_mode', ['exclusive', 'inclusive', 'exempt'])
 export const paymentRecordStatus = pgEnum('payment_record_status', ['pending', 'succeeded', 'failed', 'cancelled', 'expired'])
@@ -214,13 +215,14 @@ export const businessSettings = pgTable('business_settings', {
   iban: varchar('iban', { length: 64 }).default('').notNull(),
   invoicePrefix: varchar('invoice_prefix', { length: 16 }).default('NL').notNull(),
   nextInvoiceNumber: integer('next_invoice_number').default(1).notNull(),
+  nextQuoteNumber: integer('next_quote_number').default(1).notNull(),
   defaultVatMode: invoiceVatMode('default_vat_mode').default('exclusive').notNull(),
   defaultVatRateBasisPoints: integer('default_vat_rate_basis_points').default(2100).notNull(),
   defaultPaymentTermDays: integer('default_payment_term_days').default(30).notNull(),
   paymentTerms: text('payment_terms').default('Betaal het volledige bedrag vóór de vervaldatum.').notNull(),
   legalText: text('legal_text').default('').notNull(),
   ownerNotificationEmail: varchar('owner_notification_email', { length: 320 }).default('').notNull(),
-  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received']).notNull(),
+  ownerNotificationKinds: text('owner_notification_kinds').array().default(['new_inquiry', 'invoice_paid', 'portal_submitted', 'lead_followup', 'review_received', 'quote_response']).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
@@ -253,6 +255,45 @@ export const invoices = pgTable('invoices', {
 export const invoiceLineItems = pgTable('invoice_line_items', {
   id: uuid('id').defaultRandom().primaryKey(),
   invoiceId: uuid('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  description: varchar('description', { length: 500 }).notNull(),
+  quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
+  unitPriceCents: integer('unit_price_cents').notNull(),
+  ordering: integer('ordering').default(0).notNull(),
+  ...timestamps,
+})
+
+export const quotes = pgTable('quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'restrict' }),
+  clientId: uuid('client_id').references(() => clients.id, { onDelete: 'restrict' }),
+  quoteNumber: varchar('quote_number', { length: 80 }).unique(),
+  status: quoteStatus('status').default('draft').notNull(),
+  issueDate: date('issue_date').notNull(),
+  validUntil: date('valid_until').notNull(),
+  currency: varchar('currency', { length: 3 }).default('EUR').notNull(),
+  vatMode: invoiceVatMode('vat_mode').$type<VatMode>().default('exclusive').notNull(),
+  vatRateBasisPoints: integer('vat_rate_basis_points').default(2100).notNull(),
+  subtotalCents: integer('subtotal_cents').default(0).notNull(),
+  vatAmountCents: integer('vat_amount_cents').default(0).notNull(),
+  totalCents: integer('total_cents').default(0).notNull(),
+  terms: text('terms').default('').notNull(),
+  notes: text('notes').default('').notNull(),
+  documentSnapshot: jsonb('document_snapshot').$type<InvoiceSnapshot>(),
+  documentHash: varchar('document_hash', { length: 64 }),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  acceptedName: varchar('accepted_name', { length: 200 }),
+  acceptedIpHash: varchar('accepted_ip_hash', { length: 64 }),
+  declinedAt: timestamp('declined_at', { withTimezone: true }),
+  declineReason: text('decline_reason'),
+  voidedAt: timestamp('voided_at', { withTimezone: true }),
+  invoiceId: uuid('invoice_id').references((): AnyPgColumn => invoices.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [index('quotes_gig_id_idx').on(table.gigId)])
+
+export const quoteLineItems = pgTable('quote_line_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  quoteId: uuid('quote_id').notNull().references(() => quotes.id, { onDelete: 'cascade' }),
   description: varchar('description', { length: 500 }).notNull(),
   quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
   unitPriceCents: integer('unit_price_cents').notNull(),

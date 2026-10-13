@@ -6,6 +6,8 @@ export type VatMode = typeof vatModes[number]
 export type InvoiceLineInput = { description: string, quantity: string, unitPriceCents: number }
 export type InvoiceTotals = { subtotalCents: number, vatAmountCents: number, totalCents: number }
 export type InvoiceSnapshot = {
+  /** A quote reuses this snapshot and the PDF; `invoiceNumber` then holds the quote number and `dueDate` the last valid day. */
+  documentKind?: 'invoice' | 'quote'
   invoiceNumber: string
   issueDate: string
   dueDate: string
