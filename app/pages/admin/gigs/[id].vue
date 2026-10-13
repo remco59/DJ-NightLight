@@ -2,7 +2,7 @@
 import { apiErrorMessage } from '~/utils/api-error'
 import { gigDisplayTitle } from '~~/shared/gig-title'
 import type { QuestionnaireField } from '~~/shared/questionnaire'
-import { activityActionLabels, labelFor, musicWishCategoryLabels, portalLinkStateLabels, submissionStatusLabels } from '~~/shared/labels'
+import { activityActionLabels, gigStatusLabels, labelFor, musicWishCategoryLabels, portalLinkStateLabels, submissionStatusLabels } from '~~/shared/labels'
 
 definePageMeta({layout:'admin'})
 const route=useRoute();const id=String(route.params.id)
@@ -57,8 +57,29 @@ const portalMessage=ref('');const portalUrl=ref('');const portalDays=ref(30);con
 const actionMenu=ref<HTMLDetailsElement|null>(null);const portalMenu=ref<HTMLDetailsElement|null>(null)
 const {data:portalData,refresh:refreshPortal}=await useFetch<{links:PortalLink[]}>(`/api/admin/gigs/${id}/portal-links`,{immediate:canManageGigs.value})
 const {data:reviewData}=await useFetch<{review:{rating:number,comment:string|null,authorName:string|null,createdAt:string}|null}>(`/api/admin/gigs/${id}/review`,{immediate:canManageGigs.value})
-const {data:submissionData}=await useFetch<PortalSubmission>(`/api/admin/gigs/${id}/portal-submission`,{immediate:canManageGigs.value})
+// Music wishes are for everyone who can open the gig: the DJ needs them on location, often without a connection.
+const {data:submissionData,refresh:refreshSubmission}=await useFetch<PortalSubmission>(`/api/admin/gigs/${id}/portal-submission`)
 
+// Offline, only a note and the status can be recorded; they wait on this device until the connection is back.
+const outbox=useOfflineOutbox()
+const queued=outbox.forGig(id)
+const offlineNote=ref('');const offlineStatus=ref<''|Status>('');const offlineMessage=ref('')
+const showOfflineCard=computed(()=>canManageGigs.value&&(!online.value||queued.value.length>0))
+const gigTitleNow=()=>data.value?.gig.displayTitle||'Gig'
+const queuedStatus=computed(()=>queued.value.find(entry=>entry.kind==='status'&&entry.state==='pending')?.status)
+const statusChoices=computed(()=>(Object.keys(gigStatusLabels) as Status[]).filter(item=>item!==(queuedStatus.value??data.value?.gig.status)))
+async function queueNote(){
+  const text=offlineNote.value.trim();if(!text)return
+  try{await outbox.addNote({id,title:gigTitleNow()},text);offlineNote.value='';offlineMessage.value=online.value?'Notitie staat klaar om te synchroniseren.':'Notitie opgeslagen op dit apparaat. Hij wordt verstuurd zodra je weer online bent.'}
+  catch{offlineMessage.value='Opslaan op dit apparaat is niet gelukt.'}
+}
+async function queueStatus(){
+  if(!offlineStatus.value||!data.value)return
+  try{await outbox.changeStatus({id,title:gigTitleNow()},offlineStatus.value,data.value.gig.status);offlineStatus.value='';offlineMessage.value='Statuswijziging opgeslagen op dit apparaat. De klant krijgt hier geen e-mail van.'}
+  catch{offlineMessage.value='Opslaan op dit apparaat is niet gelukt.'}
+}
+// After a sync the gig has changed on the server: load it again.
+watch(outbox.syncedAt,()=>{void refresh();void refreshSubmission()})
 function addTimeline(){timeline.value.push({time:'',title:'',description:''})}
 function closeMenus(){if(actionMenu.value)actionMenu.value.open=false;if(portalMenu.value)portalMenu.value.open=false}
 const {isDirty,markSaved}=useUnsavedChanges(()=>({form,contacts:contacts.value,timeline:timeline.value}))
@@ -296,11 +317,26 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 
 <div class="tabs" role="tablist" aria-label="Gig onderdelen" @keydown.right.prevent="moveTab(1)" @keydown.left.prevent="moveTab(-1)"><button v-for="item in tabs" :id="`tab-${item.key}`" :key="item.key" type="button" role="tab" class="tab" :class="{active:tab===item.key}" :aria-selected="tab===item.key" :aria-controls="`panel-${item.key}`" :tabindex="tab===item.key?0:-1" @click="selectTab(item.key)">{{item.label}}</button></div>
 
+<!-- Outside the form: the form is inert offline, but this is the part that works offline. -->
+<section v-if="showOfflineCard&&tab==='overview'" class="card offline-card" aria-labelledby="offline-card-title">
+  <header class="card-head"><Icon name="lucide:cloud-upload" class="lead-icon" aria-hidden="true" /><h2 id="offline-card-title">{{online?'Wacht op synchronisatie':'Offline vastleggen'}}</h2></header>
+  <ul v-if="queued.length" class="queue-list"><li v-for="entry in queued" :key="entry.id" :data-state="entry.state"><span><strong>{{entry.kind==='note'?'Notitie':'Status'}}<template v-if="entry.state!=='pending'"> — niet verwerkt</template></strong><template v-if="entry.kind==='note'"> {{entry.text}}</template><template v-else> {{labelFor(gigStatusLabels,entry.status||'')}}</template><small v-if="entry.error">{{entry.error}}</small></span><button type="button" class="ghost" @click="outbox.discard(entry.id)">Verwijderen</button></li></ul>
+  <template v-if="!online">
+    <label>Notitie<textarea v-model="offlineNote" rows="3" placeholder="Wordt onderaan de interne notities gezet" /></label>
+    <button type="button" class="secondary wide-button" :disabled="!offlineNote.trim()" @click="queueNote">Notitie opslaan op dit apparaat</button>
+    <label>Status wijzigen<select v-model="offlineStatus"><option value="">Kies een status</option><option v-for="item in statusChoices" :key="item" :value="item">{{labelFor(gigStatusLabels,item)}}</option></select></label>
+    <button type="button" class="secondary wide-button" :disabled="!offlineStatus" @click="queueStatus">Statuswijziging opslaan op dit apparaat</button>
+    <p class="portal-meta">Alles wordt verstuurd zodra je weer online bent. Een statuswijziging verstuurt geen e-mail naar de klant.</p>
+  </template>
+  <p v-if="offlineMessage" class="portal-message" role="status">{{offlineMessage}}</p>
+</section>
+
 <form :inert="!canEdit||undefined" @submit.prevent="save">
 
 <!-- Overzicht: compact dashboard -->
 <div v-show="tab==='overview'" id="panel-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-overview">
 <section v-if="editing==='basics'" class="card" data-editing><h2 class="card-title">Gig bewerken</h2><div class="grid"><label class="wide">Titel<input v-model="form.title" :placeholder="titlePlaceholder"></label><label>Status<select v-model="form.status"><option value="lead">Lead</option><option value="booked">Geboekt</option><option value="declined">Afgewezen</option><option value="cancelled">Geannuleerd</option></select></label><label>Soort evenement<input v-model="form.eventType"></label><label>Klant<select v-model="form.clientId"><option value="">Geen klant</option><option v-for="c in data.options.clients" :key="c.id" :value="c.id">{{clientName(c)}}</option></select></label><label>Locatie<select v-model="form.venueId"><option value="">Geen locatie</option><option v-for="v in data.options.venues" :key="v.id" :value="v.id">{{v.name}}{{v.city?` — ${v.city}`:''}}</option></select></label><label>Toegewezen DJ<select v-model="form.assignedUserId"><option value="">Niet toegewezen</option><option v-for="dj in data.options.djs" :key="dj.id" :value="dj.id">{{dj.name}}</option></select></label><label>Bron<input v-model="form.source"></label></div><div class="edit-actions"><button type="button" class="secondary" @click="cancelEdit">Annuleren</button><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Opslaan'}}</button></div></section>
+
 
 <ul class="summary-list">
 <li><button type="button" class="row-card" @click="selectTab('planning')"><Icon name="lucide:calendar" class="lead-icon" aria-hidden="true" /><span class="row-body"><strong>Planning</strong><span>{{gigWhen}}</span><small>{{data.gig.loadInAt?`Opbouw ${planningMoment(data.gig.loadInAt)}`:'Opbouw nog niet gepland'}}</small></span><Icon name="lucide:chevron-right" class="chev" aria-hidden="true" /></button></li>
@@ -383,11 +419,13 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
   <p v-if="portalMessage" class="portal-message" role="status">{{portalMessage}}</p>
 </section>
 
-<section v-if="canEdit&&submissionData" class="card">
-  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>Contract & muziekwensen</h2><NuxtLink to="/admin/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
+<section v-if="submissionData" class="card">
+  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>{{canManageGigs?'Contract & muziekwensen':'Muziekwensen'}}</h2><NuxtLink v-if="canEdit" to="/admin/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
+  <template v-if="canManageGigs">
   <p class="contract-state" :data-state="submissionData.status"><i aria-hidden="true"/>{{contractLabel}}</p>
   <p class="portal-meta">Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>
-  <details v-if="submissionData.submission" class="fold"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
+  </template>
+  <details v-if="canManageGigs&&submissionData.submission" class="fold"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
   <details class="fold"><summary>Muziekwensen<span class="count">{{submissionData.wishes.length||'geen'}}</span></summary>
     <p v-if="!submissionData.wishes.length" class="empty">Geen muziekwensen ingediend.</p>
     <ul v-else class="wish-list"><li v-for="wish in submissionData.wishes" :key="wish.id"><small>{{labelFor(musicWishCategoryLabels,wish.category)}}</small><strong>{{[wish.artist,wish.title].filter(Boolean).join(' — ')||wish.note||'Naamloze wens'}}</strong><a v-if="wish.spotifyUrl" :href="wish.spotifyUrl" target="_blank" rel="noreferrer">Openen in Spotify</a><small v-if="wish.note&&(wish.artist||wish.title)">{{wish.note}}</small></li></ul>
@@ -666,4 +704,5 @@ input,select,textarea{min-height:2.75rem;width:100%;min-width:0;border:1px solid
 @media(min-width:760px){
   .summary-list{grid-template-columns:repeat(2,1fr)}
 }
+.offline-card textarea,.offline-card select{width:100%;margin:.3rem 0 .6rem}.queue-list{margin:0 0 .8rem;padding:0;list-style:none}.queue-list li{display:flex;justify-content:space-between;align-items:start;gap:.8rem;padding:.55rem 0;border-top:1px solid var(--border)}.queue-list li:not([data-state='pending']){color:#ffd7a8}.queue-list small{display:block;margin-top:.15rem}
 </style>

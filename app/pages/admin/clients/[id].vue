@@ -6,6 +6,8 @@ import { emailTemplateLabels, gigStatusLabels, labelFor } from '~~/shared/labels
 definePageMeta({ layout: 'admin' })
 const route = useRoute()
 const id = String(route.params.id)
+// Offline the page can be read from the cache but not changed.
+const online = useOnline()
 
 type Client = {
   id:string; type:'person'|'company'; firstName:string|null; lastName:string|null; companyName:string|null;
@@ -62,8 +64,8 @@ useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
 <template>
   <div v-if="data" class="detail-page">
     <NuxtLink to="/admin/clients" class="back"><Icon name="lucide:arrow-left" aria-hidden="true" /> Klanten</NuxtLink>
-    <header><div><p class="eyebrow">Klant</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></header>
-    <form class="editor" @submit.prevent="save">
+    <header><div><p class="eyebrow">Klant</p><h1>{{ data.client.companyName || [data.client.firstName,data.client.lastName].filter(Boolean).join(' ') }}</h1></div><button v-if="online" class="with-icon danger" type="button" @click="remove"><Icon name="lucide:trash-2" aria-hidden="true" />Verwijderen</button></header>
+    <form class="editor" :inert="!online || undefined" @submit.prevent="save">
       <div class="grid">
         <label>Type<select v-model="form.type"><option value="person">Particulier</option><option value="company">Bedrijf</option></select></label>
         <label v-if="form.type==='company'">Bedrijfsnaam<input v-model="form.companyName"></label>
@@ -85,7 +87,7 @@ useSeoMeta({title:'Klant — DJ NightLight',robots:'noindex, nofollow'})
           <span><strong>{{labelFor(emailTemplateLabels,template.key)}}</strong><small>{{emailScheduleLabel(template.scheduleAnchor,template.offsetMinutes)}}<template v-if="!template.enabled"> · staat voor alle klanten uit bij E-mail</template></small></span>
         </label>
       </section>
-      <div class="form-actions"><button class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Wijzigingen opslaan'}}</button><span>{{message}}</span></div>
+      <div class="form-actions"><button v-if="online" class="primary" type="submit" :disabled="saving">{{saving?'Opslaan…':'Wijzigingen opslaan'}}</button><span>{{online?message:'Offline — wijzigen kan alleen met verbinding.'}}</span></div>
     </form>
 
     <section class="history">
