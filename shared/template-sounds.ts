@@ -68,6 +68,14 @@ export function hypeTitleLineFrames(duration: number, lineCount: number) {
   return Array.from({ length: lineCount }, (_, index) => index * perLine)
 }
 
+/** Neon Sign Title: the frame a letter switches on. */
+export function neonSignLetterFrame(index: number) {
+  return 6 + index * 3
+}
+
+/** Glitch Title: frames between one glitch burst and the next. */
+export const GLITCH_TITLE_PERIOD = 24
+
 /** Clip Recap: how long each photo or clip stays on screen. */
 export function clipRecapSlot(duration: number, mediaCount: number) {
   return Math.max(1, Math.floor(duration / Math.max(1, mediaCount)))
@@ -150,6 +158,57 @@ const TEMPLATE_CUES: Record<MotionTemplateKey, (context: CueContext) => CueSpec[
     ]
   },
   'neon-outro': () => [{ sound: 'zap', frame: 18, volume: 0.8 }],
+  // The tube draws across and switches on (flickers) at 14.
+  'neon-tube-bar': () => [{ sound: 'crackle', frame: 14, volume: 0.6 }],
+  // The panel's edge switches on at 8.
+  'glass-strip': () => [
+    { sound: 'swish', frame: 2, volume: 0.5 },
+    { sound: 'crackle', frame: 8, volume: 0.5 },
+  ],
+  'social-handle': () => [
+    { sound: 'punch', frame: 2, volume: 0.6 },
+    { sound: 'crackle', frame: 8, volume: 0.45 },
+  ],
+  // The headline slams in at 4, the button at 16.
+  'booking-cta': () => [
+    { sound: 'punch', frame: 4, volume: 0.8 },
+    { sound: 'punch', frame: 16, volume: 0.5 },
+  ],
+  // First letter lights up at the first cue, the last one at the second.
+  'neon-sign-title': ({ props }) => {
+    const letters = Math.max(1, Math.min(18, typeof props.title === 'string' ? props.title.length : 1))
+    return [
+      { sound: 'zap', frame: neonSignLetterFrame(0), volume: 0.6 },
+      { sound: 'crackle', frame: neonSignLetterFrame(letters - 1), volume: 0.5 },
+    ]
+  },
+  // Every glitch burst after the entrance.
+  'glitch-title': ({ duration }) => [
+    { sound: 'punch', frame: 2, volume: 0.6 },
+    ...Array.from({ length: Math.max(0, Math.floor((duration - 1) / GLITCH_TITLE_PERIOD)) }, (_, index): CueSpec => (
+      { sound: 'glitch', frame: (index + 1) * GLITCH_TITLE_PERIOD, volume: 0.4 }
+    )),
+  ],
+  // The number slams in at 4.
+  'chapter-card': () => [
+    { sound: 'impact', frame: 4, volume: 0.8 },
+    { sound: 'swish', frame: 14, volume: 0.4 },
+  ],
+  // The ring draws first, the number slams in at 12.
+  'countdown-title': () => [
+    { sound: 'swish', frame: 0, volume: 0.5 },
+    { sound: 'impact', frame: 12, volume: 0.8 },
+    { sound: 'crackle', frame: 14, volume: 0.45 },
+  ],
+  'quote-callout': () => [
+    { sound: 'crackle', frame: 8, volume: 0.6 },
+    { sound: 'punch', frame: 10, volume: 0.45 },
+  ],
+  // The pin lands at 8.
+  'venue-tag': () => [
+    { sound: 'punch', frame: 8, volume: 0.7 },
+    { sound: 'crackle', frame: 10, volume: 0.4 },
+  ],
 }
 
 const ENTRANCE_SOUNDS: Partial<Record<EntranceAnimation, TemplateSound>> = {
