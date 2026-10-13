@@ -3,6 +3,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 import { gigDisplayTitle } from '~~/shared/gig-title'
 import { FOLLOW_UP_CHOICES, leadFollowUp, leadFollowUpHint } from '~~/shared/lead-followup'
 import { todayInAmsterdam } from '~~/shared/dates'
+import type { ExpenseRow } from '~/components/admin/ExpenseDialog.vue'
 import { quoteDisplayStatus, type QuoteStatus } from '~~/shared/quote'
 import type { QuestionnaireField } from '~~/shared/questionnaire'
 import { activityActionLabels, gigStatusLabels, labelFor, musicWishCategoryLabels, portalLinkStateLabels, submissionStatusLabels } from '~~/shared/labels'
@@ -22,9 +23,9 @@ type Contact={id?:string;name:string;role:string|null;email:string|null;phone:st
 type Timeline={id?:string;time:string|null;title:string;description:string|null;ordering?:number}
 type Gig={createdAt:string;lastContactedAt:string|null;followUpAt:string|null;id:string;title:string|null;displayTitle:string;eventType:string|null;clientId:string|null;venueId:string|null;assignedUserId:string|null;status:Status;startsAt:string|null;endsAt:string|null;loadInAt:string|null;fee:string|null;currency:string;publicVisibility:boolean;publicTitle:string|null;publicDescription:string|null;internalNotes:string|null;source:string|null;clientFirstName:string|null;clientLastName:string|null;clientCompanyName:string|null;venueName:string|null;venueAddress:string|null;venueCity:string|null}
 type Activity={id:string;action:string;metadata:Record<string,unknown>|null;createdAt:string;actorName:string|null;actorEmail:string|null}
-type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
+type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finalized'|'void';paymentStatus:'unpaid'|'pending'|'paid'|'failed';issueDate:string;dueDate:string;currency:string;totalCents:number;subtotalCents:number;finalizedAt:string|null;paymentProvider:string|null;stripeSessionId:string|null;stripePaymentIntentId:string|null;stripeStatus:'pending'|'succeeded'|'failed'|'cancelled'|'expired'|null;paidAt:string|null;paymentFailureCode:string|null}
 type QuoteSummary={id:string;quoteNumber:string|null;status:QuoteStatus;validUntil:string;currency:string;totalCents:number;sentAt:string|null;acceptedAt:string|null;acceptedName:string|null;invoiceId:string|null}
-type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];quotes:QuoteSummary[];options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
+type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];quotes:QuoteSummary[];expenses:ExpenseRow[];kmRateCents:number;options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
 type PortalLink={id:string;expiresAt:string;revokedAt:string|null;lastUsedAt:string|null;url:string|null;lastInvitedAt:string;invitationCount:number;createdAt:string;state:'active'|'expired'|'revoked'}
 type PortalSubmission={status:'not_started'|'draft'|'submitted';submission:{answers:Record<string,unknown>;acceptedName:string|null;submittedAt:string|null}|null;fields:QuestionnaireField[];templateVersion:number;wishes:Array<{id:string;category:string;artist:string|null;title:string|null;spotifyUrl:string|null;note:string|null}>}
 
@@ -516,6 +517,8 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
   </NuxtLink>
   <button v-if="canEdit" type="button" :class="data.invoices.length?'outline wide-button':'primary wide-button'" @click="createInvoice">Factuur aanmaken</button>
 </section>
+
+<AdminGigExpenses :gig-id="id" :expenses="data.expenses" :invoices="data.invoices" :km-rate-cents="data.kmRateCents" :can-edit="canEdit" @changed="refresh" />
 
 <section class="card">
   <header class="card-head"><Icon name="lucide:credit-card" class="lead-icon" aria-hidden="true" /><h2>Betalingen</h2></header>

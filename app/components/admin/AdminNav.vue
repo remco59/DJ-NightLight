@@ -20,6 +20,7 @@ const groups: NavGroup[] = [
   { label:'Werk', items:[
     {label:'Gigs',to:'/admin/gigs',icon:'lucide:disc-3',roles:['owner','manager','dj']},
     {label:'Facturen',to:'/admin/invoices',icon:'lucide:receipt-text',roles:['owner','manager']},
+    {label:'Financiën',to:'/admin/finance',icon:'lucide:wallet',roles:['owner','manager']},
     {label:'Agenda',to:'/admin/calendar',icon:'lucide:calendar-days',roles:['owner','manager']},
     {label:'Klanten',to:'/admin/clients',icon:'lucide:users',roles:['owner','manager']},
     {label:'Locaties',to:'/admin/venues',icon:'lucide:map-pin',roles:['owner','manager']},
