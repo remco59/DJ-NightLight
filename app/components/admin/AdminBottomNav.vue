@@ -26,7 +26,7 @@ const visible = computed(() => {
 
 <template>
   <nav class="bottom-nav" aria-label="Hoofdnavigatie">
-    <NuxtLink
+    <AdminNavLink
       v-for="item in visible"
       :key="item.to"
       :to="item.to"
@@ -36,7 +36,7 @@ const visible = computed(() => {
     >
       <Icon :name="item.icon" aria-hidden="true" />
       <span>{{ item.label }}</span>
-    </NuxtLink>
+    </AdminNavLink>
     <button type="button" class="tab" :class="{ active: moreOpen }" :aria-expanded="moreOpen" @click="emit('more')">
       <Icon name="lucide:ellipsis" aria-hidden="true" />
       <span>Meer</span>
@@ -78,6 +78,7 @@ const visible = computed(() => {
   cursor: pointer;
 }
 .tab :deep(svg) { width: 1.5rem; height: 1.5rem; }
+.tab.unavailable { opacity: .4; cursor: not-allowed; }
 .tab.active {
   border-color: #3a2d55;
   background: linear-gradient(180deg, #1e1433, #150f24);

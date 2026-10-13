@@ -79,7 +79,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   <nav class="nav" aria-label="Admin navigatie">
     <section v-for="group in visibleGroups" :key="group.label || 'dashboard'" class="nav-group">
       <p v-if="group.label">{{ group.label }}</p>
-      <NuxtLink
+      <AdminNavLink
         v-for="item in group.items"
         :key="item.to"
         :to="item.to"
@@ -89,12 +89,12 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
       >
         <Icon :name="item.icon" aria-hidden="true" />
         {{ item.label }}
-      </NuxtLink>
+      </AdminNavLink>
     </section>
     <!-- Phone sheet: the Beheer links are part of the list instead of a collapsible. -->
     <section v-if="visibleFooterItems.length" class="nav-group beheer-group">
       <p>Beheer</p>
-      <NuxtLink
+      <AdminNavLink
         v-for="item in visibleFooterItems"
         :key="item.to"
         :to="item.to"
@@ -104,7 +104,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
       >
         <Icon :name="item.icon" aria-hidden="true" />
         {{ item.label }}
-      </NuxtLink>
+      </AdminNavLink>
     </section>
   </nav>
 
@@ -116,7 +116,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
         <Icon name="lucide:chevron-down" class="summary-chevron" aria-hidden="true" />
       </summary>
       <nav aria-label="Beheer">
-        <NuxtLink
+        <AdminNavLink
           v-for="item in visibleFooterItems"
           :key="item.to"
           :to="item.to"
@@ -126,12 +126,12 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
         >
           <Icon :name="item.icon" aria-hidden="true" />
           {{ item.label }}
-        </NuxtLink>
+        </AdminNavLink>
       </nav>
     </details>
 
     <div class="account">
-      <NuxtLink
+      <AdminNavLink
         to="/admin/account"
         class="account-profile"
         :class="{ active: isActive('/admin/account') }"
@@ -143,7 +143,7 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
           <small>{{ user?.email }}</small>
         </span>
         <Icon name="lucide:chevron-right" aria-hidden="true" />
-      </NuxtLink>
+      </AdminNavLink>
 
       <button type="button" class="logout" @click="logout">
         <Icon name="lucide:log-out" aria-hidden="true" />
@@ -212,6 +212,10 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
 .nav-link:hover { background: #17141c; color: #fff; }
 .nav-link.active { background: #201b29; color: #fff; }
 .nav-link:hover svg, .nav-link.active svg { color: #c7b5de; }
+.unavailable { opacity: .4; cursor: not-allowed; }
+.unavailable:hover { background: none; color: #b8b2c1; }
+.unavailable:hover svg { color: var(--text-subtle); }
+.account-profile.unavailable:hover { background: none; }
 
 .sidebar-footer {
   flex: 0 0 auto;
