@@ -2,12 +2,12 @@
 import { expenseCategoryLabels, MILEAGE_CATEGORY, parseEuroToCents, type FinanceReport } from '~~/shared/finance'
 import { apiErrorMessage } from '~/utils/api-error'
 import type { ExpenseRow } from '~/components/admin/ExpenseDialog.vue'
-import type { VatReturns } from '~~/shared/vat-return'
+import type { VatFiling, VatReturns } from '~~/shared/vat-return'
 
 definePageMeta({ layout: 'admin' })
 
 type YearExpense = ExpenseRow & { gigTitle: string | null }
-type FinanceData = { year: number, years: number[], kmRateCents: number, report: FinanceReport, vat: VatReturns, vatNumber: string, invoiceCount: number, expenses: YearExpense[] }
+type FinanceData = { year: number, years: number[], kmRateCents: number, report: FinanceReport, vat: VatReturns, vatFilings: VatFiling[], vatNumber: string, invoiceCount: number, expenses: YearExpense[] }
 
 const { user } = useUserSession()
 const isOwner = computed(() => user.value?.role === 'owner')
@@ -108,7 +108,7 @@ useSeoMeta({ title: 'Financiën — DJ NightLight', robots: 'noindex, nofollow' 
       <p class="note">Omzet telt mee in de maand van de factuurdatum. Btw over de omzet in {{ data.year }}: {{ money(totals.vatOnRevenueCents) }}.</p>
     </section>
 
-    <AdminVatReturn :vat="data.vat" :year="data.year" :vat-number="data.vatNumber" />
+    <AdminVatReturn :vat="data.vat" :year="data.year" :vat-number="data.vatNumber" :filings="data.vatFilings" @saved="refresh" />
 
     <div class="two-col">
       <section class="card">

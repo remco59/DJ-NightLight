@@ -3,6 +3,7 @@ import {
   buildFinanceCsv,
   buildFinanceReport,
   costInputSchema,
+  costVatRateOf,
   csvMoney,
   csvText,
   expenseExclVatCents,
@@ -11,6 +12,7 @@ import {
   mileageAmountCents,
   mileageInputSchema,
   parseEuroToCents,
+  vatInGrossCents,
 } from '../shared/finance'
 
 describe('parse euro amounts', () => {
@@ -181,5 +183,36 @@ describe('csv', () => {
     expect(csv).toContain('Kilometers · 42.0 km à 0,23'.replace('42.0', '42,0'))
     expect(csv).toContain("'=cmd")
     expect(csv).toContain('"Huur lichtset; 2 dagen"')
+  })
+})
+
+describe('VAT on a cost', () => {
+  it('works the VAT out of an amount that includes VAT', () => {
+    expect(vatInGrossCents(12100, 2100)).toBe(2100)
+    expect(vatInGrossCents(10900, 900)).toBe(900)
+    expect(vatInGrossCents(2450, 2100)).toBe(425)
+    expect(vatInGrossCents(2450, 0)).toBe(0)
+    expect(vatInGrossCents(999, 900)).toBe(82)
+  })
+
+  it('recognises the rate a saved cost was entered with', () => {
+    expect(costVatRateOf({ amountCents: 12100, vatCents: 2100 })).toBe(2100)
+    expect(costVatRateOf({ amountCents: 10900, vatCents: 900 })).toBe(900)
+    expect(costVatRateOf({ amountCents: 3000, vatCents: 0 })).toBe(0)
+    expect(costVatRateOf({ amountCents: 0, vatCents: 0 })).toBe(0)
+  })
+
+  it('treats any other VAT amount as custom, so it is never silently changed', () => {
+    expect(costVatRateOf({ amountCents: 12100, vatCents: 1500 })).toBe('custom')
+    expect(costVatRateOf({ amountCents: 12100, vatCents: 2099 })).toBe('custom')
+  })
+
+  it('round-trips: the VAT of a chosen rate is recognised as that rate', () => {
+    for (const rate of [2100, 900] as const) {
+      for (const amountCents of [100, 999, 2450, 12345, 99999]) {
+        const vatCents = vatInGrossCents(amountCents, rate)
+        if (vatCents > 0) expect(costVatRateOf({ amountCents, vatCents }), `${amountCents} @ ${rate}`).toBe(rate)
+      }
+    }
   })
 })

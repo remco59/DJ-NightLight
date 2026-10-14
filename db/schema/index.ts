@@ -319,6 +319,16 @@ export const expenses = pgTable('expenses', {
   ...timestamps,
 }, table => [index('expenses_spent_on_idx').on(table.spentOn), index('expenses_gig_id_idx').on(table.gigId)])
 
+export const vatFilings = pgTable('vat_filings', {
+  year: integer('year').notNull(),
+  period: varchar('period', { length: 2 }).$type<'q1' | 'q2' | 'q3' | 'q4'>().notNull(),
+  submittedOn: date('submitted_on'),
+  filedBalanceCents: integer('filed_balance_cents'),
+  paidOn: date('paid_on'),
+  updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+}, table => [primaryKey({ columns: [table.year, table.period], name: 'vat_filings_pk' })])
+
 export const payments = pgTable('payments', {
   id: uuid('id').defaultRandom().primaryKey(),
   invoiceId: uuid('invoice_id').notNull().unique().references(() => invoices.id, { onDelete: 'restrict' }),
