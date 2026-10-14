@@ -470,7 +470,7 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
 </section>
 
 <section v-if="submissionData" class="card">
-  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>{{canManageGigs?'Contract & muziekwensen':'Muziekwensen'}}</h2><NuxtLink v-if="canEdit" to="/admin/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
+  <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>{{canManageGigs?'Contract & muziekwensen':'Muziekwensen'}}</h2><NuxtLink v-if="canEdit" to="/admin/settings/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
   <template v-if="canManageGigs">
   <p class="contract-state" :data-state="submissionData.status"><i aria-hidden="true"/>{{contractLabel}}</p>
   <p class="portal-meta">Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>

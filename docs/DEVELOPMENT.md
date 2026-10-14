@@ -34,7 +34,7 @@ The product standard is WCAG 2.1 level AA (see [PRODUCT.md](../PRODUCT.md)). `np
 
 - the public pages (home, over, media, agenda, boeken, and every published landing page), including the booking form with an availability message and with its error state;
 - the client portal with a quote waiting for an answer;
-- the back office: dashboard, gigs, invoices, finance, clients, venues, calendar, reviews, e-mail and settings, plus a gig (overview, finance and client tabs), a client and a quote.
+- the back office: dashboard, gigs, invoices, finance, clients, venues, calendar, reviews, and the settings pages (company, invoicing, e-mail automation, integrations), plus a gig (overview, finance and client tabs), a client and a quote.
 
 Each page is checked at a desktop and a phone size. It tests WCAG 2.0/2.1 level A and AA plus axe's best practices and fails on any violation. CI runs it after the E2E workflows, against the production build, and treats a missing login as an error.
 

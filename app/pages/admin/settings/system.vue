@@ -66,8 +66,7 @@ function formatDate(value: string | null | undefined) {
   <div class="page">
     <header class="header">
       <div>
-        <p class="eyebrow">Systeem</p>
-        <h1>Systeemstatus</h1>
+        <h2>Systeemstatus</h2>
         <p>Storingen, de status van koppelingen en back-ups op één plek.</p>
       </div>
       <button type="button" :disabled="pending" @click="refresh()">
@@ -84,7 +83,7 @@ function formatDate(value: string | null | undefined) {
       <article>
         <span>Mislukte e-mails</span>
         <strong>{{ data?.health.failedEmails ?? '—' }}</strong>
-        <NuxtLink to="/admin/email">E-mailautomatisering openen</NuxtLink>
+        <NuxtLink to="/admin/settings/emails">E-mailautomatisering openen</NuxtLink>
       </article>
       <article>
         <span>Mislukte agendasynchronisaties</span>
@@ -109,7 +108,7 @@ function formatDate(value: string | null | undefined) {
           <h2>Koppelingen</h2>
           <p>De status toont de configuratie die echt gebruikt wordt, uit Instellingen of uit de serveromgeving.</p>
         </div>
-        <NuxtLink to="/admin/settings#integrations">Koppelingen beheren</NuxtLink>
+        <NuxtLink to="/admin/settings/integrations">Koppelingen beheren</NuxtLink>
       </div>
       <div class="rows">
         <div>
@@ -133,7 +132,7 @@ function formatDate(value: string | null | undefined) {
           </strong>
           <small>
             {{ data?.integrations.instagram.detail }}
-            · <NuxtLink to="/admin/settings#integrations">Instagram beheren</NuxtLink>
+            · <NuxtLink to="/admin/settings/instagram">Instagram beheren</NuxtLink>
           </small>
         </div>
         <div>
@@ -143,7 +142,7 @@ function formatDate(value: string | null | undefined) {
           </strong>
           <small>
             {{ data?.renderWorker.heartbeatAt ? `Laatst gezien ${formatDate(data.renderWorker.heartbeatAt)}` : 'Nog nooit gemeld' }}
-            · <NuxtLink to="/admin/settings#rendering">Renderinstellingen</NuxtLink>
+            · <NuxtLink to="/admin/settings/rendering">Renderinstellingen</NuxtLink>
           </small>
         </div>
         <div>
@@ -176,7 +175,7 @@ function formatDate(value: string | null | undefined) {
 <style scoped>
 .page { max-width: 1180px; margin: 0 auto; }
 .header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.6rem); letter-spacing: -.04em; }
+header h2 { margin: .2rem 0; font-size:clamp(1.5rem,3vw,2rem); letter-spacing: -.04em; }
 h2 { margin: 0 0 .9rem; }
 .panel-title { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .3rem; }
 .panel-title h2 { margin-bottom: .25rem; }

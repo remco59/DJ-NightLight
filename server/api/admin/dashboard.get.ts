@@ -388,8 +388,8 @@ export default defineEventHandler(async (event) => {
   // Missing configuration is not a failure yet, but it silently stops client-facing work.
   const [emailReady, stripe] = await Promise.all([emailProviderConfigured(), stripeStatus()])
   const warnings: Array<{ label: string, to: string }> = []
-  if (!emailReady) warnings.push({ label: 'E-mails aan klanten worden niet verstuurd: er is geen e-mailprovider ingesteld.', to: '/admin/settings' })
-  if (!stripe.keyConfigured) warnings.push({ label: 'Klanten kunnen niet online betalen: Stripe is niet gekoppeld.', to: '/admin/settings' })
+  if (!emailReady) warnings.push({ label: 'E-mails aan klanten worden niet verstuurd: er is geen e-mailprovider ingesteld.', to: '/admin/settings/resend' })
+  if (!stripe.keyConfigured) warnings.push({ label: 'Klanten kunnen niet online betalen: Stripe is niet gekoppeld.', to: '/admin/settings/stripe' })
 
   return {
     summary: {
