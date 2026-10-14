@@ -40,6 +40,8 @@ function label(expense: ExpenseRow) { return expense.kind === 'mileage' && expen
         <button type="button" class="row" :disabled="!canEdit" :aria-label="`${label(expense)}, ${money(expense.amountCents)}. Wijzigen`" @click="dialog?.show(expense)">
           <Icon :name="expense.kind === 'mileage' ? 'lucide:car' : 'lucide:receipt'" class="kind-icon" aria-hidden="true" />
           <span class="row-main"><strong>{{ label(expense) }}</strong><small>{{ day(expense.spentOn) }} · {{ detail(expense) }}</small></span>
+          <span v-if="expense.billedInvoiceId" class="tag" data-on>Op factuur</span>
+          <span v-else-if="expense.billable" class="tag">Wordt doorberekend</span>
           <strong class="row-amount">{{ money(expense.amountCents) }}</strong>
         </button>
       </li>
@@ -71,6 +73,8 @@ function label(expense: ExpenseRow) { return expense.kind === 'mileage' && expen
 .row-main { display: grid; flex: 1; min-width: 0; gap: .1rem; }
 .row-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-main small { color: var(--text-muted); }
+.tag { flex: none; padding: .15rem .55rem; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--text-muted); font-size: .72rem; font-weight: 700; }
+.tag[data-on] { border-color: #3f6b50; color: #a9e1bb; }
 .row-amount { font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .result { grid-template-columns: 1fr; } }
 </style>
