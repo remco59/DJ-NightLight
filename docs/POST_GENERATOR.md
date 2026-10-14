@@ -71,7 +71,7 @@ Both `docker-compose.yml` and `docker-compose.unraid.yml` include `render-worker
 
 ### Hardware-accelerated rendering (Intel GPU)
 
-The render worker can encode exports on an Intel GPU with VAAPI. Choose the engine under **Settings → Video rendering**:
+The render worker can encode exports on an Intel GPU with VAAPI. Choose the engine under **Instellingen → Systeem → Video-rendering**:
 
 - **Automatic** (default) uses the Intel GPU when the worker detected a working one, otherwise the CPU.
 - **CPU (software)** always works.

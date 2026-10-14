@@ -151,7 +151,7 @@ async function save(action: 'schedule' | 'draft') {
       <article>
         <p>Instagram</p>
         <strong v-if="data?.account" class="account">@{{ data.account.username }}</strong>
-        <NuxtLink v-else class="account-link" to="/admin/settings#integrations">Niet gekoppeld</NuxtLink>
+        <NuxtLink v-else class="account-link" to="/admin/settings/instagram">Niet gekoppeld</NuxtLink>
       </article>
     </section>
 

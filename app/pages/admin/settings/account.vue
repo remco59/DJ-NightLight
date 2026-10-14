@@ -35,7 +35,7 @@ useSeoMeta({ title: 'Mijn account — DJ NightLight', robots: 'noindex, nofollow
 
 <template>
   <div class="account-page">
-    <header><p class="eyebrow">Account</p><h1>Mijn account</h1><p>Beheer de beveiliging van je eigen NightLight-login.</p></header>
+    <header><h2>Mijn account</h2><p>Beheer de beveiliging van je eigen NightLight-login.</p></header>
     <section class="card">
       <h2>Wachtwoord wijzigen</h2>
       <form @submit.prevent="changePassword">
@@ -49,5 +49,5 @@ useSeoMeta({ title: 'Mijn account — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
-.account-page{max-width:760px;margin-inline:auto}header{margin-bottom:1.5rem}h1{margin:.2rem 0;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.04em}header>p:last-child{color:var(--text-subtle)}.card{padding:1.25rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.card h2{margin-top:0}form{display:grid;gap:.8rem}label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}label small{color:var(--text-subtle)}input{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text)}.actions{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.3rem}.actions span{color:var(--text-muted)}.actions .success{color:#8ed6a3}.actions .error{color:#ff9d9d}button{border:0;border-radius:.7rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800}button:disabled{opacity:.6}@media(max-width:620px){.actions{align-items:stretch;flex-direction:column}.actions button{width:100%}}
+.account-page{max-width:760px;margin-inline:auto}header{margin-bottom:1.5rem}header h2{margin:.2rem 0;font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-.04em}header>p:last-child{color:var(--text-subtle)}.card{padding:1.25rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-card)}.card h2{margin-top:0}form{display:grid;gap:.8rem}label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem}label small{color:var(--text-subtle)}input{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.7rem;background:var(--surface-input);color:var(--text)}.actions{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.3rem}.actions span{color:var(--text-muted)}.actions .success{color:#8ed6a3}.actions .error{color:#ff9d9d}button{border:0;border-radius:.7rem;padding:.75rem 1rem;background:#fff;color:#09080b;font-weight:800}button:disabled{opacity:.6}@media(max-width:620px){.actions{align-items:stretch;flex-direction:column}.actions button{width:100%}}
 </style>

@@ -224,7 +224,7 @@ useSeoMeta({
       </div>
       <div class="actions">
         <NuxtLink
-          to="/admin/system"
+          to="/admin/settings/system"
           class="system-status"
           :class="systemState"
         >

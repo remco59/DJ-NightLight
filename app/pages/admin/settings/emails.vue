@@ -426,15 +426,14 @@ const suppressionGroups = computed(() => {
   <div class="page">
     <header class="header">
       <div>
-        <p class="eyebrow">Communicatie</p>
-        <h1>E-mails</h1>
+        <h2>E-mails</h2>
         <p>Beheer templates, automatiseringen, uitzonderingen en verzendgeschiedenis vanuit één communicatiecentrum.</p>
       </div>
       <div class="header-actions">
         <span class="provider" :class="{ ok: data?.providerConfigured }">
           {{ data?.providerConfigured ? 'Provider klaar' : 'Provider ontbreekt' }}
         </span>
-        <NuxtLink class="settings-link" to="/admin/settings#integrations">Providerinstellingen</NuxtLink>
+        <NuxtLink class="settings-link" to="/admin/settings/resend">Providerinstellingen</NuxtLink>
       </div>
     </header>
 
@@ -635,16 +634,16 @@ const suppressionGroups = computed(() => {
     <template v-else>
       <section class="settings-grid">
         <div class="panel settings-card">
-          <div><p class="eyebrow">Huisstijl</p><h2>Standaard headerfoto</h2><p>Deze afbeelding wordt gebruikt voor alle e-mails, tenzij een template een eigen foto heeft.</p></div>
+          <div><h2>Standaard headerfoto</h2><p>Deze afbeelding wordt gebruikt voor alle e-mails, tenzij een template een eigen foto heeft.</p></div>
           <MediaPicker v-model="defaultHeroImageUrl" label="Globale standaardfoto" description="Kies uit de mediabibliotheek of gebruik een externe HTTPS-afbeelding." kind="image" upload-tags="email" />
           <button class="primary" type="button" :disabled="busy === 'branding'" @click="saveBranding">{{ busy === 'branding' ? 'Opslaan…' : 'Standaardfoto opslaan' }}</button>
         </div>
         <div class="panel settings-card">
-          <div><p class="eyebrow">Verzending</p><h2>E-mailprovider</h2><p>NightLight gebruikt de ingestelde provider om automatische en handmatige e-mails te verzenden.</p></div>
-          <div class="provider-state"><span class="provider" :class="{ ok: data?.providerConfigured }">{{ data?.providerConfigured ? 'Provider klaar' : 'Provider ontbreekt' }}</span><NuxtLink class="primary button-link" to="/admin/settings#integrations">Providerinstellingen openen</NuxtLink></div>
+          <div><h2>E-mailprovider</h2><p>NightLight gebruikt de ingestelde provider om automatische en handmatige e-mails te verzenden.</p></div>
+          <div class="provider-state"><span class="provider" :class="{ ok: data?.providerConfigured }">{{ data?.providerConfigured ? 'Provider klaar' : 'Provider ontbreekt' }}</span><NuxtLink class="primary button-link" to="/admin/settings/resend">Providerinstellingen openen</NuxtLink></div>
         </div>
         <div class="panel settings-card">
-          <div><p class="eyebrow">Automatisering</p><h2>Handmatig controleren</h2><p>Controleer direct of er nieuwe e-mails moeten worden ingepland of verzonden.</p></div>
+          <div><h2>Handmatig controleren</h2><p>Controleer direct of er nieuwe e-mails moeten worden ingepland of verzonden.</p></div>
           <button class="primary with-icon" type="button" :disabled="busy === 'run'" @click="runAutomation"><Icon name="lucide:play" aria-hidden="true" />{{ busy === 'run' ? 'Bezig…' : 'Automatiseringen uitvoeren' }}</button>
         </div>
       </section>
@@ -656,7 +655,7 @@ const suppressionGroups = computed(() => {
 .page { max-width: 1480px; margin: 0 auto; padding-bottom: 3rem; }
 .header, .header-actions, .editor-head, .row-actions, .test-send, .section-intro, .suppression-create, .preview-toolbar, .provider-state { display: flex; gap: .8rem; align-items: center; }
 .header, .editor-head, .section-intro { justify-content: space-between; align-items: flex-start; }
-h1 { margin: .2rem 0; font-size: clamp(2.5rem, 6vw, 4.5rem); letter-spacing: -.045em; }
+header h2 { margin: .2rem 0; font-size:clamp(1.5rem,3vw,2rem); letter-spacing: -.045em; }
 h2, h3 { margin: 0; }
 p, small, span { color: #958d9e; }
 button, input, textarea, select { border: 1px solid #302a36; border-radius: .65rem; background: #151219; color: #fff; }
@@ -784,7 +783,7 @@ dt { color: #7e7585; font-size: .72rem; } dd { margin: 0; color: #ddd7e1; }
 .settings-card p { margin: .4rem 0 0; }
 .provider-state { justify-content: space-between; flex-wrap: wrap; }
 .empty { padding: 1rem; color: #918997; }
-@media (max-width: 1180px) {
+@media (max-width: 1500px) {
   .template-workspace { grid-template-columns: 240px 1fr; }
   .preview-panel { grid-column: 2; position: static; }
   .preview-frame { min-height: 600px; }
