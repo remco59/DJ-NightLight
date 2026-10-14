@@ -16,15 +16,17 @@ export default defineEventHandler(async (event) => {
     if (!gig) throw createError({ statusCode: 422, statusMessage: 'Deze gig bestaat niet' })
   }
 
+  // Only an item with a gig can be passed on: the invoice belongs to the gig.
+  const gigId = input.gigId
   const values = input.kind === 'mileage'
     ? {
         kind: 'mileage' as const, gigId: input.gigId, spentOn: input.spentOn, category: MILEAGE_CATEGORY,
         description: input.description || 'Kilometers', amountCents: mileageAmountCents(input.kilometers, input.kmRateCents), vatCents: 0,
-        kilometers: input.kilometers.toFixed(1), kmRateCents: input.kmRateCents,
+        kilometers: input.kilometers.toFixed(1), kmRateCents: input.kmRateCents, billable: Boolean(gigId && input.billable),
       }
     : {
         kind: 'cost' as const, gigId: input.gigId, spentOn: input.spentOn, category: input.category,
-        description: input.description, amountCents: input.amountCents, vatCents: input.vatCents, kilometers: null, kmRateCents: null,
+        description: input.description, amountCents: input.amountCents, vatCents: input.vatCents, kilometers: null, kmRateCents: null, billable: Boolean(gigId && input.billable),
       }
   const [created] = await db.insert(expenses).values({ ...values, createdByUserId: user.id }).returning()
   if (!created) throw createError({ statusCode: 500, statusMessage: 'Opslaan is niet gelukt' })

@@ -313,6 +313,8 @@ export const expenses = pgTable('expenses', {
   vatCents: integer('vat_cents').default(0).notNull(),
   kilometers: numeric('kilometers', { precision: 8, scale: 1 }),
   kmRateCents: integer('km_rate_cents'),
+  billable: boolean('billable').default(false).notNull(),
+  billedInvoiceId: uuid('billed_invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
   createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   ...timestamps,
 }, table => [index('expenses_spent_on_idx').on(table.spentOn), index('expenses_gig_id_idx').on(table.gigId)])

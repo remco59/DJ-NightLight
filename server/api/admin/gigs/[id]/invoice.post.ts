@@ -1,5 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { auditLogs, businessSettings, gigs, invoiceLineItems, invoices } from '../../../../../db/schema'
+import { and, eq, isNull } from 'drizzle-orm'
+import { auditLogs, businessSettings, expenses, gigs, invoiceLineItems, invoices } from '../../../../../db/schema'
+import { billableInvoiceLine } from '../../../../../shared/finance'
 import { calculateInvoiceTotals } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
 import { gigTitleSql } from '../../../../utils/gig-title'
@@ -21,7 +22,12 @@ export default defineEventHandler(async (event) => {
   const issue = gig.startsAt ? new Date(gig.startsAt) : new Date()
   const due = new Date(issue); due.setUTCDate(due.getUTCDate() + settings.defaultPaymentTermDays)
   const unitPriceCents = Math.round(Number(gig.fee || 0) * 100)
-  const lines = [{ description: `DJ-diensten — ${displayTitle}`, quantity: '1.000', unitPriceCents }]
+  // Costs and trips marked "doorberekenen" that are not on an invoice yet become extra lines.
+  const passedOn = await db.select().from(expenses).where(and(eq(expenses.gigId, gigId), eq(expenses.billable, true), isNull(expenses.billedInvoiceId))).orderBy(expenses.spentOn, expenses.createdAt)
+  const lines = [
+    { description: `DJ-diensten — ${displayTitle}`, quantity: '1.000', unitPriceCents },
+    ...passedOn.map(expense => billableInvoiceLine(expense, settings.defaultVatMode)),
+  ]
   const totals = calculateInvoiceTotals(lines, settings.defaultVatMode, settings.defaultVatRateBasisPoints)
 
   const invoice = await db.transaction(async (tx) => {
@@ -31,7 +37,8 @@ export default defineEventHandler(async (event) => {
       ...totals, paymentTerms: settings.paymentTerms, legalText: settings.legalText,
     }).returning()
     if (!created) throw createError({ statusCode: 500, statusMessage: 'Factuur aanmaken is niet gelukt' })
-    await tx.insert(invoiceLineItems).values({ invoiceId: created.id, ...lines[0]!, ordering: 0 })
+    await tx.insert(invoiceLineItems).values(lines.map((line, ordering) => ({ invoiceId: created.id, ...line, ordering })))
+    for (const expense of passedOn) await tx.update(expenses).set({ billedInvoiceId: created.id }).where(eq(expenses.id, expense.id))
     await tx.insert(auditLogs).values({ userId: user.id, entityType: 'invoice', entityId: created.id, action: 'invoice_created', metadata: { gigId } })
     return created
   })

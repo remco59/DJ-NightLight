@@ -27,6 +27,7 @@ export const costInputSchema = z.object({
   category: z.enum(expenseCategories),
   amountCents: z.number().int().min(0).max(100_000_000),
   vatCents: z.number().int().min(0).max(100_000_000).default(0),
+  billable: z.boolean().default(false),
 }).refine(value => value.vatCents <= value.amountCents, { path: ['vatCents'], message: 'Het btw-bedrag kan niet hoger zijn dan het totaal' })
 
 export const mileageInputSchema = z.object({
@@ -36,6 +37,7 @@ export const mileageInputSchema = z.object({
   description: z.string().trim().max(300).default(''),
   kilometers: z.number().min(0.1, 'Vul het aantal kilometers in').max(5000),
   kmRateCents: z.number().int().min(0).max(500),
+  billable: z.boolean().default(false),
 })
 
 export const expenseInputSchema = z.discriminatedUnion('kind', [costInputSchema, mileageInputSchema])
@@ -59,6 +61,26 @@ export function mileageAmountCents(kilometers: number, rateCents: number) {
 /** What the row costs without VAT. Mileage has no VAT. */
 export function expenseExclVatCents(expense: { amountCents: number, vatCents: number }) {
   return expense.amountCents - expense.vatCents
+}
+
+/**
+ * The invoice line for an item that is passed on to the client. A trip is billed per kilometre.
+ * A cost is billed at what it cost without VAT when the invoice adds VAT on top, otherwise at what was paid.
+ */
+export function billableInvoiceLine(
+  expense: { kind: string, description: string, amountCents: number, vatCents: number, kilometers: string | number | null, kmRateCents: number | null },
+  vatMode: string,
+) {
+  if (expense.kind === 'mileage' && expense.kilometers !== null && expense.kmRateCents !== null) {
+    const kilometers = Math.round(Number(expense.kilometers) * 10) / 10
+    const text = expense.description && expense.description !== 'Kilometers' ? ` — ${expense.description}` : ''
+    return { description: `Reiskosten (kilometers)${text}`, quantity: kilometers.toFixed(1), unitPriceCents: expense.kmRateCents }
+  }
+  return {
+    description: expense.description,
+    quantity: '1.000',
+    unitPriceCents: vatMode === 'exclusive' ? expenseExclVatCents(expense) : expense.amountCents,
+  }
 }
 
 export type ReportInvoice = { issueDate: string, subtotalCents: number, vatAmountCents: number, totalCents: number, paymentStatus: string }

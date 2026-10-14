@@ -130,6 +130,8 @@ export default defineEventHandler(async (event) => {
         vatCents: expenses.vatCents,
         kilometers: expenses.kilometers,
         kmRateCents: expenses.kmRateCents,
+        billable: expenses.billable,
+        billedInvoiceId: expenses.billedInvoiceId,
       }).from(expenses).where(eq(expenses.gigId, id)).orderBy(desc(expenses.spentOn), desc(expenses.createdAt))
     : []
   const [financeSettings] = canManage

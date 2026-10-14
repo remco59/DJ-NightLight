@@ -14,6 +14,8 @@ export type ExpenseRow = {
   vatCents: number
   kilometers: string | number | null
   kmRateCents: number | null
+  billable?: boolean
+  billedInvoiceId?: string | null
 }
 
 const props = defineProps<{
@@ -27,7 +29,8 @@ const emit = defineEmits<{ saved: [] }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const editingId = ref('')
 const kind = ref<'cost' | 'mileage'>('cost')
-const form = reactive({ spentOn: '', description: '', category: 'overig' as ExpenseCategory, amount: '', vat: '', kilometers: '', rate: '', gigId: '' })
+const form = reactive({ spentOn: '', description: '', category: 'overig' as ExpenseCategory, amount: '', vat: '', kilometers: '', rate: '', gigId: '', billable: false })
+const billedInvoiceId = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
 
@@ -47,7 +50,9 @@ function show(expense?: ExpenseRow) {
     kilometers: expense?.kind === 'mileage' && expense.kilometers !== null ? String(Number(expense.kilometers)).replace('.', ',') : '',
     rate: euro(expense?.kmRateCents ?? props.kmRateCents),
     gigId: expense?.gigId ?? props.gigId ?? '',
+    billable: expense?.billable ?? false,
   })
+  billedInvoiceId.value = expense?.billedInvoiceId ?? null
   dialog.value?.showModal()
 }
 defineExpose({ show })
@@ -63,14 +68,14 @@ async function save() {
   if (kind.value === 'mileage') {
     if (!Number.isFinite(kilometers.value) || kilometers.value <= 0) { error.value = 'Vul het aantal kilometers in.'; return }
     if (rateCents.value === null) { error.value = 'Vul een geldig tarief per kilometer in.'; return }
-    body = { kind: 'mileage', gigId, spentOn: form.spentOn, description: form.description, kilometers: kilometers.value, kmRateCents: rateCents.value }
+    body = { kind: 'mileage', gigId, spentOn: form.spentOn, description: form.description, kilometers: kilometers.value, kmRateCents: rateCents.value, billable: form.billable }
   }
   else {
     const amountCents = parseEuroToCents(form.amount)
     const vatCents = form.vat.trim() ? parseEuroToCents(form.vat) : 0
     if (amountCents === null) { error.value = 'Vul een geldig bedrag in, bijvoorbeeld 24,50.'; return }
     if (vatCents === null) { error.value = 'Vul een geldig btw-bedrag in, of laat het leeg.'; return }
-    body = { kind: 'cost', gigId, spentOn: form.spentOn, description: form.description, category: form.category, amountCents, vatCents }
+    body = { kind: 'cost', gigId, spentOn: form.spentOn, description: form.description, category: form.category, amountCents, vatCents, billable: form.billable }
   }
   busy.value = true
   try {
@@ -133,6 +138,11 @@ async function remove() {
           <label>Tarief per km (€)<input v-model="form.rate" required inputmode="decimal"></label>
           <p class="trip-total wide" aria-live="polite">{{ tripCents === null ? 'Vul de kilometers in' : `Vergoeding: ${money(tripCents)}` }}</p>
         </template>
+        <div v-if="gigId || form.gigId" class="wide billable">
+          <label class="check"><input v-model="form.billable" type="checkbox"> Doorberekenen aan de klant</label>
+          <p v-if="billedInvoiceId" class="hint">Staat al op een factuur. Een latere wijziging past die factuur niet aan.</p>
+          <p v-else class="hint">Komt als aparte regel op de factuur van deze gig, zodra je de factuur aanmaakt.</p>
+        </div>
       </div>
 
       <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -159,6 +169,10 @@ label { display: grid; gap: .35rem; color: #c9c3ce; font-size: .8rem; font-weigh
 label small { color: var(--text-subtle); font-weight: 500; }
 input, select { width: 100%; min-height: 2.75rem; padding: .6rem .75rem; border: 1px solid var(--border-strong); border-radius: .65rem; background: var(--surface-input); color: var(--text); }
 .trip-total { margin: 0; padding: .7rem .85rem; border: 1px solid var(--border-strong); border-radius: .7rem; background: var(--surface-card); font-weight: 700; }
+.billable { display: grid; gap: .3rem; padding: .7rem .85rem; border: 1px solid var(--border-strong); border-radius: .7rem; }
+.check { display: flex; align-items: center; gap: .6rem; color: var(--text); font-size: .9rem; }
+.check input { width: 1.25rem; min-height: 0; height: 1.25rem; }
+.hint { margin: 0; color: var(--text-muted); font-size: .8rem; }
 .error { margin: .9rem 0 0; color: #ffb3bf; }
 .actions { display: flex; align-items: center; gap: .6rem; margin-top: 1.25rem; }
 .spacer { flex: 1; }
