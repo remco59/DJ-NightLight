@@ -58,6 +58,21 @@ export function mileageAmountCents(kilometers: number, rateCents: number) {
   return Math.round(Math.round(kilometers * 10) / 10 * rateCents)
 }
 
+/** The VAT rates a cost can be entered with, in basis points. Anything else is entered as an amount. */
+export const costVatRates = [2100, 900, 0] as const
+export type CostVatRate = typeof costVatRates[number]
+
+/** The VAT inside an amount that includes VAT, rounded to the cent. */
+export function vatInGrossCents(grossCents: number, rateBasisPoints: number) {
+  return Math.round(grossCents * rateBasisPoints / (10000 + rateBasisPoints))
+}
+
+/** Which rate a stored cost was entered with, or `custom` when its VAT matches none of them. */
+export function costVatRateOf(expense: { amountCents: number, vatCents: number }): CostVatRate | 'custom' {
+  if (expense.vatCents === 0) return 0
+  return costVatRates.find(rate => rate > 0 && vatInGrossCents(expense.amountCents, rate) === expense.vatCents) ?? 'custom'
+}
+
 /** What the row costs without VAT. Mileage has no VAT. */
 export function expenseExclVatCents(expense: { amountCents: number, vatCents: number }) {
   return expense.amountCents - expense.vatCents

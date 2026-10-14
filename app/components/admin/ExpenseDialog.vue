@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { todayInAmsterdam } from '~~/shared/dates'
-import { expenseCategories, expenseCategoryLabels, mileageAmountCents, parseEuroToCents, type ExpenseCategory } from '~~/shared/finance'
+import { costVatRateOf, expenseCategories, expenseCategoryLabels, mileageAmountCents, parseEuroToCents, vatInGrossCents, type ExpenseCategory } from '~~/shared/finance'
 import { apiErrorMessage } from '~/utils/api-error'
 
 export type ExpenseRow = {
@@ -29,7 +29,7 @@ const emit = defineEmits<{ saved: [] }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const editingId = ref('')
 const kind = ref<'cost' | 'mileage'>('cost')
-const form = reactive({ spentOn: '', description: '', category: 'overig' as ExpenseCategory, amount: '', vat: '', kilometers: '', rate: '', gigId: '', billable: false })
+const form = reactive({ spentOn: '', description: '', category: 'overig' as ExpenseCategory, amount: '', vatRate: '', vat: '', kilometers: '', rate: '', gigId: '', billable: false })
 const billedInvoiceId = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
@@ -46,6 +46,8 @@ function show(expense?: ExpenseRow) {
     description: expense && !(expense.kind === 'mileage' && expense.description === 'Kilometers') ? expense.description : '',
     category: (expense && expenseCategories.includes(expense.category as ExpenseCategory) ? expense.category : 'overig') as ExpenseCategory,
     amount: expense?.kind === 'cost' ? euro(expense.amountCents) : '',
+    // A new cost has no rate yet: it has to be chosen. A saved one shows the rate its VAT amount matches.
+    vatRate: expense?.kind === 'cost' ? String(costVatRateOf(expense)) : '',
     vat: expense?.kind === 'cost' ? euro(expense.vatCents) : '',
     kilometers: expense?.kind === 'mileage' && expense.kilometers !== null ? String(Number(expense.kilometers)).replace('.', ',') : '',
     rate: euro(expense?.kmRateCents ?? props.kmRateCents),
@@ -59,6 +61,18 @@ defineExpose({ show })
 
 const kilometers = computed(() => Number(form.kilometers.replace(',', '.')))
 const rateCents = computed(() => parseEuroToCents(form.rate))
+const grossCents = computed(() => parseEuroToCents(form.amount))
+const customVat = computed(() => form.vatRate === 'custom')
+/** The VAT amount that follows from the chosen rate, or the typed amount for `custom`. */
+const vatCents = computed(() => {
+  if (form.vatRate === '') return null
+  if (customVat.value) return form.vat.trim() ? parseEuroToCents(form.vat) : 0
+  return grossCents.value === null ? null : vatInGrossCents(grossCents.value, Number(form.vatRate))
+})
+const vatSummary = computed(() => {
+  if (form.vatRate === '' || customVat.value || vatCents.value === null || grossCents.value === null) return ''
+  return `Btw: ${money(vatCents.value)} · excl. btw: ${money(grossCents.value - vatCents.value)}`
+})
 const tripCents = computed(() => Number.isFinite(kilometers.value) && kilometers.value > 0 && rateCents.value !== null ? mileageAmountCents(kilometers.value, rateCents.value) : null)
 
 async function save() {
@@ -72,10 +86,11 @@ async function save() {
   }
   else {
     const amountCents = parseEuroToCents(form.amount)
-    const vatCents = form.vat.trim() ? parseEuroToCents(form.vat) : 0
     if (amountCents === null) { error.value = 'Vul een geldig bedrag in, bijvoorbeeld 24,50.'; return }
-    if (vatCents === null) { error.value = 'Vul een geldig btw-bedrag in, of laat het leeg.'; return }
-    body = { kind: 'cost', gigId, spentOn: form.spentOn, description: form.description, category: form.category, amountCents, vatCents, billable: form.billable }
+    if (form.vatRate === '') { error.value = 'Kies het btw-tarief. Kies 0% als er geen btw op zit.'; return }
+    if (vatCents.value === null) { error.value = 'Vul een geldig btw-bedrag in.'; return }
+    if (vatCents.value > amountCents) { error.value = 'Het btw-bedrag kan niet hoger zijn dan het totaal.'; return }
+    body = { kind: 'cost', gigId, spentOn: form.spentOn, description: form.description, category: form.category, amountCents, vatCents: vatCents.value, billable: form.billable }
   }
   busy.value = true
   try {
@@ -129,7 +144,18 @@ async function remove() {
             <select v-model="form.category"><option v-for="category in expenseCategories" :key="category" :value="category">{{ expenseCategoryLabels[category] }}</option></select>
           </label>
           <label>Bedrag incl. btw (€)<input v-model="form.amount" required inputmode="decimal" placeholder="0,00"></label>
-          <label>Waarvan btw (€) <small>optioneel</small><input v-model="form.vat" inputmode="decimal" placeholder="0,00"></label>
+          <label>
+            Btw-tarief
+            <select v-model="form.vatRate" required>
+              <option value="" disabled>Kies een tarief</option>
+              <option value="2100">21% (hoog tarief)</option>
+              <option value="900">9% (laag tarief, o.a. OV en taxi)</option>
+              <option value="0">0% (geen btw op deze kosten)</option>
+              <option value="custom">Ander bedrag invullen</option>
+            </select>
+          </label>
+          <label v-if="customVat">Waarvan btw (€)<input v-model="form.vat" inputmode="decimal" placeholder="0,00"></label>
+          <p v-if="vatSummary" class="trip-total wide" aria-live="polite">{{ vatSummary }}</p>
         </template>
 
         <template v-else>
