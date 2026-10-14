@@ -55,7 +55,7 @@ The local Compose stack sets `NUXT_SESSION_COOKIE_SECURE=false` so authenticatio
 
 ## Stripe payments
 
-The owner sets Stripe up in **Admin → Settings → Online payments**, which walks through creating a restricted key, connecting the webhook (automatically on a public HTTPS site, or manually), and verifying the connection. Credentials entered there are stored AES-256-GCM encrypted, keyed from `NUXT_SESSION_PASSWORD` — rotating that password requires re-entering the Stripe credentials.
+The owner sets Stripe up in **Admin → Instellingen → Koppelingen → Betalingen (Stripe)**, which walks through creating a restricted key, connecting the webhook (automatically on a public HTTPS site, or manually), and verifying the connection. Credentials entered there are stored AES-256-GCM encrypted, keyed from `NUXT_SESSION_PASSWORD` — rotating that password requires re-entering the Stripe credentials.
 
 Alternatively (or as a fallback), configure a separate Stripe restricted API key and webhook signing secret per environment. Credentials saved in Settings take precedence over these variables:
 
@@ -120,7 +120,7 @@ Configure NPM for `djnightlight.nl` to the production `APP_PORT`.
 
 ## Updates from Settings
 
-The owner can update the server from **Admin → Settings → Software-updates**:
+The owner can update the server from **Admin → Instellingen → Systeem → Software-updates**:
 
 1. **Controleren op updates** fetches the configured branch (default `main`) from GitHub and lists the new commits.
 2. **Nu bijwerken** checks out the new commit, rebuilds the images and restarts the stack with `docker compose up -d` — the same steps as the deploy workflows.

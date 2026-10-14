@@ -22,7 +22,7 @@ describe('AdminNavLink', () => {
 
   it('is greyed out, not a link and marked disabled offline when the page needs a connection', () => {
     online.value = false
-    for (const to of ['/admin/invoices', '/admin/finance', '/admin/clients', '/admin/venues', '/admin/media', '/admin/account']) {
+    for (const to of ['/admin/invoices', '/admin/finance', '/admin/clients', '/admin/venues', '/admin/media', '/admin/settings/account']) {
       const wrapper = render(to)
       expect(wrapper.find('a').exists(), to).toBe(false)
       expect(wrapper.find('span.unavailable').attributes('aria-disabled'), to).toBe('true')

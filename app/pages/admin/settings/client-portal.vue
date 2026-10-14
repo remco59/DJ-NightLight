@@ -86,11 +86,10 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
   <main class="portal-admin">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Klantportaal</p>
-        <h1>Uiterlijk klantportaal</h1>
+        <h2>Uiterlijk klantportaal</h2>
         <p>Beheer de hero-afbeelding die klanten bovenaan hun persoonlijke boekingspagina zien.</p>
       </div>
-      <NuxtLink to="/admin/questionnaire" class="secondary-button">
+      <NuxtLink to="/admin/settings/questionnaire" class="secondary-button">
         Vragenlijst beheren <Icon name="lucide:clipboard-list" aria-hidden="true" />
       </NuxtLink>
     </header>
@@ -100,7 +99,6 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
     <section class="settings-card">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Standaard</p>
           <h2>Standaardafbeelding</h2>
           <p>Wordt gebruikt voor iedere gig waarvoor je geen eigen afbeelding instelt.</p>
         </div>
@@ -123,7 +121,6 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
     <section class="settings-card">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Per gig</p>
           <h2>Afbeelding overschrijven</h2>
           <p>Geef één boeking een eigen foto. Zonder override blijft de standaardafbeelding actief.</p>
         </div>
@@ -166,5 +163,5 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
 </template>
 
 <style scoped>
-.portal-admin{display:grid;gap:1rem;max-width:980px;margin:0 auto;padding:1rem 0 3rem}.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.page-header h1{margin:.2rem 0 .5rem;font-size:clamp(2rem,5vw,3.5rem);letter-spacing:-.04em}.page-header p:last-child,.section-heading p:last-child{max-width:660px;margin:.2rem 0;color:var(--text-subtle)}.eyebrow{margin:0;color:#b99bff;font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.settings-card{display:grid;gap:1.1rem;padding:1.25rem;border:1px solid #2c2732;border-radius:1.1rem;background:var(--surface-card)}.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.section-heading h2{margin:.2rem 0;font-size:1.35rem}.badge{flex:0 0 auto;border-radius:999px;padding:.35rem .6rem;background:#2a1940;color:#c99bff;font-size:.72rem;font-weight:750}.badge.subtle{background:#1c1920;color:#aaa3b1}.gig-select{display:grid;gap:.45rem;color:#c9c3ce;font-size:.82rem;font-weight:700}.gig-select select{width:100%;border:1px solid #3a3440;border-radius:.75rem;padding:.8rem;background:var(--surface-input);color:var(--text)}.actions{display:flex;justify-content:flex-end;gap:.7rem}.actions.split{justify-content:space-between}.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border-radius:.7rem;padding:.75rem 1rem;font:inherit;font-weight:750;text-decoration:none;cursor:pointer}.primary-button{border:0;background:linear-gradient(135deg,#7d3eff,#a754ff);color:#fff}.secondary-button{border:1px solid #494151;background:transparent;color:var(--text)}button:disabled{cursor:not-allowed;opacity:.5}.message{margin:0;padding:.8rem 1rem;border:1px solid #42394d;border-radius:.75rem;background:#151119;color:#d6cedd}.effective-preview{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,280px);align-items:center;gap:1rem;padding:1rem;border:1px solid #302a36;border-radius:.85rem;background:#0e0c11}.effective-preview div{display:grid;gap:.25rem}.effective-preview span{color:var(--text-subtle);font-size:.75rem}.effective-preview img{width:100%;aspect-ratio:16/9;border-radius:.65rem;object-fit:cover}.empty{color:var(--text-subtle)}@media(max-width:700px){.page-header,.section-heading{flex-direction:column}.effective-preview{grid-template-columns:1fr}.actions.split{align-items:stretch;flex-direction:column-reverse}.actions button,.page-header .secondary-button{width:100%}}
+.portal-admin{display:grid;gap:1rem;max-width:980px;margin:0 auto;padding:1rem 0 3rem}.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.page-header h2{margin:.2rem 0 .5rem;font-size:clamp(2rem,5vw,3.5rem);letter-spacing:-.04em}.page-header p:last-child,.section-heading p:last-child{max-width:660px;margin:.2rem 0;color:var(--text-subtle)}.eyebrow{margin:0;color:#b99bff;font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.settings-card{display:grid;gap:1.1rem;padding:1.25rem;border:1px solid #2c2732;border-radius:1.1rem;background:var(--surface-card)}.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.section-heading h2{margin:.2rem 0;font-size:1.35rem}.badge{flex:0 0 auto;border-radius:999px;padding:.35rem .6rem;background:#2a1940;color:#c99bff;font-size:.72rem;font-weight:750}.badge.subtle{background:#1c1920;color:#aaa3b1}.gig-select{display:grid;gap:.45rem;color:#c9c3ce;font-size:.82rem;font-weight:700}.gig-select select{width:100%;border:1px solid #3a3440;border-radius:.75rem;padding:.8rem;background:var(--surface-input);color:var(--text)}.actions{display:flex;justify-content:flex-end;gap:.7rem}.actions.split{justify-content:space-between}.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border-radius:.7rem;padding:.75rem 1rem;font:inherit;font-weight:750;text-decoration:none;cursor:pointer}.primary-button{border:0;background:linear-gradient(135deg,#7d3eff,#a754ff);color:#fff}.secondary-button{border:1px solid #494151;background:transparent;color:var(--text)}button:disabled{cursor:not-allowed;opacity:.5}.message{margin:0;padding:.8rem 1rem;border:1px solid #42394d;border-radius:.75rem;background:#151119;color:#d6cedd}.effective-preview{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,280px);align-items:center;gap:1rem;padding:1rem;border:1px solid #302a36;border-radius:.85rem;background:#0e0c11}.effective-preview div{display:grid;gap:.25rem}.effective-preview span{color:var(--text-subtle);font-size:.75rem}.effective-preview img{width:100%;aspect-ratio:16/9;border-radius:.65rem;object-fit:cover}.empty{color:var(--text-subtle)}@media(max-width:700px){.page-header,.section-heading{flex-direction:column}.effective-preview{grid-template-columns:1fr}.actions.split{align-items:stretch;flex-direction:column-reverse}.actions button,.page-header .secondary-button{width:100%}}
 </style>
