@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 /**
  * Omzetbelastingaangifte (btw-aangifte): the figures per period, ordered by the rubrieken of the
  * Belastingdienst form. Revenue follows the invoice date (finalized invoices only) and input VAT
@@ -134,4 +136,44 @@ export function defaultVatPeriod(year: number, today: string): VatPeriod {
 export function daysUntil(dueDate: string, today: string) {
   const day = (value: string) => Date.UTC(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
   return Math.round((day(dueDate) - day(today)) / 86_400_000)
+}
+
+// --- Filed and paid ---------------------------------------------------------------------------
+
+export const vatQuarters = ['q1', 'q2', 'q3', 'q4'] as const
+export type VatQuarter = typeof vatQuarters[number]
+
+/** What was recorded for a quarter. `filedBalanceCents` is the balance when it was marked as filed. */
+export type VatFiling = { year: number, period: VatQuarter, submittedOn: string | null, filedBalanceCents: number | null, paidOn: string | null }
+
+export const vatFilingInputSchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  period: z.enum(vatQuarters),
+  submittedOn: z.iso.date().nullable(),
+  paidOn: z.iso.date().nullable(),
+}).refine(value => value.submittedOn !== null || value.paidOn === null, { path: ['paidOn'], message: 'Vul eerst in wanneer de aangifte is ingediend' })
+  .refine(value => value.submittedOn === null || value.paidOn === null || value.paidOn >= value.submittedOn, { path: ['paidOn'], message: 'De betaaldatum kan niet voor de indiendatum liggen' })
+export type VatFilingInput = z.infer<typeof vatFilingInputSchema>
+
+export type VatFilingState = 'running' | 'open' | 'late' | 'submitted' | 'paid'
+
+export type VatFilingStatus = {
+  state: VatFilingState
+  /** Filed, but the figures differ from what they were when it was filed. */
+  changedSinceFiled: boolean
+}
+
+/**
+ * Where a quarter stands: still running, to be filed, filed but not yet settled, or settled.
+ * A return with nothing to pay or receive still has to be filed.
+ */
+export function vatFilingStatus(vatReturn: Pick<VatReturn, 'to' | 'dueDate' | 'balanceCents'>, filing: Pick<VatFiling, 'submittedOn' | 'filedBalanceCents' | 'paidOn'> | null | undefined, today: string): VatFilingStatus {
+  if (filing?.submittedOn) {
+    return {
+      state: filing.paidOn ? 'paid' : 'submitted',
+      changedSinceFiled: filing.filedBalanceCents !== null && filing.filedBalanceCents !== vatReturn.balanceCents,
+    }
+  }
+  if (vatReturn.to >= today) return { state: 'running', changedSinceFiled: false }
+  return { state: vatReturn.dueDate < today ? 'late' : 'open', changedSinceFiled: false }
 }

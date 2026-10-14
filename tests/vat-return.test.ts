@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildVatReturn, buildVatReturns, daysUntil, defaultVatPeriod, vatPeriodLabel, vatRubriekFor, wholeEuroCents } from '../shared/vat-return'
+import { buildVatReturn, buildVatReturns, daysUntil, defaultVatPeriod, vatFilingInputSchema, vatFilingStatus, vatPeriodLabel, vatRubriekFor, wholeEuroCents } from '../shared/vat-return'
 
 const invoice = (issueDate: string, subtotalCents: number, vatAmountCents: number, vatRateBasisPoints = 2100, vatMode = 'exclusive') =>
   ({ issueDate, subtotalCents, vatAmountCents, vatMode, vatRateBasisPoints })
@@ -141,5 +141,58 @@ describe('days until the deadline', () => {
     expect(daysUntil('2026-10-31', '2026-10-31')).toBe(0)
     expect(daysUntil('2026-10-31', '2026-11-02')).toBe(-2)
     expect(daysUntil('2027-01-31', '2026-12-31')).toBe(31)
+  })
+})
+
+describe('filing input', () => {
+  const base = { year: 2026, period: 'q3', submittedOn: '2026-10-20', paidOn: null }
+
+  it('accepts a filed return, with or without a payment date', () => {
+    expect(vatFilingInputSchema.safeParse(base).success).toBe(true)
+    expect(vatFilingInputSchema.safeParse({ ...base, paidOn: '2026-10-25' }).success).toBe(true)
+    expect(vatFilingInputSchema.safeParse({ ...base, paidOn: '2026-10-20' }).success).toBe(true)
+  })
+
+  it('accepts clearing both dates', () => {
+    expect(vatFilingInputSchema.safeParse({ ...base, submittedOn: null }).success).toBe(true)
+  })
+
+  it('does not allow a payment without a filing, or before it', () => {
+    expect(vatFilingInputSchema.safeParse({ ...base, submittedOn: null, paidOn: '2026-10-25' }).success).toBe(false)
+    expect(vatFilingInputSchema.safeParse({ ...base, paidOn: '2026-10-19' }).success).toBe(false)
+  })
+
+  it('only knows quarters, real dates and sensible years', () => {
+    expect(vatFilingInputSchema.safeParse({ ...base, period: 'year' }).success).toBe(false)
+    expect(vatFilingInputSchema.safeParse({ ...base, submittedOn: '20 oktober' }).success).toBe(false)
+    expect(vatFilingInputSchema.safeParse({ ...base, year: 1999 }).success).toBe(false)
+  })
+})
+
+describe('filing status', () => {
+  const q3 = { to: '2026-09-30', dueDate: '2026-10-31', balanceCents: 5000 }
+
+  it('is running until the quarter has ended', () => {
+    expect(vatFilingStatus({ to: '2026-12-31', dueDate: '2027-01-31', balanceCents: 0 }, null, '2026-10-14').state).toBe('running')
+    expect(vatFilingStatus(q3, null, '2026-09-30').state).toBe('running')
+  })
+
+  it('is open after the quarter, until the last day to file, and late after it', () => {
+    expect(vatFilingStatus(q3, null, '2026-10-01').state).toBe('open')
+    expect(vatFilingStatus(q3, null, '2026-10-31').state).toBe('open')
+    expect(vatFilingStatus(q3, null, '2026-11-01').state).toBe('late')
+  })
+
+  it('is submitted once filed and paid once settled, even when late', () => {
+    const filed = { submittedOn: '2026-11-05', filedBalanceCents: 5000, paidOn: null }
+    expect(vatFilingStatus(q3, filed, '2026-11-06').state).toBe('submitted')
+    expect(vatFilingStatus(q3, { ...filed, paidOn: '2026-11-06' }, '2026-11-07').state).toBe('paid')
+  })
+
+  it('flags figures that changed after filing', () => {
+    const filed = { submittedOn: '2026-10-20', filedBalanceCents: 5000, paidOn: null }
+    expect(vatFilingStatus(q3, filed, '2026-10-21').changedSinceFiled).toBe(false)
+    expect(vatFilingStatus({ ...q3, balanceCents: 7100 }, filed, '2026-10-21').changedSinceFiled).toBe(true)
+    expect(vatFilingStatus({ ...q3, balanceCents: 7100 }, null, '2026-10-21').changedSinceFiled).toBe(false)
   })
 })

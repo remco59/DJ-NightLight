@@ -2188,7 +2188,7 @@ paths:
       operationId: getAdminFinance
       tags:
         - admin/finance
-      description: "Year overview for the finance page: revenue, costs, result per month, the VAT return per quarter, and the costs of that year."
+      description: "Year overview for the finance page: revenue, costs, result per month, the VAT return per quarter and whether it was filed and paid, and the costs of that year."
       security:
         - staffSession: []
       x-roles:
@@ -2251,6 +2251,65 @@ paths:
                   maximum: 500
               required:
                 - kmRateCents
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/finance/vat-filings:
+    put:
+      operationId: putAdminFinanceVatFilings
+      tags:
+        - admin/finance
+      description: Records that the VAT return of a quarter was filed and, later, paid. The amount at the moment of filing is worked out here, not taken from the browser. Clearing both dates removes the record.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year:
+                  type: integer
+                  minimum: 2000
+                  maximum: 2100
+                period:
+                  type: string
+                  enum:
+                    - q1
+                    - q2
+                    - q3
+                    - q4
+                submittedOn:
+                  anyOf:
+                    - type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    - type: "null"
+                paidOn:
+                  anyOf:
+                    - type: string
+                      format: date
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                    - type: "null"
+              required:
+                - year
+                - period
+                - submittedOn
+                - paidOn
       responses:
         "200":
           description: Gelukt
