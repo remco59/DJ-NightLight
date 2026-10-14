@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, lte } from 'drizzle-orm'
 import { clients, expenses, gigs, invoices } from '../../db/schema'
 import type { CsvExpense, CsvInvoice } from '../../shared/finance'
+import type { VatReturnInvoice } from '../../shared/vat-return'
 import { db } from './db'
 import { gigTitleSql } from './gig-title'
 
@@ -17,6 +18,8 @@ export async function loadFinanceYear(year: number) {
     vatAmountCents: invoices.vatAmountCents,
     totalCents: invoices.totalCents,
     paymentStatus: invoices.paymentStatus,
+    vatMode: invoices.vatMode,
+    vatRateBasisPoints: invoices.vatRateBasisPoints,
     status: invoices.status,
     gigId: invoices.gigId,
     gigTitle: gigTitleSql(),
@@ -46,12 +49,14 @@ export async function loadFinanceYear(year: number) {
     .where(and(gte(expenses.spentOn, start), lte(expenses.spentOn, end)))
     .orderBy(asc(expenses.spentOn))
 
-  const csvInvoices: CsvInvoice[] = invoiceRows.map(row => ({
+  const csvInvoices: Array<CsvInvoice & VatReturnInvoice> = invoiceRows.map(row => ({
     issueDate: row.issueDate,
     subtotalCents: row.subtotalCents,
     vatAmountCents: row.vatAmountCents,
     totalCents: row.totalCents,
     paymentStatus: row.paymentStatus,
+    vatMode: row.vatMode,
+    vatRateBasisPoints: row.vatRateBasisPoints,
     invoiceNumber: row.invoiceNumber,
     gigTitle: row.gigTitle,
     status: row.status,

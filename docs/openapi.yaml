@@ -2188,7 +2188,7 @@ paths:
       operationId: getAdminFinance
       tags:
         - admin/finance
-      description: "Year overview for the finance page: revenue, costs, result per month, and the costs of that year."
+      description: "Year overview for the finance page: revenue, costs, result per month, the VAT return per quarter, and the costs of that year."
       security:
         - staffSession: []
       x-roles:
