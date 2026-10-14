@@ -17,7 +17,7 @@ const querySchema = z.object({
 
 function back(event: Parameters<typeof sendRedirect>[0], outcome: string, detail?: string) {
   const extra = detail ? `&detail=${encodeURIComponent(detail.slice(0, 300))}` : ''
-  return sendRedirect(event, `/admin/settings?instagram=${outcome}${extra}#integrations`, 302)
+  return sendRedirect(event, `/admin/settings/instagram?instagram=${outcome}${extra}`, 302)
 }
 
 export default defineEventHandler(async (event) => {

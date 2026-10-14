@@ -36,14 +36,8 @@ const groups: NavGroup[] = [
   ]},
 ]
 
-const footerItems: NavItem[] = [
-  {label:'E-mails',to:'/admin/email',icon:'lucide:mail',roles:['owner','manager']},
-  {label:'Klantportaal',to:'/admin/client-portal',icon:'lucide:image',roles:['owner']},
-  {label:'Vragenlijst',to:'/admin/questionnaire',icon:'lucide:clipboard-list',roles:['owner','manager']},
-  {label:'Instellingen',to:'/admin/settings',icon:'lucide:settings',roles:['owner']},
-  {label:'Systeemstatus',to:'/admin/system',icon:'lucide:activity',roles:['owner']},
-  {label:'Gebruikers',to:'/admin/users',icon:'lucide:user-cog',roles:['owner']},
-]
+// Everything that is configured rather than used daily lives under Instellingen.
+const settingsItem: NavItem = {label:'Instellingen',to:'/admin/settings',icon:'lucide:settings',roles:['owner','manager']}
 
 const visibleGroups = computed(() => {
   const role = user.value?.role as StaffRole | undefined
@@ -53,19 +47,19 @@ const visibleGroups = computed(() => {
     .filter(group=>group.items.length)
 })
 
-const visibleFooterItems = computed(() => {
+const showSettings = computed(() => {
   const role = user.value?.role as StaffRole | undefined
-  if (!role) return []
-  return footerItems.filter(item=>item.roles.includes(role))
+  return Boolean(role && settingsItem.roles.includes(role))
 })
+
+// "Mijn account" is part of Instellingen but is highlighted through the profile link below.
+const settingsActive = computed(() => isActive(settingsItem.to) && !isActive('/admin/settings/account'))
 
 function isActive(to:string){
   if(to==='/admin') return route.path===to
   if(to==='/admin/post-generator') return route.path===to
   return route.path.startsWith(to)
 }
-const beheerOpen = ref(footerItems.some(item => isActive(item.to)))
-watch(() => route.path, () => { if (footerItems.some(item => isActive(item.to))) beheerOpen.value = true })
 async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await clear();await navigateTo('/admin/login')}
 </script>
 
@@ -92,50 +86,26 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
         {{ item.label }}
       </AdminNavLink>
     </section>
-    <!-- Phone sheet: the Beheer links are part of the list instead of a collapsible. -->
-    <section v-if="visibleFooterItems.length" class="nav-group beheer-group">
-      <p>Beheer</p>
-      <AdminNavLink
-        v-for="item in visibleFooterItems"
-        :key="item.to"
-        :to="item.to"
-        class="nav-link"
-        :class="{ active: isActive(item.to) }"
-        :aria-current="isActive(item.to) ? 'page' : undefined"
-      >
-        <Icon :name="item.icon" aria-hidden="true" />
-        {{ item.label }}
-      </AdminNavLink>
-    </section>
   </nav>
 
   <footer class="sidebar-footer">
-    <details v-if="visibleFooterItems.length" class="footer-nav" :open="beheerOpen" @toggle="beheerOpen = ($event.target as HTMLDetailsElement).open">
-      <summary class="nav-link footer-summary">
-        <Icon name="lucide:sliders-horizontal" aria-hidden="true" />
-        Beheer
-        <Icon name="lucide:chevron-down" class="summary-chevron" aria-hidden="true" />
-      </summary>
-      <nav aria-label="Beheer">
-        <AdminNavLink
-          v-for="item in visibleFooterItems"
-          :key="item.to"
-          :to="item.to"
-          class="nav-link footer-link"
-          :class="{ active: isActive(item.to) }"
-          :aria-current="isActive(item.to) ? 'page' : undefined"
-        >
-          <Icon :name="item.icon" aria-hidden="true" />
-          {{ item.label }}
-        </AdminNavLink>
-      </nav>
-    </details>
+    <nav v-if="showSettings" class="settings-link" aria-label="Instellingen">
+      <AdminNavLink
+        :to="settingsItem.to"
+        class="nav-link"
+        :class="{ active: settingsActive }"
+        :aria-current="settingsActive ? 'page' : undefined"
+      >
+        <Icon :name="settingsItem.icon" aria-hidden="true" />
+        {{ settingsItem.label }}
+      </AdminNavLink>
+    </nav>
 
     <div class="account">
       <AdminNavLink
-        to="/admin/account"
+        to="/admin/settings/account"
         class="account-profile"
-        :class="{ active: isActive('/admin/account') }"
+        :class="{ active: isActive('/admin/settings/account') }"
         aria-label="Mijn account"
       >
         <span class="account-avatar">{{ (user?.name || 'DJ NightLight').slice(0, 1).toUpperCase() }}</span>
@@ -203,11 +173,8 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   text-decoration: none;
   font-size: .86rem;
 }
-.beheer-group { display: none; }
 @media (max-width: 820px) {
   .nav-link { min-height: 2.75rem; }
-  .beheer-group { display: block; }
-  .footer-nav { display: none; }
 }
 .nav-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: var(--text-subtle); }
 .nav-link:hover { background: #17141c; color: #fff; }
@@ -222,22 +189,9 @@ async function logout(){await $fetch('/api/auth/logout',{method:'POST'});await c
   flex: 0 0 auto;
   border-top: 1px solid #26222c;
 }
-.footer-nav {
-  padding: .55rem .7rem .15rem;
+.settings-link {
+  padding: .55rem .7rem 0;
 }
-.footer-link {
-  padding-block: .48rem;
-  padding-left: 1.4rem;
-}
-.footer-summary {
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-.footer-summary::-webkit-details-marker { display: none; }
-.summary-chevron { margin-left: auto; transition: transform .2s ease; }
-.footer-nav[open] .summary-chevron { transform: rotate(180deg); }
-@media (prefers-reduced-motion: reduce) { .summary-chevron { transition: none; } }
 
 .account {
   display: grid;

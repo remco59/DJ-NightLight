@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   const user = await requireStaff(event, ['owner'])
   const { credentials } = await loadInstagramIntegration()
   if (!credentials.appId || !credentials.appSecret) {
-    return sendRedirect(event, '/admin/settings?instagram=missing#integrations', 302)
+    return sendRedirect(event, '/admin/settings/instagram?instagram=missing', 302)
   }
 
   const config = useRuntimeConfig()

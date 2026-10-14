@@ -40,8 +40,10 @@ const adminPages = [
   '/admin/venues',
   '/admin/calendar',
   '/admin/reviews',
-  '/admin/email',
-  '/admin/settings',
+  '/admin/settings/emails',
+  '/admin/settings/company',
+  '/admin/settings/invoicing',
+  '/admin/settings/integrations',
 ]
 const viewports = {
   desktop: { width: 1280, height: 900 },

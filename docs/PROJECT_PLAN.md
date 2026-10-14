@@ -372,9 +372,9 @@ Suggested routes:
 /admin/landing-pages
 /admin/post-generator
 /admin/calendar
-/admin/email
-/admin/users
-/admin/settings
+/admin/settings          (company, invoicing, notifications, e-mails, questionnaire,
+                         client-portal, integrations, stripe, resend, google-calendar,
+                         instagram, users, account, system, rendering, updates)
 ```
 
 ### Dashboard

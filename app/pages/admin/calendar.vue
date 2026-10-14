@@ -500,7 +500,7 @@ async function rotateIcs() {
                 <strong>Google Calendar</strong>
                 <p><span class="connection-dot" :class="{ ok: integrationData?.credentialsConfigured }" /> {{ integrationData?.credentialsConfigured ? 'Verbonden' : 'Niet geconfigureerd' }}</p>
               </div>
-              <NuxtLink class="small-button" to="/admin/settings#integrations">Beheren</NuxtLink>
+              <NuxtLink class="small-button" to="/admin/settings/google-calendar">Beheren</NuxtLink>
             </div>
           </section>
 

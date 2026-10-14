@@ -51,7 +51,7 @@ A different app ID than before also sets `needs_reauth`, because tokens belong t
 
 ## Health
 
-The Instagram card and Systeemstatus show one of:
+The Instagram page and Instellingen → Systeem → Status show one of:
 
 | State | Meaning |
 | --- | --- |
