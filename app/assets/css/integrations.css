@@ -1,0 +1,76 @@
+/* Shared look of the integration pages under Instellingen. Everything is scoped to .integration-page. */
+.integration-page .integration-card{margin-bottom:1rem;padding:1.15rem;border:1px solid var(--border);border-radius:1rem;background:linear-gradient(180deg,#111016,#0f0d13)}
+.integration-page .integration-head, .integration-page .credential-head, .integration-page .actions{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
+.integration-page .integration-title{display:flex;gap:.8rem;align-items:center}
+.integration-page .brand-icon{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.75rem;background:#16131a;font-weight:900;font-size:1rem}
+.integration-page .brand-icon.google{color:#fff;background:linear-gradient(135deg,#2d6cdf,#34a853 45%,#fbbc05 70%,#ea4335)}
+.integration-page .brand-icon.resend{color:#fff;background:#171717}
+.integration-page .brand-icon.instagram{color:#fff;background:linear-gradient(135deg,#833ab4,#c13584 50%,#fd1d1d 80%,#fcb045)}
+.integration-page .brand-icon.meta{color:#fff;background:#0b57d0}
+.integration-page .brand-icon.small{flex-basis:2.1rem;height:2.1rem;font-size:.9rem}
+.integration-page .account-row{display:flex;gap:.75rem;align-items:center;margin-top:1rem;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+.integration-page .account-row strong, .integration-page .account-row small{display:block}
+.integration-page .account-row small{margin-top:.15rem;color:var(--text-subtle);font-size:.72rem}
+.integration-page .tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:.8rem}
+.integration-page .tiles>div{padding:.75rem .9rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-input)}
+.integration-page .tiles small{display:block;color:var(--text-subtle);font-size:.62rem;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+.integration-page .tiles strong{display:block;margin-top:.3rem;font-size:.82rem}
+.integration-page .health{display:flex;gap:.7rem;align-items:flex-start;margin-top:.9rem;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+.integration-page .health p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem;line-height:1.4}
+.integration-page .health .dot{flex:none;width:.5rem;height:.5rem;margin-top:.35rem;border-radius:50%;background:#7d7682}
+.integration-page .health.ok{border-color:#1e5a3b;background:#0f2118}
+.integration-page .health.ok .dot{background:#48df89}
+.integration-page .health.warning{border-color:#6b5320;background:#211b0d}
+.integration-page .health.warning .dot{background:#f2c14e}
+.integration-page .health.error{border-color:#6b2a33;background:#21100f}
+.integration-page .health.error .dot{background:#ff7d7d}
+.integration-page .dev-note{margin-top:.9rem;padding:.75rem 1rem;border-left:3px solid #7a3eed;background:#15101e}
+.integration-page .dev-note p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem}
+.integration-page .redirect{margin:.7rem 0 0;word-break:break-all}
+.integration-page .redirect code{color:var(--text-muted)}
+.integration-page .chooser{margin-top:.9rem;padding:.9rem 1rem;border:1px solid #4a3578;border-radius:.8rem;background:#15101e}
+.integration-page .chooser p{margin:.25rem 0 .7rem;color:var(--text-subtle);font-size:.74rem;line-height:1.4}
+.integration-page .choice{display:flex;align-items:center;gap:.7rem;margin-top:.5rem;padding:.65rem .8rem;border:1px solid var(--border);border-radius:.7rem;background:var(--surface-input);cursor:pointer}
+.integration-page .choice input{width:auto;accent-color:#7a3eed}
+.integration-page .choice b, .integration-page .choice small{display:block}
+.integration-page .choice small{margin-top:.15rem;color:var(--text-subtle);font-size:.7rem}
+.integration-page .button-link{display:inline-flex;align-items:center;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;text-decoration:none}
+.integration-page .integration-head h3{margin:0 0 .2rem;font-size:1.05rem}
+.integration-page .integration-head p{margin:0;color:var(--text-subtle);font-size:.8rem}
+.integration-page .status-stack{display:grid;justify-items:end;gap:.25rem;flex:none}
+.integration-page .status-stack small{color:var(--text-subtle);font-size:.75rem}
+.integration-page .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .68rem;border-radius:99px;background:var(--border);color:var(--text-muted);font-size:.7rem;font-weight:750}
+.integration-page .pill .dot{width:.42rem;height:.42rem;border-radius:50%;background:#7d7682}
+.integration-page .pill.on{background:#153426;color:#72e6a2}
+.integration-page .pill.on .dot{background:#48df89}
+.integration-page .form-grid, .integration-page .credentials-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin-top:1rem}
+.integration-page .email-grid{grid-template-columns:1fr 1fr}
+.integration-page .wide{grid-column:1/-1}
+.integration-page label{display:grid;gap:.35rem;color:var(--text-muted);font-size:.78rem}
+.integration-page label small, .integration-page .hint{color:var(--text-subtle);font-size:.72rem;line-height:1.45}
+.integration-page input, .integration-page select{width:100%;border:1px solid var(--border-strong);border-radius:.65rem;padding:.72rem;background:#0a090c;color:var(--text)}
+.integration-page input:focus, .integration-page select:focus{outline:none;border-color:#6741a1;box-shadow:0 0 0 3px rgba(103,65,161,.13)}
+.integration-page .toggle{display:flex;align-items:center;gap:.6rem;min-height:2.7rem}
+.integration-page .toggle input{width:auto;accent-color:#7a3eed}
+.integration-page .credential-panel{margin-top:1rem;padding:.85rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface-input)}
+.integration-page .credential-head{align-items:center}
+.integration-page .credential-head strong, .integration-page .credential-head p{display:block}
+.integration-page .credential-head p{margin:.2rem 0 0;color:var(--text-subtle);font-size:.74rem;word-break:break-word}
+.integration-page .key-field{margin-top:.8rem}
+.integration-page .actions{justify-content:flex-start;align-items:center;flex-wrap:wrap;margin-top:1rem}
+.integration-page button{border:0;border-radius:.7rem;padding:.68rem 1rem;background:linear-gradient(135deg,#7737f2,#5c25d9);color:#fff;font-weight:800;cursor:pointer}
+.integration-page button:disabled{cursor:not-allowed;opacity:.55}
+.integration-page button.ghost{border:1px solid var(--border-strong);background:transparent;color:var(--text)}
+.integration-page button.danger{border-color:#552b34;color:#ff9d9d}
+.integration-page .text-link{display:inline-flex;align-items:center;min-height:2.75rem;margin-left:auto;color:#c9b2df;font-size:.78rem;text-decoration:none}
+.integration-page .message{margin:.8rem 0 0;font-size:.8rem}
+.integration-page .message.success{color:#8ed6a3}
+.integration-page .message.error{color:#ff9d9d}
+@media(max-width:700px){
+  .integration-page .integration-head, .integration-page .credential-head, .integration-page .actions{align-items:stretch;flex-direction:column}
+  .integration-page .status-stack{justify-items:start}
+  .integration-page .form-grid, .integration-page .email-grid, .integration-page .credentials-grid, .integration-page .tiles{grid-template-columns:1fr}
+  .integration-page .wide{grid-column:auto}
+  .integration-page .actions button, .integration-page .actions .button-link{width:100%;justify-content:center}
+  .integration-page .text-link{margin-left:0}
+}
