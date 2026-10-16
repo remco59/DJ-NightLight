@@ -352,10 +352,10 @@ function ctaHtml(label: string | undefined, url: string) {
 }
 
 function headerHtml(branding: EmailBranding) {
-  const logoUrl = safeAssetUrl(branding.logoUrl || '/brand/logo/wordmark-thumb.webp', branding.siteUrl)
+  const logoUrl = safeAssetUrl(branding.logoUrl || '/brand/email/logo.png', branding.siteUrl)
   const heroUrl = safeAssetUrl(branding.heroImageUrl || '/images/login-background.webp', branding.siteUrl)
   const logo = logoUrl
-    ? `<img class="email-logo" src="${escapeHtml(logoUrl)}" width="150" alt="NightLight" style="display:block;width:150px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">`
+    ? `<img class="email-logo" src="${escapeHtml(logoUrl)}" width="150" height="71" alt="NightLight" bgcolor="#0d0b11" style="display:block;width:150px;max-width:100%;height:auto;background:#0d0b11;border:0;outline:none;text-decoration:none;">`
     : '<span style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:.16em;">NIGHTLIGHT</span>'
   const hero = heroUrl
     ? `<img class="email-hero" src="${escapeHtml(heroUrl)}" width="600" height="210" alt="" style="display:block;width:100%;height:210px;object-fit:cover;border:0;outline:none;text-decoration:none;">`
