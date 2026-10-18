@@ -9,6 +9,7 @@ import WaveformCanvas from '~/components/video/WaveformCanvas.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
 import { beatFrames, type GridLine } from '~~/shared/beat-grid'
 import { TEMPLATE_SOUNDS, graphicSoundCues } from '~~/shared/template-sounds'
+import { TRANSITIONS, clipTransition, supportsTransitions, transitionFrames } from '~~/shared/video-transitions'
 
 // `compact` is the touch-first mobile timeline: no toolbar, icon-only track
 // labels, bigger trim handles and tap-to-select so panning never moves clips.
@@ -40,6 +41,20 @@ const ticks = computed(() => {
 
 function x(frame: number) {
   return frame * pxPerFrame.value
+}
+
+/** Wedges that mark the transitions at a clip's edges; the width is the length of that half. */
+function transitionBadges(item: TimelineItem) {
+  if (!supportsTransitions(item)) return []
+  return (['in', 'out'] as const).flatMap((edge) => {
+    const transition = clipTransition(item, edge)
+    if (!transition) return []
+    return [{
+      edge,
+      width: `${Math.max(6, x(transitionFrames(item, edge)))}px`,
+      title: `Overgang ${edge === 'in' ? 'in' : 'uit'}: ${TRANSITIONS[transition.key].label}`,
+    }]
+  })
 }
 
 function frameAt(clientX: number, element: Element) {
@@ -773,6 +788,14 @@ defineExpose({ zoomToFit, zoomToSelection })
                 :title="`Geluid: ${TEMPLATE_SOUNDS[cue.sound].label}`"
               />
               <i
+                v-for="badge in transitionBadges(item)"
+                :key="`tr-${badge.edge}`"
+                class="tr"
+                :class="badge.edge"
+                :style="{ width: badge.width }"
+                :title="badge.title"
+              />
+              <i
                 v-for="frame in visibleKeyframes(item)"
                 :key="`kf-${frame}`"
                 class="kf"
@@ -1154,6 +1177,27 @@ defineExpose({ zoomToFit, zoomToSelection })
 
 .marker:empty { width: 10px; padding: 0; }
 .marker.selected { background: var(--marker); color: #111; }
+
+/* Transition halves: a wedge that fades in from the clip edge, pointing at the cut. */
+.tr {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tr.in {
+  left: 0;
+  background: linear-gradient(90deg, rgba(250, 204, 21, .55), rgba(250, 204, 21, 0));
+  border-left: 2px solid #facc15;
+}
+
+.tr.out {
+  right: 0;
+  background: linear-gradient(270deg, rgba(250, 204, 21, .55), rgba(250, 204, 21, 0));
+  border-right: 2px solid #facc15;
+}
 
 .kf {
   position: absolute;

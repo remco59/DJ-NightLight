@@ -23,6 +23,7 @@ import {
   type KeyframeProp,
 } from './video-keyframes'
 import { MOTION_BLUR_QUALITY_KEYS, type MotionBlurQuality, type ProjectMotionBlur } from './video-motion-blur'
+import { MAX_TRANSITION_FRAMES, TRANSITION_KEYS, type ClipTransition } from './video-transitions'
 
 // A video project is a small NLE sequence: fixed output settings plus ordered
 // tracks holding timeline items. All times are integer frames at project fps.
@@ -67,6 +68,12 @@ export type ItemCrop = { top: number, right: number, bottom: number, left: numbe
 export const MEDIA_FITS = ['cover', 'contain'] as const
 export type MediaFit = typeof MEDIA_FITS[number]
 
+/** Transitions at the clip's edges (see video-transitions.ts). */
+type ClipTransitions = {
+  transitionIn?: ClipTransition
+  transitionOut?: ClipTransition
+}
+
 type ItemBase = {
   id: string
   /** First frame on the timeline. */
@@ -80,7 +87,7 @@ type ItemBase = {
   motionBlur?: number
 }
 
-export type VideoClipItem = ItemBase & {
+export type VideoClipItem = ItemBase & ClipTransitions & {
   type: 'video'
   assetId: string
   /** Frames skipped at the head of the source (source frames at project fps). */
@@ -94,7 +101,7 @@ export type VideoClipItem = ItemBase & {
   muted: boolean
 }
 
-export type ImageClipItem = ItemBase & {
+export type ImageClipItem = ItemBase & ClipTransitions & {
   type: 'image'
   assetId: string
   transform: ItemTransform
@@ -432,6 +439,14 @@ const transformKeyframes = {
   rotation: keyframeList('rotation').optional(),
   opacity: keyframeList('opacity').optional(),
 }
+const transitionSchema = z.object({
+  key: z.enum(TRANSITION_KEYS),
+  frames: z.number().int().min(1).max(MAX_TRANSITION_FRAMES),
+})
+const clipTransitionSchema = {
+  transitionIn: transitionSchema.optional(),
+  transitionOut: transitionSchema.optional(),
+}
 const baseSchema = {
   id: itemId,
   start: frame,
@@ -456,6 +471,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     speed: z.number().min(0.25).max(4),
     volume: z.number().min(0).max(1),
     muted: z.boolean(),
+    ...clipTransitionSchema,
     keyframes: z.object({ ...transformKeyframes, volume: keyframeList('volume').optional() }).optional(),
   }),
   z.object({
@@ -466,6 +482,7 @@ export const timelineItemSchema = z.discriminatedUnion('type', [
     crop: cropSchema,
     fit: z.enum(MEDIA_FITS).optional(),
     kenBurns: z.number().min(0).max(1),
+    ...clipTransitionSchema,
     keyframes: z.object(transformKeyframes).optional(),
   }),
   z.object({

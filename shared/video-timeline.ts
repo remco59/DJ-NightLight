@@ -7,13 +7,16 @@ import {
   newId,
   trackAccepts,
   MARKER_COLORS,
+  type ImageClipItem,
   type TimelineItem,
   type TimelineMarker,
+  type VideoClipItem,
   type VideoProject,
   type VideoTrack,
 } from './video-project'
 import { timelineDisplayOrder } from './video-editor-ui'
 import { rebaseKeyframes } from './video-keyframes'
+import { supportsTransitions, type ClipTransition, type ClipTransitionEdge } from './video-transitions'
 
 // Pure timeline editing operations. Every function returns a new project and
 // leaves its input untouched so the editor can keep snapshots for undo/redo.
@@ -187,6 +190,9 @@ export function splitItem(project: VideoProject, itemId: string, frame: number) 
     head.exit = 'none'
     tail.entrance = 'none'
   }
+  // The cut is mid-clip: the head keeps the start transition, the tail the end one.
+  if (head.type === 'video' || head.type === 'image') delete head.transitionOut
+  if (tail.type === 'video' || tail.type === 'image') delete tail.transitionIn
   target.track.items.push(tail)
   sortItems(target.track)
   return { project: next, newItemId: tail.id }
@@ -259,6 +265,42 @@ export function updateItem(project: VideoProject, itemId: string, patch: (item: 
   const found = findItem(next, itemId)
   if (!found) return project
   patch(found.item)
+  return next
+}
+
+// --- Transitions ---------------------------------------------------------------
+
+type TransitionClip = VideoClipItem | ImageClipItem
+
+/** The clip that meets this edge on the same track with no gap: the previous clip for `in`, the next for `out`. */
+export function adjacentClip(project: VideoProject, itemId: string, edge: ClipTransitionEdge): TransitionClip | null {
+  const found = findItem(project, itemId)
+  if (!found || !supportsTransitions(found.item)) return null
+  const { item, track } = found
+  const neighbour = track.items.find(entry => edge === 'in' ? itemEnd(entry) === item.start : entry.start === itemEnd(item))
+  return neighbour && supportsTransitions(neighbour) ? neighbour : null
+}
+
+/**
+ * Sets (or with `null` removes) the transition at a clip edge. When another
+ * clip is cut directly against that edge it gets the other half of the same
+ * transition, so one choice shapes the whole cut. Only video and image clips
+ * take transitions.
+ */
+export function setClipTransition(project: VideoProject, itemId: string, edge: ClipTransitionEdge, transition: ClipTransition | null) {
+  const found = findItem(project, itemId)
+  if (!found || !supportsTransitions(found.item)) return project
+  const neighbour = adjacentClip(project, itemId, edge)
+  const apply = (clip: TransitionClip, side: ClipTransitionEdge) => {
+    if (side === 'in') {
+      if (transition) clip.transitionIn = { ...transition }
+      else delete clip.transitionIn
+    } else if (transition) clip.transitionOut = { ...transition }
+    else delete clip.transitionOut
+  }
+  const next = clone(project)
+  apply(findItem(next, itemId)!.item as TransitionClip, edge)
+  if (neighbour) apply(findItem(next, neighbour.id)!.item as TransitionClip, edge === 'in' ? 'out' : 'in')
   return next
 }
 

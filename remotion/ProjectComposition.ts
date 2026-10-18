@@ -12,7 +12,7 @@ import type {
   VideoClipItem,
   VideoProject,
 } from '../shared/video-project'
-import { graphicBackdrop, mediaFit } from '../shared/video-project'
+import { graphicBackdrop, itemEnd, mediaFit } from '../shared/video-project'
 import { mediaBoxSize } from '../shared/video-canvas'
 import { isAnimated, itemOpacityAt, itemTransformAt, itemVolumeAt } from '../shared/video-keyframes'
 import { animationState, animationStyle } from './animation'
@@ -21,6 +21,8 @@ import { MOTION_ACCENTS } from '../shared/video-templates'
 import { graphicSoundCues, soundPlacement, TEMPLATE_SOUNDS } from '../shared/template-sounds'
 import { MOTION_TEMPLATE_COMPONENTS } from './motion-templates'
 import { blurSamples, itemBlurStrength, itemMoves, shutterAngle } from '../shared/video-motion-blur'
+import { hasTransitions, supportsTransitions, tailFrames, type TransitionHost } from '../shared/video-transitions'
+import { TransitionFrame } from './transitions'
 
 // Single source of truth for what a project looks like. The editor mounts
 // this component in @remotion/player and the render worker renders it with
@@ -39,6 +41,12 @@ function transformStyle(transform: ItemTransform, extraScale = 1): React.CSSProp
   }
 }
 
+/** A clip's volume: a fixed level, or a function when it is animated or held past its end. */
+function clipVolume(item: VideoClipItem, tail: number): number | ((at: number) => number) {
+  if (!isAnimated(item, 'volume') && !tail) return item.volume
+  return (at: number) => at >= item.duration ? 0 : itemVolumeAt(item, at)
+}
+
 const MediaItemView: React.FC<{
   item: VideoClipItem | ImageClipItem
   assets: ProjectAssetMap
@@ -46,7 +54,9 @@ const MediaItemView: React.FC<{
   trackMuted: boolean
   /** The clip is drawn several times for motion blur; its audio then plays once, separately. */
   detachAudio?: boolean
-}> = ({ item, assets, trackKind, trackMuted, detachAudio }) => {
+  /** Frames the clip is held past its end for a transition; its sound stops with the clip. */
+  tail?: number
+}> = ({ item, assets, trackKind, trackMuted, detachAudio, tail = 0 }) => {
   const frame = useCurrentFrame()
   const { width, height } = useVideoConfig()
   const kenBurns = item.type === 'image' ? 1 + item.kenBurns * 0.12 * (frame / Math.max(1, item.duration)) : 1
@@ -76,7 +86,7 @@ const MediaItemView: React.FC<{
       style: { objectFit: fit },
       trimBefore: item.type === 'video' ? item.trimStart : undefined,
       playbackRate: item.type === 'video' ? item.speed : undefined,
-      volume: item.type === 'video' ? (isAnimated(item, 'volume') ? (at: number) => itemVolumeAt(item, at) : item.volume) : undefined,
+      volume: item.type === 'video' ? clipVolume(item, tail) : undefined,
       muted: item.type === 'video' ? item.muted || trackMuted || Boolean(detachAudio) : true,
     }),
   )
@@ -211,14 +221,14 @@ function graphicSounds(item: GraphicItem, fps: number) {
 }
 
 /** Sound of a video clip whose picture is rendered through the motion-blur wrapper. */
-const DetachedClipAudio: React.FC<{ item: VideoClipItem, assets: ProjectAssetMap }> = ({ item, assets }) => {
+const DetachedClipAudio: React.FC<{ item: VideoClipItem, assets: ProjectAssetMap, tail: number }> = ({ item, assets, tail }) => {
   const asset = assets[item.assetId]
   if (!asset) return null
   return h(Html5Audio, {
     src: asset.src,
     trimBefore: item.trimStart || undefined,
     playbackRate: item.speed,
-    volume: isAnimated(item, 'volume') ? (at: number) => itemVolumeAt(item, at) : item.volume,
+    volume: clipVolume(item, tail),
     pauseWhenBuffering: true,
   })
 }
@@ -233,6 +243,9 @@ export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project,
     blurred(item)
       ? h(CameraMotionBlur, { shutterAngle: shutterAngle(itemBlurStrength(project, item)), samples: blurSamples(project), children: child })
       : child
+  // Clips with transitions get a wrapper that stays mounted for their whole length, so the media is not remounted when a transition starts.
+  const withTransition = (item: VideoClipItem | ImageClipItem, next: TransitionHost | null, child: React.ReactElement) =>
+    hasTransitions(item) || tailFrames(next) > 0 ? h(TransitionFrame, { item, next, children: child }) : child
   return h(
     AbsoluteFill,
     { style: { backgroundColor: project.background, overflow: 'hidden' } },
@@ -241,33 +254,38 @@ export const ProjectComposition: React.FC<ProjectCompositionProps> = ({ project,
       return h(
         AbsoluteFill,
         { key: track.id },
-        track.items.flatMap(item => [
-          h(
-            Sequence,
-            {
-              key: item.id,
-              from: item.start,
-              durationInFrames: item.duration,
-              premountFor: fps,
-              name: item.type,
-            },
-            item.type === 'graphic'
-              ? withBlur(item, h(GraphicItemView, { item, assets }))
-              : item.type === 'audio'
-                ? track.muted
-                  ? null
-                  : h(AudioItemView, { item, assets })
-                : blurred(item)
-                  ? h(
-                      AbsoluteFill,
-                      null,
-                      withBlur(item, h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted, detachAudio: true })),
-                      item.type === 'video' && !item.muted && !track.muted ? h(DetachedClipAudio, { item, assets }) : null,
-                    )
-                  : h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted }),
-          ),
-          ...(item.type === 'graphic' && !track.muted ? graphicSounds(item, fps) : []),
-        ]),
+        track.items.flatMap((item) => {
+          // The clip cut directly against this one's end; an overlap transition on it keeps this clip on screen a little longer.
+          const next = supportsTransitions(item) ? track.items.find(entry => entry.start === itemEnd(item) && supportsTransitions(entry)) ?? null : null
+          const tail = tailFrames(next)
+          return [
+            h(
+              Sequence,
+              {
+                key: item.id,
+                from: item.start,
+                durationInFrames: item.duration + tail,
+                premountFor: fps,
+                name: item.type,
+              },
+              item.type === 'graphic'
+                ? withBlur(item, h(GraphicItemView, { item, assets }))
+                : item.type === 'audio'
+                  ? track.muted
+                    ? null
+                    : h(AudioItemView, { item, assets })
+                  : blurred(item)
+                    ? h(
+                        AbsoluteFill,
+                        null,
+                        withBlur(item, withTransition(item, next, h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted, detachAudio: true, tail }))),
+                        item.type === 'video' && !item.muted && !track.muted ? h(DetachedClipAudio, { item, assets, tail }) : null,
+                      )
+                    : withTransition(item, next, h(MediaItemView, { item, assets, trackKind: track.kind, trackMuted: track.muted, tail })),
+            ),
+            ...(item.type === 'graphic' && !track.muted ? graphicSounds(item, fps) : []),
+          ]
+        }),
       )
     }),
   )

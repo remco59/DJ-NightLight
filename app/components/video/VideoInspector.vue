@@ -17,7 +17,17 @@ import {
   type VideoProject,
 } from '~~/shared/video-project'
 import { LUCIDE_ICONS, LUCIDE_ICON_GROUPS } from '~~/shared/lucide-icons'
-import { updateItem } from '~~/shared/video-timeline'
+import { adjacentClip, setClipTransition, updateItem } from '~~/shared/video-timeline'
+import {
+  TRANSITIONS,
+  clipTransition,
+  createTransition,
+  maxTransitionFrames,
+  supportsTransitions,
+  transitionTotalFrames,
+  type ClipTransitionEdge,
+  type TransitionKey,
+} from '~~/shared/video-transitions'
 import {
   KEYFRAME_EASINGS,
   KEYFRAME_EASING_LABELS,
@@ -59,6 +69,7 @@ import {
 import { DEFAULT_ITEM_SOUND, TEMPLATE_SOUNDS, graphicSoundCues, type ItemSound } from '~~/shared/template-sounds'
 import { MOTION_BLUR_QUALITIES, MOTION_BLUR_QUALITY_KEYS, itemMoves, projectMotionBlur, type MotionBlurQuality, type ProjectMotionBlur } from '~~/shared/video-motion-blur'
 import GigPickerDialog from '~/components/video/GigPickerDialog.vue'
+import TransitionPicker from '~/components/video/TransitionPicker.vue'
 import KeyframeButton from '~/components/video/KeyframeButton.vue'
 import ScrubLabel from '~/components/video/ScrubLabel.vue'
 import { useWaveforms } from '~/composables/useWaveforms'
@@ -97,6 +108,28 @@ function patch(mutator: (target: TimelineItem) => void, key = '') {
 
 function seconds(frames: number) {
   return Math.round(frames / fps.value * 100) / 100
+}
+
+// Transitions: one edge at a time, so the picker is shown once.
+const transitionEdge = ref<ClipTransitionEdge>('in')
+const transitionClip = computed(() => item.value && supportsTransitions(item.value) ? item.value : null)
+const edgeTransition = computed(() => transitionClip.value ? clipTransition(transitionClip.value, transitionEdge.value) : null)
+const linkedClip = computed(() => transitionClip.value ? adjacentClip(state.project, transitionClip.value.id, transitionEdge.value) : null)
+
+function setTransition(key: TransitionKey | null) {
+  if (!transitionClip.value) return
+  // Switching preset keeps a length the user already chose, unless the new one counts frames differently (see TransitionMode).
+  const current = edgeTransition.value
+  const keepLength = key && current && TRANSITIONS[current.key].mode === TRANSITIONS[key].mode
+  const next = key ? { key, frames: keepLength ? current.frames : createTransition(key, fps.value).frames } : null
+  editor.commit(setClipTransition(state.project, transitionClip.value.id, transitionEdge.value, next))
+}
+
+function setTransitionFrames(frames: number) {
+  const current = edgeTransition.value
+  if (!transitionClip.value || !current || !Number.isFinite(frames)) return
+  const next = { ...current, frames: Math.max(1, Math.min(maxTransitionFrames(transitionClip.value, current.key), Math.round(frames))) }
+  editor.commit(setClipTransition(state.project, transitionClip.value.id, transitionEdge.value, next), `${transitionClip.value.id}:transition:${transitionEdge.value}`)
 }
 
 function setTiming(key: 'start' | 'duration', value: number) {
@@ -713,6 +746,26 @@ const assetTitle = computed(() => {
         </template>
       </component>
 
+      <component :is="sectionTag" v-if="transitionClip" class="block" :open="props.mobile || undefined">
+        <component :is="headingTag">Overgang</component>
+        <div class="edge-tabs" role="group" aria-label="Kant van de clip">
+          <button type="button" :class="{ active: transitionEdge === 'in' }" :aria-pressed="transitionEdge === 'in'" @click="transitionEdge = 'in'">
+            Begin<Icon v-if="transitionClip.transitionIn" name="lucide:check" aria-hidden="true" />
+          </button>
+          <button type="button" :class="{ active: transitionEdge === 'out' }" :aria-pressed="transitionEdge === 'out'" @click="transitionEdge = 'out'">
+            Einde<Icon v-if="transitionClip.transitionOut" name="lucide:check" aria-hidden="true" />
+          </button>
+        </div>
+        <TransitionPicker :model-value="edgeTransition?.key ?? null" @update:model-value="setTransition" />
+        <label v-if="edgeTransition" class="row"><span>Duur</span>
+          <input type="range" min="1" :max="maxTransitionFrames(transitionClip, edgeTransition.key)" :value="Math.min(edgeTransition.frames, maxTransitionFrames(transitionClip, edgeTransition.key))" @input="setTransitionFrames(Number(($event.target as HTMLInputElement).value))">
+          <output>{{ seconds(transitionTotalFrames({ ...edgeTransition, frames: Math.min(edgeTransition.frames, maxTransitionFrames(transitionClip, edgeTransition.key)) })) }}s</output>
+        </label>
+        <p v-if="edgeTransition && linkedClip" class="note">Deze overgang loopt over de snede met de {{ transitionEdge === 'in' ? 'vorige' : 'volgende' }} clip, en geldt dus voor allebei.</p>
+        <p v-else-if="edgeTransition" class="note">{{ TRANSITIONS[edgeTransition.key].description }} {{ transitionEdge === 'in' ? 'Er ligt geen clip direct voor deze clip, dus het beeld komt vanuit de achtergrond binnen.' : 'Er ligt geen clip direct achter deze clip, dus het beeld verdwijnt naar de achtergrond.' }}</p>
+        <p v-else class="note">Leg twee clips direct achter elkaar en kies een overgang: die loopt over de snede. Zonder buurclip komt het beeld uit de achtergrond binnen of verdwijnt het erin.</p>
+      </component>
+
       <component :is="sectionTag" v-if="item.type !== 'audio'" class="block">
         <component :is="headingTag">Motion blur</component>
         <label class="row keyed"><span>Sterkte</span>
@@ -878,6 +931,44 @@ h3 {
   flex-direction: column;
   gap: .35rem;
   font-size: .8rem;
+}
+
+.edge-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .25rem;
+  padding: .2rem;
+  border: 1px solid var(--ve-border);
+  border-radius: 9px;
+  background: var(--ve-bg);
+}
+
+.edge-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  min-height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--ve-muted);
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.edge-tabs button.active {
+  background: var(--ve-accent);
+  color: #fff;
+}
+
+.edge-tabs button:focus-visible {
+  outline: 2px solid var(--ve-accent);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  .edge-tabs button { min-height: 40px; }
 }
 
 input[type="text"], input[type="number"], select, textarea {
