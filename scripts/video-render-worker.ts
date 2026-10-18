@@ -35,6 +35,8 @@ let capabilities: RenderCapabilities = { engines: [] }
 
 const CAPABILITY_REFRESH_MS = 60_000
 const CANCEL_POLL_MS = 2000
+// Remotion's default is 30s; software-rendered motion blur and large source videos can exceed that on a frame.
+const DELAY_RENDER_TIMEOUT_MS = Math.max(30_000, Number(process.env.REMOTION_DELAY_RENDER_TIMEOUT_MS) || 180_000)
 
 type JobRow = {
   id: string
@@ -286,7 +288,7 @@ async function renderComposition(job: JobRow, serveUrl: string, cancelSignal: Ca
       inputProps,
       ...browser,
       ...engineOptions,
-      delayRenderTimeoutInMilliseconds: 60_000,
+      delayRenderTimeoutInMilliseconds: DELAY_RENDER_TIMEOUT_MS,
       cancelSignal,
       onProgress: ({ progress }) => {
         const percent = Math.max(2, Math.min(99, Math.round(progress * 100)))
@@ -390,7 +392,7 @@ async function renderProjectThumbnail(row: ThumbnailProjectRow, serveUrl: string
       frame: projectThumbnailFrame(project),
       imageFormat: 'jpeg',
       ...browser,
-      delayRenderTimeoutInMilliseconds: 60_000,
+      delayRenderTimeoutInMilliseconds: DELAY_RENDER_TIMEOUT_MS,
     })
 
     const updated = await sql`
