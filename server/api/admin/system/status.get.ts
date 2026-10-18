@@ -13,6 +13,7 @@ import { loadCalendarIntegration, loadEmailIntegration, loadInstagramIntegration
 import { loadRenderSettings } from '../../../utils/render-settings'
 import { requireStaff } from '../../../utils/require-staff'
 import { stripeStatus } from '../../../utils/stripe-settings'
+import { collectServerMetrics } from '../../../utils/system-metrics'
 
 async function latestBackup() {
   const root = String(useRuntimeConfig().storageBackups)
@@ -39,6 +40,7 @@ export default defineEventHandler(async (event) => {
     staleOutboxRow,
     lastStripeEvent,
     backup,
+    server,
   ] = await Promise.all([
     db.select({ value: count() }).from(emailJobs).where(eq(emailJobs.status, 'failed')).then(rows => rows[0]),
     db.select({ value: count() }).from(gigCalendarSync).where(eq(gigCalendarSync.status, 'failed')).then(rows => rows[0]),
@@ -52,6 +54,7 @@ export default defineEventHandler(async (event) => {
       processedAt: stripeWebhookEvents.processedAt,
     }).from(stripeWebhookEvents).orderBy(desc(stripeWebhookEvents.processedAt)).limit(1).then(rows => rows[0] || null),
     latestBackup(),
+    collectServerMetrics(getRequestIP(event, { xForwardedFor: true }) ?? null),
   ])
 
   const [calendar, email, instagram, stripe, render] = await Promise.all([
@@ -64,6 +67,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     generatedAt: new Date().toISOString(),
+    server,
     health: {
       failedEmails: Number(failedEmailsRow?.value || 0),
       failedCalendarSyncs: Number(failedCalendarRow?.value || 0),
