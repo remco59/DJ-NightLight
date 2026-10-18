@@ -118,8 +118,10 @@ const linkedClip = computed(() => transitionClip.value ? adjacentClip(state.proj
 
 function setTransition(key: TransitionKey | null) {
   if (!transitionClip.value) return
-  // Switching preset keeps a length the user already chose.
-  const next = key ? { key, frames: edgeTransition.value?.frames ?? createTransition(key, fps.value).frames } : null
+  // Switching preset keeps a length the user already chose, unless the new one counts frames differently (see TransitionMode).
+  const current = edgeTransition.value
+  const keepLength = key && current && TRANSITIONS[current.key].mode === TRANSITIONS[key].mode
+  const next = key ? { key, frames: keepLength ? current.frames : createTransition(key, fps.value).frames } : null
   editor.commit(setClipTransition(state.project, transitionClip.value.id, transitionEdge.value, next))
 }
 
