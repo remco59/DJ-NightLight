@@ -12,6 +12,7 @@ import {
   invoices,
   outboxEvents,
   quotes,
+  termsVersions,
 } from '../../db/schema'
 import {
   clientAllowsAutomaticEmail,
@@ -24,6 +25,7 @@ import {
   type EmailVariables,
 } from '../../shared/email-automation'
 import { todayInAmsterdam } from '../../shared/dates'
+import { termsPlainText } from '../../shared/terms'
 import { db } from './db'
 import { loadEmailBranding } from './email-branding'
 import { sendEmail } from './email-provider'
@@ -282,6 +284,16 @@ async function loadAttachments(attachments: EmailAttachment[]) {
   return Promise.all(attachments.map(async (attachment) => {
     if (attachment.kind === 'file') {
       return { filename: attachment.filename, content: await storage.read(attachment.storageKey) }
+    }
+    if (attachment.kind === 'quote') {
+      const [quote] = await db.select({ snapshot: quotes.documentSnapshot }).from(quotes).where(eq(quotes.id, attachment.quoteId)).limit(1)
+      if (!quote?.snapshot) throw new Error(`Offerte ${attachment.filename} is niet meer beschikbaar`)
+      return { filename: attachment.filename, content: buildInvoicePdf(quote.snapshot) }
+    }
+    if (attachment.kind === 'terms') {
+      const [terms] = await db.select().from(termsVersions).where(eq(termsVersions.id, attachment.termsVersionId)).limit(1)
+      if (!terms) throw new Error(`Voorwaarden ${attachment.filename} zijn niet meer beschikbaar`)
+      return { filename: attachment.filename, content: new TextEncoder().encode(termsPlainText(terms)) }
     }
     const detail = await getInvoiceDetail(attachment.invoiceId)
     if (!detail?.invoice.documentSnapshot) throw new Error(`Factuur ${attachment.filename} is niet meer beschikbaar`)

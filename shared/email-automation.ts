@@ -3,6 +3,8 @@ export type EmailVariables = Record<string, string | number | null | undefined>
 export type EmailAttachment =
   | { kind: 'file', storageKey: string, filename: string, mimeType: string, byteSize: number }
   | { kind: 'invoice', invoiceId: string, filename: string }
+  | { kind: 'quote', quoteId: string, filename: string }
+  | { kind: 'terms', termsVersionId: string, filename: string }
 
 export type EmailBranding = {
   siteUrl?: string
@@ -152,6 +154,18 @@ const EMAIL_PRESENTATIONS: Record<string, EmailPresentation> = {
     details: [
       { label: 'Boeking', variable: 'gigTitle' },
       { label: 'Datum', variable: 'gigDate' },
+    ],
+  },
+  booking_confirmed: {
+    eyebrow: 'Boeking',
+    title: 'Je boeking staat vast',
+    ctaVariable: 'portalUrl',
+    ctaLabel: 'Open klantenportaal',
+    details: [
+      { label: 'Boeking', variable: 'gigTitle' },
+      { label: 'Datum', variable: 'gigDate' },
+      { label: 'Offertenummer', variable: 'quoteNumber' },
+      { label: 'Voorwaarden', variable: 'termsVersionLabel' },
     ],
   },
   client_portal_invitation: {

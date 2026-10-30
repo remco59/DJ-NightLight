@@ -16,7 +16,7 @@ describe('settings sections', () => {
 
   it('keeps managers to the sections their API permissions allow', () => {
     const allowed = settingsGroupsFor('manager').flatMap(group => group.sections.map(section => section.to))
-    expect(allowed).toEqual(['/admin/settings/emails', '/admin/settings/questionnaire', '/admin/settings/account'])
+    expect(allowed).toEqual(['/admin/settings/emails', '/admin/settings/questionnaire', '/admin/settings/terms', '/admin/settings/account'])
     expect(settingsSectionAllowed('manager', '/admin/settings/users')).toBe(false)
     expect(settingsSectionAllowed('manager', '/admin/settings/emails/')).toBe(true)
   })

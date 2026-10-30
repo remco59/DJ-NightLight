@@ -189,6 +189,18 @@ export const contractSubmissions = pgTable('contract_submissions', {
   ...timestamps,
 })
 
+export const termsVersions = pgTable('terms_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  version: integer('version').notNull().unique(),
+  title: varchar('title', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  summary: jsonb('summary').$type<string[]>().default([]).notNull(),
+  status: varchar('status', { length: 16 }).$type<'draft' | 'published'>().default('draft').notNull(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  ...timestamps,
+})
+
 export const musicWishes = pgTable('music_wishes', {
   id: uuid('id').defaultRandom().primaryKey(),
   gigId: uuid('gig_id').notNull().references(() => gigs.id, { onDelete: 'cascade' }),
@@ -285,6 +297,8 @@ export const quotes = pgTable('quotes', {
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   acceptedName: varchar('accepted_name', { length: 200 }),
   acceptedIpHash: varchar('accepted_ip_hash', { length: 64 }),
+  acceptedTermsVersionId: uuid('accepted_terms_version_id').references(() => termsVersions.id, { onDelete: 'restrict' }),
+  bookingConfirmedAt: timestamp('booking_confirmed_at', { withTimezone: true }),
   declinedAt: timestamp('declined_at', { withTimezone: true }),
   declineReason: text('decline_reason'),
   voidedAt: timestamp('voided_at', { withTimezone: true }),
@@ -722,6 +736,7 @@ export type QuestionnaireTemplate = typeof questionnaireTemplates.$inferSelect
 export type QuestionnaireTemplateVersion = typeof questionnaireTemplateVersions.$inferSelect
 export type ContractSubmission = typeof contractSubmissions.$inferSelect
 export type MusicWish = typeof musicWishes.$inferSelect
+export type TermsVersion = typeof termsVersions.$inferSelect
 export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect

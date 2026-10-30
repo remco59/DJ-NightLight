@@ -18,7 +18,8 @@ type PortalData = {
   review: { rating: number, comment: string | null, createdAt: string } | null
   questionnaire: { version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
-  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, declinedAt: string | null } | null
+  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, acceptedTermsVersion: number | null, bookingConfirmedAt: string | null, declinedAt: string | null } | null
+  terms: { version: number, title: string, summary: string[] } | null
   invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
 }
 
@@ -53,7 +54,7 @@ async function acceptQuote() {
   quoteBusy.value = true
   quoteMessage.value = ''
   try {
-    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-accept`, { method: 'POST', body: { acceptedName: quoteName.value, agree: quoteAgree.value } })
+    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-accept`, { method: 'POST', body: { acceptedName: quoteName.value, agree: quoteAgree.value, termsVersion: data.value?.terms?.version } })
     await refresh()
   } catch (quoteError: unknown) {
     quoteMessage.value = apiErrorMessage(quoteError, 'Akkoord geven is niet gelukt. Probeer het opnieuw.')
@@ -277,7 +278,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 
         <form v-if="data.quote.open" class="quote-form" @submit.prevent="acceptQuote">
           <label>Je naam<input v-model="quoteName" required minlength="2" maxlength="200" autocomplete="name"></label>
-          <label class="consent"><input v-model="quoteAgree" type="checkbox" required><span>Ik ga akkoord met deze offerte van {{ formatMoney(data.quote.totalCents, data.quote.currency) }}.</span></label>
+          <label class="consent"><input v-model="quoteAgree" type="checkbox" required><span>Ik ga akkoord met deze offerte van {{ formatMoney(data.quote.totalCents, data.quote.currency) }}<template v-if="data.terms"> en met de <NuxtLink :to="`/voorwaarden?version=${data.terms.version}`" target="_blank">voorwaarden (versie {{ data.terms.version }})</NuxtLink></template>.</span></label>
           <p v-if="quoteMessage" class="message" role="alert">{{ quoteMessage }}</p>
           <div class="quote-actions">
             <button class="primary-action" :disabled="quoteBusy || !quoteAgree || quoteName.trim().length < 2">{{ quoteBusy ? 'Versturen…' : 'Akkoord geven' }} <Icon v-if="!quoteBusy" name="lucide:check" aria-hidden="true" /></button>
@@ -293,7 +294,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
         </form>
         <div v-else class="quote-result" :data-status="data.quote.status">
-          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. Ik bevestig de boeking zo snel mogelijk.</span></p>
+          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. <template v-if="data.quote.bookingConfirmedAt">Je boeking staat vast; je ontvangt een bevestiging per e-mail.</template><template v-else>Ik bevestig de boeking zo snel mogelijk.</template></span></p>
           <p v-else-if="data.quote.status === 'declined'" role="status"><Icon name="lucide:circle-x" aria-hidden="true" /><span>Je hebt de offerte afgewezen. Wil je toch nog iets aanpassen? Neem gerust contact op.</span></p>
           <p v-else role="status"><Icon name="lucide:clock-alert" aria-hidden="true" /><span>Deze offerte is verlopen. Neem contact op als je hem toch wilt accepteren, dan maak ik een nieuwe.</span></p>
           <a class="ghost-action" :href="`/api/client/portal/${encodeURIComponent(token)}/quote-pdf`" download><Icon name="lucide:download" aria-hidden="true" />PDF</a>

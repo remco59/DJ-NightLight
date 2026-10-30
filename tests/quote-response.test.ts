@@ -7,6 +7,8 @@ let updateResult: Array<Record<string, unknown>> = [{ id: 'q1', acceptedAt: new 
 const updates: Array<Record<string, unknown>> = []
 const audits: Array<Record<string, unknown>> = []
 const notifications: Array<{ kind: string, payload: Record<string, unknown>, suffix?: string }> = []
+let latestTerms: { id: string, version: number } | null = null
+const confirmed: Array<{ quoteId: string, source: string }> = []
 
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('getRouterParam', () => 'a'.repeat(43))
@@ -19,6 +21,8 @@ vi.mock('../server/utils/portal-access', () => ({ resolvePortalAccess: async () 
 vi.mock('../server/utils/owner-notifications', () => ({
   queueOwnerNotification: async (kind: string, _id: string, payload: Record<string, unknown>, suffix?: string) => { notifications.push({ kind, payload, suffix }) },
 }))
+vi.mock('../server/utils/terms', () => ({ getLatestPublishedTerms: async () => latestTerms }))
+vi.mock('../server/utils/booking-confirmation', () => ({ confirmBooking: async (quoteId: string, source: string) => { confirmed.push({ quoteId, source }); return true } }))
 vi.mock('../shared/dates', () => ({ todayInAmsterdam: () => '2026-11-02' }))
 vi.mock('../server/utils/db', () => ({
   db: {
@@ -41,6 +45,8 @@ describe('client accepts a quote', () => {
     updates.length = 0
     audits.length = 0
     notifications.length = 0
+    confirmed.length = 0
+    latestTerms = null
     body = { acceptedName: 'Sanne de Vries', agree: true }
   })
 
@@ -50,6 +56,25 @@ describe('client accepts a quote', () => {
     expect(String(updates[0]!.acceptedIpHash)).toMatch(/^[0-9a-f]{64}$/)
     expect(audits[0]).toMatchObject({ action: 'quote_accepted', entityId: 'g1' })
     expect(notifications[0]).toMatchObject({ kind: 'quote_response', payload: { outcome: 'accepted', acceptedName: 'Sanne de Vries', totalCents: 121000 }, suffix: 'q1:accepted' })
+  })
+
+  it('ties the acceptance to the published terms version and confirms the booking', async () => {
+    latestTerms = { id: 't2', version: 2 }
+    body = { acceptedName: 'Sanne de Vries', agree: true, termsVersion: 2 }
+    expect((await accept({})).ok).toBe(true)
+    expect(updates[0]).toMatchObject({ acceptedTermsVersionId: 't2' })
+    expect(audits[0]).toMatchObject({ metadata: expect.objectContaining({ termsVersion: 2 }) })
+    expect(confirmed).toEqual([{ quoteId: 'q1', source: 'quote_accepted' }])
+  })
+
+  it('refuses when the client did not see the current terms', async () => {
+    latestTerms = { id: 't2', version: 2 }
+    body = { acceptedName: 'Sanne de Vries', agree: true, termsVersion: 1 }
+    await expect(accept({})).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('bijgewerkt') })
+    body = { acceptedName: 'Sanne de Vries', agree: true }
+    await expect(accept({})).rejects.toMatchObject({ statusCode: 409 })
+    expect(updates).toHaveLength(0)
+    expect(confirmed).toHaveLength(0)
   })
 
   it('never stores the raw IP address', async () => {

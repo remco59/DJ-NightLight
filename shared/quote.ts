@@ -48,7 +48,9 @@ export const quoteDraftInputSchema = z.object({
 
 export const quoteAcceptSchema = z.object({
   acceptedName: z.string().trim().min(2, 'Vul je naam in om akkoord te geven').max(200),
-  agree: z.literal(true, { error: 'Vink aan dat je akkoord gaat met de offerte' }),
+  agree: z.literal(true, { error: 'Vink aan dat je akkoord gaat met de offerte en de voorwaarden' }),
+  /** The terms version the client saw. Required once terms are published, so the acceptance is tied to that text. */
+  termsVersion: z.number().int().positive().optional(),
 })
 
 export const quoteDeclineSchema = z.object({

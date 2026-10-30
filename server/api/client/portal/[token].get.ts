@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, ne } from 'drizzle-orm'
-import { gigReviews, invoices, payments, portalLinks, quotes } from '../../../../db/schema'
+import { gigReviews, invoices, payments, portalLinks, quotes, termsVersions } from '../../../../db/schema'
 import { todayInAmsterdam } from '../../../../shared/dates'
 import { gigIsFinished } from '../../../../shared/gig-phase'
 import { quoteDisplayStatus, quoteIsOpenForResponse } from '../../../../shared/quote'
@@ -8,6 +8,7 @@ import { db, sql } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
 import { getPortalForm } from '../../../utils/portal-form'
 import { assertRateLimit } from '../../../utils/rate-limit'
+import { getLatestPublishedTerms } from '../../../utils/terms'
 import { hashPortalToken } from '../../../utils/portal-token'
 
 export default defineEventHandler(async (event) => {
@@ -42,6 +43,10 @@ export default defineEventHandler(async (event) => {
   const [quoteRow] = await db.select().from(quotes)
     .where(and(eq(quotes.gigId, access.gigId), inArray(quotes.status, ['sent', 'accepted', 'declined'])))
     .orderBy(desc(quotes.sentAt)).limit(1)
+  const [acceptedTerms] = quoteRow?.acceptedTermsVersionId
+    ? await db.select({ version: termsVersions.version }).from(termsVersions).where(eq(termsVersions.id, quoteRow.acceptedTermsVersionId)).limit(1)
+    : []
+  const latestTerms = await getLatestPublishedTerms()
   const today = todayInAmsterdam()
   const quote = quoteRow?.documentSnapshot
     ? {
@@ -62,6 +67,8 @@ export default defineEventHandler(async (event) => {
         lines: quoteRow.documentSnapshot.lines,
         acceptedName: quoteRow.acceptedName,
         acceptedAt: quoteRow.acceptedAt,
+        acceptedTermsVersion: acceptedTerms?.version ?? null,
+        bookingConfirmedAt: quoteRow.bookingConfirmedAt,
         declinedAt: quoteRow.declinedAt,
       }
     : null
@@ -111,5 +118,7 @@ export default defineEventHandler(async (event) => {
     })),
     invoice: invoice || null,
     quote,
+    /** The terms a client accepts together with the quote. Null until the owner has published a version. */
+    terms: latestTerms ? { version: latestTerms.version, title: latestTerms.title, summary: latestTerms.summary } : null,
   }
 })

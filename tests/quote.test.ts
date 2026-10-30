@@ -44,6 +44,12 @@ describe('quote input', () => {
     expect(quoteDraftInputSchema.safeParse({ ...draft, lines: [] }).success).toBe(false)
   })
 
+  it('takes the terms version the client saw, and only a positive whole number', () => {
+    expect(quoteAcceptSchema.parse({ acceptedName: 'Sanne', agree: true, termsVersion: 2 }).termsVersion).toBe(2)
+    expect(quoteAcceptSchema.safeParse({ acceptedName: 'Sanne', agree: true, termsVersion: 0 }).success).toBe(false)
+    expect(quoteAcceptSchema.safeParse({ acceptedName: 'Sanne', agree: true, termsVersion: 1.5 }).success).toBe(false)
+  })
+
   it('needs a name and an explicit tick to accept', () => {
     expect(quoteAcceptSchema.safeParse({ acceptedName: 'Sanne', agree: true }).success).toBe(true)
     expect(quoteAcceptSchema.safeParse({ acceptedName: 'S', agree: true }).success).toBe(false)
