@@ -130,6 +130,7 @@ onBeforeUnmount(() => {
           <a v-if="data?.content.instagramUrl" :href="data.content.instagramUrl" target="_blank" rel="noreferrer"><Icon name="lucide:instagram" aria-hidden="true" />{{ data.content.publicCopy.footer.instagram }}</a>
           <a v-if="data?.content.spotifyUrl" :href="data.content.spotifyUrl" target="_blank" rel="noreferrer"><Icon name="lucide:audio-lines" aria-hidden="true" />{{ data.content.publicCopy.footer.spotify }}</a>
           <a v-if="data?.content.contactEmail" :href="`mailto:${data.content.contactEmail}`"><Icon name="lucide:mail" aria-hidden="true" />{{ data.content.publicCopy.footer.email }}</a>
+          <NuxtLink to="/voorwaarden"><Icon name="lucide:scroll-text" aria-hidden="true" />Voorwaarden</NuxtLink>
         </div>
       </div>
     </footer>

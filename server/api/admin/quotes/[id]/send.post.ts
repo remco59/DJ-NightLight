@@ -4,6 +4,7 @@ import { auditLogs, businessSettings, portalLinks, quotes } from '../../../../..
 import { todayInAmsterdam } from '../../../../../shared/dates'
 import { calculateInvoiceTotals, formatInvoiceNumber } from '../../../../../shared/invoice'
 import { QUOTE_NUMBER_PREFIX } from '../../../../../shared/quote'
+import { quoteReservation, reservationCents } from '../../../../../shared/reservation'
 import { db } from '../../../../utils/db'
 import { queueQuoteEmail } from '../../../../utils/email-automation'
 import { loadBusinessSettings } from '../../../../utils/invoice-finalize'
@@ -42,7 +43,7 @@ export default defineEventHandler(async (event) => {
     const snapshot = buildQuoteSnapshot(detail, settings, quoteNumber, portalUrl)
     const documentHash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')
     const [quote] = await tx.update(quotes).set({
-      quoteNumber, status: 'sent', ...totals, documentSnapshot: snapshot, documentHash, sentAt: new Date(), updatedAt: new Date(),
+      quoteNumber, status: 'sent', ...totals, reservationCents: reservationCents(totals.totalCents, quoteReservation(detail.quote)), documentSnapshot: snapshot, documentHash, sentAt: new Date(), updatedAt: new Date(),
     }).where(and(eq(quotes.id, id), eq(quotes.status, 'draft'))).returning()
     if (!quote) throw createError({ statusCode: 409, statusMessage: 'De offerte is intussen via een ander verzoek verstuurd' })
     await tx.insert(auditLogs).values([

@@ -9,8 +9,10 @@ export default defineEventHandler(async (event) => {
   return {
     status: form.submission?.status || 'not_started',
     submission: form.submission,
-    fields: form.version.fields,
-    templateVersion: form.version.version,
+    enabled: form.enabled,
+    fields: form.fields,
+    templateVersion: form.templateVersion,
+    gigFormId: form.gigForm?.id ?? null,
     wishes: form.wishes,
   }
 })

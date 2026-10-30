@@ -1,4 +1,4 @@
-import type { InvoiceSnapshot } from '../../shared/invoice'
+import { invoiceAmountDueCents, type InvoiceSnapshot } from '../../shared/invoice'
 type BankTransferInstructions = {
   iban: string
   bic: string
@@ -119,7 +119,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
       recipient.slice(0, 7).forEach((line, index) => commands.push(textCommand(shortText(line), 275, 671 - index * 13, 8)))
 
       commands.push(
-        textCommand(quote ? `${money(snapshot.totals.totalCents, snapshot.currency)} - geldig tot ${dateLabel(snapshot.dueDate)}` : `${money(snapshot.totals.totalCents, snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
+        textCommand(quote ? `${money(snapshot.totals.totalCents, snapshot.currency)} - geldig tot ${dateLabel(snapshot.dueDate)}` : `${money(invoiceAmountDueCents(snapshot.totals.totalCents, snapshot.prepayments), snapshot.currency)} vervalt op ${dateLabel(snapshot.dueDate)}`, 36, 548, 16, 'F2'),
         textCommand(quote ? 'Akkoord geven via het beveiligde NightLight-klantportaal' : 'Online betalen via het beveiligde NightLight-klantportaal', 36, 527, 8, 'F1', portalUrl ? '0.05 0.25 0.8' : '0.35 0.35 0.35'),
       )
       if (portalUrl) commands.push(lineCommand(36, 524, 262, 524, 0.5, '0.05 0.25 0.8'))
@@ -156,6 +156,7 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
 
     if (pageIndex === pages.length - 1) {
       const totalsY = Math.max(190, y - 8)
+      const amountDue = invoiceAmountDueCents(snapshot.totals.totalCents, snapshot.prepayments)
       commands.push(
         textCommand('Subtotaal', 330, totalsY, 8),
         rightTextCommand(money(snapshot.totals.subtotalCents, snapshot.currency), 559, totalsY, 8),
@@ -166,14 +167,40 @@ export function buildInvoicePdf(snapshot: InvoiceSnapshot) {
         lineCommand(330, totalsY - 39, 559, totalsY - 39, 0.35, '0.7 0.7 0.7'),
         textCommand('Totaal', 330, totalsY - 54, 8),
         rightTextCommand(money(snapshot.totals.totalCents, snapshot.currency), 559, totalsY - 54, 8),
-        textCommand(quote ? 'Totaalbedrag' : 'Verschuldigd bedrag', 330, totalsY - 72, 8, 'F2'),
-        rightTextCommand(money(snapshot.totals.totalCents, snapshot.currency), 559, totalsY - 72, 8, 'F2'),
       )
+      const prepayments = snapshot.prepayments ?? []
+      if (!quote && prepayments.length) {
+        prepayments.forEach((payment, index) => {
+          commands.push(
+            textCommand(`Reeds betaald: ${shortText(payment.label, 26)}`, 330, totalsY - 72 - index * 14, 8),
+            rightTextCommand(`-${money(payment.amountCents, snapshot.currency)}`, 559, totalsY - 72 - index * 14, 8),
+          )
+        })
+        const dueY = totalsY - 76 - prepayments.length * 14
+        commands.push(
+          lineCommand(330, dueY + 11, 559, dueY + 11, 0.35, '0.7 0.7 0.7'),
+          textCommand('Nog te betalen', 330, dueY, 8, 'F2'),
+          rightTextCommand(money(amountDue, snapshot.currency), 559, dueY, 8, 'F2'),
+        )
+      }
+      else {
+        commands.push(
+          textCommand(quote ? 'Totaalbedrag' : 'Verschuldigd bedrag', 330, totalsY - 72, 8, 'F2'),
+          rightTextCommand(money(snapshot.totals.totalCents, snapshot.currency), 559, totalsY - 72, 8, 'F2'),
+        )
+        if (quote && snapshot.reservationCents) {
+          commands.push(
+            textCommand('Reserveringskosten bij akkoord', 330, totalsY - 90, 8),
+            rightTextCommand(money(snapshot.reservationCents, snapshot.currency), 559, totalsY - 90, 8),
+            textCommand('Niet terugbetaalbaar, in mindering op de factuur', 330, totalsY - 101, 6.5),
+          )
+        }
+      }
 
       if (bankTransfer) {
         const bankY = 155
         commands.push(
-          textCommand(`Betaal ${money(snapshot.totals.totalCents, snapshot.currency)} met een bankoverschrijving`, 36, bankY, 8, 'F2'),
+          textCommand(`Betaal ${money(amountDue, snapshot.currency)} met een bankoverschrijving`, 36, bankY, 8, 'F2'),
           textCommand('Gebruik onderstaande bankgegevens. Bankoverschrijvingen kunnen enkele werkdagen duren.', 36, bankY - 15, 7),
           textCommand('Vermeld de referentie bij het versturen van de bankoverschrijving.', 36, bankY - 27, 7),
         )

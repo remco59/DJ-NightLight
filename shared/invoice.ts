@@ -24,6 +24,10 @@ export type InvoiceSnapshot = {
   notes: string
   /** Secure customer portal URL captured when the invoice is finalized. */
   portalUrl?: string
+  /** Reservation costs on a quote: due when the client accepts, not refundable. */
+  reservationCents?: number
+  /** Amounts the client already paid towards this invoice (the reservation), taken off the amount due. */
+  prepayments?: Array<{ label: string, paidOn: string, amountCents: number }>
 }
 
 const quantityPattern = /^\d{1,9}(?:\.\d{1,3})?$/
@@ -33,6 +37,12 @@ export function quantityThousandths(quantity: string) {
   const result = Number(whole) * 1000 + Number(fraction.padEnd(3, '0'))
   if (!Number.isSafeInteger(result) || result <= 0) throw new Error('Het aantal moet groter dan nul zijn')
   return result
+}
+
+/** What is left to pay on an invoice after the partial payments. */
+export function invoiceAmountDueCents(totalCents: number, prepayments: Array<{ amountCents: number }> | undefined) {
+  const paid = (prepayments ?? []).reduce((sum, payment) => sum + payment.amountCents, 0)
+  return Math.max(0, totalCents - paid)
 }
 
 export function calculateLineTotalCents(line: InvoiceLineInput) {

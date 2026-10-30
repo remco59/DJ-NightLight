@@ -46,6 +46,7 @@ function requiredPermission(pathname: string, method: string): AdminPermission {
     || pathname.startsWith('/api/admin/calendar')
     || pathname.startsWith('/api/admin/email')
     || pathname.startsWith('/api/admin/questionnaire')
+    || pathname.startsWith('/api/admin/terms')
   ) return 'operations:manage'
 
   return 'system:manage'

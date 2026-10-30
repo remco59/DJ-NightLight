@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { invoiceLineInputSchema, vatModes } from './invoice'
+import { reservationInputSchema } from './reservation'
 
 export const quoteStatuses = ['draft', 'sent', 'accepted', 'declined', 'void'] as const
 export type QuoteStatus = typeof quoteStatuses[number]
@@ -43,12 +44,16 @@ export const quoteDraftInputSchema = z.object({
   vatRateBasisPoints: z.number().int().min(0).max(10000),
   terms: z.string().trim().max(5000),
   notes: z.string().trim().max(5000),
+  /** Optional, non-refundable reservation costs, paid when the client accepts. Null means none. */
+  reservation: reservationInputSchema.nullable().optional(),
   lines: z.array(invoiceLineInputSchema).min(1).max(100),
 }).refine(value => value.validUntil >= value.issueDate, { path: ['validUntil'], message: 'De geldigheidsdatum kan niet voor de offertedatum liggen' })
 
 export const quoteAcceptSchema = z.object({
   acceptedName: z.string().trim().min(2, 'Vul je naam in om akkoord te geven').max(200),
-  agree: z.literal(true, { error: 'Vink aan dat je akkoord gaat met de offerte' }),
+  agree: z.literal(true, { error: 'Vink aan dat je akkoord gaat met de offerte en de voorwaarden' }),
+  /** The terms version the client saw. Required once terms are published, so the acceptance is tied to that text. */
+  termsVersion: z.number().int().positive().optional(),
 })
 
 export const quoteDeclineSchema = z.object({

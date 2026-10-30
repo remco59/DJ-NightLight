@@ -370,7 +370,7 @@ function templateName(key: string, fallback?: string) {
 }
 
 const categories = [
-  { label: 'Boekingen', keys: ['lead_acknowledgement', 'booking_accepted'] },
+  { label: 'Boekingen', keys: ['lead_acknowledgement', 'booking_accepted', 'booking_confirmed'] },
   { label: 'Facturen', keys: ['invoice_sent', 'payment_reminder', 'overdue_reminder', 'payment_received'] },
   { label: 'Klantenportaal', keys: ['client_portal_invitation', 'portal_reminder'] },
   { label: 'Rondom de gig', keys: ['pre_gig_reminder', 'thank_you', 'review_request'] },

@@ -27,7 +27,7 @@ type InvoiceSummary={id:string;invoiceNumber:string|null;status:'draft'|'finaliz
 type QuoteSummary={id:string;quoteNumber:string|null;status:QuoteStatus;validUntil:string;currency:string;totalCents:number;sentAt:string|null;acceptedAt:string|null;acceptedName:string|null;invoiceId:string|null}
 type Detail={gig:Gig;contacts:Contact[];timeline:Timeline[];activity:Activity[];invoices:InvoiceSummary[];quotes:QuoteSummary[];expenses:ExpenseRow[];kmRateCents:number;options:{clients:ClientOption[];venues:VenueOption[];djs:DjOption[]}}
 type PortalLink={id:string;expiresAt:string;revokedAt:string|null;lastUsedAt:string|null;url:string|null;lastInvitedAt:string;invitationCount:number;createdAt:string;state:'active'|'expired'|'revoked'}
-type PortalSubmission={status:'not_started'|'draft'|'submitted';submission:{answers:Record<string,unknown>;acceptedName:string|null;submittedAt:string|null}|null;fields:QuestionnaireField[];templateVersion:number;wishes:Array<{id:string;category:string;artist:string|null;title:string|null;spotifyUrl:string|null;note:string|null}>}
+type PortalSubmission={status:'not_started'|'draft'|'submitted';enabled:boolean;gigFormId:string|null;submission:{answers:Record<string,unknown>;acceptedName:string|null;submittedAt:string|null}|null;fields:QuestionnaireField[];templateVersion:number|null;wishes:Array<{id:string;category:string;artist:string|null;title:string|null;spotifyUrl:string|null;note:string|null}>}
 
 const {data,refresh}=await useFetch<Detail>(`/api/admin/gigs/${id}`)
 if(!data.value)throw createError({statusCode:404,statusMessage:'Gig niet gevonden'})
@@ -324,7 +324,7 @@ async function copyPortalUrl(url:string|null|undefined){
   await navigator.clipboard.writeText(url);portalMessage.value='Portaallink gekopieerd.'
 }
 function openPortal(url:string|null|undefined){if(url)window.open(url,'_blank','noopener')}
-function answerValue(value:unknown){return Array.isArray(value)?value.join(', '):value===true?'Ja':value===false?'Nee':String(value??'—')}
+function answerValue(value:unknown){if(Array.isArray(value)&&value.some(item=>typeof item==='object'&&item!==null))return (value as Array<{time?:string;text?:string}>).filter(row=>row.text).map(row=>row.time?`${row.time} ${row.text}`:row.text).join('; ')||'—';return Array.isArray(value)?value.join(', '):value===true?'Ja':value===false?'Nee':String(value??'—')}
 const showAllActivity=ref(false)
 const shownActivity=computed(()=>showAllActivity.value?data.value?.activity||[]:(data.value?.activity||[]).slice(0,5))
 const contractLabel=computed(()=>labelFor(submissionStatusLabels,submissionData.value?.status||'not_started'))
@@ -469,11 +469,13 @@ useSeoMeta({title:()=>`${data.value?.gig.displayTitle||'Gig'} — DJ NightLight`
   <p v-if="portalMessage" class="portal-message" role="status">{{portalMessage}}</p>
 </section>
 
-<section v-if="submissionData" class="card">
+<AdminGigBookingForm v-if="canManageGigs" :gig-id="id" @changed="refreshSubmission" />
+
+<section v-if="submissionData?.enabled||submissionData?.submission" class="card">
   <header class="card-head"><Icon name="lucide:file-text" class="lead-icon" aria-hidden="true" /><h2>{{canManageGigs?'Contract & muziekwensen':'Muziekwensen'}}</h2><NuxtLink v-if="canEdit" to="/admin/settings/questionnaire" class="icon-action" aria-label="Template bewerken" title="Template bewerken"><Icon name="lucide:settings-2" aria-hidden="true" /></NuxtLink></header>
   <template v-if="canManageGigs">
   <p class="contract-state" :data-state="submissionData.status"><i aria-hidden="true"/>{{contractLabel}}</p>
-  <p class="portal-meta">Vragenlijstversie {{submissionData.templateVersion}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>
+  <p class="portal-meta">{{submissionData.templateVersion?`Vragenlijstversie ${submissionData.templateVersion}`:'Eigen vragen voor deze gig'}}<template v-if="submissionData.submission?.submittedAt"> · {{activityDate(submissionData.submission.submittedAt)}}</template></p>
   </template>
   <details v-if="canManageGigs&&submissionData.submission" class="fold"><summary>Antwoorden bekijken</summary><dl class="answer-list"><div v-for="field in submissionData.fields" :key="field.id"><dt>{{field.label}}</dt><dd>{{answerValue(submissionData.submission.answers[field.id])}}</dd></div><div><dt>Geaccepteerd door</dt><dd>{{submissionData.submission.acceptedName||'—'}}</dd></div></dl></details>
   <details class="fold"><summary>Muziekwensen<span class="count">{{submissionData.wishes.length||'geen'}}</span></summary>

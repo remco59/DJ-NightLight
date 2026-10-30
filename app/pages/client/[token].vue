@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { QuestionnaireField } from '~~/shared/questionnaire'
-import { musicWishCategories } from '~~/shared/questionnaire'
+import type { QuestionnaireField, TimedListRow } from '~~/shared/questionnaire'
+import { musicWishCategories, visibleFields } from '~~/shared/questionnaire'
 import { musicWishCategoryLabels } from '~~/shared/labels'
 import { dutchDateTime, dutchFullDate } from '~~/shared/dutch-date'
 import { apiErrorMessage } from '~/utils/api-error'
@@ -8,7 +8,7 @@ import { apiErrorMessage } from '~/utils/api-error'
 const route = useRoute()
 const token = String(route.params.token || '')
 type Wish = { category: typeof musicWishCategories[number], artist: string | null, title: string | null, spotifyUrl: string | null, note: string | null, ordering: number }
-type Answer = string | number | boolean | string[]
+type Answer = string | number | boolean | string[] | TimedListRow[]
 type PortalData = {
   gig: { id: string, title: string, eventType: string | null, status: string, startsAt: string | null, endsAt: string | null, imageUrl: string | null, venue: { name: string, city: string | null } | null }
   client: { name: string | null }
@@ -16,10 +16,11 @@ type PortalData = {
   finished: boolean
   reviewOpen: boolean
   review: { rating: number, comment: string | null, createdAt: string } | null
-  questionnaire: { version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
+  questionnaire: { enabled: boolean, editable: boolean, version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
-  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, declinedAt: string | null } | null
-  invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
+  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, acceptedTermsVersion: number | null, reservation: { cents: number, paidAt: string | null } | null, bookingConfirmedAt: string | null, declinedAt: string | null } | null
+  terms: { version: number, title: string, summary: string[] } | null
+  invoice: { id:string, invoiceNumber:string|null, totalCents:number, paidCents:number, amountDueCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
 }
 
 const { data, error, refresh } = await useFetch<PortalData>(`/api/client/portal/${encodeURIComponent(token)}`)
@@ -34,7 +35,7 @@ const { data: siteData } = await useSiteContent()
 const contact = computed(() => ({ email: siteData.value?.content.contactEmail || null, phone: siteData.value?.content.contactPhone || null }))
 const answers = reactive<Record<string, Answer>>({ ...(data.value?.questionnaire.answers || {}) })
 for (const field of data.value?.questionnaire.fields || []) {
-  if (answers[field.id] === undefined) answers[field.id] = field.type === 'multi_select' ? [] : field.type === 'checkbox' || field.type === 'acknowledgement' ? false : ''
+  if (answers[field.id] === undefined) answers[field.id] = field.type === 'multi_select' || field.type === 'timed_list' ? [] : field.type === 'checkbox' || field.type === 'acknowledgement' ? false : ''
 }
 
 const acceptedName = ref(data.value?.questionnaire.acceptedName || '')
@@ -53,7 +54,7 @@ async function acceptQuote() {
   quoteBusy.value = true
   quoteMessage.value = ''
   try {
-    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-accept`, { method: 'POST', body: { acceptedName: quoteName.value, agree: quoteAgree.value } })
+    await $fetch(`/api/client/portal/${encodeURIComponent(token)}/quote-accept`, { method: 'POST', body: { acceptedName: quoteName.value, agree: quoteAgree.value, termsVersion: data.value?.terms?.version } })
     await refresh()
   } catch (quoteError: unknown) {
     quoteMessage.value = apiErrorMessage(quoteError, 'Akkoord geven is niet gelukt. Probeer het opnieuw.')
@@ -101,22 +102,71 @@ const categoryMeta: Record<Wish['category'], { icon: string, description: string
 
 const questionnaireComplete = computed(() => {
   if (data.value?.questionnaire.status === 'submitted') return true
-  const fields = data.value?.questionnaire.fields || []
+  const fields = visibleFields(data.value?.questionnaire.fields || [], answers)
   return fields.every((field) => {
     if (!field.required) return true
     const value = answers[field.id]
+    if (field.type === 'timed_list') return (value as TimedListRow[]).some(row => row.text.trim())
     if (Array.isArray(value)) return value.length > 0
     if (typeof value === 'boolean') return value
     return value !== undefined && value !== null && String(value).trim() !== ''
   }) && acceptedName.value.trim().length > 0
 })
 
-const completedSteps = computed(() => {
-  if (data.value?.questionnaire.status === 'submitted') return 3
-  return questionnaireComplete.value ? 1 : 0
+// The booking form is optional: it only exists when the owner switched it on for this gig.
+const formEnabled = computed(() => Boolean(data.value?.questionnaire.enabled))
+const quoteAccepted = computed(() => data.value?.quote?.status === 'accepted')
+// Reservation costs are paid after accepting; the booking stands once they are paid.
+const reservation = computed(() => data.value?.quote?.reservation ?? null)
+const reservationDue = computed(() => quoteAccepted.value && Boolean(reservation.value) && !reservation.value?.paidAt)
+const reservationBusy = ref(false)
+async function payReservation() {
+  reservationBusy.value = true
+  quoteMessage.value = ''
+  try {
+    const result = await $fetch<{ url: string }>(`/api/client/portal/${encodeURIComponent(token)}/reservation-checkout`, { method: 'POST' })
+    window.location.assign(result.url)
+  } catch (paymentError: unknown) {
+    quoteMessage.value = apiErrorMessage(paymentError, 'De betaling kon niet worden gestart. Probeer het later opnieuw.')
+  } finally {
+    reservationBusy.value = false
+  }
+}
+const reservationReturn = computed(() => {
+  const value = Array.isArray(route.query.payment) ? route.query.payment[0] : route.query.payment
+  return value === 'reservation-success' || value === 'reservation-cancelled' ? value : null
 })
+// With a quote, the booking is made first; the form follows once the quote is accepted.
+const formUnlocked = computed(() => !data.value?.quote || quoteAccepted.value)
+const editingForm = ref(false)
+const formReadOnly = computed(() => !data.value?.questionnaire.editable || (data.value?.questionnaire.status === 'submitted' && !editingForm.value))
+const formSections = computed(() => {
+  const groups: Array<{ title: string, fields: QuestionnaireField[] }> = []
+  for (const field of visibleFields(data.value?.questionnaire.fields || [], answers)) {
+    const title = field.section || ''
+    const last = groups[groups.length - 1]
+    if (last && last.title === title) last.fields.push(field)
+    else groups.push({ title, fields: [field] })
+  }
+  return groups
+})
+function addTimedRow(field: QuestionnaireField) { (answers[field.id] as TimedListRow[]).push({ time: '', text: '' }) }
+function timedRows(field: QuestionnaireField) { return answers[field.id] as TimedListRow[] }
 
-const progressLabel = computed(() => data.value?.questionnaire.status === 'submitted' ? 'Alles afgerond' : questionnaireComplete.value ? 'Nog 2 stappen te gaan' : 'Nog 3 stappen te gaan')
+// The steps this booking has, from what the owner set up. Each is done or still to do.
+const steps = computed(() => {
+  const list: Array<{ key: string, label: string, done: boolean }> = []
+  if (data.value?.quote && data.value.quote.status !== 'declined' && data.value.quote.status !== 'expired') list.push({ key: 'quote', label: 'Offerte accepteren', done: quoteAccepted.value })
+  if (reservation.value) list.push({ key: 'reservation', label: 'Reservering betalen', done: Boolean(reservation.value.paidAt) })
+  if (formEnabled.value) list.push({ key: 'form', label: 'Gegevens van het feest invullen', done: data.value?.questionnaire.status === 'submitted' })
+  return list
+})
+const completedSteps = computed(() => steps.value.filter(step => step.done).length)
+const progressLabel = computed(() => {
+  const open = steps.value.length - completedSteps.value
+  if (!steps.value.length) return ''
+  return open === 0 ? 'Alles afgerond' : open === 1 ? 'Nog 1 stap te gaan' : `Nog ${open} stappen te gaan`
+})
 
 // After the gig, an unpaid invoice is the main call to action on the page.
 const invoiceProminent = computed(() => {
@@ -133,7 +183,7 @@ function formatDueDate(value: string) {
 }
 function invoiceAmount() {
   if (!data.value?.invoice) return ''
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: data.value.invoice.currency }).format(data.value.invoice.totalCents / 100)
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: data.value.invoice.currency }).format(data.value.invoice.amountDueCents / 100)
 }
 function invoiceStatusLabel() {
   const invoice = data.value?.invoice
@@ -166,6 +216,7 @@ async function submit() {
       wishes: wishes.value.map((wish, ordering) => ({ ...wish, ordering })),
     } })
     await refresh()
+    editingForm.value = false
     message.value = 'Bedankt! Je gegevens en muziekwensen zijn verstuurd.'
   } catch (submitError: unknown) {
     message.value = apiErrorMessage(submitError, 'Versturen is niet gelukt. Probeer het opnieuw of neem contact op.')
@@ -237,13 +288,13 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
         </div>
 
-        <div v-if="!data.finished" class="progress-card">
+        <div v-if="!data.finished && steps.length" class="progress-card">
           <div class="progress-copy">
             <Icon name="lucide:clipboard-check" aria-hidden="true" />
             <strong>{{ progressLabel }}</strong>
-            <span>{{ completedSteps }} van 3</span>
+            <span>{{ completedSteps }} van {{ steps.length }}</span>
           </div>
-          <div class="progress-track" aria-hidden="true"><span :style="{ width: `${(completedSteps / 3) * 100}%` }" /></div>
+          <div class="progress-track" aria-hidden="true"><span :style="{ width: `${(completedSteps / Math.max(steps.length, 1)) * 100}%` }" /></div>
         </div>
       </header>
 
@@ -273,11 +324,15 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           <div><dt>{{ data.quote.vatMode === 'exempt' ? 'Geen btw' : `BTW (${data.quote.vatRateBasisPoints / 100}%)` }}</dt><dd>{{ formatMoney(data.quote.vatAmountCents, data.quote.currency) }}</dd></div>
           <div class="grand"><dt>Totaal</dt><dd>{{ formatMoney(data.quote.totalCents, data.quote.currency) }}</dd></div>
         </dl>
+        <p v-if="data.quote.reservation" class="reservation-note">
+          <Icon name="lucide:calendar-check" aria-hidden="true" />
+          <span><strong>Reserveringskosten: {{ formatMoney(data.quote.reservation.cents, data.quote.currency) }}</strong>. Je betaalt dit direct na je akkoord om de datum vast te leggen. Het bedrag wordt niet terugbetaald en gaat van de factuur af.</span>
+        </p>
         <p v-if="data.quote.terms" class="quote-terms">{{ data.quote.terms }}</p>
 
         <form v-if="data.quote.open" class="quote-form" @submit.prevent="acceptQuote">
           <label>Je naam<input v-model="quoteName" required minlength="2" maxlength="200" autocomplete="name"></label>
-          <label class="consent"><input v-model="quoteAgree" type="checkbox" required><span>Ik ga akkoord met deze offerte van {{ formatMoney(data.quote.totalCents, data.quote.currency) }}.</span></label>
+          <label class="consent"><input v-model="quoteAgree" type="checkbox" required><span>Ik ga akkoord met deze offerte van {{ formatMoney(data.quote.totalCents, data.quote.currency) }}<template v-if="data.terms"> en met de <NuxtLink :to="`/voorwaarden?version=${data.terms.version}`" target="_blank">voorwaarden (versie {{ data.terms.version }})</NuxtLink></template>.</span></label>
           <p v-if="quoteMessage" class="message" role="alert">{{ quoteMessage }}</p>
           <div class="quote-actions">
             <button class="primary-action" :disabled="quoteBusy || !quoteAgree || quoteName.trim().length < 2">{{ quoteBusy ? 'Versturen…' : 'Akkoord geven' }} <Icon v-if="!quoteBusy" name="lucide:check" aria-hidden="true" /></button>
@@ -293,7 +348,11 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
         </form>
         <div v-else class="quote-result" :data-status="data.quote.status">
-          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. Ik bevestig de boeking zo snel mogelijk.</span></p>
+          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. <template v-if="data.quote.bookingConfirmedAt">Je boeking staat vast; je ontvangt een bevestiging per e-mail.</template><template v-else-if="reservationDue">Betaal nu de reserveringskosten om je boeking vast te leggen.</template><template v-else>Ik bevestig de boeking zo snel mogelijk.</template></span></p>
+          <p v-if="reservationDue" class="reservation-pay"><button type="button" class="primary-action" :disabled="reservationBusy" @click="payReservation">{{ reservationBusy ? 'Betaalpagina openen…' : `Reservering betalen (${formatMoney(reservation!.cents, data.quote.currency)})` }} <Icon name="lucide:arrow-right" aria-hidden="true" /></button></p>
+          <p v-if="reservationReturn === 'reservation-success' && reservationDue" class="payment-notice" role="status">Bedankt! We verwerken je betaling. Dit kan even duren, daarna staat je boeking vast.</p>
+          <p v-else-if="reservationReturn === 'reservation-cancelled' && reservationDue" class="payment-notice" role="status">De betaling is niet afgerond. Je kunt het opnieuw proberen.</p>
+          <p v-if="quoteMessage" class="message" role="alert">{{ quoteMessage }}</p>
           <p v-else-if="data.quote.status === 'declined'" role="status"><Icon name="lucide:circle-x" aria-hidden="true" /><span>Je hebt de offerte afgewezen. Wil je toch nog iets aanpassen? Neem gerust contact op.</span></p>
           <p v-else role="status"><Icon name="lucide:clock-alert" aria-hidden="true" /><span>Deze offerte is verlopen. Neem contact op als je hem toch wilt accepteren, dan maak ik een nieuwe.</span></p>
           <a class="ghost-action" :href="`/api/client/portal/${encodeURIComponent(token)}/quote-pdf`" download><Icon name="lucide:download" aria-hidden="true" />PDF</a>
@@ -307,6 +366,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             <p class="eyebrow">Factuur {{ data.invoice.invoiceNumber }}</p>
             <strong v-if="data.invoice.paymentStatus === 'paid'" class="invoice-paid"><Icon name="lucide:check" aria-hidden="true" />Betaald</strong>
             <strong class="invoice-amount">{{ invoiceAmount() }}</strong>
+            <span v-if="data.invoice.paidCents > 0" class="invoice-prepaid">Totaal {{ formatMoney(data.invoice.totalCents, data.invoice.currency) }}, waarvan {{ formatMoney(data.invoice.paidCents, data.invoice.currency) }} al betaald (reservering)</span>
             <span class="invoice-status" :class="`status-${data.invoice.paymentStatus}`"><i />{{ invoiceStatusLabel() }}</span>
             <p v-if="paymentReturn === 'cancelled' && data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" class="payment-notice" role="status">Je betaling is niet afgerond. Er is niets afgeschreven, je kunt het opnieuw proberen.</p>
             <p v-else-if="paymentReturn === 'success' && data.invoice.paymentStatus !== 'paid'" class="payment-notice" role="status">Bedankt! We verwerken je betaling. Dit kan even duren, dan zie je hier dat de factuur is betaald.</p>
@@ -320,9 +380,10 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         </article>
       </section>
 
-      <section v-if="!data.finished && data.questionnaire.status === 'submitted'" class="submitted-banner">
+      <section v-if="!data.finished && formEnabled && data.questionnaire.status === 'submitted'" class="submitted-banner">
         <Icon name="lucide:circle-check" aria-hidden="true" />
-        <div><strong>Alles is verstuurd</strong><span>Je gegevens zijn ontvangen op {{ formatDate(data.questionnaire.submittedAt) }}.</span></div>
+        <div><strong>Alles is verstuurd</strong><span>Je gegevens zijn ontvangen op {{ formatDate(data.questionnaire.submittedAt) }}.<template v-if="data.questionnaire.editable"> Je kunt ze tot het begin van het event nog aanpassen.</template></span></div>
+        <button v-if="data.questionnaire.editable && !editingForm" type="button" class="secondary-action" @click="editingForm = true">Wijzigen</button>
       </section>
 
       <section v-if="data.finished" id="review" class="surface step-section review-card">
@@ -351,7 +412,13 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
         </form>
       </section>
 
-      <form v-else @submit.prevent="submit">
+      <section v-else-if="formEnabled && !formUnlocked" class="surface step-section locked-form">
+        <p class="eyebrow">Gegevens van het feest</p>
+        <h2>Eerst je boeking bevestigen</h2>
+        <p>Zodra je de offerte hierboven hebt bevestigd, kun je hier de gegevens en muziekwensen voor je feest doorgeven.</p>
+      </section>
+
+      <form v-else-if="formEnabled" @submit.prevent="submit">
         <section class="surface step-section" :class="{ complete: questionnaireComplete }">
           <div class="step-header">
             <span class="step-number"><Icon v-if="questionnaireComplete" name="lucide:check" aria-hidden="true" /><template v-else>1</template></span>
@@ -361,22 +428,33 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             </div>
           </div>
 
-          <div class="field-grid">
-            <label v-for="field in data.questionnaire.fields" :key="field.id" :class="{ wide: field.type === 'long_text' || field.type === 'acknowledgement' || field.type === 'checkbox' }">
-              <span>{{ field.label }}<b v-if="field.required" aria-hidden="true"> *</b></span>
-              <small v-if="field.helpText">{{ field.helpText }}</small>
-              <textarea v-if="field.type === 'long_text'" :value="String(answers[field.id] ?? '')" rows="4" :required="field.required" :disabled="data.questionnaire.status === 'submitted'" @input="setAnswer(field, $event)" />
-              <select v-else-if="field.type === 'select'" :value="String(answers[field.id] ?? '')" :required="field.required" :disabled="data.questionnaire.status === 'submitted'" @change="setAnswer(field, $event)">
-                <option value="">Kies…</option><option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
-              </select>
-              <span v-else-if="field.type === 'multi_select'" class="option-list"><label v-for="option in field.options" :key="option"><input v-model="answers[field.id]" type="checkbox" :value="option" :disabled="data.questionnaire.status === 'submitted'"> {{ option }}</label></span>
-              <span v-else-if="field.type === 'checkbox' || field.type === 'acknowledgement'" class="check-line"><input v-model="answers[field.id]" type="checkbox" :required="field.required" :disabled="data.questionnaire.status === 'submitted'"><span>Ja, ik bevestig dit</span></span>
-              <input v-else :value="String(answers[field.id] ?? '')" :type="field.type === 'short_text' ? 'text' : field.type" :required="field.required" :disabled="data.questionnaire.status === 'submitted'" @input="setAnswer(field, $event)">
-            </label>
-          </div>
+          <fieldset v-for="group in formSections" :key="group.title" class="form-section">
+            <legend v-if="group.title">{{ group.title }}</legend>
+            <div class="field-grid">
+              <label v-for="field in group.fields" :key="field.id" :class="{ wide: field.type === 'long_text' || field.type === 'acknowledgement' || field.type === 'checkbox' || field.type === 'timed_list' }">
+                <span>{{ field.label }}<b v-if="field.required" aria-hidden="true"> *</b></span>
+                <small v-if="field.helpText">{{ field.helpText }}</small>
+                <textarea v-if="field.type === 'long_text'" :value="String(answers[field.id] ?? '')" rows="4" :required="field.required" :disabled="formReadOnly" @input="setAnswer(field, $event)" />
+                <select v-else-if="field.type === 'select'" :value="String(answers[field.id] ?? '')" :required="field.required" :disabled="formReadOnly" @change="setAnswer(field, $event)">
+                  <option value="">Kies…</option><option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
+                </select>
+                <span v-else-if="field.type === 'multi_select'" class="option-list"><label v-for="option in field.options" :key="option"><input v-model="answers[field.id]" type="checkbox" :value="option" :disabled="formReadOnly"> {{ option }}</label></span>
+                <span v-else-if="field.type === 'checkbox' || field.type === 'acknowledgement'" class="check-line"><input v-model="answers[field.id]" type="checkbox" :required="field.required" :disabled="formReadOnly"><span>Ja, ik bevestig dit</span></span>
+                <span v-else-if="field.type === 'timed_list'" class="timed-list">
+                  <span v-for="(row, rowIndex) in timedRows(field)" :key="rowIndex" class="timed-row">
+                    <input v-model="row.time" type="time" :aria-label="`Tijdstip regel ${rowIndex + 1}`" :disabled="formReadOnly">
+                    <input v-model="row.text" type="text" maxlength="500" :aria-label="`Tekst regel ${rowIndex + 1}`" :disabled="formReadOnly">
+                    <button v-if="!formReadOnly" type="button" class="ghost-action" :aria-label="`Regel ${rowIndex + 1} verwijderen`" @click="timedRows(field).splice(rowIndex, 1)"><Icon name="lucide:trash-2" aria-hidden="true" /></button>
+                  </span>
+                  <button v-if="!formReadOnly && timedRows(field).length < 50" type="button" class="ghost-action" @click="addTimedRow(field)"><Icon name="lucide:plus" aria-hidden="true" /> Regel toevoegen</button>
+                </span>
+                <input v-else :value="String(answers[field.id] ?? '')" :type="field.type === 'short_text' ? 'text' : field.type" :required="field.required" :disabled="formReadOnly" @input="setAnswer(field, $event)">
+              </label>
+            </div>
+          </fieldset>
 
-          <label class="signature">Je volledige naam als akkoord <b aria-hidden="true">*</b><input v-model="acceptedName" required :disabled="data.questionnaire.status === 'submitted'"></label>
-          <button v-if="data.questionnaire.status !== 'submitted'" type="button" class="primary-action section-action" @click="goToMusic">Doorgaan naar muziekwensen <Icon name="lucide:arrow-right" aria-hidden="true" /></button>
+          <label class="signature">Je volledige naam als akkoord <b aria-hidden="true">*</b><input v-model="acceptedName" required :disabled="formReadOnly"></label>
+          <button v-if="!formReadOnly" type="button" class="primary-action section-action" @click="goToMusic">Doorgaan naar muziekwensen <Icon name="lucide:arrow-right" aria-hidden="true" /></button>
         </section>
 
         <section id="music-wishes" class="surface step-section">
@@ -388,7 +466,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             </div>
           </div>
 
-          <div v-if="data.questionnaire.status !== 'submitted'" class="wish-category-grid">
+          <div v-if="!formReadOnly" class="wish-category-grid">
             <button v-for="category in musicWishCategories" :key="category" type="button" class="wish-category" @click="addWish(category)">
               <Icon :name="categoryMeta[category].icon" aria-hidden="true" />
               <strong>{{ categoryLabels[category] }}</strong>
@@ -404,19 +482,19 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           <article v-for="(wish, index) in wishes" :id="`wish-${index}`" :key="index" class="wish-card">
             <div class="wish-head">
               <div><span class="wish-type-icon"><Icon :name="categoryMeta[wish.category].icon" aria-hidden="true" /></span><strong>Wens {{ index + 1 }}</strong></div>
-              <button v-if="data.questionnaire.status !== 'submitted'" type="button" @click="wishes.splice(index, 1)"><Icon name="lucide:trash-2" aria-hidden="true" /> Verwijderen</button>
+              <button v-if="!formReadOnly" type="button" @click="wishes.splice(index, 1)"><Icon name="lucide:trash-2" aria-hidden="true" /> Verwijderen</button>
             </div>
             <div class="field-grid">
-              <label>Soort wens<select v-model="wish.category" :disabled="data.questionnaire.status === 'submitted'"><option v-for="category in musicWishCategories" :key="category" :value="category">{{ categoryLabels[category] }}</option></select></label>
-              <label>Artiest<input v-model="wish.artist" :disabled="data.questionnaire.status === 'submitted'"></label>
-              <label>Titel<input v-model="wish.title" :disabled="data.questionnaire.status === 'submitted'"></label>
-              <label>Spotify-link<input v-model="wish.spotifyUrl" type="url" placeholder="https://open.spotify.com/track/…" :disabled="data.questionnaire.status === 'submitted'"></label>
-              <label class="wide">Toelichting of speciaal moment<textarea v-model="wish.note" rows="2" :disabled="data.questionnaire.status === 'submitted'" /></label>
+              <label>Soort wens<select v-model="wish.category" :disabled="formReadOnly"><option v-for="category in musicWishCategories" :key="category" :value="category">{{ categoryLabels[category] }}</option></select></label>
+              <label>Artiest<input v-model="wish.artist" :disabled="formReadOnly"></label>
+              <label>Titel<input v-model="wish.title" :disabled="formReadOnly"></label>
+              <label>Spotify-link<input v-model="wish.spotifyUrl" type="url" placeholder="https://open.spotify.com/track/…" :disabled="formReadOnly"></label>
+              <label class="wide">Toelichting of speciaal moment<textarea v-model="wish.note" rows="2" :disabled="formReadOnly" /></label>
             </div>
           </article>
         </section>
 
-        <section v-if="data.questionnaire.status !== 'submitted'" class="surface step-section review-section">
+        <section v-if="!formReadOnly" class="surface step-section review-section">
           <div class="step-header">
             <span class="step-number muted">3</span>
             <div class="step-title"><h2>Controleren & versturen</h2><p>Bekijk je gegevens en stuur alles in één keer naar ons.</p></div>
@@ -429,7 +507,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             <div><Icon name="lucide:headphones" aria-hidden="true" /><span><strong>Muziekwensen</strong><small>{{ wishes.length }} {{ wishes.length === 1 ? 'wens' : 'wensen' }} toegevoegd</small></span><Icon name="lucide:circle" aria-hidden="true" /></div>
           </div>
 
-          <div v-if="confirming" class="confirm-box" role="alert"><Icon name="lucide:shield-check" aria-hidden="true" /><div><strong>Alles klopt?</strong><span>Na versturen kun je je antwoorden en wensen niet meer via deze link aanpassen.</span></div></div>
+          <div v-if="confirming" class="confirm-box" role="alert"><Icon name="lucide:shield-check" aria-hidden="true" /><div><strong>Alles klopt?</strong><span>Je kunt je antwoorden en wensen tot het begin van het event nog aanpassen via deze link.</span></div></div>
           <div class="submit-actions">
             <button v-if="confirming" type="button" class="secondary-action" @click="confirming = false">Nog even aanpassen</button>
             <button class="primary-action" :disabled="submitting || !questionnaireComplete">{{ submitting ? 'Versturen…' : confirming ? 'Ja, verstuur alles' : 'Alles controleren & versturen' }} <Icon v-if="!submitting" name="lucide:arrow-right" aria-hidden="true" /></button>
@@ -470,4 +548,5 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 @media(min-width:760px){.portal-hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);align-items:end}.progress-card{align-self:end}}
 @media(max-width:760px){.portal-shell{width:min(100% - 1rem,620px);padding-top:.75rem}.portal-nav{margin:0 .5rem 1rem}.portal-hero{margin-inline:0;border-radius:1.2rem}.portal-hero.has-image{min-height:25rem}.portal-hero h1{font-size:clamp(2.2rem,12vw,3.8rem)}.hero-image{width:100%;opacity:.72}.hero-image-scrim{background:linear-gradient(0deg,#0c0911 0%,rgba(12,9,17,.88) 43%,rgba(12,9,17,.28) 100%)}.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr;padding:1rem}.summary-icon{width:2rem;height:2rem}.field-grid{grid-template-columns:1fr}.wide{grid-column:auto}.wish-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.step-title-row{align-items:flex-start;flex-direction:column;gap:.45rem}.section-action{width:100%;margin-left:0}.submit-actions{flex-direction:column-reverse}.submit-actions button{width:100%}}
 @media(max-width:480px){.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr}.wish-category{min-height:9.25rem;padding:.8rem}.portal-hero{padding:1.1rem}.step-section{padding:1rem}.step-header{grid-template-columns:auto minmax(0,1fr)}.step-number{width:2.2rem;height:2.2rem}.step-title h2{font-size:1.2rem}.review-list>div{padding:.8rem}.invoice-card{grid-template-columns:auto 1fr}.invoice-actions{grid-column:1/-1}.invoice-actions .primary-action,.invoice-actions .secondary-action{flex:1 1 auto}.invoice-actions .ghost-action{flex:0 0 auto}}
+.form-section{margin:0 0 1.2rem;padding:0;border:0}.form-section legend{margin-bottom:.7rem;padding:0;color:var(--text);font-size:1rem;font-weight:750}.timed-list{display:grid;gap:.5rem}.timed-row{display:grid;grid-template-columns:7.5rem 1fr auto;gap:.5rem;align-items:center}.locked-form p{color:var(--text-muted)}.reservation-note{display:flex;gap:.6rem;align-items:flex-start;margin:0;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:rgba(94,53,190,.1);line-height:1.5}.reservation-note svg{flex:none;margin-top:.15rem}.reservation-pay{margin:.4rem 0 0}@media(max-width:520px){.timed-row{grid-template-columns:6.5rem 1fr auto}}
 </style>

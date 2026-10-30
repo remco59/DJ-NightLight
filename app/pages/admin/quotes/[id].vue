@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { calculateInvoiceTotals, type VatMode } from '~~/shared/invoice'
 import { todayInAmsterdam } from '~~/shared/dates'
+import { cancellationFee } from '~~/shared/cancellation'
 import { quoteDisplayStatus, type QuoteStatus } from '~~/shared/quote'
+import { RESERVATION_DEFAULT_BASIS_POINTS, reservationCents, type Reservation, type ReservationMode } from '~~/shared/reservation'
 import { apiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({ layout: 'admin' })
@@ -14,7 +16,9 @@ type Quote = {
   id: string, gigId: string, quoteNumber: string | null, status: QuoteStatus, issueDate: string, validUntil: string, currency: string,
   vatMode: VatMode, vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, notes: string,
   sentAt: string | null, acceptedAt: string | null, acceptedName: string | null, declinedAt: string | null, declineReason: string | null,
-  invoiceId: string | null, gigTitle: string, clientFirstName: string | null, clientLastName: string | null, clientCompanyName: string | null, clientEmail: string | null,
+  invoiceId: string | null, bookingConfirmedAt: string | null, gigStartsAt: string | null,
+  reservationMode: ReservationMode | null, reservationValue: number | null, reservationCents: number, reservationPaidAt: string | null,
+  gigTitle: string, clientFirstName: string | null, clientLastName: string | null, clientCompanyName: string | null, clientEmail: string | null,
 }
 type EditableLine = { description: string, quantity: string, unitPrice: string }
 type SendCheck = { blockers: string[], email: { recipient: string | null, willSend: boolean, skipReason: string | null, delayMinutes: number, providerConfigured: boolean } }
@@ -32,6 +36,18 @@ const form = reactive({
 const lines = ref<EditableLine[]>(data.value.lines.map(line => ({
   description: line.description, quantity: String(Number(line.quantity)), unitPrice: (line.unitPriceCents / 100).toFixed(2),
 })))
+// Reservation costs: off unless the owner switches them on for this quote.
+const reservationOn = ref(Boolean(quote.value.reservationMode))
+const reservationMode = ref<ReservationMode>(quote.value.reservationMode ?? 'percentage')
+const reservationInput = ref(quote.value.reservationValue
+  ? String(quote.value.reservationMode === 'fixed' ? (quote.value.reservationValue / 100).toFixed(2) : quote.value.reservationValue / 100)
+  : String(RESERVATION_DEFAULT_BASIS_POINTS / 100))
+const reservation = computed<Reservation | null>(() => {
+  if (!reservationOn.value) return null
+  const value = Math.round(Number(reservationInput.value.replace(',', '.')) * 100)
+  return Number.isFinite(value) && value > 0 ? { mode: reservationMode.value, value } : null
+})
+const reservationPreview = computed(() => totals.value && reservation.value ? reservationCents(totals.value.totalCents, reservation.value) : 0)
 const busy = ref(false)
 const message = ref('')
 
@@ -46,7 +62,7 @@ function money(cents: number) { return new Intl.NumberFormat('nl-NL', { style: '
 function longDate(value: string | null) { return value ? new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long', timeZone: 'Europe/Amsterdam' }).format(new Date(value)) : '' }
 function clientName() { return quote.value.clientCompanyName || [quote.value.clientFirstName, quote.value.clientLastName].filter(Boolean).join(' ') || 'Klant' }
 function setVatRate(event: Event) { form.vatRateBasisPoints = Math.round(Number((event.target as HTMLInputElement).value) * 100) }
-function payload() { return { ...form, lines: lineInputs() } }
+function payload() { return { ...form, reservation: reservation.value, lines: lineInputs() } }
 
 async function save() {
   busy.value = true
@@ -97,6 +113,28 @@ async function send() {
     sendDialog.value?.close()
     message.value = apiErrorMessage(error, 'Offerte versturen is niet gelukt.')
   }
+  finally { busy.value = false }
+}
+
+// What cancelling would cost right now, by the scale in the terms, with the paid reservation taken off.
+const cancellation = computed(() => {
+  if (quote.value.status !== 'accepted' || !quote.value.gigStartsAt) return null
+  return cancellationFee({
+    totalCents: quote.value.totalCents,
+    reservationPaidCents: quote.value.reservationPaidAt ? quote.value.reservationCents : 0,
+    startsAt: quote.value.gigStartsAt,
+  })
+})
+const paidOn = ref(todayInAmsterdam())
+async function markReservationPaid() {
+  busy.value = true
+  message.value = ''
+  try {
+    await $fetch(`/api/admin/quotes/${id}/reservation-paid`, { method: 'POST', body: { paidOn: paidOn.value } })
+    await refresh()
+    message.value = 'Reservering als betaald vastgelegd. De boeking is bevestigd.'
+  }
+  catch (error: unknown) { message.value = apiErrorMessage(error, 'Vastleggen is niet gelukt.') }
   finally { busy.value = false }
 }
 
@@ -155,7 +193,15 @@ useSeoMeta({ title: () => `${quote.value.quoteNumber || 'Conceptofferte'} — DJ
       <Icon name="lucide:circle-check" aria-hidden="true" />
       <div>
         <strong>{{ quote.acceptedName }} heeft akkoord gegeven</strong>
-        <span>Op {{ longDate(quote.acceptedAt) }}. Bevestig de boeking op de gig en maak daarna de factuur.</span>
+        <span>Op {{ longDate(quote.acceptedAt) }}.<template v-if="quote.bookingConfirmedAt"> De boeking is bevestigd; maak daarna de factuur.</template><template v-else-if="quote.reservationCents > 0"> De boeking wacht op de reserveringskosten van {{ money(quote.reservationCents) }}.</template><template v-else> Bevestig de boeking op de gig en maak daarna de factuur.</template></span>
+        <div v-if="quote.reservationCents > 0" class="reservation-status">
+          <template v-if="quote.reservationPaidAt"><Icon name="lucide:badge-check" aria-hidden="true" /> Reservering van {{ money(quote.reservationCents) }} betaald op {{ longDate(quote.reservationPaidAt) }}. Dit komt als deelbetaling op de factuur.</template>
+          <template v-else>
+            <label>Reservering buiten het systeem ontvangen op<input v-model="paidOn" type="date"></label>
+            <button type="button" class="secondary" :disabled="busy" @click="markReservationPaid">Als betaald vastleggen</button>
+          </template>
+        </div>
+        <p v-if="cancellation" class="cancellation-hint">Annuleert de klant nu, dan is {{ cancellation.percent }}% verschuldigd ({{ money(cancellation.feeCents) }})<template v-if="cancellation.coveredCents > 0">, waarvan {{ money(cancellation.coveredCents) }} gedekt is door de reservering. Nog te factureren: {{ money(cancellation.dueCents) }}</template>. Gemaakte kosten voor huur of reizen komen daar eventueel bij.</p>
         <div class="outcome-actions">
           <NuxtLink v-if="quote.invoiceId" class="primary-link" :to="`/admin/invoices/${quote.invoiceId}`">Factuur openen</NuxtLink>
           <button v-else type="button" class="primary" :disabled="busy" @click="createInvoice">Factuur maken uit offerte</button>
@@ -213,6 +259,21 @@ useSeoMeta({ title: () => `${quote.value.quoteNumber || 'Conceptofferte'} — DJ
           <div class="grand"><dt>Totaal</dt><dd>{{ money(totals.totalCents) }}</dd></div>
         </dl>
         <p v-else class="message error" role="alert">De bedragen kloppen niet. Controleer aantallen en prijzen.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reserveringskosten</h2>
+        <label class="check"><input v-model="reservationOn" type="checkbox" :disabled="!draft"> Reserveringskosten vragen bij akkoord</label>
+        <template v-if="reservationOn">
+          <div class="grid">
+            <label>Soort
+              <select v-model="reservationMode" :disabled="!draft"><option value="percentage">Percentage van het totaal</option><option value="fixed">Vast bedrag</option></select>
+            </label>
+            <label>{{ reservationMode === 'fixed' ? 'Bedrag' : 'Percentage' }}<input v-model="reservationInput" inputmode="decimal" :disabled="!draft"></label>
+          </div>
+          <p class="hint">{{ reservationPreview ? `De klant betaalt ${money(reservationPreview)} direct na akkoord. Dit is niet terugbetaalbaar, telt mee voor het totaal en gaat van de factuur af.` : 'Vul een bedrag of percentage in.' }}</p>
+        </template>
+        <p v-else class="hint">Standaard geen reserveringskosten. De boeking staat dan vast zodra de klant akkoord geeft.</p>
       </section>
 
       <section class="card">
@@ -322,4 +383,5 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   .line { grid-template-columns: minmax(0, 1fr) 4.2rem 6rem; }
   .line .icon-button { grid-column: 1 / -1; width: 100%; }
 }
+.reservation-status{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end;margin-top:.5rem}.cancellation-hint,.hint{margin:.5rem 0 0;color:var(--text-subtle);font-size:.85rem;line-height:1.5}.check{display:flex;align-items:center;gap:.5rem}.check input{width:auto}
 </style>

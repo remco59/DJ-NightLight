@@ -1,5 +1,7 @@
 # Besluiten en bouwplan: boekingsportaal
 
+> **Status 2026-10-30: alle zes stappen zijn gebouwd** (zie "Wat er is gebouwd" onderaan). Er is nog niets gepubliceerd: de voorwaarden staan als concept in Instellingen en moeten eerst worden nagekeken.
+
 Opgesteld op 2026-10-30 in overleg met de eigenaar. Dit document is het uitgangspunt voor de bouw. De bijbehorende teksten staan in `voorwaarden-samengevoegd.md` en `boekingsformulier-vragen-en-feedback.md`.
 
 ## 1. Besluiten
@@ -60,3 +62,31 @@ Elke stap is zelfstandig op te leveren en te testen.
 - Hoe lang het openstaande akkoord geldt als de reservering niet wordt betaald (vervalt de boeking dan na een termijn?).
 - Controle door een jurist van de punten met `[CONTROLEER]` in de voorwaarden.
 - Dekking en verzekerd bedrag van de AVB.
+
+## 5. Wat er is gebouwd
+
+| Stap | Resultaat | Waar |
+|---|---|---|
+| 1. Voorwaarden met versies | Tabel `terms_versions`, concept/publiceren in Instellingen → Voorwaarden, publieke pagina `/voorwaarden` (inhoudsopgave, samenvatting, afdrukken, tekstdownload, oudere versies via `?version=`). Versie 1 is als **concept** ingeladen | `db/migrations/0043`, `shared/terms.ts`, `app/pages/voorwaarden.vue`, `app/pages/admin/settings/terms.vue` |
+| 2. Akkoord aan versie koppelen | Het offerte-akkoord slaat de voorwaardenversie op en weigert een verouderde versie. Daarna wordt de boeking automatisch bevestigd (gig wordt Geboekt) en gaat een mail met offerte-PDF en voorwaarden als bijlage | `db/migrations/0044`, `server/utils/booking-confirmation.ts`, `quote-accept.post.ts` |
+| 3. Portaal en schakelaar | Het formulier staat per gig standaard uit en gaat aan in het gig-scherm. Het portaal toont stappen (offerte, reservering, formulier), het formulier ontgrendelt na het akkoord, en de klant kan wijzigen tot het event begint | `db/migrations/0045`, `app/pages/client/[token].vue`, `app/components/admin/GigBookingForm.vue` |
+| 4. Formulier per gig | Templates Bruiloft, Bedrijfsfeest, Verjaardag en de standaard vragenlijst; per gig een eigen kopie die je aanpast. Nieuw in de vragenlijst: secties, `showIf`-voorwaarden en een lijst met tijdstip + tekst (omroepen) | `db/migrations/0046`, `shared/booking-form-templates.ts`, `shared/questionnaire.ts`, `app/components/forms/QuestionnaireFieldsEditor.vue` |
+| 5. Reserveringskosten | Per offerte aan/uit (vast bedrag of percentage, 25% als startwaarde). Klant betaalt via Stripe na het akkoord; de boeking is pas definitief na betaling. Handmatig vastleggen voor bankoverschrijving. Annuleringskosten volgens de staffel zijn zichtbaar bij een geaccepteerde offerte | `db/migrations/0047`, `shared/reservation.ts`, `shared/cancellation.ts`, `reservation-checkout.post.ts` |
+| 6. Deelbetalingen | De reservering telt als deelbetaling op de factuur van de gig. Factuur, PDF, portaal, Stripe-checkout, webhook en handmatig betalen gebruiken het restbedrag | `server/utils/invoice-balance.ts` |
+
+### Afwijkingen van het plan
+- **Deelbetalingen staan in een eigen tabel** (`reservation_payments`), niet als extra rijen in `payments`. `payments` heeft één rij per factuur en veel code (lijsten, dashboard, mark-paid, privacy-export) rekent daarop. Voor de klant is het nog steeds één factuur met twee betalingen; de reservering wordt aan de factuur gekoppeld zodra die er is.
+- **Heropenen door de beheerder** is niet nodig: de klant kan het formulier tot het event begint zelf opnieuw versturen.
+- **PDF van de voorwaarden**: via afdrukken in de browser en een tekstdownload, niet als gegenereerde PDF. De bevestigingsmail bevat de voorwaarden als tekstbijlage.
+
+### Keuzes die ik zelf heb gemaakt (de vragen waren nog open)
+- **Vragen per template**: zie `shared/booking-form-templates.ts`. Ze volgen de feedback uit `boekingsformulier-vragen-en-feedback.md` en kunnen per gig worden aangepast.
+- **Reserveringsbedrag**: standaard geen; als je het aanzet staat het percentage op 25%.
+- **Onbetaalde reservering**: de offerte blijft geaccepteerd maar de boeking wordt niet bevestigd. Er is geen automatische vervaltermijn; de offertepagina laat zien dat de betaling nog openstaat.
+- **Geen voorwaarden gepubliceerd**: een klant kan dan nog akkoord geven, zonder gekoppelde voorwaardenversie. Publiceer vóór livegang (staat in `docs/LAUNCH_CHECKLIST.md`).
+
+### Wat nog moet gebeuren door jou
+1. Tekst in Instellingen → Voorwaarden nalopen met de `[CONTROLEER]`-punten uit `voorwaarden-samengevoegd.md`, en publiceren.
+2. Een jurist laten kijken naar de consumentenpunten en het beeldmateriaal-bezwaar.
+3. De reserveringsbetaling testen met Stripe in testmodus (zie launch-checklist). Lokaal is alleen de webhook-logica getest, niet de echte Stripe-checkout.
+4. BTW op een voorschot: de reservering telt mee in het factuurtotaal en de btw wordt dus in de factuurperiode verwerkt. Laat je boekhouder bevestigen dat dit zo klopt.

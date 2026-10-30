@@ -102,6 +102,7 @@ export const gigs = pgTable('gigs', {
   loadInAt: timestamp('load_in_at', { withTimezone: true }),
   fee: numeric('fee', { precision: 12, scale: 2 }),
   currency: varchar('currency', { length: 3 }).default('EUR').notNull(),
+  bookingFormEnabled: boolean('booking_form_enabled').default(false).notNull(),
   publicVisibility: boolean('public_visibility').default(false).notNull(),
   publicTitle: varchar('public_title', { length: 240 }),
   publicDescription: text('public_description'),
@@ -176,16 +177,37 @@ export const questionnaireTemplateVersions = pgTable('questionnaire_template_ver
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, table => [uniqueIndex('questionnaire_template_version_unique').on(table.templateId, table.version)])
 
+export const gigForms = pgTable('gig_forms', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
+  templateKey: varchar('template_key', { length: 40 }).notNull(),
+  fields: jsonb('fields').$type<QuestionnaireField[]>().default([]).notNull(),
+  ...timestamps,
+})
+
 export const contractSubmissions = pgTable('contract_submissions', {
   id: uuid('id').defaultRandom().primaryKey(),
   gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
-  templateVersionId: uuid('template_version_id').notNull().references(() => questionnaireTemplateVersions.id, { onDelete: 'restrict' }),
+  templateVersionId: uuid('template_version_id').references(() => questionnaireTemplateVersions.id, { onDelete: 'restrict' }),
+  gigFormId: uuid('gig_form_id').references(() => gigForms.id, { onDelete: 'set null' }),
   portalLinkId: uuid('portal_link_id').references(() => portalLinks.id, { onDelete: 'set null' }),
   status: submissionStatus('status').default('draft').notNull(),
   answers: jsonb('answers').$type<Record<string, unknown>>().default({}).notNull(),
   acceptedName: varchar('accepted_name', { length: 200 }),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  ...timestamps,
+})
+
+export const termsVersions = pgTable('terms_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  version: integer('version').notNull().unique(),
+  title: varchar('title', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  summary: jsonb('summary').$type<string[]>().default([]).notNull(),
+  status: varchar('status', { length: 16 }).$type<'draft' | 'published'>().default('draft').notNull(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   ...timestamps,
 })
 
@@ -285,6 +307,12 @@ export const quotes = pgTable('quotes', {
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   acceptedName: varchar('accepted_name', { length: 200 }),
   acceptedIpHash: varchar('accepted_ip_hash', { length: 64 }),
+  acceptedTermsVersionId: uuid('accepted_terms_version_id').references(() => termsVersions.id, { onDelete: 'restrict' }),
+  bookingConfirmedAt: timestamp('booking_confirmed_at', { withTimezone: true }),
+  reservationMode: varchar('reservation_mode', { length: 12 }).$type<'fixed' | 'percentage'>(),
+  reservationValue: integer('reservation_value'),
+  reservationCents: integer('reservation_cents').default(0).notNull(),
+  reservationPaidAt: timestamp('reservation_paid_at', { withTimezone: true }),
   declinedAt: timestamp('declined_at', { withTimezone: true }),
   declineReason: text('decline_reason'),
   voidedAt: timestamp('voided_at', { withTimezone: true }),
@@ -345,6 +373,24 @@ export const payments = pgTable('payments', {
   metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   ...timestamps,
 })
+
+export const reservationPayments = pgTable('reservation_payments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  quoteId: uuid('quote_id').notNull().unique().references(() => quotes.id, { onDelete: 'restrict' }),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  provider: varchar('provider', { length: 40 }).default('stripe').notNull(),
+  providerSessionId: varchar('provider_session_id', { length: 255 }).unique(),
+  providerPaymentIntentId: varchar('provider_payment_intent_id', { length: 255 }).unique(),
+  amountCents: integer('amount_cents').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  status: paymentRecordStatus('status').default('pending').notNull(),
+  attemptCount: integer('attempt_count').default(0).notNull(),
+  checkoutExpiresAt: timestamp('checkout_expires_at', { withTimezone: true }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  failureCode: varchar('failure_code', { length: 160 }),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  ...timestamps,
+}, table => [index('reservation_payments_invoice_id_idx').on(table.invoiceId)])
 
 export const stripeSettings = pgTable('stripe_settings', {
   key: varchar('key', { length: 40 }).primaryKey().default('default'),
@@ -722,10 +768,13 @@ export type QuestionnaireTemplate = typeof questionnaireTemplates.$inferSelect
 export type QuestionnaireTemplateVersion = typeof questionnaireTemplateVersions.$inferSelect
 export type ContractSubmission = typeof contractSubmissions.$inferSelect
 export type MusicWish = typeof musicWishes.$inferSelect
+export type GigForm = typeof gigForms.$inferSelect
+export type TermsVersion = typeof termsVersions.$inferSelect
 export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
 export type Payment = typeof payments.$inferSelect
+export type ReservationPayment = typeof reservationPayments.$inferSelect
 export type CalendarSyncSettings = typeof calendarSyncSettings.$inferSelect
 export type GigCalendarSync = typeof gigCalendarSync.$inferSelect
 export type EmailTemplate = typeof emailTemplates.$inferSelect

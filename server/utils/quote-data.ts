@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 import { clients, gigs, quoteLineItems, quotes } from '../../db/schema'
 import { calculateInvoiceTotals, calculateLineTotalCents, type InvoiceSnapshot } from '../../shared/invoice'
+import { quoteReservation, reservationCents, reservationProblem } from '../../shared/reservation'
 import { db } from './db'
 import { gigTitleSql } from './gig-title'
 import type { loadBusinessSettings } from './invoice-finalize'
@@ -33,6 +34,12 @@ export async function getQuoteDetail(id: string) {
     declineReason: quotes.declineReason,
     voidedAt: quotes.voidedAt,
     invoiceId: quotes.invoiceId,
+    acceptedTermsVersionId: quotes.acceptedTermsVersionId,
+    bookingConfirmedAt: quotes.bookingConfirmedAt,
+    reservationMode: quotes.reservationMode,
+    reservationValue: quotes.reservationValue,
+    reservationCents: quotes.reservationCents,
+    reservationPaidAt: quotes.reservationPaidAt,
     createdAt: quotes.createdAt,
     updatedAt: quotes.updatedAt,
     gigTitle: gigTitleSql(),
@@ -86,6 +93,7 @@ export function buildQuoteSnapshot(detail: QuoteDetail, settings: BusinessSettin
     legalText: '',
     notes: quote.notes,
     portalUrl: portalUrl || undefined,
+    reservationCents: reservationCents(calculateInvoiceTotals(lineInputs, quote.vatMode, quote.vatRateBasisPoints).totalCents, quoteReservation(quote)) || undefined,
   }
 }
 
@@ -103,6 +111,8 @@ export function quoteSendBlockers(detail: QuoteDetail, settings: BusinessSetting
     blockers.push('De bedragen op de offerte kloppen niet.')
   }
   if (lines.length && totalCents <= 0) blockers.push('Het totaalbedrag is € 0,00.')
+  const reservationIssue = totalCents > 0 ? reservationProblem(totalCents, quoteReservation(detail.quote)) : null
+  if (reservationIssue) blockers.push(reservationIssue)
   if (detail.quote.validUntil < today) blockers.push('De geldigheidsdatum ligt al in het verleden.')
   if (!detail.quote.clientId) blockers.push('Koppel eerst een klant aan de gig.')
   if (!settings?.companyName.trim()) blockers.push('Je bedrijfsnaam ontbreekt in de instellingen.')

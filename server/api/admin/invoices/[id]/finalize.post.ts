@@ -5,6 +5,7 @@ import { calculateInvoiceTotals, formatInvoiceNumber } from '../../../../../shar
 import { db } from '../../../../utils/db'
 import { queueInvoiceEmail } from '../../../../utils/email-automation'
 import { getInvoiceDetail } from '../../../../utils/invoice-data'
+import { getInvoicePrepayments } from '../../../../utils/invoice-balance'
 import { buildInvoiceSnapshot, INVOICE_SENT_TEMPLATE, invoiceFinalizeBlockers, invoiceLineInputs, loadBusinessSettings } from '../../../../utils/invoice-finalize'
 import { createPortalToken, hashPortalToken, portalExpiry } from '../../../../utils/portal-token'
 import { requireStaff } from '../../../../utils/require-staff'
@@ -28,6 +29,7 @@ export default defineEventHandler(async (event) => {
   const portalExpiresAt = portalExpiry(portalExpiresInDays)
   const portalUrl = `${baseUrl}/client/${portalToken}`
 
+  const prepayments = await getInvoicePrepayments(id)
   const finalized = await db.transaction(async (tx) => {
     const [settings] = await tx.update(businessSettings).set({ nextInvoiceNumber: sql`${businessSettings.nextInvoiceNumber} + 1` }).where(eq(businessSettings.key, 'default')).returning()
     if (!settings) throw createError({ statusCode: 500, statusMessage: 'Bedrijfsinstellingen zijn nog niet ingesteld' })
@@ -40,7 +42,7 @@ export default defineEventHandler(async (event) => {
       createdByUserId: user.id,
     }).returning({ id: portalLinks.id })
     if (!portalLink) throw createError({ statusCode: 500, statusMessage: 'Klantportaallink aanmaken is niet gelukt' })
-    const snapshot = buildInvoiceSnapshot(detail, settings, invoiceNumber, portalUrl)
+    const snapshot = buildInvoiceSnapshot(detail, settings, invoiceNumber, portalUrl, prepayments)
     const documentHash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')
     const [invoice] = await tx.update(invoices).set({
       invoiceNumber, status: 'finalized', ...totals, documentSnapshot: snapshot, documentHash, finalizedAt: new Date(), updatedAt: new Date(),

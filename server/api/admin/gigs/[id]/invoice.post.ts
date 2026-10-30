@@ -4,6 +4,7 @@ import { billableInvoiceLine } from '../../../../../shared/finance'
 import { calculateInvoiceTotals } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
 import { gigTitleSql } from '../../../../utils/gig-title'
+import { attachReservationsToInvoice } from '../../../../utils/invoice-balance'
 import { requireStaff } from '../../../../utils/require-staff'
 import { requireUuidParam } from '../../../../utils/route-params'
 
@@ -38,6 +39,7 @@ export default defineEventHandler(async (event) => {
     }).returning()
     if (!created) throw createError({ statusCode: 500, statusMessage: 'Factuur aanmaken is niet gelukt' })
     await tx.insert(invoiceLineItems).values(lines.map((line, ordering) => ({ invoiceId: created.id, ...line, ordering })))
+    await attachReservationsToInvoice(gigId, created.id, tx)
     for (const expense of passedOn) await tx.update(expenses).set({ billedInvoiceId: created.id }).where(eq(expenses.id, expense.id))
     await tx.insert(auditLogs).values({ userId: user.id, entityType: 'invoice', entityId: created.id, action: 'invoice_created', metadata: { gigId } })
     return created

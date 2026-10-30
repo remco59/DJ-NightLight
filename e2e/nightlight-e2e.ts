@@ -290,6 +290,12 @@ async function main() {
   const token = new URL(portalLink.url).pathname.split('/').filter(Boolean).pop()
   assert.ok(token, 'Portal token was not returned')
 
+  // The booking form is off until the owner switches it on for the gig.
+  const portalOff = await json<{ questionnaire: { enabled: boolean, fields: unknown[] } }>(await request(`/api/client/portal/${token}`, { authenticated: false }))
+  assert.equal(portalOff.questionnaire.enabled, false)
+  assert.equal(portalOff.questionnaire.fields.length, 0)
+  await json(await request(`/api/admin/gigs/${mainLead.id}/booking-form`, { method: 'PUT', body: { enabled: true, template: 'standaard' } }))
+
   const portalBefore = await json<{
     gig: Record<string, unknown>
     questionnaire: { fields: QuestionnaireField[], status: string }
@@ -603,6 +609,77 @@ async function main() {
   assert.equal(serializedAgenda.includes(`E2E Private Gig ${marker}`), false)
   assert.equal(serializedAgenda.includes(`PRIVATE-ONLY-${marker}`), false)
   assert.equal(serializedAgenda.includes(internalSecret), false)
+
+  log('publish terms, send a quote with reservation costs, accept it and pay the reservation')
+  const termsList = await json<{ versions: Array<{ status: string, title: string, body: string, summary: string[] }> }>(await request('/api/admin/terms'))
+  assert.equal(termsList.versions[0]?.status, 'draft', 'The seeded terms start as a draft')
+  assert.equal((await request('/api/terms', { authenticated: false })).status, 404, 'Unpublished terms must not be public')
+  await json(await request('/api/admin/terms/publish', { method: 'POST' }))
+  const publicTerms = await json<{ terms: { version: number, body: string } }>(await request('/api/terms', { authenticated: false }))
+  assert.ok(publicTerms.terms.body.includes('Artikel 11'), 'Published terms include the cancellation article')
+
+  const reservationStart = futureDate(200)
+  await json(await request('/api/public/inquiry', {
+    method: 'POST',
+    authenticated: false,
+    body: { name: 'E2E Reservation Customer', company: '', email: 'e2e-reservation@example.com', phone: '0612345678', eventType: 'Verjaardag', eventDate: dateOnly(reservationStart), location: 'Drachten', message: marker, website: '' },
+  }), 201)
+  const reservationGig = await findGig('E2E Reservation Customer')
+  const gigQuote = await json<{ quote: { id: string } }>(await request(`/api/admin/gigs/${reservationGig.id}/quote`, { method: 'POST' }), 201)
+  const quoteDraft = await json<{ quote: { issueDate: string } }>(await request(`/api/admin/quotes/${gigQuote.quote.id}`))
+  const tooHigh = await request(`/api/admin/quotes/${gigQuote.quote.id}`, { method: 'PUT', body: {
+    issueDate: quoteDraft.quote.issueDate, validUntil: dateOnly(futureDate(60)), currency: 'EUR', vatMode: 'inclusive', vatRateBasisPoints: 2100, terms: '', notes: '',
+    reservation: { mode: 'fixed', value: 500000 }, lines: [{ description: 'DJ', quantity: '1.000', unitPriceCents: 100000 }],
+  } })
+  assert.equal(tooHigh.status, 422, 'A reservation above the quote total is refused')
+  await json(await request(`/api/admin/quotes/${gigQuote.quote.id}`, { method: 'PUT', body: {
+    issueDate: quoteDraft.quote.issueDate, validUntil: dateOnly(futureDate(60)), currency: 'EUR', vatMode: 'inclusive', vatRateBasisPoints: 2100, terms: '', notes: '',
+    reservation: { mode: 'percentage', value: 2500 }, lines: [{ description: 'DJ', quantity: '1.000', unitPriceCents: 100000 }],
+  } }))
+  await json(await request(`/api/admin/quotes/${gigQuote.quote.id}/send`, { method: 'POST' }))
+
+  const reservationLink = await json<{ url: string }>(await request(`/api/admin/gigs/${reservationGig.id}/portal-links`, { method: 'POST', body: { expiresInDays: 30, revokeExisting: false } }))
+  const reservationToken = new URL(reservationLink.url).pathname.split('/').filter(Boolean).pop()
+  const reservationPortal = `/api/client/portal/${reservationToken}`
+  const staleTerms = await request(`${reservationPortal}/quote-accept`, { method: 'POST', authenticated: false, body: { acceptedName: 'E2E Reservation', agree: true, termsVersion: publicTerms.terms.version + 1 } })
+  assert.equal(staleTerms.status, 409, 'Accepting a terms version the client did not see is refused')
+  const accepted = await json<{ bookingConfirmed: boolean, reservationDue: boolean }>(await request(`${reservationPortal}/quote-accept`, {
+    method: 'POST', authenticated: false, body: { acceptedName: 'E2E Reservation', agree: true, termsVersion: publicTerms.terms.version },
+  }))
+  assert.equal(accepted.reservationDue, true)
+  assert.equal(accepted.bookingConfirmed, false, 'With reservation costs the booking waits for the payment')
+  const beforePayment = await json<{ gig: { status: string }, quote: { acceptedTermsVersion: number, reservation: { cents: number, paidAt: string | null } } }>(await request(reservationPortal, { authenticated: false }))
+  assert.equal(beforePayment.gig.status, 'lead')
+  assert.equal(beforePayment.quote.acceptedTermsVersion, publicTerms.terms.version)
+  assert.equal(beforePayment.quote.reservation.cents, 25000)
+
+  await json(await request(`/api/admin/quotes/${gigQuote.quote.id}/reservation-paid`, { method: 'POST', body: { paidOn: dateOnly(new Date()) } }))
+  const afterPayment = await json<{ gig: { status: string } }>(await request(reservationPortal, { authenticated: false }))
+  assert.equal(afterPayment.gig.status, 'booked', 'Paying the reservation confirms the booking')
+
+  log('the invoice counts the reservation as a partial payment')
+  const reservationInvoice = await json<{ invoice: { id: string } }>(await request(`/api/admin/quotes/${gigQuote.quote.id}/invoice`, { method: 'POST' }), 201)
+  await json(await request(`/api/admin/invoices/${reservationInvoice.invoice.id}/finalize`, { method: 'POST' }))
+  const invoiceBalance = await json<{ paidCents: number, amountDueCents: number, invoice: { totalCents: number } }>(await request(`/api/admin/invoices/${reservationInvoice.invoice.id}`))
+  assert.equal(invoiceBalance.invoice.totalCents, 100000)
+  assert.equal(invoiceBalance.paidCents, 25000)
+  assert.equal(invoiceBalance.amountDueCents, 75000)
+
+  log('booking form is optional and per gig')
+  const formOff = await json<{ questionnaire: { enabled: boolean, fields: unknown[] } }>(await request(reservationPortal, { authenticated: false }))
+  assert.equal(formOff.questionnaire.enabled, false)
+  await json(await request(`/api/admin/gigs/${reservationGig.id}/booking-form`, { method: 'PUT', body: { enabled: true } }))
+  const formOn = await json<{ questionnaire: { enabled: boolean, fields: Array<{ id: string }> } }>(await request(reservationPortal, { authenticated: false }))
+  assert.equal(formOn.questionnaire.enabled, true)
+  assert.ok(formOn.questionnaire.fields.some(field => field.id === 'celebrant'), 'A birthday gig starts from the birthday template')
+  const hiddenAnswers = {
+    celebrant: 'Sanne, 30', guest_count: 40, onsite_contact: 'Piet', onsite_phone: '0611111111', location_type: 'Thuis',
+    sound_provider: 'De DJ verzorgt het geluid', sound_details: 'moet niet worden bewaard', light_provider: 'Geen licht nodig', dj_spot: true, power: true, genres: ['Van alles wat'],
+  }
+  await json(await request(`${reservationPortal}/submit`, { method: 'POST', authenticated: false, body: { answers: hiddenAnswers, acceptedName: 'E2E Reservation', wishes: [] } }))
+  const submitted = await json<{ questionnaire: { answers: Record<string, unknown> } }>(await request(reservationPortal, { authenticated: false }))
+  assert.equal(submitted.questionnaire.answers.sound_details, undefined, 'Answers to hidden questions are not kept')
+  assert.equal(submitted.questionnaire.answers.celebrant, 'Sanne, 30')
 
   log('critical E2E workflows passed')
 }

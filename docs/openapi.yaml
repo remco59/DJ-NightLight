@@ -58,6 +58,8 @@ tags:
     description: Back office (ingelogde medewerkers)
   - name: admin/system
     description: Back office (ingelogde medewerkers)
+  - name: admin/terms
+    description: Back office (ingelogde medewerkers)
   - name: admin/users
     description: Back office (ingelogde medewerkers)
   - name: admin/venues
@@ -78,6 +80,7 @@ tags:
   - name: public
     description: Publieke website-inhoud en het contactformulier
   - name: ready
+  - name: terms
   - name: video-project-thumbnails
   - name: webhooks
     description: Inkomende webhooks van externe diensten
@@ -2747,6 +2750,122 @@ paths:
         - staffSession: []
       x-roles:
         - owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/admin/gigs/{id}/booking-form:
+    get:
+      operationId: getAdminGigsByIdBookingForm
+      tags:
+        - admin/gigs
+      description: Whether the booking form is on for this gig, its own questions, and the templates to start from.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putAdminGigsByIdBookingForm
+      tags:
+        - admin/gigs
+      description: Copy the questions of this template to the gig, replacing the gig's own questions.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                template:
+                  type: string
+                  enum:
+                    - standaard
+                    - bruiloft
+                    - bedrijfsfeest
+                    - verjaardag
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/gigs/{id}/booking-form/fields:
+    put:
+      operationId: putAdminGigsByIdBookingFormFields
+      tags:
+        - admin/gigs
+      description: Saves the questions of this gig's own booking form. Other gigs and the templates are not touched.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
       parameters:
         - name: id
           in: path
@@ -5605,6 +5724,7 @@ paths:
                           - checkbox
                           - acknowledgement
                           - url
+                          - timed_list
                       label:
                         type: string
                         minLength: 1
@@ -5621,6 +5741,26 @@ paths:
                           type: string
                           minLength: 1
                           maxLength: 160
+                      section:
+                        type: string
+                        maxLength: 120
+                      showIf:
+                        type: object
+                        properties:
+                          fieldId:
+                            type: string
+                            minLength: 1
+                            maxLength: 80
+                            pattern: ^[a-z0-9_]+$
+                          equals:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 160
+                              - type: boolean
+                        required:
+                          - fieldId
+                          - equals
                     required:
                       - id
                       - type
@@ -5767,6 +5907,23 @@ paths:
                 notes:
                   type: string
                   maxLength: 5000
+                reservation:
+                  anyOf:
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - fixed
+                            - percentage
+                        value:
+                          type: integer
+                          exclusiveMinimum: 0
+                          maximum: 9007199254740991
+                      required:
+                        - mode
+                        - value
+                    - type: "null"
                 lines:
                   minItems: 1
                   maxItems: 100
@@ -5912,6 +6069,56 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/reservation-paid:
+    post:
+      operationId: postAdminQuotesByIdReservationPaid
+      tags:
+        - admin/quotes
+      description: Records a reservation paid outside Stripe (bank transfer, cash) and confirms the booking.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paidOn:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                method:
+                  default: bankoverschrijving
+                  type: string
+                  maxLength: 60
+              required:
+                - paidOn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/admin/quotes/{id}/send:
     post:
       operationId: postAdminQuotesByIdSend
@@ -6811,6 +7018,100 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/admin/terms:
+    get:
+      operationId: getAdminTerms
+      tags:
+        - admin/terms
+      description: All versions, newest first. The draft (if any) is the one the owner is editing.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/terms/draft:
+    put:
+      operationId: putAdminTermsDraft
+      tags:
+        - admin/terms
+      description: Saves the draft. Without one, a new draft starts as the next version. A published version is never changed.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                body:
+                  type: string
+                  minLength: 50
+                  maxLength: 100000
+                summary:
+                  maxItems: 10
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+              required:
+                - title
+                - body
+                - summary
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/admin/terms/publish:
+    post:
+      operationId: postAdminTermsPublish
+      tags:
+        - admin/terms
+      description: Publishes the draft. From then on it is the version clients accept, and it can no longer be edited.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/admin/users:
     get:
       operationId: getAdminUsers
@@ -7610,6 +7911,7 @@ paths:
       operationId: getClientPortalByToken
       tags:
         - client
+      description: Non-refundable reservation costs, paid after accepting. Null when the quote has none.
       security: []
       x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
       parameters:
@@ -7724,6 +8026,10 @@ paths:
                 agree:
                   type: boolean
                   const: true
+                termsVersion:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 9007199254740991
               required:
                 - acceptedName
                 - agree
@@ -7809,6 +8115,31 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/reservation-checkout:
+    post:
+      operationId: postClientPortalByTokenReservationCheckout
+      tags:
+        - client
+      description: Starts the Stripe payment of the reservation costs of the quote the client accepted.
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /api/client/portal/{token}/review:
     post:
       operationId: postClientPortalByTokenReview
@@ -7888,6 +8219,20 @@ paths:
                         items:
                           type: string
                           maxLength: 500
+                      - maxItems: 50
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            time:
+                              type: string
+                              maxLength: 5
+                            text:
+                              type: string
+                              maxLength: 500
+                          required:
+                            - time
+                            - text
                 acceptedName:
                   type: string
                   minLength: 2
@@ -8263,6 +8608,20 @@ paths:
             application/json:
               schema:
                 type: object
+  /api/terms:
+    get:
+      operationId: getTerms
+      tags:
+        - terms
+      description: "The terms a client reads and accepts: the newest published version, or an older published one by number."
+      security: []
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
   /api/video-project-thumbnails/{id}:
     get:
       operationId: getVideoProjectThumbnailsById
@@ -8299,6 +8658,7 @@ paths:
       operationId: postWebhooksStripe
       tags:
         - webhooks
+      description: A Stripe event about the reservation of a quote. Returns the quote id when the reservation just became paid.
       security:
         - stripeSignature: []
       requestBody:

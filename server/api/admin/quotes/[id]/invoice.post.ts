@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { auditLogs, businessSettings, invoiceLineItems, invoices, quotes } from '../../../../../db/schema'
 import { calculateInvoiceTotals } from '../../../../../shared/invoice'
 import { db } from '../../../../utils/db'
+import { attachReservationsToInvoice } from '../../../../utils/invoice-balance'
 import { getQuoteDetail, quoteLineInputs } from '../../../../utils/quote-data'
 import { requireStaff } from '../../../../utils/require-staff'
 import { requireUuidParam } from '../../../../utils/route-params'
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
     }).returning()
     if (!created) throw createError({ statusCode: 500, statusMessage: 'Factuur aanmaken is niet gelukt' })
     await tx.insert(invoiceLineItems).values(lines.map((line, ordering) => ({ invoiceId: created.id, ...line, ordering })))
+    await attachReservationsToInvoice(quote.gigId, created.id, tx)
     // Guard against two clicks: only the first one links its invoice.
     const [linked] = await tx.update(quotes).set({ invoiceId: created.id, updatedAt: new Date() })
       .where(and(eq(quotes.id, id), isNull(quotes.invoiceId))).returning({ id: quotes.id })

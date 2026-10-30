@@ -18,6 +18,7 @@ export const settingsGroups: SettingsGroup[] = [
   { label: 'Communicatie', sections: [
     { label: 'E-mailautomatisering', to: '/admin/settings/emails', icon: 'lucide:mail', roles: ownerAndManager },
     { label: 'Vragenlijst', to: '/admin/settings/questionnaire', icon: 'lucide:clipboard-list', roles: ownerAndManager },
+    { label: 'Voorwaarden', to: '/admin/settings/terms', icon: 'lucide:scroll-text', roles: ownerAndManager },
     { label: 'Klantportaal', to: '/admin/settings/client-portal', icon: 'lucide:image', roles: owner },
   ] },
   { label: 'Koppelingen', sections: [
