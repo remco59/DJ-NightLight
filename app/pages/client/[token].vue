@@ -18,9 +18,9 @@ type PortalData = {
   review: { rating: number, comment: string | null, createdAt: string } | null
   questionnaire: { enabled: boolean, editable: boolean, version: number, fields: QuestionnaireField[], answers: Record<string, Answer>, status: 'not_started' | 'draft' | 'submitted', acceptedName: string | null, submittedAt: string | null }
   wishes: Wish[]
-  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, acceptedTermsVersion: number | null, bookingConfirmedAt: string | null, declinedAt: string | null } | null
+  quote: { id: string, quoteNumber: string | null, status: 'sent' | 'accepted' | 'declined' | 'expired', open: boolean, issueDate: string, validUntil: string, currency: string, vatMode: 'exclusive' | 'inclusive' | 'exempt', vatRateBasisPoints: number, subtotalCents: number, vatAmountCents: number, totalCents: number, terms: string, lines: Array<{ description: string, quantity: string, unitPriceCents: number, totalCents: number }>, acceptedName: string | null, acceptedAt: string | null, acceptedTermsVersion: number | null, reservation: { cents: number, paidAt: string | null } | null, bookingConfirmedAt: string | null, declinedAt: string | null } | null
   terms: { version: number, title: string, summary: string[] } | null
-  invoice: { id:string, invoiceNumber:string|null, totalCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
+  invoice: { id:string, invoiceNumber:string|null, totalCents:number, paidCents:number, amountDueCents:number, currency:string, status:'draft'|'finalized', paymentStatus:'unpaid'|'pending'|'paid'|'failed', dueDate:string, paymentRecordStatus:string|null, paidAt:string|null } | null
 }
 
 const { data, error, refresh } = await useFetch<PortalData>(`/api/client/portal/${encodeURIComponent(token)}`)
@@ -116,6 +116,26 @@ const questionnaireComplete = computed(() => {
 // The booking form is optional: it only exists when the owner switched it on for this gig.
 const formEnabled = computed(() => Boolean(data.value?.questionnaire.enabled))
 const quoteAccepted = computed(() => data.value?.quote?.status === 'accepted')
+// Reservation costs are paid after accepting; the booking stands once they are paid.
+const reservation = computed(() => data.value?.quote?.reservation ?? null)
+const reservationDue = computed(() => quoteAccepted.value && Boolean(reservation.value) && !reservation.value?.paidAt)
+const reservationBusy = ref(false)
+async function payReservation() {
+  reservationBusy.value = true
+  quoteMessage.value = ''
+  try {
+    const result = await $fetch<{ url: string }>(`/api/client/portal/${encodeURIComponent(token)}/reservation-checkout`, { method: 'POST' })
+    window.location.assign(result.url)
+  } catch (paymentError: unknown) {
+    quoteMessage.value = apiErrorMessage(paymentError, 'De betaling kon niet worden gestart. Probeer het later opnieuw.')
+  } finally {
+    reservationBusy.value = false
+  }
+}
+const reservationReturn = computed(() => {
+  const value = Array.isArray(route.query.payment) ? route.query.payment[0] : route.query.payment
+  return value === 'reservation-success' || value === 'reservation-cancelled' ? value : null
+})
 // With a quote, the booking is made first; the form follows once the quote is accepted.
 const formUnlocked = computed(() => !data.value?.quote || quoteAccepted.value)
 const editingForm = ref(false)
@@ -136,7 +156,8 @@ function timedRows(field: QuestionnaireField) { return answers[field.id] as Time
 // The steps this booking has, from what the owner set up. Each is done or still to do.
 const steps = computed(() => {
   const list: Array<{ key: string, label: string, done: boolean }> = []
-  if (data.value?.quote && data.value.quote.status !== 'declined' && data.value.quote.status !== 'expired') list.push({ key: 'quote', label: 'Boeking bevestigen', done: quoteAccepted.value })
+  if (data.value?.quote && data.value.quote.status !== 'declined' && data.value.quote.status !== 'expired') list.push({ key: 'quote', label: 'Offerte accepteren', done: quoteAccepted.value })
+  if (reservation.value) list.push({ key: 'reservation', label: 'Reservering betalen', done: Boolean(reservation.value.paidAt) })
   if (formEnabled.value) list.push({ key: 'form', label: 'Gegevens van het feest invullen', done: data.value?.questionnaire.status === 'submitted' })
   return list
 })
@@ -162,7 +183,7 @@ function formatDueDate(value: string) {
 }
 function invoiceAmount() {
   if (!data.value?.invoice) return ''
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: data.value.invoice.currency }).format(data.value.invoice.totalCents / 100)
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: data.value.invoice.currency }).format(data.value.invoice.amountDueCents / 100)
 }
 function invoiceStatusLabel() {
   const invoice = data.value?.invoice
@@ -303,6 +324,10 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           <div><dt>{{ data.quote.vatMode === 'exempt' ? 'Geen btw' : `BTW (${data.quote.vatRateBasisPoints / 100}%)` }}</dt><dd>{{ formatMoney(data.quote.vatAmountCents, data.quote.currency) }}</dd></div>
           <div class="grand"><dt>Totaal</dt><dd>{{ formatMoney(data.quote.totalCents, data.quote.currency) }}</dd></div>
         </dl>
+        <p v-if="data.quote.reservation" class="reservation-note">
+          <Icon name="lucide:calendar-check" aria-hidden="true" />
+          <span><strong>Reserveringskosten: {{ formatMoney(data.quote.reservation.cents, data.quote.currency) }}</strong>. Je betaalt dit direct na je akkoord om de datum vast te leggen. Het bedrag wordt niet terugbetaald en gaat van de factuur af.</span>
+        </p>
         <p v-if="data.quote.terms" class="quote-terms">{{ data.quote.terms }}</p>
 
         <form v-if="data.quote.open" class="quote-form" @submit.prevent="acceptQuote">
@@ -323,7 +348,11 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
           </div>
         </form>
         <div v-else class="quote-result" :data-status="data.quote.status">
-          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. <template v-if="data.quote.bookingConfirmedAt">Je boeking staat vast; je ontvangt een bevestiging per e-mail.</template><template v-else>Ik bevestig de boeking zo snel mogelijk.</template></span></p>
+          <p v-if="data.quote.status === 'accepted'" role="status"><Icon name="lucide:circle-check" aria-hidden="true" /><span><strong>Bedankt!</strong> Je gaf akkoord op {{ formatDate(data.quote.acceptedAt) }}<template v-if="data.quote.acceptedName"> als {{ data.quote.acceptedName }}</template>. <template v-if="data.quote.bookingConfirmedAt">Je boeking staat vast; je ontvangt een bevestiging per e-mail.</template><template v-else-if="reservationDue">Betaal nu de reserveringskosten om je boeking vast te leggen.</template><template v-else>Ik bevestig de boeking zo snel mogelijk.</template></span></p>
+          <p v-if="reservationDue" class="reservation-pay"><button type="button" class="primary-action" :disabled="reservationBusy" @click="payReservation">{{ reservationBusy ? 'Betaalpagina openen…' : `Reservering betalen (${formatMoney(reservation!.cents, data.quote.currency)})` }} <Icon name="lucide:arrow-right" aria-hidden="true" /></button></p>
+          <p v-if="reservationReturn === 'reservation-success' && reservationDue" class="payment-notice" role="status">Bedankt! We verwerken je betaling. Dit kan even duren, daarna staat je boeking vast.</p>
+          <p v-else-if="reservationReturn === 'reservation-cancelled' && reservationDue" class="payment-notice" role="status">De betaling is niet afgerond. Je kunt het opnieuw proberen.</p>
+          <p v-if="quoteMessage" class="message" role="alert">{{ quoteMessage }}</p>
           <p v-else-if="data.quote.status === 'declined'" role="status"><Icon name="lucide:circle-x" aria-hidden="true" /><span>Je hebt de offerte afgewezen. Wil je toch nog iets aanpassen? Neem gerust contact op.</span></p>
           <p v-else role="status"><Icon name="lucide:clock-alert" aria-hidden="true" /><span>Deze offerte is verlopen. Neem contact op als je hem toch wilt accepteren, dan maak ik een nieuwe.</span></p>
           <a class="ghost-action" :href="`/api/client/portal/${encodeURIComponent(token)}/quote-pdf`" download><Icon name="lucide:download" aria-hidden="true" />PDF</a>
@@ -337,6 +366,7 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
             <p class="eyebrow">Factuur {{ data.invoice.invoiceNumber }}</p>
             <strong v-if="data.invoice.paymentStatus === 'paid'" class="invoice-paid"><Icon name="lucide:check" aria-hidden="true" />Betaald</strong>
             <strong class="invoice-amount">{{ invoiceAmount() }}</strong>
+            <span v-if="data.invoice.paidCents > 0" class="invoice-prepaid">Totaal {{ formatMoney(data.invoice.totalCents, data.invoice.currency) }}, waarvan {{ formatMoney(data.invoice.paidCents, data.invoice.currency) }} al betaald (reservering)</span>
             <span class="invoice-status" :class="`status-${data.invoice.paymentStatus}`"><i />{{ invoiceStatusLabel() }}</span>
             <p v-if="paymentReturn === 'cancelled' && data.invoice.paymentStatus !== 'paid' && data.invoice.paymentStatus !== 'pending'" class="payment-notice" role="status">Je betaling is niet afgerond. Er is niets afgeschreven, je kunt het opnieuw proberen.</p>
             <p v-else-if="paymentReturn === 'success' && data.invoice.paymentStatus !== 'paid'" class="payment-notice" role="status">Bedankt! We verwerken je betaling. Dit kan even duren, dan zie je hier dat de factuur is betaald.</p>
@@ -518,5 +548,5 @@ useSeoMeta({ title: 'Jouw boeking — DJ NightLight', robots: 'noindex, nofollow
 @media(min-width:760px){.portal-hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);align-items:end}.progress-card{align-self:end}}
 @media(max-width:760px){.portal-shell{width:min(100% - 1rem,620px);padding-top:.75rem}.portal-nav{margin:0 .5rem 1rem}.portal-hero{margin-inline:0;border-radius:1.2rem}.portal-hero.has-image{min-height:25rem}.portal-hero h1{font-size:clamp(2.2rem,12vw,3.8rem)}.hero-image{width:100%;opacity:.72}.hero-image-scrim{background:linear-gradient(0deg,#0c0911 0%,rgba(12,9,17,.88) 43%,rgba(12,9,17,.28) 100%)}.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr;padding:1rem}.summary-icon{width:2rem;height:2rem}.field-grid{grid-template-columns:1fr}.wide{grid-column:auto}.wish-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.step-title-row{align-items:flex-start;flex-direction:column;gap:.45rem}.section-action{width:100%;margin-left:0}.submit-actions{flex-direction:column-reverse}.submit-actions button{width:100%}}
 @media(max-width:480px){.summary-grid{grid-template-columns:1fr}.summary-card{grid-template-columns:auto 1fr}.wish-category{min-height:9.25rem;padding:.8rem}.portal-hero{padding:1.1rem}.step-section{padding:1rem}.step-header{grid-template-columns:auto minmax(0,1fr)}.step-number{width:2.2rem;height:2.2rem}.step-title h2{font-size:1.2rem}.review-list>div{padding:.8rem}.invoice-card{grid-template-columns:auto 1fr}.invoice-actions{grid-column:1/-1}.invoice-actions .primary-action,.invoice-actions .secondary-action{flex:1 1 auto}.invoice-actions .ghost-action{flex:0 0 auto}}
-.form-section{margin:0 0 1.2rem;padding:0;border:0}.form-section legend{margin-bottom:.7rem;padding:0;color:var(--text);font-size:1rem;font-weight:750}.timed-list{display:grid;gap:.5rem}.timed-row{display:grid;grid-template-columns:7.5rem 1fr auto;gap:.5rem;align-items:center}.locked-form p{color:var(--text-muted)}@media(max-width:520px){.timed-row{grid-template-columns:6.5rem 1fr auto}}
+.form-section{margin:0 0 1.2rem;padding:0;border:0}.form-section legend{margin-bottom:.7rem;padding:0;color:var(--text);font-size:1rem;font-weight:750}.timed-list{display:grid;gap:.5rem}.timed-row{display:grid;grid-template-columns:7.5rem 1fr auto;gap:.5rem;align-items:center}.locked-form p{color:var(--text-muted)}.reservation-note{display:flex;gap:.6rem;align-items:flex-start;margin:0;padding:.8rem 1rem;border:1px solid var(--border);border-radius:.8rem;background:rgba(94,53,190,.1);line-height:1.5}.reservation-note svg{flex:none;margin-top:.15rem}.reservation-pay{margin:.4rem 0 0}@media(max-width:520px){.timed-row{grid-template-columns:6.5rem 1fr auto}}
 </style>

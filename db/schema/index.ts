@@ -309,6 +309,10 @@ export const quotes = pgTable('quotes', {
   acceptedIpHash: varchar('accepted_ip_hash', { length: 64 }),
   acceptedTermsVersionId: uuid('accepted_terms_version_id').references(() => termsVersions.id, { onDelete: 'restrict' }),
   bookingConfirmedAt: timestamp('booking_confirmed_at', { withTimezone: true }),
+  reservationMode: varchar('reservation_mode', { length: 12 }).$type<'fixed' | 'percentage'>(),
+  reservationValue: integer('reservation_value'),
+  reservationCents: integer('reservation_cents').default(0).notNull(),
+  reservationPaidAt: timestamp('reservation_paid_at', { withTimezone: true }),
   declinedAt: timestamp('declined_at', { withTimezone: true }),
   declineReason: text('decline_reason'),
   voidedAt: timestamp('voided_at', { withTimezone: true }),
@@ -369,6 +373,24 @@ export const payments = pgTable('payments', {
   metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   ...timestamps,
 })
+
+export const reservationPayments = pgTable('reservation_payments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  quoteId: uuid('quote_id').notNull().unique().references(() => quotes.id, { onDelete: 'restrict' }),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  provider: varchar('provider', { length: 40 }).default('stripe').notNull(),
+  providerSessionId: varchar('provider_session_id', { length: 255 }).unique(),
+  providerPaymentIntentId: varchar('provider_payment_intent_id', { length: 255 }).unique(),
+  amountCents: integer('amount_cents').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  status: paymentRecordStatus('status').default('pending').notNull(),
+  attemptCount: integer('attempt_count').default(0).notNull(),
+  checkoutExpiresAt: timestamp('checkout_expires_at', { withTimezone: true }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  failureCode: varchar('failure_code', { length: 160 }),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  ...timestamps,
+}, table => [index('reservation_payments_invoice_id_idx').on(table.invoiceId)])
 
 export const stripeSettings = pgTable('stripe_settings', {
   key: varchar('key', { length: 40 }).primaryKey().default('default'),
@@ -752,6 +774,7 @@ export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
 export type Payment = typeof payments.$inferSelect
+export type ReservationPayment = typeof reservationPayments.$inferSelect
 export type CalendarSyncSettings = typeof calendarSyncSettings.$inferSelect
 export type GigCalendarSync = typeof gigCalendarSync.$inferSelect
 export type EmailTemplate = typeof emailTemplates.$inferSelect

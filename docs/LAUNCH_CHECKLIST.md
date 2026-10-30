@@ -25,6 +25,8 @@ Deploy the candidate commit to staging first.
 - [ ] Client portal invitation opens and can be submitted on mobile.
 - [ ] A staging invoice can be finalized.
 - [ ] Stripe **test mode** Checkout/webhook flow reaches Paid.
+- [ ] Voorwaarden: review the draft in Instellingen → Voorwaarden (open points in `docs/boeking/voorwaarden-samengevoegd.md`) and publish it. Until a version is published, clients accept quotes without terms attached.
+- [ ] Reservation: send a quote with reservation costs, accept it in the portal, pay in Stripe test mode, and confirm the booking is confirmed and the invoice shows the reservation as already paid.
 - [ ] Google Calendar test/staging synchronization updates one event without duplicates.
 - [ ] Email test-send arrives from the verified sending domain.
 - [ ] Upload a photo and generate 1:1, 4:5 and 9:16 social outputs.

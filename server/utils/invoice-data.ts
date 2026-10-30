@@ -2,6 +2,7 @@ import { asc, eq } from 'drizzle-orm'
 import { clients, gigs, invoiceLineItems, invoices, payments } from '../../db/schema'
 import { db } from './db'
 import { gigTitleSql } from './gig-title'
+import { getInvoiceAmountDue } from './invoice-balance'
 
 export async function getInvoiceDetail(id: string) {
   const [invoice] = await db.select({
@@ -46,7 +47,8 @@ export async function getInvoiceDetail(id: string) {
   if (!invoice) return null
   const lines = await db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id)).orderBy(asc(invoiceLineItems.ordering))
   const [payment] = await db.select().from(payments).where(eq(payments.invoiceId, id)).limit(1)
-  return { invoice, lines, payment: payment ?? null }
+  const balance = await getInvoiceAmountDue({ id, totalCents: invoice.totalCents })
+  return { invoice, lines, payment: payment ?? null, ...balance }
 }
 
 export function invoiceClientName(invoice: { clientCompanyName: string | null, clientFirstName: string | null, clientLastName: string | null }) {

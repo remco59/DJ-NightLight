@@ -290,6 +290,12 @@ async function main() {
   const token = new URL(portalLink.url).pathname.split('/').filter(Boolean).pop()
   assert.ok(token, 'Portal token was not returned')
 
+  // The booking form is off until the owner switches it on for the gig.
+  const portalOff = await json<{ questionnaire: { enabled: boolean, fields: unknown[] } }>(await request(`/api/client/portal/${token}`, { authenticated: false }))
+  assert.equal(portalOff.questionnaire.enabled, false)
+  assert.equal(portalOff.questionnaire.fields.length, 0)
+  await json(await request(`/api/admin/gigs/${mainLead.id}/booking-form`, { method: 'PUT', body: { enabled: true, template: 'standaard' } }))
+
   const portalBefore = await json<{
     gig: Record<string, unknown>
     questionnaire: { fields: QuestionnaireField[], status: string }

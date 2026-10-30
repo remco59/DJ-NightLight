@@ -6,6 +6,7 @@ import { quoteDisplayStatus, quoteIsOpenForResponse } from '../../../../shared/q
 import { recordAudit } from '../../../utils/audit'
 import { db, sql } from '../../../utils/db'
 import { resolvePortalAccess } from '../../../utils/portal-access'
+import { getInvoiceAmountDue } from '../../../utils/invoice-balance'
 import { getPortalForm } from '../../../utils/portal-form'
 import { assertRateLimit } from '../../../utils/rate-limit'
 import { getLatestPublishedTerms } from '../../../utils/terms'
@@ -39,6 +40,8 @@ export default defineEventHandler(async (event) => {
     eq(invoices.gigId, access.gigId), ne(invoices.status, 'void'),
   )).orderBy(desc(invoices.finalizedAt), desc(invoices.createdAt)).limit(1)
 
+  const balance = invoice ? await getInvoiceAmountDue({ id: invoice.id, totalCents: invoice.totalCents }) : null
+
   // The newest quote the client can see: sent, accepted or declined (never a draft or a withdrawn one).
   const [quoteRow] = await db.select().from(quotes)
     .where(and(eq(quotes.gigId, access.gigId), inArray(quotes.status, ['sent', 'accepted', 'declined'])))
@@ -68,6 +71,8 @@ export default defineEventHandler(async (event) => {
         acceptedName: quoteRow.acceptedName,
         acceptedAt: quoteRow.acceptedAt,
         acceptedTermsVersion: acceptedTerms?.version ?? null,
+        /** Non-refundable reservation costs, paid after accepting. Null when the quote has none. */
+        reservation: quoteRow.reservationCents > 0 ? { cents: quoteRow.reservationCents, paidAt: quoteRow.reservationPaidAt } : null,
         bookingConfirmedAt: quoteRow.bookingConfirmedAt,
         declinedAt: quoteRow.declinedAt,
       }
@@ -120,7 +125,7 @@ export default defineEventHandler(async (event) => {
       note: wish.note,
       ordering: wish.ordering,
     })),
-    invoice: invoice || null,
+    invoice: invoice ? { ...invoice, paidCents: balance?.paidCents ?? 0, amountDueCents: balance?.amountDueCents ?? invoice.totalCents } : null,
     quote,
     /** The terms a client accepts together with the quote. Null until the owner has published a version. */
     terms: latestTerms ? { version: latestTerms.version, title: latestTerms.title, summary: latestTerms.summary } : null,

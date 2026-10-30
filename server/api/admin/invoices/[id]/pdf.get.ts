@@ -1,4 +1,5 @@
 import { getInvoiceDetail } from '../../../../utils/invoice-data'
+import { getInvoicePrepayments } from '../../../../utils/invoice-balance'
 import { buildInvoiceSnapshot, loadBusinessSettings } from '../../../../utils/invoice-finalize'
 import { buildInvoicePdf } from '../../../../utils/invoice-pdf'
 import { requireStaff } from '../../../../utils/require-staff'
@@ -17,7 +18,7 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'content-type', 'application/pdf')
     setHeader(event, 'content-disposition', 'inline; filename="concept-factuur.pdf"')
     setHeader(event, 'cache-control', 'no-store')
-    return buildInvoicePdf(buildInvoiceSnapshot(detail, settings, 'CONCEPT'))
+    return buildInvoicePdf(buildInvoiceSnapshot(detail, settings, 'CONCEPT', undefined, await getInvoicePrepayments(detail.invoice.id)))
   }
 
   if (!detail.invoice.documentSnapshot || !detail.invoice.invoiceNumber) throw createError({ statusCode: 409, statusMessage: 'Maak de factuur eerst definitief voordat je de PDF maakt' })

@@ -6,6 +6,7 @@ import { db } from '../../../../utils/db'
 import { resolvePortalAccess } from '../../../../utils/portal-access'
 import { assertRateLimit } from '../../../../utils/rate-limit'
 import { hashPortalToken } from '../../../../utils/portal-token'
+import { getInvoiceAmountDue } from '../../../../utils/invoice-balance'
 import { ensureStripeCustomer } from '../../../../utils/stripe-customer'
 
 const CHECKOUT_EXPIRY_SECONDS = 60 * 60
@@ -31,10 +32,11 @@ export default defineEventHandler(async (event) => {
     eq(invoices.gigId, access.gigId), eq(invoices.status, 'finalized'), ne(invoices.paymentStatus, 'paid'),
   )).orderBy(desc(invoices.finalizedAt)).limit(1)
   if (!invoice || !invoice.invoiceNumber) throw createError({ statusCode: 404, statusMessage: 'Er is geen factuur om te betalen' })
-  if (invoice.totalCents <= 0) throw createError({ statusCode: 422, statusMessage: 'Op deze factuur staat geen bedrag meer open' })
+  const { amountDueCents, paidCents } = await getInvoiceAmountDue({ id: invoice.id, totalCents: invoice.totalCents })
+  if (amountDueCents <= 0) throw createError({ statusCode: 422, statusMessage: 'Op deze factuur staat geen bedrag meer open' })
 
   const [reserved] = await db.insert(payments).values({
-    invoiceId: invoice.id, amountCents: invoice.totalCents, currency: invoice.currency, status: 'pending',
+    invoiceId: invoice.id, amountCents: amountDueCents, currency: invoice.currency, status: 'pending',
   }).onConflictDoNothing({ target: payments.invoiceId }).returning()
   const payment = reserved || (await db.select().from(payments).where(eq(payments.invoiceId, invoice.id)).limit(1))[0]
   if (!payment) throw createError({ statusCode: 500, statusMessage: 'Betaling reserveren is niet gelukt' })
@@ -68,7 +70,7 @@ export default defineEventHandler(async (event) => {
     submit_type: 'auto',
     origin_context: 'web',
     line_items: [{
-      price_data: { currency: invoice.currency.toLowerCase(), unit_amount: invoice.totalCents, product_data: { name: `Invoice ${invoice.invoiceNumber}` } },
+      price_data: { currency: invoice.currency.toLowerCase(), unit_amount: amountDueCents, product_data: { name: paidCents > 0 ? `Invoice ${invoice.invoiceNumber} (remaining amount)` : `Invoice ${invoice.invoiceNumber}` } },
       quantity: 1,
     }],
     // Expire after 1 hour. Rounded up to 5 minutes so a double click yields identical params (idempotency key).

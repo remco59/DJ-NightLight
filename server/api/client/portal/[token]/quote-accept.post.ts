@@ -47,6 +47,8 @@ export default defineEventHandler(async (event) => {
     outcome: 'accepted', gigId: access.gigId, gigTitle: access.title, quoteNumber: open.quoteNumber,
     totalCents: open.totalCents, currency: open.currency, acceptedName: parsed.data.acceptedName,
   }, `${open.id}:accepted`)
-  const bookingConfirmed = await confirmBooking(open.id, 'quote_accepted')
-  return { ok: true, acceptedAt: accepted.acceptedAt, bookingConfirmed }
+  // With reservation costs the booking becomes definite when they are paid; without, it is definite now.
+  const reservationDue = accepted.reservationCents > 0
+  const bookingConfirmed = reservationDue ? false : await confirmBooking(open.id, 'quote_accepted')
+  return { ok: true, acceptedAt: accepted.acceptedAt, bookingConfirmed, reservationDue }
 })

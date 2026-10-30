@@ -5907,6 +5907,23 @@ paths:
                 notes:
                   type: string
                   maxLength: 5000
+                reservation:
+                  anyOf:
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - fixed
+                            - percentage
+                        value:
+                          type: integer
+                          exclusiveMinimum: 0
+                          maximum: 9007199254740991
+                      required:
+                        - mode
+                        - value
+                    - type: "null"
                 lines:
                   minItems: 1
                   maxItems: 100
@@ -6052,6 +6069,56 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/admin/quotes/{id}/reservation-paid:
+    post:
+      operationId: postAdminQuotesByIdReservationPaid
+      tags:
+        - admin/quotes
+      description: Records a reservation paid outside Stripe (bank transfer, cash) and confirms the booking.
+      security:
+        - staffSession: []
+      x-roles:
+        - owner
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paidOn:
+                  type: string
+                  format: date
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                method:
+                  default: bankoverschrijving
+                  type: string
+                  maxLength: 60
+              required:
+                - paidOn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/admin/quotes/{id}/send:
     post:
       operationId: postAdminQuotesByIdSend
@@ -7844,7 +7911,7 @@ paths:
       operationId: getClientPortalByToken
       tags:
         - client
-      description: Off unless the owner switched the booking form on for this gig.
+      description: Non-refundable reservation costs, paid after accepting. Null when the quote has none.
       security: []
       x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
       parameters:
@@ -8044,6 +8111,31 @@ paths:
               schema:
                 type: string
                 format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/client/portal/{token}/reservation-checkout:
+    post:
+      operationId: postClientPortalByTokenReservationCheckout
+      tags:
+        - client
+      description: Starts the Stripe payment of the reservation costs of the quote the client accepted.
+      security: []
+      x-access: Het geheime token in het pad ({token}) is de toegang tot het klantportaal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gelukt
+          content:
+            application/json:
+              schema:
+                type: object
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -8566,6 +8658,7 @@ paths:
       operationId: postWebhooksStripe
       tags:
         - webhooks
+      description: A Stripe event about the reservation of a quote. Returns the quote id when the reservation just became paid.
       security:
         - stripeSignature: []
       requestBody:
