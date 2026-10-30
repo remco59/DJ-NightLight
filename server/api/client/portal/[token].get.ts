@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, ne } from 'drizzle-orm'
 import { gigReviews, invoices, payments, portalLinks, quotes, termsVersions } from '../../../../db/schema'
 import { todayInAmsterdam } from '../../../../shared/dates'
-import { gigIsFinished } from '../../../../shared/gig-phase'
+import { gigHasStarted, gigIsFinished } from '../../../../shared/gig-phase'
 import { quoteDisplayStatus, quoteIsOpenForResponse } from '../../../../shared/quote'
 import { recordAudit } from '../../../utils/audit'
 import { db, sql } from '../../../utils/db'
@@ -101,14 +101,18 @@ export default defineEventHandler(async (event) => {
     reviewOpen: finished && access.status === 'booked',
     // Once the gig is over, the party details and music wishes are no longer shown.
     questionnaire: {
-      version: form.version.version,
-      fields: finished ? [] : form.version.fields,
+      /** Off unless the owner switched the booking form on for this gig. */
+      enabled: form.enabled,
+      /** The client can still change the form until the party begins. */
+      editable: form.enabled && !gigHasStarted(access),
+      version: form.templateVersion ?? 0,
+      fields: finished || !form.enabled ? [] : form.fields,
       answers: finished ? {} : form.submission?.answers || {},
       status: form.submission?.status || 'not_started',
       acceptedName: form.submission?.acceptedName || null,
       submittedAt: form.submission?.submittedAt || null,
     },
-    wishes: finished ? [] : form.wishes.map(wish => ({
+    wishes: finished || !form.enabled ? [] : form.wishes.map(wish => ({
       category: wish.category,
       artist: wish.artist,
       title: wish.title,

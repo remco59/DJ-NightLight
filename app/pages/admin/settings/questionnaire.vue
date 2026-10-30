@@ -1,41 +1,23 @@
 <script setup lang="ts">
-import type { QuestionnaireField, QuestionnaireFieldType } from '~~/shared/questionnaire'
-import { questionnaireFieldTypes } from '~~/shared/questionnaire'
+import type { QuestionnaireField } from '~~/shared/questionnaire'
 import { apiErrorMessage } from '~/utils/api-error'
+import { fromEditable, toEditable } from '~/utils/questionnaire-editor'
 
 definePageMeta({ layout: 'admin' })
-type EditableField = QuestionnaireField & { optionsText: string }
 type TemplateResponse = { template: { name: string, version: number, fields: QuestionnaireField[], createdAt: string } }
 const { data, refresh } = await useFetch<TemplateResponse>('/api/admin/questionnaire')
 if (!data.value) throw createError({ statusCode: 404, statusMessage: 'Vragenlijst niet gevonden' })
 const name = ref(data.value.template.name)
-const fields = ref<EditableField[]>(data.value.template.fields.map(field => ({ ...field, helpText: field.helpText || '', optionsText: (field.options || []).join('\n') })))
+const fields = ref(toEditable(data.value.template.fields))
 const saving = ref(false)
 const message = ref('')
-const typeLabels: Record<QuestionnaireFieldType, string> = {
-  short_text: 'Korte tekst', long_text: 'Lange tekst', email: 'E-mail', phone: 'Telefoon', number: 'Getal', date: 'Datum', time: 'Tijd', select: 'Keuzelijst', multi_select: 'Meerkeuze', checkbox: 'Selectievakje', acknowledgement: 'Akkoord / voorwaarden', url: 'URL',
-}
-
-function addField() {
-  fields.value.push({ id: `field_${Date.now()}`, type: 'short_text', label: 'Nieuwe vraag', helpText: '', required: false, optionsText: '' })
-}
-function move(index: number, direction: number) {
-  const target = index + direction
-  if (target < 0 || target >= fields.value.length) return
-  const [field] = fields.value.splice(index, 1)
-  if (field) fields.value.splice(target, 0, field)
-}
 const { isDirty, markSaved } = useUnsavedChanges(() => ({ name: name.value, fields: fields.value }))
 async function save() {
   saving.value = true; message.value = ''
   try {
     await $fetch('/api/admin/questionnaire', { method: 'PUT', body: {
       name: name.value,
-      fields: fields.value.map(({ optionsText, ...field }) => ({
-        ...field,
-        helpText: field.helpText || undefined,
-        options: field.type === 'select' || field.type === 'multi_select' ? optionsText.split('\n').map(item => item.trim()).filter(Boolean) : undefined,
-      })),
+      fields: fromEditable(fields.value),
     } })
     markSaved()
     await refresh()
@@ -49,13 +31,8 @@ useSeoMeta({ title: 'Klantportaal — DJ NightLight', robots: 'noindex, nofollow
   <div class="editor">
     <header class="page-header"><div><h2>Vragenlijst</h2><p>Elke keer opslaan maakt een nieuwe, vaste versie. Ingediende gigs houden precies de vragen die ze kregen.</p></div><div class="save-state"><span v-if="isDirty" class="dirty-note" role="status">Niet-opgeslagen wijzigingen</span><button class="primary" :disabled="saving||!isDirty" @click="save">{{ saving ? 'Opslaan…' : 'Nieuwe versie opslaan' }}</button></div></header>
     <section class="card meta"><label>Naam template<input v-model="name"></label><span>Huidige versie {{ data?.template.version }}</span></section>
-    <section class="field-list">
-      <article v-for="(field,index) in fields" :key="field.id" class="card field-card">
-        <div class="field-heading"><strong>Vraag {{ index + 1 }}</strong><div><button aria-label="Omhoog" title="Omhoog" @click="move(index,-1)"><Icon name="lucide:arrow-up" aria-hidden="true" /></button><button aria-label="Omlaag" title="Omlaag" @click="move(index,1)"><Icon name="lucide:arrow-down" aria-hidden="true" /></button><button class="remove" @click="fields.splice(index,1)">Verwijderen</button></div></div>
-        <div class="grid"><label class="wide">Label<input v-model="field.label" required></label><label>Soort veld<select v-model="field.type"><option v-for="type in questionnaireFieldTypes" :key="type" :value="type">{{ typeLabels[type] }}</option></select></label><details class="field-key"><summary>Technische sleutel</summary><label>Veld-ID <small>Alleen kleine letters, cijfers en _. Wijzig dit niet als er al antwoorden zijn.</small><input v-model="field.id" pattern="[a-z0-9_]+"></label></details><label class="wide">Hulptekst<input v-model="field.helpText"></label><label v-if="field.type==='select'||field.type==='multi_select'" class="wide">Opties (één per regel)<textarea v-model="field.optionsText" rows="4"/></label><label class="check"><input v-model="field.required" type="checkbox"> Verplicht</label></div>
-      </article>
-    </section>
-    <button class="add" @click="addField"><Icon name="lucide:plus" aria-hidden="true" /> Vraag toevoegen</button><p v-if="message" class="message">{{ message }}</p>
+    <FormsQuestionnaireFieldsEditor v-model="fields" />
+    <p v-if="message" class="message">{{ message }}</p>
   </div>
 </template>
 

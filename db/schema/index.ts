@@ -102,6 +102,7 @@ export const gigs = pgTable('gigs', {
   loadInAt: timestamp('load_in_at', { withTimezone: true }),
   fee: numeric('fee', { precision: 12, scale: 2 }),
   currency: varchar('currency', { length: 3 }).default('EUR').notNull(),
+  bookingFormEnabled: boolean('booking_form_enabled').default(false).notNull(),
   publicVisibility: boolean('public_visibility').default(false).notNull(),
   publicTitle: varchar('public_title', { length: 240 }),
   publicDescription: text('public_description'),
@@ -176,10 +177,19 @@ export const questionnaireTemplateVersions = pgTable('questionnaire_template_ver
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, table => [uniqueIndex('questionnaire_template_version_unique').on(table.templateId, table.version)])
 
+export const gigForms = pgTable('gig_forms', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
+  templateKey: varchar('template_key', { length: 40 }).notNull(),
+  fields: jsonb('fields').$type<QuestionnaireField[]>().default([]).notNull(),
+  ...timestamps,
+})
+
 export const contractSubmissions = pgTable('contract_submissions', {
   id: uuid('id').defaultRandom().primaryKey(),
   gigId: uuid('gig_id').notNull().unique().references(() => gigs.id, { onDelete: 'cascade' }),
-  templateVersionId: uuid('template_version_id').notNull().references(() => questionnaireTemplateVersions.id, { onDelete: 'restrict' }),
+  templateVersionId: uuid('template_version_id').references(() => questionnaireTemplateVersions.id, { onDelete: 'restrict' }),
+  gigFormId: uuid('gig_form_id').references(() => gigForms.id, { onDelete: 'set null' }),
   portalLinkId: uuid('portal_link_id').references(() => portalLinks.id, { onDelete: 'set null' }),
   status: submissionStatus('status').default('draft').notNull(),
   answers: jsonb('answers').$type<Record<string, unknown>>().default({}).notNull(),
@@ -736,6 +746,7 @@ export type QuestionnaireTemplate = typeof questionnaireTemplates.$inferSelect
 export type QuestionnaireTemplateVersion = typeof questionnaireTemplateVersions.$inferSelect
 export type ContractSubmission = typeof contractSubmissions.$inferSelect
 export type MusicWish = typeof musicWishes.$inferSelect
+export type GigForm = typeof gigForms.$inferSelect
 export type TermsVersion = typeof termsVersions.$inferSelect
 export type BusinessSettings = typeof businessSettings.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
