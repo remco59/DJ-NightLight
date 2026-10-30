@@ -30,7 +30,7 @@ const adminEmail = process.env.A11Y_ADMIN_EMAIL || 'owner-e2e@example.com'
 const adminPassword = process.env.A11Y_ADMIN_PASSWORD || 'nightlight-e2e-password-123'
 const requireAdmin = process.env.A11Y_REQUIRE_ADMIN === '1'
 
-const staticPages = ['/', '/about', '/media', '/agenda', '/boeken']
+const staticPages = ['/', '/about', '/media', '/agenda', '/boeken', '/voorwaarden']
 const adminPages = [
   '/admin',
   '/admin/gigs',
@@ -43,6 +43,8 @@ const adminPages = [
   '/admin/settings/emails',
   '/admin/settings/company',
   '/admin/settings/invoicing',
+  '/admin/settings/terms',
+  '/admin/settings/questionnaire',
   '/admin/settings/integrations',
 ]
 const viewports = {
